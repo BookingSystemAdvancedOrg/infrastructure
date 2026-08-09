@@ -1,0 +1,20 @@
+name: Dev Terraform CI/CD
+
+on:
+  push:
+    branches:
+      - dev
+  pull_request:
+    branches:
+      - dev
+
+jobs:
+  terraform:
+    uses: ./.github/workflows/reusable_cicd.yml
+    secrets: inherit
+    permissions:
+      id-token: write
+      contents: read
+    with:
+      environment: dev
+

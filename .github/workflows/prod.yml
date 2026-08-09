@@ -1,0 +1,20 @@
+name: Prod Terraform CI/CD
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  terraform:
+    uses: ./.github/workflows/reusable_cicd.yml
+    secrets: inherit
+    permissions:
+      id-token: write
+      contents: read
+    with:
+      environment: prod
+
