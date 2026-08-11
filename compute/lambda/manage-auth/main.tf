@@ -25,9 +25,10 @@ resource "aws_lambda_function" "this" {
 
   environment {
     variables = {
-      ENVIRONMENT          = var.environment
-      COGNITO_USER_POOL_ID = var.cognito_user_pool_id
-      COGNITO_CLIENT_ID    = var.cognito_client_id
+      ENVIRONMENT           = var.environment
+      COGNITO_USER_POOL_ID  = var.cognito_user_pool_id
+      COGNITO_CLIENT_ID     = var.cognito_client_id
+      COGNITO_CLIENT_SECRET = var.cognito_client_secret
     }
   }
 

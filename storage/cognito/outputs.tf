@@ -12,3 +12,9 @@ output "user_pool_client_id" {
   description = "ID of the app client used for staff/owner/super-user login"
   value       = aws_cognito_user_pool_client.this.id
 }
+
+output "user_pool_client_secret" {
+  description = "Secret of the app client used for staff/owner/super-user login"
+  value       = aws_cognito_user_pool_client.this.client_secret
+  sensitive   = true
+}

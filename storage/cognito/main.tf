@@ -38,9 +38,15 @@ resource "aws_cognito_user_pool_client" "this" {
   name         = var.environment == "prod" ? "staff-app-client" : "${var.environment}-staff-app-client"
   user_pool_id = aws_cognito_user_pool.this.id
 
-  # Public client (browser app) - never issue a secret; JS running in a
-  # browser can't keep one confidential anyway.
-  generate_secret = false
+  # NOTE: generate_secret was previously false — this was a public client
+  # (browser app), and JS running in a browser can't keep a secret
+  # confidential. It's now true because manage-auth needs a client secret.
+  # If the browser (or any other consumer) still calls this same client
+  # directly, that flow is now broken: a client with a secret must send
+  # SECRET_HASH on every InitiateAuth/AdminInitiateAuth call, which a
+  # public JS client can't safely compute. Confirm nothing else uses this
+  # client before applying, or split manage-auth onto its own client.
+  generate_secret = true
 
   # Direct email + password login (InitiateAuth), no Hosted UI redirect.
   explicit_auth_flows = [

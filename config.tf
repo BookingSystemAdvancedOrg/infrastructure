@@ -441,13 +441,14 @@ module "list_layout_version_fn" {
   region                               = var.aws_region
 }
 module "manage_auth_fn" {
-  source               = "./compute/lambda/manage-auth"
-  environment          = var.env
-  role_arn             = module.manage_auth_role.role_arn
-  ecr_repository_url   = module.manage_auth_ecr.manage_auth_ecr_repository_url
-  cognito_user_pool_id = module.cognito.user_pool_id
-  cognito_client_id    = module.cognito.user_pool_client_id
-  region               = var.aws_region
+  source                 = "./compute/lambda/manage-auth"
+  environment            = var.env
+  role_arn               = module.manage_auth_role.role_arn
+  ecr_repository_url     = module.manage_auth_ecr.manage_auth_ecr_repository_url
+  cognito_user_pool_id   = module.cognito.user_pool_id
+  cognito_client_id      = module.cognito.user_pool_client_id
+  cognito_client_secret  = module.cognito.user_pool_client_secret
+  region                 = var.aws_region
 }
 module "manage_layout_element_fn" {
   source                         = "./compute/lambda/manage-layout-element"

@@ -28,6 +28,12 @@ variable "cognito_client_id" {
   sensitive   = false
 }
 
+variable "cognito_client_secret" {
+  description = "Secret of the Cognito user pool app client, passed as an environment variable for the handler's SDK calls (required for SECRET_HASH once the client has a secret)"
+  type        = string
+  sensitive   = true
+}
+
 variable "region" {
   description = "AWS region this Lambda's log group, ECR repository, and image push target live in"
   type        = string
