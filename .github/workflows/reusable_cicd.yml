@@ -18,7 +18,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Load shared project config
-        run: cat .github/config/project.env >> "$GITHUB_ENV"
+        run: grep -v '^#' .github/config/project.env | grep -v '^[[:space:]]*$' >> "$GITHUB_ENV"
 
       - name: Export Terraform variables
         # Terraform reads any TF_VAR_<name> env var automatically and maps
