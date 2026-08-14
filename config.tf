@@ -107,11 +107,11 @@ module "manage_menu_role" {
   region         = var.aws_region
 }
 module "manage_user_role" {
-  source           = "./security/iam/manage-user"
-  environment      = var.env
-  user_table_arn   = module.user.table_arn
-  user_pool_arn    = module.cognito.user_pool_arn
-  region           = var.aws_region
+  source         = "./security/iam/manage-user"
+  environment    = var.env
+  user_table_arn = module.user.table_arn
+  user_pool_arn  = module.cognito.user_pool_arn
+  region         = var.aws_region
 }
 module "get_reservation_role" {
   source                = "./security/iam/get-reservation"
@@ -207,18 +207,18 @@ module "no_show_check_role" {
   region                        = var.aws_region
 }
 module "cancel_reservation_role" {
-  source                    = "./security/iam/cancel-reservation"
-  environment               = var.env
-  location_table_arn        = module.location.table_arn
-  slot_occupancy_table_arn  = module.slot_occupancy.table_arn
-  reservation_table_arn     = module.reservation.table_arn
-  region                    = var.aws_region
+  source                   = "./security/iam/cancel-reservation"
+  environment              = var.env
+  location_table_arn       = module.location.table_arn
+  slot_occupancy_table_arn = module.slot_occupancy.table_arn
+  reservation_table_arn    = module.reservation.table_arn
+  region                   = var.aws_region
 }
 module "pre_signed_url_role" {
-  source                  = "./security/iam/pre-signed-url"
-  environment             = var.env
-  menu_images_bucket_arn  = module.menu_image.bucket_arn
-  region                  = var.aws_region
+  source                 = "./security/iam/pre-signed-url"
+  environment            = var.env
+  menu_images_bucket_arn = module.menu_image.bucket_arn
+  region                 = var.aws_region
 }
 module "manage_auth_role" {
   source        = "./security/iam/manage-auth"
@@ -441,14 +441,14 @@ module "list_layout_version_fn" {
   region                               = var.aws_region
 }
 module "manage_auth_fn" {
-  source                 = "./compute/lambda/manage-auth"
-  environment            = var.env
-  role_arn               = module.manage_auth_role.role_arn
-  ecr_repository_url     = module.manage_auth_ecr.manage_auth_ecr_repository_url
-  cognito_user_pool_id   = module.cognito.user_pool_id
-  cognito_client_id      = module.cognito.user_pool_client_id
-  cognito_client_secret  = module.cognito.user_pool_client_secret
-  region                 = var.aws_region
+  source                = "./compute/lambda/manage-auth"
+  environment           = var.env
+  role_arn              = module.manage_auth_role.role_arn
+  ecr_repository_url    = module.manage_auth_ecr.manage_auth_ecr_repository_url
+  cognito_user_pool_id  = module.cognito.user_pool_id
+  cognito_client_id     = module.cognito.user_pool_client_id
+  cognito_client_secret = module.cognito.user_pool_client_secret
+  region                = var.aws_region
 }
 module "manage_layout_element_fn" {
   source                         = "./compute/lambda/manage-layout-element"
@@ -535,11 +535,11 @@ module "stripe_webhook_fn" {
 
 #API Gateway
 module "api_gateway" {
-  source                                   = "./network/api-gateway"
-  environment                              = var.env
-  region                                   = var.aws_region
-  cognito_user_pool_id                     = module.cognito.user_pool_id
-  cognito_client_id                        = module.cognito.user_pool_client_id
+  source               = "./network/api-gateway"
+  environment          = var.env
+  region               = var.aws_region
+  cognito_user_pool_id = module.cognito.user_pool_id
+  cognito_client_id    = module.cognito.user_pool_client_id
   allowed_origins = [
     "https://${module.cloudfront_public.distribution_domain_name}",
     "https://${module.cloudfront_private.distribution_domain_name}",

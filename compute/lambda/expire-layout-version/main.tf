@@ -25,7 +25,7 @@ resource "aws_lambda_function" "this" {
 
   environment {
     variables = {
-      ENVIRONMENT                         = var.environment
+      ENVIRONMENT                          = var.environment
       PUBLISHED_LAYOUT_SNAPSHOT_TABLE_NAME = var.published_layout_snapshot_table_name
     }
   }

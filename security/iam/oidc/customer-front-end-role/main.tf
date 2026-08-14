@@ -47,9 +47,9 @@ resource "aws_iam_role_policy" "s3_deploy" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "ListOwnBucket"
-        Effect = "Allow"
-        Action = "s3:ListBucket"
+        Sid      = "ListOwnBucket"
+        Effect   = "Allow"
+        Action   = "s3:ListBucket"
         Resource = "${var.customer_bucket_arn}"
       },
       {

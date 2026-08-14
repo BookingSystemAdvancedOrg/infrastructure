@@ -10,7 +10,7 @@ resource "aws_dynamodb_table" "slot_occupancy" {
     name = "PK"
     type = "S"
   }
-  
+
   # SK: SLOT#<date>#<start-end>#<tableId>. Date comes right after "SLOT#"
   # on purpose: SK begins_with "SLOT#<date>" lists every occupied slot on
   # one day (or narrow further to "SLOT#<date>#<start-end>" for one time

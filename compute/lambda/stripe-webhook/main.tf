@@ -29,8 +29,8 @@ resource "aws_lambda_function" "this" {
       LOCATION_TABLE_NAME            = var.location_table_name
       RESERVATION_TABLE_NAME         = var.reservation_table_name
       PAYMENT_DELINQUENCY_TABLE_NAME = var.payment_delinquency_table_name
-      SCHEDULER_INVOKE_ROLE_ARN      = var.scheduler_invoke_role_arn # the Role for EventBridge Scheduler to assume when invoking the Lambda, so the Lambda can be invoked by Scheduler
-      NO_SHOW_CHECK_FUNCTION_ARN     = var.no_show_check_function_arn  # the Lambda function ARN for the no-show check Lambda, so this Lambda can invoke it to check for no-shows
+      SCHEDULER_INVOKE_ROLE_ARN      = var.scheduler_invoke_role_arn  # the Role for EventBridge Scheduler to assume when invoking the Lambda, so the Lambda can be invoked by Scheduler
+      NO_SHOW_CHECK_FUNCTION_ARN     = var.no_show_check_function_arn # the Lambda function ARN for the no-show check Lambda, so this Lambda can invoke it to check for no-shows
     }
   }
 

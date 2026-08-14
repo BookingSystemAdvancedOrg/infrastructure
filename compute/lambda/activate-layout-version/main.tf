@@ -18,16 +18,16 @@ resource "aws_lambda_function" "this" {
   role          = var.role_arn
   package_type  = "Image"
   image_uri     = "${var.ecr_repository_url}:latest"
-  architectures   = ["arm64"]
+  architectures = ["arm64"]
 
-  timeout       = 28
-  memory_size   = 512
+  timeout     = 28
+  memory_size = 512
 
   environment {
     variables = {
       ENVIRONMENT                          = var.environment
       PUBLISHED_LAYOUT_SNAPSHOT_TABLE_NAME = var.published_layout_snapshot_table_name
-      SCHEDULER_INVOKE_ROLE_ARN            = var.scheduler_invoke_role_arn # the Role for EventBridge Scheduler to assume when invoking expire-layout-version
+      SCHEDULER_INVOKE_ROLE_ARN            = var.scheduler_invoke_role_arn          # the Role for EventBridge Scheduler to assume when invoking expire-layout-version
       EXPIRE_LAYOUT_VERSION_FUNCTION_ARN   = var.expire_layout_version_function_arn # the Lambda function ARN for expire-layout-version, the Scheduler target for the cutover schedule
     }
   }
