@@ -25,7 +25,6 @@ variable "stripe_secret_key" {
   sensitive   = true
 }
 variable "stripe_webhook_secret" {
-  default     = "placeholder"
   type        = string
   description = "Signing secret (whsec_...) for the stripe-webhook endpoint - dev or prod value depending on which environment is deploying"
   sensitive   = true
