@@ -40,7 +40,6 @@ jobs:
       - name: Export Stripe secrets
         run: |
           echo "TF_VAR_stripe_secret_key=${{ inputs.environment == 'prod' && secrets.STRIPE_SECRET_KEY_PROD || secrets.STRIPE_SECRET_KEY_DEV }}" >> "$GITHUB_ENV"
-          echo "TF_VAR_stripe_publishable_key=${{ inputs.environment == 'prod' && secrets.STRIPE_PUBLISHABLE_KEY_PROD || secrets.STRIPE_PUBLISHABLE_KEY_DEV }}" >> "$GITHUB_ENV"
           echo "TF_VAR_stripe_webhook_secret=${{ inputs.environment == 'prod' && secrets.STRIPE_WEBHOOK_SECRET_PROD || secrets.STRIPE_WEBHOOK_SECRET_DEV }}" >> "$GITHUB_ENV"
 
       - name: Configure AWS credentials

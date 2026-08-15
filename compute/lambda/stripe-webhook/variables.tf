@@ -51,3 +51,9 @@ variable "region" {
   type        = string
   sensitive   = false
 }
+
+variable "stripe_webhook_secret" {
+  description = "Signing secret (whsec_...) for this endpoint - the handler verifies the Stripe-Signature header against this value, which is what actually authenticates incoming requests since authorization_type is NONE"
+  type        = string
+  sensitive   = true
+}

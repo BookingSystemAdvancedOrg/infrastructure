@@ -216,7 +216,7 @@ module "cancel_reservation_role" {
 }
 module "pre_signed_url_role" {
   source                 = "./security/iam/pre-signed-url"
-  environment            = var.env
+  environment             = var.env
   menu_images_bucket_arn = module.menu_image.bucket_arn
   region                 = var.aws_region
 }
@@ -530,6 +530,7 @@ module "stripe_webhook_fn" {
   scheduler_invoke_role_arn      = module.scheduler_invoke_no_show_check_role.role_arn
   no_show_check_function_arn     = module.no_show_check_fn.function_arn
   region                         = var.aws_region
+  stripe_webhook_secret          = var.stripe_webhook_secret
 }
 
 

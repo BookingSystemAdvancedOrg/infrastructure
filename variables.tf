@@ -24,12 +24,8 @@ variable "stripe_secret_key" {
   description = "Stripe secret API key (sk_...) - dev or prod value depending on which environment is deploying"
   sensitive   = true
 }
-variable "stripe_publishable_key" {
-  type        = string
-  description = "Stripe publishable API key (pk_...) - dev or prod value depending on which environment is deploying. Not marked sensitive: by design this key is safe to expose to the browser, it just differs per environment like the others here"
-  sensitive   = false
-}
 variable "stripe_webhook_secret" {
+  default     = "placeholder"
   type        = string
   description = "Signing secret (whsec_...) for the stripe-webhook endpoint - dev or prod value depending on which environment is deploying"
   sensitive   = true

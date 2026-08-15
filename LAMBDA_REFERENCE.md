@@ -47,7 +47,7 @@ pending → reserved → arrived
 
 **Logging.** Every function can write to its own CloudWatch log group — not listed per-function below since it's not relevant to application logic.
 
-**Known gap — Stripe keys not yet wired.** `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`, and `STRIPE_API_VERSION` exist as root Terraform variables (dev/prod values already in GitHub Secrets) but are **not yet added to any Lambda's environment block**. `stripe-webhook`, `create-pending-reservation`, and possibly `no-show-check` will need some subset of these once you start implementing Stripe calls. Flag this to whoever owns the infra repo before you get there — don't assume the env var will just appear.
+**Known gap — Stripe keys not yet wired.** `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, and `STRIPE_API_VERSION` exist as root Terraform variables (dev/prod values already in GitHub Secrets) but are **not yet added to any Lambda's environment block**. `stripe-webhook`, `create-pending-reservation`, and possibly `no-show-check` will need some subset of these once you start implementing Stripe calls. Flag this to whoever owns the infra repo before you get there — don't assume the env var will just appear.
 
 ---
 
@@ -124,7 +124,7 @@ pending → reserved → arrived
 
 ### 6. `create-pending-reservation`
 **Trigger:** API Gateway — `POST /reservations` — Auth: `NONE`
-**Purpose:** The main booking entry point for customers (no login required). Validates the requested slot against the location's rules and the published layout, checks the customer's phone number against Payment Delinquency (refuse booking if they have unpaid debt from a prior no-show/late-cancel), then atomically holds the slot in Slot Occupancy and writes a new Reservation item with `status = "pending"`. This function is also where the Stripe SetupIntent should be created (card-on-file, no charge yet) so the front-end can collect card details — see the Stripe keys gap noted above; you'll need `STRIPE_SECRET_KEY` added here to call Stripe, and likely want to return `STRIPE_PUBLISHABLE_KEY` in the response for the front-end to confirm the SetupIntent client-side.
+**Purpose:** The main booking entry point for customers (no login required). Validates the requested slot against the location's rules and the published layout, checks the customer's phone number against Payment Delinquency (refuse booking if they have unpaid debt from a prior no-show/late-cancel), then atomically holds the slot in Slot Occupancy and writes a new Reservation item with `status = "pending"`. This function is also where the Stripe SetupIntent should be created (card-on-file, no charge yet) so the front-end can collect card details — see the Stripe keys gap noted above; you'll need `STRIPE_SECRET_KEY` added here to call Stripe. The publishable key the front-end needs to confirm the SetupIntent client-side should come from the front-end's own build-time config, not this Lambda's response.
 **Environment variables:**
 | Name | Meaning |
 |---|---|
