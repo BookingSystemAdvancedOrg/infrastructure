@@ -18,6 +18,30 @@ output "admin_site_domain" {
   value       = module.cloudfront_private.distribution_domain_name
 }
 
+# Read by CI (reusable_cicd.yml, "Deploy placeholder front-end" step) to
+# sync a placeholder site into each bucket right after infra is applied, so
+# the CloudFront distribution can be confirmed working before either
+# front-end repo's own pipeline pushes a real build here.
+output "customer_front_end_bucket_name" {
+  description = "Name of the customer front-end asset S3 bucket"
+  value       = module.customer_front_end_asset.bucket_name
+}
+
+output "admin_front_end_bucket_name" {
+  description = "Name of the admin front-end asset S3 bucket"
+  value       = module.admin_front_end_asset.bucket_name
+}
+
+output "customer_cloudfront_distribution_id" {
+  description = "ID of the public CloudFront distribution - used by CI to invalidate the cache after syncing new content to the customer bucket"
+  value       = module.cloudfront_public.distribution_id
+}
+
+output "admin_cloudfront_distribution_id" {
+  description = "ID of the private CloudFront distribution - used by CI to invalidate the cache after syncing new content to the admin bucket"
+  value       = module.cloudfront_private.distribution_id
+}
+
 # Function name -> ECR repository URL (no tag), for all 20 Lambda container
 # image repos. Read by the CI pipeline (reusable_cicd.yml) after the
 # ECR-only targeted apply, to find any repository that doesn't have a

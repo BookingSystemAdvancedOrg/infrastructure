@@ -150,11 +150,10 @@ jobs:
         # Confirms the S3 + CloudFront wiring works end-to-end right after
         # infra is applied, before either front-end repo's own CI/CD has
         # ever run. Guarded the same way the placeholder Lambda image step
-        # above is guarded: only touches a bucket that's completely empty -
-        # any object at all (not just an index.html at the root) counts as
-        # "already deployed" - so this never overwrites a real front-end
-        # build. Once customer-front-end/admin-front-end's own pipeline
-        # deploys here, this step is a permanent no-op for that bucket.
+        # above is guarded: only touches a bucket that has no index.html
+        # yet, so this never overwrites a real front-end build - once
+        # customer-front-end/admin-front-end's own pipeline deploys here,
+        # this step is a permanent no-op for that bucket.
         if: github.event_name == 'push'
         run: |
           set -euo pipefail
@@ -166,9 +165,7 @@ jobs:
 
           deploy_placeholder() {
             local bucket="$1" src="$2" distribution_id="$3"
-            local key_count
-            key_count=$(aws s3api list-objects-v2 --bucket "$bucket" --max-items 1 --output json | jq '.KeyCount // 0')
-            if [ "$key_count" -gt 0 ]; then
+            if aws s3api head-object --bucket "$bucket" --key index.html >/dev/null 2>&1; then
               echo "skip $bucket - already has content"
               return
             fi
