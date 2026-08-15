@@ -8,7 +8,7 @@ locals {
 # each distribution's access can be revoked independently later without
 # touching the other.
 resource "aws_cloudfront_origin_access_control" "admin_front_end_asset" {
-  name                              = "${local.distribution_comment}-admin-front-end-asset-oac"
+  name                              = "${local.distribution_comment}-admin-fe-oac"
   origin_access_control_origin_type = "s3"
   signing_behavior                  = "always"
   signing_protocol                  = "sigv4"
