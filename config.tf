@@ -216,7 +216,7 @@ module "cancel_reservation_role" {
 }
 module "pre_signed_url_role" {
   source                 = "./security/iam/pre-signed-url"
-  environment             = var.env
+  environment            = var.env
   menu_images_bucket_arn = module.menu_image.bucket_arn
   region                 = var.aws_region
 }
