@@ -1,0 +1,178 @@
+name: Terraform Reusable
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+
+jobs:
+  terraform:
+    runs-on: ubuntu-24.04
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Load shared project config
+        run: |
+          grep -v '^#' .github/config/project.env \
+            | grep -v '^[[:space:]]*$' \
+            | sed -e $'s/\r$//' -e 's/="\(.*\)"$/=\1/' \
+            >> "$GITHUB_ENV"
+
+      - name: Export Terraform variables
+        # Terraform reads any TF_VAR_<name> env var automatically and maps
+        # it to var.<name> - this is what lets `terraform plan`/`apply`
+        # below pick up these values with no -var/-var-file needed for them.
+        run: |
+          echo "TF_VAR_aws_region=${{ env.AWS_REGION }}" >> "$GITHUB_ENV"
+          echo "TF_VAR_no_reply_email_address=${{ env.NO_REPLY_EMAIL_ADDRESS }}" >> "$GITHUB_ENV"
+          echo "TF_VAR_stripe_api_version=${{ env.STRIPE_API_VERSION }}" >> "$GITHUB_ENV"
+          echo "TF_VAR_github_org=${{ env.GITHUB_ORG }}" >> "$GITHUB_ENV"
+          echo "TF_VAR_customer_frontend_repo=${{ env.CUSTOMER_FRONTEND_REPO }}" >> "$GITHUB_ENV"
+          echo "TF_VAR_admin_frontend_repo=${{ env.ADMIN_FRONTEND_REPO }}" >> "$GITHUB_ENV"
+          echo "TF_VAR_backend_repo=${{ env.BACKEND_REPO }}" >> "$GITHUB_ENV"
+
+      - name: Export Stripe secrets
+        run: |
+          echo "TF_VAR_stripe_secret_key=${{ inputs.environment == 'prod' && secrets.STRIPE_SECRET_KEY_PROD || secrets.STRIPE_SECRET_KEY_DEV }}" >> "$GITHUB_ENV"
+          echo "TF_VAR_stripe_webhook_secret=${{ inputs.environment == 'prod' && secrets.STRIPE_WEBHOOK_SECRET_PROD || secrets.STRIPE_WEBHOOK_SECRET_DEV }}" >> "$GITHUB_ENV"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ inputs.environment == 'prod' && env.OIDC_ROLE_ARN_PROD || env.OIDC_ROLE_ARN_DEV }}
+          aws-region: "${{ env.AWS_REGION }}"
+          role-session-name: gha-${{ inputs.environment }}-${{ github.run_id }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: "~1.14.0"
+          terraform_wrapper: true
+
+      - name: Terraform format check
+        run: terraform fmt -check -recursive -diff
+
+      - name: Terraform init
+        # Separate bucket per environment, picked by name rather than
+        # derived by prefixing - dev and prod are different AWS accounts,
+        # so these are two entirely different buckets, not a shared base
+        # name with a computed prefix.
+        run: |
+          terraform init -input=false \
+            -backend-config="bucket=${{ inputs.environment == 'prod' && env.TERRAFORM_STATES_BUCKET_NAME_PROD || env.TERRAFORM_STATES_BUCKET_NAME_DEV }}" \
+            -backend-config="key=products/bsa/${{ inputs.environment }}/terraform.tfstate" \
+            -backend-config="region=${{ env.AWS_REGION }}" \
+            -backend-config="encrypt=true" \
+            -backend-config="use_lockfile=true"
+
+      - name: Terraform validate
+        run: terraform validate
+
+      - name: Terraform plan
+        # Read-only preview - not saved/applied later, since apply below
+        # runs its own plan internally (that's what lets it accept -var-file).
+        run: terraform plan -input=false -no-color -var-file="${{ inputs.environment }}.tfvars"
+
+      - name: Terraform apply (ECR repositories only)
+        # Bootstraps just the 20 ECR repos first. aws_lambda_function with
+        # package_type = "Image" fails to CREATE if no image exists yet at
+        # the tag it references - so the repos (and a placeholder image in
+        # them, pushed by the next step) have to exist before the full
+        # apply below tries to create the Lambda functions themselves.
+        #
+        # NOTE: keep this -target list in sync with the ecr_repository_urls
+        # output in outputs.tf - see the comment there.
+        if: github.event_name == 'push'
+        run: |
+          terraform apply -input=false -auto-approve -var-file="${{ inputs.environment }}.tfvars" \
+            -target=module.activate_layout_version_ecr \
+            -target=module.block_table_ecr \
+            -target=module.cancel_reservation_ecr \
+            -target=module.create_location_ecr \
+            -target=module.create_pending_reservation_ecr \
+            -target=module.expire_layout_version_ecr \
+            -target=module.get_availability_ecr \
+            -target=module.get_location_ecr \
+            -target=module.get_menu_ecr \
+            -target=module.get_reservation_ecr \
+            -target=module.list_layout_version_ecr \
+            -target=module.manage_auth_ecr \
+            -target=module.manage_layout_element_ecr \
+            -target=module.manage_menu_ecr \
+            -target=module.manage_user_ecr \
+            -target=module.mark_arrived_ecr \
+            -target=module.no_show_check_ecr \
+            -target=module.notification_ecr \
+            -target=module.pre_signed_url_ecr \
+            -target=module.publish_layout_ecr \
+            -target=module.stripe_webhook_ecr
+
+      - name: Push placeholder image to any empty ECR repository
+        # Only touches repositories that don't already have a ":latest"
+        # image - never overwrites whatever the backend repo's own CI/CD
+        # has already pushed there. Only matters for a function's first-
+        # ever deploy; a no-op on every run after that.
+        if: github.event_name == 'push'
+        run: |
+          set -euo pipefail
+
+          urls_json=$(terraform output -json ecr_repository_urls)
+          registry=$(echo "$urls_json" | jq -r 'to_entries[0].value' | cut -d/ -f1)
+
+          aws ecr get-login-password --region "${{ env.AWS_REGION }}" \
+            | docker login --username AWS --password-stdin "$registry"
+
+          docker build -t placeholder:latest ci/placeholder-lambda
+
+          echo "$urls_json" | jq -r 'to_entries[] | "\(.key)=\(.value)"' | while IFS='=' read -r name url; do
+            repo_name="${url#*/}"
+            if aws ecr describe-images --region "${{ env.AWS_REGION }}" \
+                 --repository-name "$repo_name" --image-ids imageTag=latest >/dev/null 2>&1; then
+              echo "skip $repo_name - already has a :latest image"
+              continue
+            fi
+            echo "pushing placeholder to $repo_name"
+            docker tag placeholder:latest "$url:latest"
+            docker push "$url:latest"
+          done
+
+      - name: Terraform apply
+        if: github.event_name == 'push'
+        run: terraform apply -input=false -auto-approve -var-file="${{ inputs.environment }}.tfvars"
+
+      - name: Deploy placeholder front-end (if not already replaced)
+        # Confirms the S3 + CloudFront wiring works end-to-end right after
+        # infra is applied, before either front-end repo's own CI/CD has
+        # ever run. Guarded the same way the placeholder Lambda image step
+        # above is guarded: only touches a bucket that has no index.html
+        # yet, so this never overwrites a real front-end build - once
+        # customer-front-end/admin-front-end's own pipeline deploys here,
+        # this step is a permanent no-op for that bucket.
+        if: github.event_name == 'push'
+        run: |
+          set -euo pipefail
+
+          customer_bucket=$(terraform output -raw customer_front_end_bucket_name)
+          admin_bucket=$(terraform output -raw admin_front_end_bucket_name)
+          customer_distribution_id=$(terraform output -raw customer_cloudfront_distribution_id)
+          admin_distribution_id=$(terraform output -raw admin_cloudfront_distribution_id)
+
+          deploy_placeholder() {
+            local bucket="$1" src="$2" distribution_id="$3"
+            if aws s3api head-object --bucket "$bucket" --key index.html >/dev/null 2>&1; then
+              echo "skip $bucket - already has content"
+              return
+            fi
+            echo "deploying placeholder to $bucket"
+            aws s3 sync "$src" "s3://$bucket" --delete
+            aws cloudfront create-invalidation --distribution-id "$distribution_id" --paths "/*" >/dev/null
+          }
+
+          deploy_placeholder "$customer_bucket" "ci/placeholder-frontend/customer" "$customer_distribution_id"
+          deploy_placeholder "$admin_bucket" "ci/placeholder-frontend/admin" "$admin_distribution_id"
