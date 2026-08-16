@@ -32,7 +32,7 @@ resource "aws_iam_role" "this" {
           # ref (e.g. "repo:${var.github_repo}:ref:refs/heads/main") once
           # this repo's branch/deploy strategy is settled.
           StringLike = {
-            "token.actions.githubusercontent.com:sub" = "repo:${var.github_repo}:*"
+            "token.actions.githubusercontent.com:sub" = "repo:${var.github_repo}@*:*"
           }
         }
       }
