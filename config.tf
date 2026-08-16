@@ -604,7 +604,7 @@ module "customer_front_end_role" {
   source                      = "./security/iam/oidc/customer-front-end-role"
   environment                 = var.env
   oidc_provider_arn           = module.github_oidc_provider.provider_arn
-  github_repo                 = "${var.github_org}/${var.customer_frontend_repo}"
+  github_repo                 = "${var.github_org}@*/${var.customer_frontend_repo}"
   customer_bucket_arn         = module.customer_front_end_asset.bucket_arn
   cloudfront_distribution_arn = module.cloudfront_public.distribution_arn
 }
@@ -612,7 +612,7 @@ module "admin_front_end_role" {
   source                      = "./security/iam/oidc/admin-front-end-role"
   environment                 = var.env
   oidc_provider_arn           = module.github_oidc_provider.provider_arn
-  github_repo                 = "${var.github_org}/${var.admin_frontend_repo}"
+  github_repo                 = "${var.github_org}@*/${var.admin_frontend_repo}"
   admin_bucket_arn            = module.admin_front_end_asset.bucket_arn
   cloudfront_distribution_arn = module.cloudfront_private.distribution_arn
 }
@@ -620,6 +620,6 @@ module "back_end_role" {
   source            = "./security/iam/oidc/back-end-role"
   environment       = var.env
   oidc_provider_arn = module.github_oidc_provider.provider_arn
-  github_repo       = "${var.github_org}/${var.backend_repo}"
+  github_repo       = "${var.github_org}@*/${var.backend_repo}"
   region            = var.aws_region
 }
