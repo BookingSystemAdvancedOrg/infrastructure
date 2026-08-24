@@ -90,4 +90,62 @@ resource "aws_cognito_user_group" "super_user" {
   name         = "super_user"
   user_pool_id = aws_cognito_user_pool.this.id
   description  = "Super-user - full platform access, can add locations and delete owner-users"
+
+  lifecycle {
+    # This group must always exist - accidentally destroying it would
+    # strip super_user membership from everyone in super_admin_emails.
+    prevent_destroy = true
+  }
+}
+
+# --- Bootstrap super_user accounts -----------------------------------------
+#
+# One aws_cognito_user + one aws_cognito_user_in_group per email in
+# super_admin_emails. AdminCreateUser-style: account is created in
+# FORCE_CHANGE_PASSWORD status with a fixed, shared temporary password
+# (var.super_admin_temp_password - "Helloworld123!" by default, chosen to
+# satisfy this pool's password_policy), no email sent (message_action =
+# SUPPRESS). Whoever owns each address logs in once with that temp
+# password, Cognito forces them to set a real one, and from then on
+# `ignore_changes` keeps Terraform from ever touching their attributes or
+# password again.
+#
+# NOTE: a fixed, shared, non-secret temp password means anyone who knows
+# it (it's in this repo) can attempt the FORCE_CHANGE_PASSWORD login for
+# any address in super_admin_emails until that person actually logs in
+# and rotates it - there is no per-user secret gating that first login.
+# Get each new super_admin logged in (and thus off the shared password)
+# promptly after apply.
+#
+# Removing an email from the list removes that person's user_in_group
+# membership AND the aws_cognito_user account itself on next apply - this
+# is destructive by design so off-boarding staff actually revokes access.
+# Add new super-admins by adding emails, never by editing this block.
+
+resource "aws_cognito_user" "super_admin" {
+  for_each = toset(var.super_admin_emails)
+
+  user_pool_id = aws_cognito_user_pool.this.id
+  username     = each.value
+
+  attributes = {
+    email          = each.value
+    email_verified = true
+  }
+
+  temporary_password   = var.super_admin_temp_password
+  message_action       = "SUPPRESS"
+  force_alias_creation = false
+
+  lifecycle {
+    ignore_changes = [attributes, temporary_password]
+  }
+}
+
+resource "aws_cognito_user_in_group" "super_admin_membership" {
+  for_each = toset(var.super_admin_emails)
+
+  user_pool_id = aws_cognito_user_pool.this.id
+  group_name   = aws_cognito_user_group.super_user.name
+  username     = aws_cognito_user.super_admin[each.key].username
 }
