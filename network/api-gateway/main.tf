@@ -148,9 +148,20 @@ resource "aws_apigatewayv2_integration" "manage_menu" {
   payload_format_version = "2.0"
 }
 
+# Same ANY-swallows-OPTIONS CORS bug as manage-user, same fix. Per
+# LAMBDA_REFERENCE.md ("create/update/delete individual menu items or
+# categories") this Lambda is write-only - reads go through the separate
+# public get-menu function - so no GET route here. Confirm with whoever
+# owns manage-menu before adding one.
+locals {
+  manage_menu_methods = ["POST", "PUT", "DELETE"]
+}
+
 resource "aws_apigatewayv2_route" "manage_menu" {
+  for_each = toset(local.manage_menu_methods)
+
   api_id             = aws_apigatewayv2_api.this.id
-  route_key          = "ANY /locations/{locationId}/menu/{proxy+}"
+  route_key          = "${each.value} /locations/{locationId}/menu/{proxy+}"
   target             = "integrations/${aws_apigatewayv2_integration.manage_menu.id}"
   authorization_type = "JWT"
   authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
@@ -334,9 +345,19 @@ resource "aws_apigatewayv2_integration" "manage_layout_element" {
   payload_format_version = "2.0"
 }
 
+# Same ANY-swallows-OPTIONS CORS bug as manage-user, same fix. Per
+# LAMBDA_REFERENCE.md this is genuine CRUD ("CRUD on individual floor-plan
+# elements") with no separate read function for individual elements, so
+# GET is included here (unlike manage-menu, where reads live elsewhere).
+locals {
+  manage_layout_element_methods = ["GET", "POST", "PUT", "DELETE"]
+}
+
 resource "aws_apigatewayv2_route" "manage_layout_element" {
+  for_each = toset(local.manage_layout_element_methods)
+
   api_id             = aws_apigatewayv2_api.this.id
-  route_key          = "ANY /locations/{locationId}/layout-elements/{proxy+}"
+  route_key          = "${each.value} /locations/{locationId}/layout-elements/{proxy+}"
   target             = "integrations/${aws_apigatewayv2_integration.manage_layout_element.id}"
   authorization_type = "JWT"
   authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
@@ -442,9 +463,24 @@ resource "aws_apigatewayv2_integration" "manage_auth" {
   payload_format_version = "2.0"
 }
 
+# Auth here is already NONE, so this route was never the source of the
+# 401-on-preflight bug - but ANY still means an OPTIONS preflight gets
+# proxied straight to the Lambda instead of getting the automatic,
+# integration-free 204 API Gateway would otherwise answer with. That's
+# fragile (every deploy of manage-auth has to also special-case OPTIONS
+# and return a clean 2xx, or preflight breaks) and adds an unnecessary
+# invocation on every preflight. Per LAMBDA_REFERENCE.md ("sign-in,
+# MFA/challenge responses, token refresh") this is a POST-only API - no
+# GET sub-paths expected.
+locals {
+  manage_auth_methods = ["POST"]
+}
+
 resource "aws_apigatewayv2_route" "manage_auth" {
+  for_each = toset(local.manage_auth_methods)
+
   api_id             = aws_apigatewayv2_api.this.id
-  route_key          = "ANY /auth/{proxy+}"
+  route_key          = "${each.value} /auth/{proxy+}"
   target             = "integrations/${aws_apigatewayv2_integration.manage_auth.id}"
   authorization_type = "NONE"
 }
@@ -468,9 +504,28 @@ resource "aws_apigatewayv2_integration" "manage_user" {
   payload_format_version = "2.0"
 }
 
+
+# NOTE: previously a single "ANY /users/{proxy+}" route. ANY matches every
+# HTTP method literally, including OPTIONS - so the browser's CORS
+# preflight for e.g. POST /users/invite was being routed here and
+# rejected by the JWT authorizer (preflight requests never carry
+# Authorization), breaking every cross-origin call to this resource.
+# HTTP APIs handle preflight automatically via the api-level
+# cors_configuration block above, but only for paths with no explicit
+# route match - explicit method routes below (none of them OPTIONS)
+# let that automatic, unauthenticated 204 response take over again for
+# OPTIONS, while POST/PUT/DELETE stay behind the JWT authorizer exactly
+# as before. Add another resource "aws_apigatewayv2_route" block here,
+# same shape, if manage-user grows a method beyond these three.
+locals {
+  manage_user_methods = ["POST", "PUT", "DELETE"]
+}
+
 resource "aws_apigatewayv2_route" "manage_user" {
+  for_each = toset(local.manage_user_methods)
+
   api_id             = aws_apigatewayv2_api.this.id
-  route_key          = "ANY /users/{proxy+}"
+  route_key          = "${each.value} /users/{proxy+}"
   target             = "integrations/${aws_apigatewayv2_integration.manage_user.id}"
   authorization_type = "JWT"
   authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
