@@ -21,8 +21,20 @@ variable "super_admin_temp_password" {
   sensitive   = true
   default     = "Helloworld123!"
 
+  # Terraform's regex() uses RE2 (Go regexp), which has no lookahead
+  # support - a single "match all of these classes" pattern like
+  # ^(?=.*[a-z])(?=.*[A-Z])...$ silently fails to compile, and can()
+  # around a non-compiling regex just returns false unconditionally,
+  # rejecting every value including valid ones. Check each character
+  # class as its own regex instead.
   validation {
-    condition     = can(regex("^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[^a-zA-Z0-9]).{8,}$", var.super_admin_temp_password))
+    condition = alltrue([
+      length(var.super_admin_temp_password) >= 8,
+      can(regex("[a-z]", var.super_admin_temp_password)),
+      can(regex("[A-Z]", var.super_admin_temp_password)),
+      can(regex("[0-9]", var.super_admin_temp_password)),
+      can(regex("[^a-zA-Z0-9]", var.super_admin_temp_password)),
+    ])
     error_message = "super_admin_temp_password must be at least 8 characters and include a lowercase letter, an uppercase letter, a number, and a symbol - matching this pool's password_policy."
   }
 }
