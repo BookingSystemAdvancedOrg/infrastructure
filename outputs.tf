@@ -53,6 +53,12 @@ output "admin_cloudfront_distribution_id" {
 # AND add a matching -target=module.<name>_ecr to the "Terraform apply (ECR
 # repositories only)" step in reusable_cicd.yml - both lists are manually
 # kept in sync, Terraform has no way to derive either automatically.
+output "super_admin_temp_password" {
+  description = "Shared temporary password (FORCE_CHANGE_PASSWORD) for every bootstrap super_user in super_admin_emails. Read via `terraform output -raw super_admin_temp_password`, hand out-of-band, and get each person to log in and rotate off it promptly - it's a fixed, non-secret default shared by everyone until overridden."
+  sensitive   = true
+  value       = module.cognito.super_admin_temp_password
+}
+
 output "ecr_repository_urls" {
   description = "Map of function name to ECR repository URL, used by CI to bootstrap placeholder images into newly created repositories"
   sensitive   = true

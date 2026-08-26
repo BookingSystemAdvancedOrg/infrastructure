@@ -81,8 +81,9 @@ module "admin_front_end_asset" {
 
 #Cognito
 module "cognito" {
-  source      = "./storage/cognito"
-  environment = var.env
+  source             = "./storage/cognito"
+  environment        = var.env
+  super_admin_emails = var.super_admin_emails
 }
 
 

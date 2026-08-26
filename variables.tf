@@ -49,3 +49,8 @@ variable "backend_repo" {
   description = "Backend repo name (no org prefix) - trusted by security/iam/oidc/back-end-role's trust policy"
   sensitive   = false
 }
+variable "super_admin_emails" {
+  type        = list(string)
+  description = "Emails of the bootstrap super_user accounts to create in the Cognito staff pool for this environment"
+  sensitive   = false
+}
