@@ -93,8 +93,8 @@ pending → reserved → arrived
 ---
 
 ### 4. `manage-menu`
-**Trigger:** API Gateway — `ANY /locations/{locationId}/menu/{proxy+}` — Auth: `JWT`
-**Purpose:** Staff-facing CRUD for menu items (create/update/delete individual menu items or categories). The `{proxy+}` catch-all means this one function handles every sub-path under `/menu/...` (e.g. `/menu/items/{itemId}`) and every HTTP method (`ANY`) — your handler dispatches internally based on `event["requestContext"]["http"]["method"]` and the remaining path/payload, not on separate configured routes.
+**Trigger:** API Gateway — `POST/PUT/DELETE /locations/{locationId}/menu/{proxy+}` — Auth: `JWT`
+**Purpose:** Staff-facing CRUD for menu items (create/update/delete individual menu items or categories). The `{proxy+}` catch-all means this one function handles every sub-path under `/menu/...` (e.g. `/menu/items/{itemId}`) across all three configured methods — your handler dispatches internally based on `event["requestContext"]["http"]["method"]` and the remaining path/payload, not on separate configured routes. No `GET` route is configured here — reads go through the separate public `get-menu` function. (Previously a single `ANY` route; split into explicit methods so browser CORS preflight `OPTIONS` requests aren't caught by the JWT authorizer and can fall through to API Gateway's automatic preflight response instead. If this function ever needs `GET`, add it to `manage_menu_methods` in `network/api-gateway/main.tf`.)
 **Environment variables:**
 | Name | Meaning |
 |---|---|
@@ -207,8 +207,8 @@ pending → reserved → arrived
 There are two layout tables with distinct roles: **Live Layout Element** is the mutable working copy staff edit in the floor-plan editor; **Published Layout Snapshot** holds immutable, versioned snapshots taken from the live copy. Only one snapshot version is "active" at a time, and that active version is what `get-availability`/`create-pending-reservation` actually read to know which tables exist.
 
 ### 11. `manage-layout-element`
-**Trigger:** API Gateway — `ANY /locations/{locationId}/layout-elements/{proxy+}` — Auth: `JWT`
-**Purpose:** CRUD on individual floor-plan elements (tables, walls, decor — whatever the editor supports) in the live/draft layout. Same `{proxy+}`/`ANY` dispatch pattern as `manage-menu`.
+**Trigger:** API Gateway — `GET/POST/PUT/DELETE /locations/{locationId}/layout-elements/{proxy+}` — Auth: `JWT`
+**Purpose:** CRUD on individual floor-plan elements (tables, walls, decor — whatever the editor supports) in the live/draft layout. Same `{proxy+}` dispatch pattern as `manage-menu`, but `GET` is included here since there's no separate read function for individual elements. (Previously a single `ANY` route; split into explicit methods for the same CORS-preflight reason as `manage-menu` — see that section.)
 **Environment variables:**
 | Name | Meaning |
 |---|---|
@@ -314,8 +314,8 @@ The schedule name must start with `expire-layout-version-` — that prefix is ex
 ## Auth & Users
 
 ### 16. `manage-auth`
-**Trigger:** API Gateway — `ANY /auth/{proxy+}` — Auth: `NONE`
-**Purpose:** Handles the staff login flow itself (sign-in, MFA/challenge responses, token refresh — whatever sub-paths the front-end needs). Necessarily `NONE`-auth: you can't require a valid JWT to obtain one. Only staff/owner/super_user accounts exist in Cognito — customers never authenticate.
+**Trigger:** API Gateway — `POST /auth/{proxy+}` — Auth: `NONE`
+**Purpose:** Handles the staff login flow itself (sign-in, MFA/challenge responses, token refresh — whatever sub-paths the front-end needs). Necessarily `NONE`-auth: you can't require a valid JWT to obtain one. Only staff/owner/super_user accounts exist in Cognito — customers never authenticate. (Previously a single `ANY` route. `NONE` auth meant `OPTIONS` was never rejected with a 401 here, but `ANY` still proxied preflight straight to this Lambda instead of letting API Gateway answer it automatically — fragile once this handler is real, since it'd have to explicitly return a clean 2xx for `OPTIONS` itself. Narrowed to `POST` only, since every documented sub-path here is POST-based; add a method to `manage_auth_methods` in `network/api-gateway/main.tf` if a `GET` sub-path turns out to be needed.)
 **Environment variables:**
 | Name | Meaning |
 |---|---|
@@ -328,8 +328,8 @@ The schedule name must start with `expire-layout-version-` — that prefix is ex
 ---
 
 ### 17. `manage-user`
-**Trigger:** API Gateway — `ANY /users/{proxy+}` — Auth: `JWT`
-**Purpose:** Full staff lifecycle management — invite/create a staff member, update their profile, deactivate/reactivate, remove them, assign/change their group (`staff`/`owner_user`/`super_user`). Should be restricted in-handler to `owner_user`/`super_user` callers. `{proxy+}`/`ANY` dispatch, same pattern as `manage-menu`.
+**Trigger:** API Gateway — `POST/PUT/DELETE /users/{proxy+}` — Auth: `JWT`
+**Purpose:** Full staff lifecycle management — invite/create a staff member, update their profile, deactivate/reactivate, remove them, assign/change their group (`staff`/`owner_user`/`super_user`). Should be restricted in-handler to `owner_user`/`super_user` callers. `{proxy+}` dispatch, same pattern as `manage-menu`. (Previously a single `ANY` route; split into explicit methods for the same CORS-preflight reason as `manage-menu`.) **Open question:** the Cognito access list below includes `AdminGetUser`, which suggests a `GET /users/{userId}` (fetch a staff profile) may be needed but isn't currently routed — confirm with whoever owns this function and add `GET` to `manage_user_methods` in `network/api-gateway/main.tf` if so, or it'll 404 instead of reaching the Lambda.
 **Environment variables:**
 | Name | Meaning |
 |---|---|
@@ -469,20 +469,20 @@ If a field you need for the message isn't present in the DynamoDB item (and ther
 | 1 | `create-location` | API GW `POST /locations` | JWT |
 | 2 | `get-location` | API GW `GET /locations/{locationId}` | JWT |
 | 3 | `get-menu` | API GW `GET /locations/{locationId}/menu` | NONE |
-| 4 | `manage-menu` | API GW `ANY /locations/{locationId}/menu/{proxy+}` | JWT |
+| 4 | `manage-menu` | API GW `POST/PUT/DELETE /locations/{locationId}/menu/{proxy+}` | JWT |
 | 5 | `get-availability` | API GW `GET /locations/{locationId}/availability` | NONE |
 | 6 | `create-pending-reservation` | API GW `POST /reservations` | NONE |
 | 7 | `get-reservation` | API GW `GET /reservations/{reservationId}` | JWT |
 | 8 | `cancel-reservation` | API GW `POST /reservations/{reservationId}/cancel` | NONE |
 | 9 | `mark-arrived` | API GW `POST /reservations/{reservationId}/arrive` | JWT |
 | 10 | `block-table` | API GW `POST /locations/{locationId}/tables/{tableId}/block` | JWT |
-| 11 | `manage-layout-element` | API GW `ANY /locations/{locationId}/layout-elements/{proxy+}` | JWT |
+| 11 | `manage-layout-element` | API GW `GET/POST/PUT/DELETE /locations/{locationId}/layout-elements/{proxy+}` | JWT |
 | 12 | `publish-layout` | API GW `POST /locations/{locationId}/layout/publish` | JWT |
 | 13 | `list-layout-version` | API GW `GET /locations/{locationId}/layout/versions` | JWT |
 | 14 | `activate-layout-version` | API GW `POST /locations/{locationId}/layout/versions/{versionId}/activate` | JWT |
 | 15 | `expire-layout-version` | EventBridge Scheduler (one-time, per-version cutover) | n/a |
-| 16 | `manage-auth` | API GW `ANY /auth/{proxy+}` | NONE |
-| 17 | `manage-user` | API GW `ANY /users/{proxy+}` | JWT |
+| 16 | `manage-auth` | API GW `POST /auth/{proxy+}` | NONE |
+| 17 | `manage-user` | API GW `POST/PUT/DELETE /users/{proxy+}` | JWT |
 | 18 | `stripe-webhook` | Lambda Function URL (public, Stripe-signed) | Stripe signature, not JWT |
 | 19 | `no-show-check` | EventBridge Scheduler (one-time, per-reservation) | n/a |
 | 20 | `notification` | DynamoDB Stream (Reservation table, filtered) | n/a |
