@@ -112,6 +112,23 @@ resource "aws_lambda_permission" "create_location_invoke" {
 }
 
 
+# --- create-location ---
+#
+# Reuses the create-location integration/Lambda above instead of a
+# separate function - that Lambda already handles both create and
+# update, and its IAM role is already dynamodb:*, so no new integration
+# or lambda_permission is needed: the existing one's source_arn
+# ("${execution_arn}/*/*") already covers this route too.
+
+resource "aws_apigatewayv2_route" "update_location" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "PUT /locations/{locationId}"
+  target             = "integrations/${aws_apigatewayv2_integration.create_location.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+
 # --- get-menu ---
 
 resource "aws_apigatewayv2_integration" "get_menu" {
@@ -514,11 +531,11 @@ resource "aws_apigatewayv2_integration" "manage_user" {
 # cors_configuration block above, but only for paths with no explicit
 # route match - explicit method routes below (none of them OPTIONS)
 # let that automatic, unauthenticated 204 response take over again for
-# OPTIONS, while POST/PUT/DELETE stay behind the JWT authorizer exactly
-# as before. Add another resource "aws_apigatewayv2_route" block here,
-# same shape, if manage-user grows a method beyond these three.
+# OPTIONS, while GET/POST/PUT/DELETE stay behind the JWT authorizer
+# exactly as before. The for_each below already handles any further
+# method manage-user grows - just add it to the list.
 locals {
-  manage_user_methods = ["POST", "PUT", "DELETE"]
+  manage_user_methods = ["GET", "POST", "PUT", "DELETE"]
 }
 
 resource "aws_apigatewayv2_route" "manage_user" {

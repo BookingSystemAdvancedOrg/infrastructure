@@ -54,8 +54,8 @@ pending → reserved → arrived
 ## Locations & Menu
 
 ### 1. `create-location`
-**Trigger:** API Gateway — `POST /locations` — Auth: `JWT`
-**Purpose:** Creates a new restaurant location record (name, address, business hours, etc. — whatever fields the front-end form collects). Should be restricted in-handler to `owner_user`/`super_user` groups; regular `staff` shouldn't be able to create locations.
+**Trigger:** API Gateway — `POST /locations` and `PUT /locations/{locationId}` — Auth: `JWT`
+**Purpose:** Creates a new restaurant location record (name, address, business hours, etc. — whatever fields the front-end form collects), and, via the same handler, updates an existing one addressed by `locationId`. Should be restricted in-handler to `owner_user`/`super_user` groups; regular `staff` shouldn't be able to create or update locations.
 **Environment variables:**
 | Name | Meaning |
 |---|---|
@@ -328,8 +328,8 @@ The schedule name must start with `expire-layout-version-` — that prefix is ex
 ---
 
 ### 17. `manage-user`
-**Trigger:** API Gateway — `POST/PUT/DELETE /users/{proxy+}` — Auth: `JWT`
-**Purpose:** Full staff lifecycle management — invite/create a staff member, update their profile, deactivate/reactivate, remove them, assign/change their group (`staff`/`owner_user`/`super_user`). Should be restricted in-handler to `owner_user`/`super_user` callers. `{proxy+}` dispatch, same pattern as `manage-menu`. (Previously a single `ANY` route; split into explicit methods for the same CORS-preflight reason as `manage-menu`.) **Open question:** the Cognito access list below includes `AdminGetUser`, which suggests a `GET /users/{userId}` (fetch a staff profile) may be needed but isn't currently routed — confirm with whoever owns this function and add `GET` to `manage_user_methods` in `network/api-gateway/main.tf` if so, or it'll 404 instead of reaching the Lambda.
+**Trigger:** API Gateway — `GET/POST/PUT/DELETE /users/{proxy+}` — Auth: `JWT`
+**Purpose:** Full staff lifecycle management — invite/create a staff member, fetch/list staff profiles, update their profile, deactivate/reactivate, remove them, assign/change their group (`staff`/`owner_user`/`super_user`). Should be restricted in-handler to `owner_user`/`super_user` callers. `{proxy+}` dispatch, same pattern as `manage-menu`. (Previously a single `ANY` route; split into explicit methods for the same CORS-preflight reason as `manage-menu`.) `GET` was added to `manage_user_methods` in `network/api-gateway/main.tf`, matching the `AdminGetUser` access already granted below.
 **Environment variables:**
 | Name | Meaning |
 |---|---|
@@ -466,7 +466,7 @@ If a field you need for the message isn't present in the DynamoDB item (and ther
 
 | # | Function | Trigger | Auth |
 |---|---|---|---|
-| 1 | `create-location` | API GW `POST /locations` | JWT |
+| 1 | `create-location` | API GW `POST /locations`, `PUT /locations/{locationId}` | JWT |
 | 2 | `get-location` | API GW `GET /locations/{locationId}` | JWT |
 | 3 | `get-menu` | API GW `GET /locations/{locationId}/menu` | NONE |
 | 4 | `manage-menu` | API GW `POST/PUT/DELETE /locations/{locationId}/menu/{proxy+}` | JWT |
@@ -482,7 +482,7 @@ If a field you need for the message isn't present in the DynamoDB item (and ther
 | 14 | `activate-layout-version` | API GW `POST /locations/{locationId}/layout/versions/{versionId}/activate` | JWT |
 | 15 | `expire-layout-version` | EventBridge Scheduler (one-time, per-version cutover) | n/a |
 | 16 | `manage-auth` | API GW `POST /auth/{proxy+}` | NONE |
-| 17 | `manage-user` | API GW `POST/PUT/DELETE /users/{proxy+}` | JWT |
+| 17 | `manage-user` | API GW `GET/POST/PUT/DELETE /users/{proxy+}` | JWT |
 | 18 | `stripe-webhook` | Lambda Function URL (public, Stripe-signed) | Stripe signature, not JWT |
 | 19 | `no-show-check` | EventBridge Scheduler (one-time, per-reservation) | n/a |
 | 20 | `notification` | DynamoDB Stream (Reservation table, filtered) | n/a |
