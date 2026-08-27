@@ -24,8 +24,11 @@ ROUTES_MD = HERE / "ROUTES.md"
 # with a neighboring one.
 SECTION_RE = re.compile(r"# --- (?P<name>[a-z0-9-]+) ---\n(?P<body>.*?)(?=\n# --- |\Z)", re.DOTALL)
 ROUTE_KEY_RE = re.compile(r'route_key\s*=\s*"([A-Z]+) (\S+)"')
+# A for_each route whose method comes from a `locals { <x>_methods = [...] }`
+# block earlier in the same section, e.g. route_key = "${each.value} /users/{proxy+}".
+FOREACH_ROUTE_KEY_RE = re.compile(r'route_key\s*=\s*"\$\{each\.value\}\s+(\S+)"')
+METHODS_LIST_RE = re.compile(r'_methods\s*=\s*\[(?P<items>[^\]]*)\]')
 AUTH_RE = re.compile(r'authorization_type\s*=\s*"(\w+)"')
-FUNCTION_VAR_RE = re.compile(r'function_name\s*=\s*var\.(\w+)_function_name')
 
 
 def parse_routes():
@@ -35,14 +38,28 @@ def parse_routes():
         name = m.group("name")
         body = m.group("body")
 
-        route_key_match = ROUTE_KEY_RE.search(body)
         auth_match = AUTH_RE.search(body)
-        if not route_key_match or not auth_match:
+        if not auth_match:
             continue  # not a route section (e.g. trailing content) - skip
-
-        method, path = route_key_match.groups()
         auth = auth_match.group(1)
-        routes.append({"lambda": name, "method": method, "path": path, "auth": auth})
+
+        route_key_match = ROUTE_KEY_RE.search(body)
+        if route_key_match:
+            method, path = route_key_match.groups()
+            routes.append({"lambda": name, "method": method, "path": path, "auth": auth})
+            continue
+
+        # for_each route: one row per method in the section's `*_methods` locals list.
+        foreach_match = FOREACH_ROUTE_KEY_RE.search(body)
+        methods_match = METHODS_LIST_RE.search(body)
+        if foreach_match and methods_match:
+            path = foreach_match.group(1)
+            methods = re.findall(r'"([A-Z]+)"', methods_match.group("items"))
+            for method in methods:
+                routes.append({"lambda": name, "method": method, "path": path, "auth": auth})
+            continue
+
+        # Neither shape matched - not a route section, skip.
     return routes
 
 
