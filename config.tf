@@ -469,21 +469,21 @@ module "get_reservation_fn" {
   region                 = var.aws_region
 }
 module "get_order_fn" {
-  source              = "./compute/lambda/get-order"
-  environment         = var.env
-  role_arn            = module.get_order_role.role_arn
-  ecr_repository_url  = module.get_order_ecr.get_order_ecr_repository_url
-  order_table_name    = module.order.table_name
-  region              = var.aws_region
+  source             = "./compute/lambda/get-order"
+  environment        = var.env
+  role_arn           = module.get_order_role.role_arn
+  ecr_repository_url = module.get_order_ecr.get_order_ecr_repository_url
+  order_table_name   = module.order.table_name
+  region             = var.aws_region
 }
 module "payment_intent_fn" {
-  source              = "./compute/lambda/payment-intent"
-  environment         = var.env
-  role_arn            = module.payment_intent_role.role_arn
-  ecr_repository_url  = module.payment_intent_ecr.payment_intent_ecr_repository_url
-  order_table_name    = module.order.table_name
-  stripe_secret_key   = var.stripe_secret_key
-  region              = var.aws_region
+  source             = "./compute/lambda/payment-intent"
+  environment        = var.env
+  role_arn           = module.payment_intent_role.role_arn
+  ecr_repository_url = module.payment_intent_ecr.payment_intent_ecr_repository_url
+  order_table_name   = module.order.table_name
+  stripe_secret_key  = var.stripe_secret_key
+  region             = var.aws_region
 }
 module "list_layout_version_fn" {
   source                               = "./compute/lambda/list-layout-version"
