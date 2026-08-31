@@ -29,6 +29,11 @@ variable "stripe_webhook_secret" {
   description = "Signing secret (whsec_...) for the stripe-webhook endpoint - dev or prod value depending on which environment is deploying"
   sensitive   = true
 }
+variable "order_stripe_webhook_secret" {
+  type        = string
+  description = "Signing secret (whsec_...) for the webhook-payment-intent endpoint - dev or prod value depending on which environment is deploying"
+  sensitive   = true
+}
 variable "github_org" {
   type        = string
   description = "Shared GitHub organization all three OIDC-trusted repos live under - combined with each *_repo variable below to build the \"org/repo-name\" each role's trust policy matches against"
