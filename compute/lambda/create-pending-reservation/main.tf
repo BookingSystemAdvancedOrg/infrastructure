@@ -31,6 +31,7 @@ resource "aws_lambda_function" "this" {
       SLOT_OCCUPANCY_TABLE_NAME            = var.slot_occupancy_table_name
       RESERVATION_TABLE_NAME               = var.reservation_table_name
       PAYMENT_DELINQUENCY_TABLE_NAME       = var.payment_delinquency_table_name
+      STRIPE_SECRET_KEY                    = var.stripe_secret_key # to create a SetupIntent (card-on-file, no charge yet) so the front-end can collect card details
     }
   }
 

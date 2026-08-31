@@ -46,6 +46,12 @@ variable "payment_delinquency_table_name" {
   sensitive   = false
 }
 
+variable "stripe_secret_key" {
+  description = "Stripe secret API key (sk_...), passed as an environment variable so the handler can create a SetupIntent (card-on-file, no charge yet) when a pending reservation is created"
+  type        = string
+  sensitive   = true
+}
+
 variable "region" {
   description = "AWS region this Lambda's log group, ECR repository, and image push target live in"
   type        = string
