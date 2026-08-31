@@ -58,6 +58,10 @@ module "payment_delinquency" {
   source      = "./storage/dynamodb/payment-delinquency"
   environment = var.env
 }
+module "order" {
+  source      = "./storage/dynamodb/order"
+  environment = var.env
+}
 
 
 #S3 Buckets
@@ -119,6 +123,18 @@ module "get_reservation_role" {
   environment           = var.env
   reservation_table_arn = module.reservation.table_arn
   region                = var.aws_region
+}
+module "get_order_role" {
+  source          = "./security/iam/get-order"
+  environment     = var.env
+  order_table_arn = module.order.table_arn
+  region          = var.aws_region
+}
+module "payment_intent_role" {
+  source          = "./security/iam/payment-intent"
+  environment     = var.env
+  order_table_arn = module.order.table_arn
+  region          = var.aws_region
 }
 module "mark_arrived_role" {
   source                = "./security/iam/mark-arrived"
@@ -236,6 +252,12 @@ module "stripe_webhook_role" {
   scheduler_invoke_role_arn     = module.scheduler_invoke_no_show_check_role.role_arn
   region                        = var.aws_region
 }
+module "webhook_payment_intent_role" {
+  source          = "./security/iam/webhook-payment-intent"
+  environment     = var.env
+  order_table_arn = module.order.table_arn
+  region          = var.aws_region
+}
 module "block_table_role" {
   source                   = "./security/iam/block-table"
   environment              = var.env
@@ -293,6 +315,14 @@ module "get_reservation_ecr" {
   source      = "./storage/ecr/get-reservation"
   environment = var.env
 }
+module "get_order_ecr" {
+  source      = "./storage/ecr/get-order"
+  environment = var.env
+}
+module "payment_intent_ecr" {
+  source      = "./storage/ecr/payment-intent"
+  environment = var.env
+}
 module "list_layout_version_ecr" {
   source      = "./storage/ecr/list-layout-version"
   environment = var.env
@@ -335,6 +365,10 @@ module "publish_layout_ecr" {
 }
 module "stripe_webhook_ecr" {
   source      = "./storage/ecr/stripe-webhook"
+  environment = var.env
+}
+module "webhook_payment_intent_ecr" {
+  source      = "./storage/ecr/webhook-payment-intent"
   environment = var.env
 }
 
@@ -433,6 +467,23 @@ module "get_reservation_fn" {
   ecr_repository_url     = module.get_reservation_ecr.get_reservation_ecr_repository_url
   reservation_table_name = module.reservation.table_name
   region                 = var.aws_region
+}
+module "get_order_fn" {
+  source             = "./compute/lambda/get-order"
+  environment        = var.env
+  role_arn           = module.get_order_role.role_arn
+  ecr_repository_url = module.get_order_ecr.get_order_ecr_repository_url
+  order_table_name   = module.order.table_name
+  region             = var.aws_region
+}
+module "payment_intent_fn" {
+  source             = "./compute/lambda/payment-intent"
+  environment        = var.env
+  role_arn           = module.payment_intent_role.role_arn
+  ecr_repository_url = module.payment_intent_ecr.payment_intent_ecr_repository_url
+  order_table_name   = module.order.table_name
+  stripe_secret_key  = var.stripe_secret_key
+  region             = var.aws_region
 }
 module "list_layout_version_fn" {
   source                               = "./compute/lambda/list-layout-version"
@@ -534,6 +585,15 @@ module "stripe_webhook_fn" {
   region                         = var.aws_region
   stripe_webhook_secret          = var.stripe_webhook_secret
 }
+module "webhook_payment_intent_fn" {
+  source                      = "./compute/lambda/webhook-payment-intent"
+  environment                 = var.env
+  role_arn                    = module.webhook_payment_intent_role.role_arn
+  ecr_repository_url          = module.webhook_payment_intent_ecr.webhook_payment_intent_ecr_repository_url
+  order_table_name            = module.order.table_name
+  region                      = var.aws_region
+  order_stripe_webhook_secret = var.order_stripe_webhook_secret
+}
 
 
 #API Gateway
@@ -561,6 +621,10 @@ module "api_gateway" {
   create_pending_reservation_invoke_arn    = module.create_pending_reservation_fn.invoke_arn
   get_reservation_function_name            = module.get_reservation_fn.function_name
   get_reservation_invoke_arn               = module.get_reservation_fn.invoke_arn
+  get_order_function_name                  = module.get_order_fn.function_name
+  get_order_invoke_arn                     = module.get_order_fn.invoke_arn
+  payment_intent_function_name             = module.payment_intent_fn.function_name
+  payment_intent_invoke_arn                = module.payment_intent_fn.invoke_arn
   cancel_reservation_function_name         = module.cancel_reservation_fn.function_name
   cancel_reservation_invoke_arn            = module.cancel_reservation_fn.invoke_arn
   mark_arrived_function_name               = module.mark_arrived_fn.function_name

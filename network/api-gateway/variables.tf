@@ -112,6 +112,30 @@ variable "get_reservation_invoke_arn" {
   sensitive   = true
 }
 
+variable "get_order_function_name" {
+  description = "Name of the get-order Lambda (compute/lambda/get-order) - granted permission to be invoked by this API"
+  type        = string
+  sensitive   = false
+}
+
+variable "get_order_invoke_arn" {
+  description = "Invoke ARN of the get-order Lambda (compute/lambda/get-order) - the integration target for its route"
+  type        = string
+  sensitive   = true
+}
+
+variable "payment_intent_function_name" {
+  description = "Name of the payment-intent Lambda (compute/lambda/payment-intent) - granted permission to be invoked by this API"
+  type        = string
+  sensitive   = false
+}
+
+variable "payment_intent_invoke_arn" {
+  description = "Invoke ARN of the payment-intent Lambda (compute/lambda/payment-intent) - the integration target for its route"
+  type        = string
+  sensitive   = true
+}
+
 variable "cancel_reservation_function_name" {
   description = "Name of the cancel-reservation Lambda (compute/lambda/cancel-reservation) - granted permission to be invoked by this API"
   type        = string

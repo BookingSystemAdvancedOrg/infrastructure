@@ -72,6 +72,7 @@ output "ecr_repository_urls" {
     get_availability           = module.get_availability_ecr.get_availability_ecr_repository_url
     get_location               = module.get_location_ecr.get_location_ecr_repository_url
     get_menu                   = module.get_menu_ecr.get_menu_ecr_repository_url
+    get_order                  = module.get_order_ecr.get_order_ecr_repository_url
     get_reservation            = module.get_reservation_ecr.get_reservation_ecr_repository_url
     list_layout_version        = module.list_layout_version_ecr.list_layout_version_ecr_repository_url
     manage_auth                = module.manage_auth_ecr.manage_auth_ecr_repository_url
@@ -81,8 +82,10 @@ output "ecr_repository_urls" {
     mark_arrived               = module.mark_arrived_ecr.mark_arrived_ecr_repository_url
     no_show_check              = module.no_show_check_ecr.no_show_check_ecr_repository_url
     notification               = module.notification_ecr.notification_ecr_repository_url
+    payment_intent             = module.payment_intent_ecr.payment_intent_ecr_repository_url
     pre_signed_url             = module.pre_signed_url_ecr.pre_signed_url_ecr_repository_url
     publish_layout             = module.publish_layout_ecr.publish_layout_ecr_repository_url
     stripe_webhook             = module.stripe_webhook_ecr.stripe_webhook_ecr_repository_url
+    webhook_payment_intent     = module.webhook_payment_intent_ecr.webhook_payment_intent_ecr_repository_url
   }
 }

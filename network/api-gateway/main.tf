@@ -272,6 +272,63 @@ resource "aws_lambda_permission" "get_reservation_invoke" {
 }
 
 
+# --- get-order ---
+
+resource "aws_apigatewayv2_integration" "get_order" {
+  api_id                 = aws_apigatewayv2_api.this.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = var.get_order_invoke_arn
+  integration_method     = "POST" # Lambda proxy integrations always invoke via POST, regardless of the route's own method
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "get_order" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "GET /reservations/{reservationId}/orders/{orderId}"
+  target             = "integrations/${aws_apigatewayv2_integration.get_order.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_lambda_permission" "get_order_invoke" {
+  statement_id  = "AllowAPIGatewayInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = var.get_order_function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
+}
+
+
+# --- payment-intent ---
+#
+# Public/NONE, same as create-pending-reservation and cancel-reservation -
+# customers never have Cognito accounts, so checkout can't sit behind the
+# JWT authorizer.
+
+resource "aws_apigatewayv2_integration" "payment_intent" {
+  api_id                 = aws_apigatewayv2_api.this.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = var.payment_intent_invoke_arn
+  integration_method     = "POST" # Lambda proxy integrations always invoke via POST, regardless of the route's own method
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "payment_intent" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "POST /order"
+  target             = "integrations/${aws_apigatewayv2_integration.payment_intent.id}"
+  authorization_type = "NONE"
+}
+
+resource "aws_lambda_permission" "payment_intent_invoke" {
+  statement_id  = "AllowAPIGatewayInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = var.payment_intent_function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
+}
+
+
 # --- cancel-reservation ---
 
 resource "aws_apigatewayv2_integration" "cancel_reservation" {
@@ -554,6 +611,23 @@ resource "aws_lambda_permission" "manage_user_invoke" {
   function_name = var.manage_user_function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
+}
+
+# --- list-users ---
+#
+# Reuses the manage-user integration/Lambda above instead of a separate
+# function - GET /users/{proxy+} already covers "fetch/list staff
+# profiles" per that Lambda's own purpose, so this is an additional path
+# to the same handler, not new logic. No new aws_lambda_permission needed:
+# manage_user_invoke's source_arn ("${execution_arn}/*/*") already covers
+# this route too.
+
+resource "aws_apigatewayv2_route" "list_users" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "GET /list-users"
+  target             = "integrations/${aws_apigatewayv2_integration.manage_user.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
 
 
