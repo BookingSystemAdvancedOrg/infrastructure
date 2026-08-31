@@ -397,6 +397,7 @@ module "create_pending_reservation_fn" {
   slot_occupancy_table_name            = module.slot_occupancy.table_name
   reservation_table_name               = module.reservation.table_name
   payment_delinquency_table_name       = module.payment_delinquency.table_name
+  stripe_secret_key                    = var.stripe_secret_key
   region                               = var.aws_region
 }
 module "get_availability_fn" {
