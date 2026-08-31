@@ -81,7 +81,7 @@ jobs:
         run: terraform plan -input=false -no-color -var-file="${{ inputs.environment }}.tfvars"
 
       - name: Terraform apply (ECR repositories only)
-        # Bootstraps just the 20 ECR repos first. aws_lambda_function with
+        # Bootstraps just the 23 ECR repos first. aws_lambda_function with
         # package_type = "Image" fails to CREATE if no image exists yet at
         # the tag it references - so the repos (and a placeholder image in
         # them, pushed by the next step) have to exist before the full
@@ -101,6 +101,7 @@ jobs:
             -target=module.get_availability_ecr \
             -target=module.get_location_ecr \
             -target=module.get_menu_ecr \
+            -target=module.get_order_ecr \
             -target=module.get_reservation_ecr \
             -target=module.list_layout_version_ecr \
             -target=module.manage_auth_ecr \
@@ -110,9 +111,11 @@ jobs:
             -target=module.mark_arrived_ecr \
             -target=module.no_show_check_ecr \
             -target=module.notification_ecr \
+            -target=module.payment_intent_ecr \
             -target=module.pre_signed_url_ecr \
             -target=module.publish_layout_ecr \
-            -target=module.stripe_webhook_ecr
+            -target=module.stripe_webhook_ecr \
+            -target=module.webhook_payment_intent_ecr
 
       - name: Push placeholder image to any empty ECR repository
         # Only touches repositories that don't already have a ":latest"
