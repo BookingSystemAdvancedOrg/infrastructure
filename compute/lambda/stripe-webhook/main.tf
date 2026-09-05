@@ -40,32 +40,13 @@ resource "aws_lambda_function" "this" {
   }
 }
 
-# Stripe calls this directly, not through API Gateway - it can't sign
-# requests with AWS SigV4 the way API Gateway would expect, and it isn't a
-# logged-in user of this app so it has no Cognito token either. A Function
-# URL gives it a plain public HTTPS endpoint instead: this is the URL
-# registered as the webhook destination in the Stripe Dashboard.
-#
-# authorization_type = NONE means AWS itself doesn't gate the request - the
-# real check happens inside the handler, which verifies the
-# Stripe-Signature header against STRIPE_WEBHOOK_SECRET and rejects
-# anything that doesn't match. NONE here is what makes that verification
-# necessary, not optional.
-resource "aws_lambda_function_url" "this" {
-  function_name      = aws_lambda_function.this.function_name
-  authorization_type = "NONE"
-}
-
-# Without this, AWS rejects every call to the URL above before it even
-# reaches the handler - authorization_type = NONE only means "no AWS-side
-# auth required", it doesn't by itself open the door to unauthenticated
-# callers. This resource-based policy is what actually does that, scoped
-# narrowly to lambda:InvokeFunctionUrl (not general InvokeFunction) so it
-# can't be used to invoke this Lambda through any other path.
-resource "aws_lambda_permission" "function_url_public_invoke" {
-  statement_id           = "AllowPublicInvokeFunctionUrl"
-  action                 = "lambda:InvokeFunctionUrl"
-  function_name          = aws_lambda_function.this.function_name
-  principal              = "*"
-  function_url_auth_type = "NONE"
-}
+# Stripe reaches this Lambda through the HTTP API route POST /webhooks/stripe/reservation
+# (see network/api-gateway), not a Function URL. The route is
+# unauthenticated at the gateway - the real authentication boundary is the
+# handler's verification of the Stripe-Signature header against
+# STRIPE_WEBHOOK_SECRET. The Function URL this module used to declare
+# was removed when the webhook endpoint itself moved into Terraform
+# (payments/stripe): a Function URL is derived from this function, and this
+# function's environment needs the endpoint's signing secret - a dependency
+# cycle. The API route's URL depends only on the API itself, so the whole
+# chain applies in one pass.

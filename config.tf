@@ -8,6 +8,10 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 6.0"
     }
+    stripe = {
+      source  = "lukasaron/stripe"
+      version = "~> 3.0"
+    }
   }
 }
 
@@ -21,6 +25,13 @@ provider "aws" {
 provider "aws" {
   alias  = "us_east_1"
   region = "us-east-1"
+}
+
+# Talks to the Stripe account this environment deploys against - the same
+# sk_ key the payment Lambdas use decides whether that's test mode (dev) or
+# live mode (prod). Only used to manage webhook endpoints (payments/stripe).
+provider "stripe" {
+  api_key = var.stripe_secret_key
 }
 
 
@@ -583,7 +594,7 @@ module "stripe_webhook_fn" {
   scheduler_invoke_role_arn      = module.scheduler_invoke_no_show_check_role.role_arn
   no_show_check_function_arn     = module.no_show_check_fn.function_arn
   region                         = var.aws_region
-  stripe_webhook_secret          = var.stripe_webhook_secret
+  stripe_webhook_secret          = module.stripe_webhooks.reservation_webhook_secret
 }
 module "webhook_payment_intent_fn" {
   source                      = "./compute/lambda/webhook-payment-intent"
@@ -592,7 +603,7 @@ module "webhook_payment_intent_fn" {
   ecr_repository_url          = module.webhook_payment_intent_ecr.webhook_payment_intent_ecr_repository_url
   order_table_name            = module.order.table_name
   region                      = var.aws_region
-  order_stripe_webhook_secret = var.order_stripe_webhook_secret
+  order_stripe_webhook_secret = module.stripe_webhooks.order_webhook_secret
 }
 
 
@@ -645,6 +656,20 @@ module "api_gateway" {
   manage_user_invoke_arn                   = module.manage_user_fn.invoke_arn
   pre_signed_url_function_name             = module.pre_signed_url_fn.function_name
   pre_signed_url_invoke_arn                = module.pre_signed_url_fn.invoke_arn
+  stripe_webhook_function_name             = module.stripe_webhook_fn.function_name
+  stripe_webhook_invoke_arn                = module.stripe_webhook_fn.invoke_arn
+  webhook_payment_intent_function_name     = module.webhook_payment_intent_fn.function_name
+  webhook_payment_intent_invoke_arn        = module.webhook_payment_intent_fn.invoke_arn
+}
+
+# Stripe webhook endpoints - created in Stripe by Terraform, pointing at the
+# two NONE-auth routes above; each endpoint's signing secret feeds the
+# matching Lambda's environment (see payments/stripe for why this is
+# API-Gateway-routed rather than Function-URL-routed).
+module "stripe_webhooks" {
+  source       = "./payments/stripe"
+  environment  = var.env
+  api_endpoint = module.api_gateway.api_endpoint
 }
 
 #CloudFront

@@ -1,10 +1,13 @@
-output "stripe_webhook_url" {
-  description = "Public HTTPS endpoint for StripeWebhookFn - after apply, register this as the webhook destination in the Stripe Dashboard (Developers > Webhooks) for this environment"
-  value       = module.stripe_webhook_fn.function_url
+output "stripe_webhook_urls" {
+  description = "Webhook URLs Terraform registered with Stripe for this environment (informational - nothing to copy into the Stripe Dashboard anymore)"
+  value = {
+    reservation = module.stripe_webhooks.reservation_webhook_url
+    order       = module.stripe_webhooks.order_webhook_url
+  }
 }
 
 output "api_endpoint" {
-  description = "Base invoke URL of the HTTP API - what the front-end calls for every route except the Stripe webhook"
+  description = "Base invoke URL of the HTTP API - what the front-end calls; also carries the two Stripe webhook routes"
   value       = module.api_gateway.api_endpoint
 }
 
@@ -49,10 +52,10 @@ output "admin_cloudfront_distribution_id" {
 # apply runs - `aws_lambda_function` with package_type = "Image" fails to
 # create if no image exists at the referenced tag yet.
 #
-# NOTE: if you add a new Lambda function, add its ECR module's output here
-# AND add a matching -target=module.<name>_ecr to the "Terraform apply (ECR
-# repositories only)" step in reusable_cicd.yml - both lists are manually
-# kept in sync, Terraform has no way to derive either automatically.
+# NOTE: if you add a new Lambda function, add its ECR module's output to
+# the ecr_repository_urls map below. That's the only manual step left: the
+# CI bootstrap derives its -target list from config.tf automatically, and
+# fails the build with a pointed error if this map is missing an entry.
 output "super_admin_temp_password" {
   description = "Shared temporary password (FORCE_CHANGE_PASSWORD) for every bootstrap super_user in super_admin_emails. Read via `terraform output -raw super_admin_temp_password`, hand out-of-band, and get each person to log in and rotate off it promptly - it's a fixed, non-secret default shared by everyone until overridden."
   sensitive   = true

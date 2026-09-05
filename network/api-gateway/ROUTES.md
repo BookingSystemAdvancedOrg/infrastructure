@@ -19,6 +19,8 @@ header, validated by the `cognito` authorizer).
 | GET | `/locations/{locationId}/availability` | NONE | get-availability |
 | POST | `/reservations` | NONE | create-pending-reservation |
 | GET | `/reservations/{reservationId}` | JWT | get-reservation |
+| GET | `/reservations/{reservationId}/orders/{orderId}` | JWT | get-order |
+| POST | `/order` | NONE | payment-intent |
 | POST | `/reservations/{reservationId}/cancel` | NONE | cancel-reservation |
 | POST | `/reservations/{reservationId}/arrive` | JWT | mark-arrived |
 | POST | `/locations/{locationId}/tables/{tableId}/block` | JWT | block-table |
@@ -34,4 +36,7 @@ header, validated by the `cognito` authorizer).
 | POST | `/users/{proxy+}` | JWT | manage-user |
 | PUT | `/users/{proxy+}` | JWT | manage-user |
 | DELETE | `/users/{proxy+}` | JWT | manage-user |
+| GET | `/list-users` | JWT | list-users |
 | GET | `/menu-images/presigned-url` | JWT | pre-signed-url |
+| POST | `/webhooks/stripe/reservation` | NONE | stripe-webhook |
+| POST | `/webhooks/stripe/order` | NONE | webhook-payment-intent |

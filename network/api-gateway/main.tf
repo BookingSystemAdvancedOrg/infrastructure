@@ -656,3 +656,67 @@ resource "aws_lambda_permission" "pre_signed_url_invoke" {
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
 }
+
+
+# --- stripe-webhook ---
+#
+# Stripe calls this route directly. It can't sign requests with AWS SigV4
+# and has no Cognito token, so the route is deliberately unauthenticated at
+# the gateway (authorization_type = NONE) - the real authentication boundary
+# is inside the handler, which verifies the Stripe-Signature header against
+# the endpoint's signing secret and rejects anything that doesn't match.
+# Payload format 2.0 delivers the same event shape as the Lambda Function
+# URL this webhook used before, so the handler code is unchanged.
+
+resource "aws_apigatewayv2_integration" "stripe_webhook" {
+  api_id                 = aws_apigatewayv2_api.this.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = var.stripe_webhook_invoke_arn
+  integration_method     = "POST" # Lambda proxy integrations always invoke via POST, regardless of the route's own method
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "stripe_webhook" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "POST /webhooks/stripe/reservation"
+  target             = "integrations/${aws_apigatewayv2_integration.stripe_webhook.id}"
+  authorization_type = "NONE"
+}
+
+resource "aws_lambda_permission" "stripe_webhook_invoke" {
+  statement_id  = "AllowAPIGatewayInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = var.stripe_webhook_function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
+}
+
+
+# --- webhook-payment-intent ---
+#
+# Same reasoning as stripe-webhook above: unauthenticated at the gateway,
+# authenticated inside the handler via the Stripe-Signature check against
+# the order-payment endpoint's own signing secret.
+
+resource "aws_apigatewayv2_integration" "webhook_payment_intent" {
+  api_id                 = aws_apigatewayv2_api.this.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = var.webhook_payment_intent_invoke_arn
+  integration_method     = "POST" # Lambda proxy integrations always invoke via POST, regardless of the route's own method
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "webhook_payment_intent" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "POST /webhooks/stripe/order"
+  target             = "integrations/${aws_apigatewayv2_integration.webhook_payment_intent.id}"
+  authorization_type = "NONE"
+}
+
+resource "aws_lambda_permission" "webhook_payment_intent_invoke" {
+  statement_id  = "AllowAPIGatewayInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = var.webhook_payment_intent_function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
+}
