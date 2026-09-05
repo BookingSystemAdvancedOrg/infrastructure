@@ -70,8 +70,9 @@ module "payment_delinquency" {
   environment = var.env
 }
 module "order" {
-  source      = "./storage/dynamodb/order"
-  environment = var.env
+  source                  = "./storage/dynamodb/order"
+  environment             = var.env
+  notification_lambda_arn = module.notification_fn.function_arn
 }
 
 
@@ -281,6 +282,7 @@ module "notification_role" {
   source                 = "./security/iam/notification"
   environment            = var.env
   reservation_stream_arn = module.reservation.stream_arn
+  order_stream_arn       = module.order.stream_arn
   ses_identity_arn       = module.ses.identity_arn
   region                 = var.aws_region
 }

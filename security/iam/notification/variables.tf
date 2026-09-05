@@ -21,3 +21,9 @@ variable "region" {
   type        = string
   sensitive   = false
 }
+
+variable "order_stream_arn" {
+  description = "ARN of the order DynamoDB table's Stream — read-only, for the paid/failed payment-outcome notifications"
+  type        = string
+  sensitive   = false
+}
