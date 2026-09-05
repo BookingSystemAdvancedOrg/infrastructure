@@ -81,6 +81,7 @@ output "ecr_repository_urls" {
     manage_auth                = module.manage_auth_ecr.manage_auth_ecr_repository_url
     manage_layout_element      = module.manage_layout_element_ecr.manage_layout_element_ecr_repository_url
     manage_menu                = module.manage_menu_ecr.manage_menu_ecr_repository_url
+    manage_order               = module.manage_order_ecr.manage_order_ecr_repository_url
     manage_user                = module.manage_user_ecr.manage_user_ecr_repository_url
     mark_arrived               = module.mark_arrived_ecr.mark_arrived_ecr_repository_url
     no_show_check              = module.no_show_check_ecr.no_show_check_ecr_repository_url

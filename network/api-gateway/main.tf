@@ -720,3 +720,56 @@ resource "aws_lambda_permission" "webhook_payment_intent_invoke" {
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
 }
+
+
+# --- manage-order ---
+#
+# Staff/owner/super-admin order management: the day's-orders dashboard
+# Query (GET on the collection), kitchen status updates (PUT), staff-
+# created orders (POST), and cancellations (DELETE). All JWT-protected -
+# customers never call this; their reads go through get-order and their
+# orders are created by the checkout flow. Reads live here (not in a
+# public lambda) because a location's order list is operational data.
+
+resource "aws_apigatewayv2_integration" "manage_order" {
+  api_id                 = aws_apigatewayv2_api.this.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = var.manage_order_invoke_arn
+  integration_method     = "POST" # Lambda proxy integrations always invoke via POST, regardless of the route's own method
+  payload_format_version = "2.0"
+}
+
+locals {
+  manage_order_methods = ["GET", "POST", "PUT", "DELETE"]
+}
+
+# Collection route: GET /locations/{locationId}/orders?date=YYYY-MM-DD is
+# the one-Query dashboard read; POST creates a staff-entered order.
+resource "aws_apigatewayv2_route" "manage_order_collection" {
+  for_each = toset(local.manage_order_methods)
+
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "${each.value} /locations/{locationId}/orders"
+  target             = "integrations/${aws_apigatewayv2_integration.manage_order.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# Item routes: status updates / cancellation of one order by its key.
+resource "aws_apigatewayv2_route" "manage_order" {
+  for_each = toset(local.manage_order_methods)
+
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "${each.value} /locations/{locationId}/orders/{proxy+}"
+  target             = "integrations/${aws_apigatewayv2_integration.manage_order.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_lambda_permission" "manage_order_invoke" {
+  statement_id  = "AllowAPIGatewayInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = var.manage_order_function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
+}

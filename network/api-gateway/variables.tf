@@ -275,3 +275,13 @@ variable "webhook_payment_intent_invoke_arn" {
   description = "Invoke ARN of the WebhookPaymentIntentFn Lambda - integration target of POST /webhooks/stripe/order"
   sensitive   = false
 }
+variable "manage_order_function_name" {
+  type        = string
+  description = "Name of the ManageOrderFn Lambda - for the invoke permission on the JWT-protected order-management routes"
+  sensitive   = false
+}
+variable "manage_order_invoke_arn" {
+  type        = string
+  description = "Invoke ARN of the ManageOrderFn Lambda - integration target of the /locations/{locationId}/orders routes"
+  sensitive   = false
+}
