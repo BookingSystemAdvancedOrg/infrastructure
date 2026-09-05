@@ -70,8 +70,9 @@ module "payment_delinquency" {
   environment = var.env
 }
 module "order" {
-  source      = "./storage/dynamodb/order"
-  environment = var.env
+  source                  = "./storage/dynamodb/order"
+  environment             = var.env
+  notification_lambda_arn = module.notification_fn.function_arn
 }
 
 
@@ -121,6 +122,12 @@ module "manage_menu_role" {
   environment    = var.env
   menu_table_arn = module.menu.table_arn
   region         = var.aws_region
+}
+module "manage_order_role" {
+  source          = "./security/iam/manage-order"
+  environment     = var.env
+  order_table_arn = module.order.table_arn
+  region          = var.aws_region
 }
 module "manage_user_role" {
   source         = "./security/iam/manage-user"
@@ -281,6 +288,7 @@ module "notification_role" {
   source                 = "./security/iam/notification"
   environment            = var.env
   reservation_stream_arn = module.reservation.stream_arn
+  order_stream_arn       = module.order.stream_arn
   ses_identity_arn       = module.ses.identity_arn
   region                 = var.aws_region
 }
@@ -348,6 +356,10 @@ module "manage_layout_element_ecr" {
 }
 module "manage_menu_ecr" {
   source      = "./storage/ecr/manage-menu"
+  environment = var.env
+}
+module "manage_order_ecr" {
+  source      = "./storage/ecr/manage-order"
   environment = var.env
 }
 module "manage_user_ecr" {
@@ -530,6 +542,14 @@ module "manage_menu_fn" {
   menu_table_name    = module.menu.table_name
   region             = var.aws_region
 }
+module "manage_order_fn" {
+  source             = "./compute/lambda/manage-order"
+  environment        = var.env
+  role_arn           = module.manage_order_role.role_arn
+  ecr_repository_url = module.manage_order_ecr.manage_order_ecr_repository_url
+  order_table_name   = module.order.table_name
+  region             = var.aws_region
+}
 module "manage_user_fn" {
   source               = "./compute/lambda/manage-user"
   environment          = var.env
@@ -626,6 +646,8 @@ module "api_gateway" {
   get_menu_invoke_arn                      = module.get_menu_fn.invoke_arn
   manage_menu_function_name                = module.manage_menu_fn.function_name
   manage_menu_invoke_arn                   = module.manage_menu_fn.invoke_arn
+  manage_order_function_name               = module.manage_order_fn.function_name
+  manage_order_invoke_arn                  = module.manage_order_fn.invoke_arn
   get_availability_function_name           = module.get_availability_fn.function_name
   get_availability_invoke_arn              = module.get_availability_fn.invoke_arn
   create_pending_reservation_function_name = module.create_pending_reservation_fn.function_name

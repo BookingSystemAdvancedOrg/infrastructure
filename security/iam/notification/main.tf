@@ -56,6 +56,31 @@ resource "aws_iam_role_policy" "dynamodb_stream_read" {
   })
 }
 
+# Same four stream-read actions, scoped to the order table's stream - the
+# order ESM (notify_on_order_payment_outcome in storage/dynamodb/order)
+# delivers paid/failed payment outcomes through this same Lambda.
+resource "aws_iam_role_policy" "order_stream_read" {
+  name = "order-stream-read"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "ReadOrderStream"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:DescribeStream",
+          "dynamodb:GetRecords",
+          "dynamodb:GetShardIterator",
+          "dynamodb:ListStreams",
+        ]
+        Resource = "${var.order_stream_arn}"
+      }
+    ]
+  })
+}
+
 # SNS phone-number publishing (SMS) has no per-number ARN to scope to -
 # AWS requires Resource = "*" for direct-to-phone-number sns:Publish calls,
 # since an arbitrary customer phone number isn't a resource that exists in

@@ -40,3 +40,7 @@ header, validated by the `cognito` authorizer).
 | GET | `/menu-images/presigned-url` | JWT | pre-signed-url |
 | POST | `/webhooks/stripe/reservation` | NONE | stripe-webhook |
 | POST | `/webhooks/stripe/order` | NONE | webhook-payment-intent |
+| GET | `/locations/{locationId}/orders` | JWT | manage-order |
+| POST | `/locations/{locationId}/orders` | JWT | manage-order |
+| PUT | `/locations/{locationId}/orders` | JWT | manage-order |
+| DELETE | `/locations/{locationId}/orders` | JWT | manage-order |
