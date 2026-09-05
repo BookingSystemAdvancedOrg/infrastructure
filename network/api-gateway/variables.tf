@@ -255,3 +255,23 @@ variable "pre_signed_url_invoke_arn" {
   type        = string
   sensitive   = true
 }
+variable "stripe_webhook_function_name" {
+  type        = string
+  description = "Name of the StripeWebhookFn Lambda - for the invoke permission on the reservation-payment webhook route"
+  sensitive   = false
+}
+variable "stripe_webhook_invoke_arn" {
+  type        = string
+  description = "Invoke ARN of the StripeWebhookFn Lambda - integration target of POST /webhooks/stripe/reservation"
+  sensitive   = false
+}
+variable "webhook_payment_intent_function_name" {
+  type        = string
+  description = "Name of the WebhookPaymentIntentFn Lambda - for the invoke permission on the order-payment webhook route"
+  sensitive   = false
+}
+variable "webhook_payment_intent_invoke_arn" {
+  type        = string
+  description = "Invoke ARN of the WebhookPaymentIntentFn Lambda - integration target of POST /webhooks/stripe/order"
+  sensitive   = false
+}

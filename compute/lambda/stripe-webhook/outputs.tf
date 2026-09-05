@@ -12,8 +12,3 @@ output "invoke_arn" {
   description = "Invoke ARN of the StripeWebhookFn Lambda — for wiring into API Gateway or a Function URL later"
   value       = aws_lambda_function.this.invoke_arn
 }
-
-output "function_url" {
-  description = "Public HTTPS endpoint for this Lambda - register this as the webhook destination in the Stripe Dashboard (Developers > Webhooks)"
-  value       = aws_lambda_function_url.this.function_url
-}

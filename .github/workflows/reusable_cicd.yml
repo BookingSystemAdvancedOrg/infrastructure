@@ -38,10 +38,12 @@ jobs:
           echo "TF_VAR_backend_repo=${{ env.BACKEND_REPO }}" >> "$GITHUB_ENV"
 
       - name: Export Stripe secrets
+        # Only the API key crosses CI now. The webhook signing secrets
+        # (whsec_...) no longer exist as GitHub secrets at all - Terraform
+        # creates the webhook endpoints itself (payments/stripe) and wires
+        # each endpoint's secret straight into the receiving Lambda.
         run: |
           echo "TF_VAR_stripe_secret_key=${{ inputs.environment == 'prod' && secrets.STRIPE_SECRET_KEY_PROD || secrets.STRIPE_SECRET_KEY_DEV }}" >> "$GITHUB_ENV"
-          echo "TF_VAR_stripe_webhook_secret=${{ inputs.environment == 'prod' && secrets.STRIPE_WEBHOOK_SECRET_PROD || secrets.STRIPE_WEBHOOK_SECRET_DEV }}" >> "$GITHUB_ENV"
-          echo "TF_VAR_order_stripe_webhook_secret=${{ inputs.environment == 'prod' && secrets.ORDER_STRIPE_WEBHOOK_SECRET_PROD || secrets.ORDER_STRIPE_WEBHOOK_SECRET_DEV }}" >> "$GITHUB_ENV"
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v5
@@ -81,41 +83,42 @@ jobs:
         run: terraform plan -input=false -no-color -var-file="${{ inputs.environment }}.tfvars"
 
       - name: Terraform apply (ECR repositories only)
-        # Bootstraps just the 23 ECR repos first. aws_lambda_function with
+        # Bootstraps just the ECR repos first. aws_lambda_function with
         # package_type = "Image" fails to CREATE if no image exists yet at
         # the tag it references - so the repos (and a placeholder image in
         # them, pushed by the next step) have to exist before the full
         # apply below tries to create the Lambda functions themselves.
         #
-        # NOTE: keep this -target list in sync with the ecr_repository_urls
-        # output in outputs.tf - see the comment there.
+        # The -target list is DERIVED from config.tf (every `module "*_ecr"`
+        # block), not hand-maintained - adding a Lambda's ECR module is
+        # enough, there is no second list to remember to update here. The
+        # guard loop below also fails the build loudly if a *_ecr module is
+        # missing from the ecr_repository_urls output in outputs.tf, since
+        # the placeholder-image step depends on that map being complete.
         if: github.event_name == 'push'
         run: |
-          terraform apply -input=false -auto-approve -var-file="${{ inputs.environment }}.tfvars" \
-            -target=module.activate_layout_version_ecr \
-            -target=module.block_table_ecr \
-            -target=module.cancel_reservation_ecr \
-            -target=module.create_location_ecr \
-            -target=module.create_pending_reservation_ecr \
-            -target=module.expire_layout_version_ecr \
-            -target=module.get_availability_ecr \
-            -target=module.get_location_ecr \
-            -target=module.get_menu_ecr \
-            -target=module.get_order_ecr \
-            -target=module.get_reservation_ecr \
-            -target=module.list_layout_version_ecr \
-            -target=module.manage_auth_ecr \
-            -target=module.manage_layout_element_ecr \
-            -target=module.manage_menu_ecr \
-            -target=module.manage_user_ecr \
-            -target=module.mark_arrived_ecr \
-            -target=module.no_show_check_ecr \
-            -target=module.notification_ecr \
-            -target=module.payment_intent_ecr \
-            -target=module.pre_signed_url_ecr \
-            -target=module.publish_layout_ecr \
-            -target=module.stripe_webhook_ecr \
-            -target=module.webhook_payment_intent_ecr
+          set -euo pipefail
+
+          mapfile -t ecr_modules < <(grep -oP 'module "\K[a-z0-9_]+_ecr(?=")' config.tf | sort)
+          if [ "${#ecr_modules[@]}" -eq 0 ]; then
+            echo "::error::no *_ecr modules found in config.tf - derivation grep is broken"
+            exit 1
+          fi
+          echo "bootstrapping ${#ecr_modules[@]} ECR repositories: ${ecr_modules[*]}"
+
+          for m in "${ecr_modules[@]}"; do
+            if ! grep -q "module\.${m}\." outputs.tf; then
+              echo "::error::module ${m} exists in config.tf but is missing from the ecr_repository_urls output in outputs.tf - add it there so the placeholder-image step can see the new repository"
+              exit 1
+            fi
+          done
+
+          targets=()
+          for m in "${ecr_modules[@]}"; do
+            targets+=("-target=module.${m}")
+          done
+
+          terraform apply -input=false -auto-approve -var-file="${{ inputs.environment }}.tfvars" "${targets[@]}"
 
       - name: Push placeholder image to any empty ECR repository
         # Only touches repositories that don't already have a ":latest"
