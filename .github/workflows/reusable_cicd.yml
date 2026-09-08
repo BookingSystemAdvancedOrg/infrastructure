@@ -174,7 +174,7 @@ jobs:
           deploy_placeholder() {
             local bucket="$1" src="$2" distribution_id="$3"
             local key_count
-            key_count=$(aws s3api list-objects-v2 --bucket "$bucket" --max-items 1 --output json | jq '.KeyCount // 0')
+            key_count=$(aws s3api list-objects-v2 --bucket "$bucket" --max-keys 1 --output json | jq '.KeyCount // 0')
             if [ "$key_count" -gt 0 ]; then
               echo "skip $bucket - already has content"
               return
