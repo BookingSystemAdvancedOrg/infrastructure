@@ -25,10 +25,11 @@ resource "aws_lambda_function" "this" {
 
   environment {
     variables = {
-      ENVIRONMENT               = var.environment
-      LOCATION_TABLE_NAME       = var.location_table_name
-      USER_TABLE_NAME           = var.user_table_name
-      SLOT_OCCUPANCY_TABLE_NAME = var.slot_occupancy_table_name
+      ENVIRONMENT                          = var.environment
+      LOCATION_TABLE_NAME                  = var.location_table_name
+      USER_TABLE_NAME                      = var.user_table_name
+      SLOT_OCCUPANCY_TABLE_NAME            = var.slot_occupancy_table_name
+      PUBLISHED_LAYOUT_SNAPSHOT_TABLE_NAME = var.published_layout_snapshot_table_name
     }
   }
 

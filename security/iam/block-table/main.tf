@@ -1,9 +1,10 @@
 # Execution role for the BlockTableFn Lambda.
 #
-# Three access levels: read-only on location (validates the location/table
+# Four access levels: read-only on location (validates the location/table
 # exists, business hours), read-only on user (a single GetItem on
 # PK = USER#<sub> to confirm the caller's role and assigned location before
-# authorizing the block), and full access on slot occupancy - this Lambda
+# authorizing the block), read-only on the published layout snapshot (which
+# tables exist at all), and full access on slot occupancy - this Lambda
 # writes manual "source: manual_block" rows to hold a table out of online
 # booking, and deletes them again on unblock.
 
@@ -50,6 +51,29 @@ resource "aws_iam_role_policy" "dynamodb_read" {
         Resource = [
           "${var.location_table_arn}",
           "${var.user_table_arn}",
+        ]
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "published_layout_snapshot_read" {
+  name = "published-layout-snapshot-table-read"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "ReadPublishedLayoutSnapshotTable"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:Scan",
+          "dynamodb:GetItem",
+          "dynamodb:Query",
+        ]
+        Resource = [
+          "${var.published_layout_snapshot_table_arn}",
         ]
       }
     ]

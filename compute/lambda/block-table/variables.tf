@@ -34,6 +34,12 @@ variable "slot_occupancy_table_name" {
   sensitive   = false
 }
 
+variable "published_layout_snapshot_table_name" {
+  description = "Name of the published layout snapshot DynamoDB table, passed as an environment variable for the handler's SDK calls"
+  type        = string
+  sensitive   = false
+}
+
 variable "region" {
   description = "AWS region this Lambda's log group, ECR repository, and image push target live in"
   type        = string
