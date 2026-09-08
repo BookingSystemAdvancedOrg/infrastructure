@@ -22,6 +22,12 @@ variable "slot_occupancy_table_arn" {
   sensitive   = false
 }
 
+variable "published_layout_snapshot_table_arn" {
+  description = "ARN of the published layout snapshot DynamoDB table — read-only access"
+  type        = string
+  sensitive   = false
+}
+
 variable "region" {
   description = "AWS region this Lambda's log group lives in"
   type        = string

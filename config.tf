@@ -277,12 +277,13 @@ module "webhook_payment_intent_role" {
   region          = var.aws_region
 }
 module "block_table_role" {
-  source                   = "./security/iam/block-table"
-  environment              = var.env
-  location_table_arn       = module.location.table_arn
-  user_table_arn           = module.user.table_arn
-  slot_occupancy_table_arn = module.slot_occupancy.table_arn
-  region                   = var.aws_region
+  source                              = "./security/iam/block-table"
+  environment                         = var.env
+  location_table_arn                  = module.location.table_arn
+  user_table_arn                      = module.user.table_arn
+  slot_occupancy_table_arn            = module.slot_occupancy.table_arn
+  published_layout_snapshot_table_arn = module.published_layout_snapshot.table_arn
+  region                              = var.aws_region
 }
 module "notification_role" {
   source                 = "./security/iam/notification"
@@ -416,14 +417,15 @@ module "expire_layout_version_fn" {
   region                               = var.aws_region
 }
 module "block_table_fn" {
-  source                    = "./compute/lambda/block-table"
-  environment               = var.env
-  role_arn                  = module.block_table_role.role_arn
-  ecr_repository_url        = module.block_table_ecr.block_table_ecr_repository_url
-  location_table_name       = module.location.table_name
-  user_table_name           = module.user.table_name
-  slot_occupancy_table_name = module.slot_occupancy.table_name
-  region                    = var.aws_region
+  source                               = "./compute/lambda/block-table"
+  environment                          = var.env
+  role_arn                             = module.block_table_role.role_arn
+  ecr_repository_url                   = module.block_table_ecr.block_table_ecr_repository_url
+  location_table_name                  = module.location.table_name
+  user_table_name                      = module.user.table_name
+  slot_occupancy_table_name            = module.slot_occupancy.table_name
+  published_layout_snapshot_table_name = module.published_layout_snapshot.table_name
+  region                               = var.aws_region
 }
 module "cancel_reservation_fn" {
   source                    = "./compute/lambda/cancel-reservation"
