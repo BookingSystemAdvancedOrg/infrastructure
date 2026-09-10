@@ -85,6 +85,24 @@ resource "aws_lambda_permission" "get_location_invoke" {
 }
 
 
+# --- get-location ---
+#
+# Reuses the get-location integration/Lambda above instead of a separate
+# function - GetLocationFn already handles the single-location read, and
+# its IAM role is already read-only on the location table (Scan/GetItem/
+# Query, not dynamodb:*), so no new integration, lambda_permission, or IAM
+# change is needed: the existing lambda_permission's source_arn
+# ("${execution_arn}/*/*") already covers this route too.
+
+resource "aws_apigatewayv2_route" "list_locations" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "GET /locations"
+  target             = "integrations/${aws_apigatewayv2_integration.get_location.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+
 # --- create-location ---
 
 resource "aws_apigatewayv2_integration" "create_location" {

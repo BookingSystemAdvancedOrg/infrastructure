@@ -10,6 +10,7 @@ header, validated by the `cognito` authorizer).
 | Method | Path | Auth | Lambda |
 |---|---|---|---|
 | GET | `/locations/{locationId}` | JWT | get-location |
+| GET | `/locations` | JWT | get-location |
 | POST | `/locations` | JWT | create-location |
 | PUT | `/locations/{locationId}` | JWT | create-location |
 | GET | `/locations/{locationId}/menu` | NONE | get-menu |
