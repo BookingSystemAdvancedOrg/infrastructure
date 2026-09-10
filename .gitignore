@@ -43,3 +43,6 @@ terraform.rc
 # planout
 
 .venv/*
+
+# macOS Finder metadata
+.DS_Store
