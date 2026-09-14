@@ -157,11 +157,22 @@ resource "aws_apigatewayv2_integration" "get_menu" {
   payload_format_version = "2.0"
 }
 
+# Public route — customers (no auth required)
 resource "aws_apigatewayv2_route" "get_menu" {
   api_id             = aws_apigatewayv2_api.this.id
   route_key          = "GET /locations/{locationId}/menu"
   target             = "integrations/${aws_apigatewayv2_integration.get_menu.id}"
   authorization_type = "NONE"
+}
+
+# Staff route — JWT required; same get_menu Lambda handles both routes and
+# uses the routeKey to decide whether to include inactive items.
+resource "aws_apigatewayv2_route" "get_menu_staff_and_owner" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "GET /locations/{locationId}/menu/{proxy+}"
+  target             = "integrations/${aws_apigatewayv2_integration.get_menu.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
 
 resource "aws_lambda_permission" "get_menu_invoke" {
