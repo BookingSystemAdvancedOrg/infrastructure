@@ -15,3 +15,9 @@ variable "private_cloudfront_distribution_arn" {
   type        = string
   sensitive   = false
 }
+
+variable "allowed_origins" {
+  description = "Front-end origin(s) allowed to upload/read menu images cross-origin (must match API Gateway allowed_origins)"
+  type        = list(string)
+  sensitive   = false
+}

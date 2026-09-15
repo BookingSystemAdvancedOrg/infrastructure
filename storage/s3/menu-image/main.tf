@@ -50,3 +50,15 @@ resource "aws_s3_bucket_policy" "menu_image" {
   })
 }
 
+
+resource "aws_s3_bucket_cors_configuration" "menu_image" {
+  bucket = aws_s3_bucket.menu_image.id
+
+  cors_rule {
+    allowed_headers = ["*"]
+    allowed_methods = ["PUT", "GET"]
+    allowed_origins = var.allowed_origins
+    expose_headers  = ["ETag"]
+    max_age_seconds = 3000
+  }
+}
