@@ -82,6 +82,10 @@ module "menu_image" {
   environment                         = var.env
   public_cloudfront_distribution_arn  = module.cloudfront_public.distribution_arn
   private_cloudfront_distribution_arn = module.cloudfront_private.distribution_arn
+  allowed_origins = [
+    "https://${module.cloudfront_public.distribution_domain_name}",
+    "https://${module.cloudfront_private.distribution_domain_name}",
+  ]
 }
 module "customer_front_end_asset" {
   source                      = "./storage/s3/customer-front-end-asset"
