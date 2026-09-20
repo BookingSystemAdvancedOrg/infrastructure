@@ -103,6 +103,24 @@ resource "aws_apigatewayv2_route" "list_locations" {
 }
 
 
+# --- get-location: public-info ---
+#
+# Public route — customer-facing site (no auth required). Reuses the
+# get_location integration and Lambda so no new function, integration, or
+# IAM change is needed: the existing lambda_permission's source_arn
+# ("${execution_arn}/*/*") already covers this route. The Lambda branches
+# on the routeKey it receives to return only the public-safe fields
+# (name, address, phone, email, openingHours) — internal fields such as
+# createdBy and gracePeriodHours are never included in the response.
+
+resource "aws_apigatewayv2_route" "get_location_public_info" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "GET /locations/{locationId}/public-info"
+  target             = "integrations/${aws_apigatewayv2_integration.get_location.id}"
+  authorization_type = "NONE"
+}
+
+
 # --- create-location ---
 
 resource "aws_apigatewayv2_integration" "create_location" {
@@ -526,6 +544,27 @@ resource "aws_lambda_permission" "list_layout_version_invoke" {
   function_name = var.list_layout_version_function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
+}
+
+# --- list-layout-version: active layout (public) ---
+#
+# Public route — customer-facing site (no auth required). Reuses the
+# list_layout_version integration and Lambda so no new function, integration,
+# or IAM change is needed: the existing lambda_permission's source_arn
+# ("${execution_arn}/*/*") already covers this route. The Lambda branches on
+# the routeKey it receives to return only the floor-plan element fields
+# (walls, tables, doors, windows) — version numbers, isCurrent, expiresAt,
+# and audit fields are stripped before the response is sent.
+#
+# Note: floor area and the cash register are not stored in this table at all
+# (they live only in the admin's browser); they will never appear in the
+# response regardless of what fields are requested.
+
+resource "aws_apigatewayv2_route" "get_active_layout" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "GET /locations/{locationId}/layout/active"
+  target             = "integrations/${aws_apigatewayv2_integration.list_layout_version.id}"
+  authorization_type = "NONE"
 }
 
 
