@@ -546,6 +546,33 @@ resource "aws_lambda_permission" "list_layout_version_invoke" {
   source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
 }
 
+# --- archive-layout-version (DELETE) ---
+#
+# Soft-archive a specific layout version. Reuses the list-layout-version Lambda
+# (same ECR image, same integration) — the Lambda branches on routeKey
+# "DELETE /locations/{locationId}/layout/versions/{versionId}" to perform the
+# archive write instead of a list read.
+#
+# The lambda_permission here is intentionally route-scoped (not the wildcard
+# "/*/*" used by the GET list permission above) — this route carries a write
+# operation and least-privilege applies at the permission boundary too.
+
+resource "aws_apigatewayv2_route" "archive_layout_version" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "DELETE /locations/{locationId}/layout/versions/{versionId}"
+  target             = "integrations/${aws_apigatewayv2_integration.list_layout_version.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_lambda_permission" "archive_layout_version_invoke" {
+  statement_id  = "AllowAPIGatewayInvokeArchiveLayoutVersion"
+  action        = "lambda:InvokeFunction"
+  function_name = var.list_layout_version_function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/DELETE/locations/*/layout/versions/*"
+}
+
 # --- list-layout-version: active layout (public) ---
 #
 # Public route — customer-facing site (no auth required). Reuses the
