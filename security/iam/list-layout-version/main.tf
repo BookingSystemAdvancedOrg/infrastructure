@@ -27,21 +27,32 @@ resource "aws_iam_role" "this" {
   }
 }
 
-resource "aws_iam_role_policy" "dynamodb_read" {
-  name = "published-layout-snapshot-table-scan"
+resource "aws_iam_role_policy" "dynamodb" {
+  name = "published-layout-snapshot-table"
   role = aws_iam_role.this.id
 
+  # Allow the full DynamoDB action space on this table so the Lambda can
+  # perform soft-archive writes (UpdateItem) in addition to its existing
+  # read operations (Scan, GetItem, Query).
+  #
+  # DeleteItem is explicitly denied even though this endpoint is described
+  # as a soft-archive (UpdateItem to set archivedAt / status fields). The
+  # deny is a hard guardrail: if a future code path or misconfiguration
+  # tried to issue a real delete, IAM blocks it regardless of what the
+  # allow statement says. Explicit denies always win over allows in IAM.
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "ReadPublishedLayoutSnapshotTable"
-        Effect = "Allow"
-        Action = [
-          "dynamodb:Scan",
-          "dynamodb:GetItem",
-          "dynamodb:Query",
-        ]
+        Sid      = "AllPublishedLayoutSnapshotActions"
+        Effect   = "Allow"
+        Action   = "dynamodb:*"
+        Resource = "${var.published_layout_snapshot_table_arn}"
+      },
+      {
+        Sid      = "DenyHardDelete"
+        Effect   = "Deny"
+        Action   = "dynamodb:DeleteItem"
         Resource = "${var.published_layout_snapshot_table_arn}"
       }
     ]

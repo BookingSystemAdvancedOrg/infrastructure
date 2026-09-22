@@ -11,6 +11,7 @@ header, validated by the `cognito` authorizer).
 |---|---|---|---|
 | GET | `/locations/{locationId}` | JWT | get-location |
 | GET | `/locations` | JWT | get-location |
+| GET | `/locations/{locationId}/public-info` | NONE | get-location |
 | POST | `/locations` | JWT | create-location |
 | PUT | `/locations/{locationId}` | JWT | create-location |
 | GET | `/locations/{locationId}/menu` | NONE | get-menu |
@@ -31,6 +32,7 @@ header, validated by the `cognito` authorizer).
 | DELETE | `/locations/{locationId}/layout-elements/{proxy+}` | JWT | manage-layout-element |
 | POST | `/locations/{locationId}/layout/publish` | JWT | publish-layout |
 | GET | `/locations/{locationId}/layout/versions` | JWT | list-layout-version |
+| GET | `/locations/{locationId}/layout/active` | NONE | list-layout-version |
 | POST | `/locations/{locationId}/layout/versions/{versionId}/activate` | JWT | activate-layout-version |
 | POST | `/auth/{proxy+}` | NONE | manage-auth |
 | GET | `/users/{proxy+}` | JWT | manage-user |
