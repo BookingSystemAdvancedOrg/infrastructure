@@ -90,6 +90,9 @@ output "ecr_repository_urls" {
     pre_signed_url             = module.pre_signed_url_ecr.pre_signed_url_ecr_repository_url
     publish_layout             = module.publish_layout_ecr.publish_layout_ecr_repository_url
     stripe_webhook             = module.stripe_webhook_ecr.stripe_webhook_ecr_repository_url
+    catering_discount_tiers    = module.catering_discount_tiers_ecr.catering_discount_tiers_ecr_repository_url
+    catering_requests          = module.catering_requests_ecr.catering_requests_ecr_repository_url
+    catering_settings          = module.catering_settings_ecr.catering_settings_ecr_repository_url
     webhook_payment_intent     = module.webhook_payment_intent_ecr.webhook_payment_intent_ecr_repository_url
   }
 }
