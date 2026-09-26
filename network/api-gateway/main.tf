@@ -15,7 +15,7 @@ resource "aws_apigatewayv2_api" "this" {
   # elsewhere) - allowed_origins is a real list of front-end origins.
   cors_configuration {
     allow_origins = var.allowed_origins
-    allow_methods = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    allow_methods = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
     allow_headers = ["authorization", "content-type"]
     max_age       = 300
   }
@@ -865,6 +865,146 @@ resource "aws_lambda_permission" "manage_order_invoke" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
   function_name = var.manage_order_function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
+}
+
+
+# ── catering-settings ─────────────────────────────────────────────────────────
+#
+# Manages the cateringSettings map attribute embedded on the location item.
+# GET is unauthenticated — customers need the settings to render the calculator
+# (delivery window, minimum notice, etc.) without signing in.
+# PUT is JWT-protected — only owners and staff can change these settings.
+
+resource "aws_apigatewayv2_integration" "catering_settings" {
+  api_id                 = aws_apigatewayv2_api.this.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = var.catering_settings_invoke_arn
+  integration_method     = "POST" # Lambda proxy integrations always invoke via POST, regardless of the route's own method
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "catering_settings_get" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "GET /locations/{locationId}/catering/settings"
+  target             = "integrations/${aws_apigatewayv2_integration.catering_settings.id}"
+  authorization_type = "NONE"
+}
+
+resource "aws_apigatewayv2_route" "catering_settings_put" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "PUT /locations/{locationId}/catering/settings"
+  target             = "integrations/${aws_apigatewayv2_integration.catering_settings.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_lambda_permission" "catering_settings_invoke" {
+  statement_id  = "AllowAPIGatewayInvokeCateringSettings"
+  action        = "lambda:InvokeFunction"
+  function_name = var.catering_settings_function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
+}
+
+
+# ── catering-discount-tiers ───────────────────────────────────────────────────
+#
+# Volume-based discount tiers per location. GET is unauthenticated so customers
+# can see the tiers in the calculator before submitting a request. POST, PUT and
+# DELETE are JWT-protected — only owners and staff manage the tier schedule.
+
+resource "aws_apigatewayv2_integration" "catering_discount_tiers" {
+  api_id                 = aws_apigatewayv2_api.this.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = var.catering_discount_tiers_invoke_arn
+  integration_method     = "POST" # Lambda proxy integrations always invoke via POST, regardless of the route's own method
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "catering_discount_tiers_get" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "GET /locations/{locationId}/catering/discount-tiers"
+  target             = "integrations/${aws_apigatewayv2_integration.catering_discount_tiers.id}"
+  authorization_type = "NONE"
+}
+
+resource "aws_apigatewayv2_route" "catering_discount_tiers_post" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "POST /locations/{locationId}/catering/discount-tiers"
+  target             = "integrations/${aws_apigatewayv2_integration.catering_discount_tiers.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_apigatewayv2_route" "catering_discount_tiers_put" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "PUT /locations/{locationId}/catering/discount-tiers/{tierId}"
+  target             = "integrations/${aws_apigatewayv2_integration.catering_discount_tiers.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_apigatewayv2_route" "catering_discount_tiers_delete" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "DELETE /locations/{locationId}/catering/discount-tiers/{tierId}"
+  target             = "integrations/${aws_apigatewayv2_integration.catering_discount_tiers.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_lambda_permission" "catering_discount_tiers_invoke" {
+  statement_id  = "AllowAPIGatewayInvokeCateringDiscountTiers"
+  action        = "lambda:InvokeFunction"
+  function_name = var.catering_discount_tiers_function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
+}
+
+
+# ── catering-requests ─────────────────────────────────────────────────────────
+#
+# Customer-submitted catering enquiries and owner responses.
+# POST is unauthenticated — customers submit requests without an account.
+# GET and PATCH are JWT-protected — only owners and staff can view all
+# requests and accept or reject them.
+
+resource "aws_apigatewayv2_integration" "catering_requests" {
+  api_id                 = aws_apigatewayv2_api.this.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = var.catering_requests_invoke_arn
+  integration_method     = "POST" # Lambda proxy integrations always invoke via POST, regardless of the route's own method
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "catering_requests_post" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "POST /locations/{locationId}/catering/requests"
+  target             = "integrations/${aws_apigatewayv2_integration.catering_requests.id}"
+  authorization_type = "NONE"
+}
+
+resource "aws_apigatewayv2_route" "catering_requests_get" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "GET /locations/{locationId}/catering/requests"
+  target             = "integrations/${aws_apigatewayv2_integration.catering_requests.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_apigatewayv2_route" "catering_requests_patch" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "PATCH /locations/{locationId}/catering/requests/{requestId}"
+  target             = "integrations/${aws_apigatewayv2_integration.catering_requests.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_lambda_permission" "catering_requests_invoke" {
+  statement_id  = "AllowAPIGatewayInvokeCateringRequests"
+  action        = "lambda:InvokeFunction"
+  function_name = var.catering_requests_function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
 }

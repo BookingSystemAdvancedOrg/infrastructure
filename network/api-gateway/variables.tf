@@ -285,3 +285,33 @@ variable "manage_order_invoke_arn" {
   description = "Invoke ARN of the ManageOrderFn Lambda - integration target of the /locations/{locationId}/orders routes"
   sensitive   = false
 }
+variable "catering_settings_function_name" {
+  description = "Name of the catering-settings Lambda (compute/lambda/catering-settings) - granted permission to be invoked by this API"
+  type        = string
+  sensitive   = false
+}
+variable "catering_settings_invoke_arn" {
+  description = "Invoke ARN of the catering-settings Lambda (compute/lambda/catering-settings) - the integration target for its routes"
+  type        = string
+  sensitive   = true
+}
+variable "catering_discount_tiers_function_name" {
+  description = "Name of the catering-discount-tiers Lambda (compute/lambda/catering-discount-tiers) - granted permission to be invoked by this API"
+  type        = string
+  sensitive   = false
+}
+variable "catering_discount_tiers_invoke_arn" {
+  description = "Invoke ARN of the catering-discount-tiers Lambda (compute/lambda/catering-discount-tiers) - the integration target for its routes"
+  type        = string
+  sensitive   = true
+}
+variable "catering_requests_function_name" {
+  description = "Name of the catering-requests Lambda (compute/lambda/catering-requests) - granted permission to be invoked by this API"
+  type        = string
+  sensitive   = false
+}
+variable "catering_requests_invoke_arn" {
+  description = "Invoke ARN of the catering-requests Lambda (compute/lambda/catering-requests) - the integration target for its routes"
+  type        = string
+  sensitive   = true
+}
