@@ -622,6 +622,28 @@ resource "aws_lambda_permission" "activate_layout_version_invoke" {
 }
 
 
+# --- pending-activation (PUT + DELETE) ---
+# Both routes reuse the activate-layout-version integration and Lambda.
+# No new integration or Lambda permission needed — the existing
+# activate_layout_version_invoke permission covers all methods via /*/*.
+
+resource "aws_apigatewayv2_route" "put_pending_activation" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "PUT /locations/{locationId}/layout/pending-activation"
+  target             = "integrations/${aws_apigatewayv2_integration.activate_layout_version.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_apigatewayv2_route" "delete_pending_activation" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "DELETE /locations/{locationId}/layout/pending-activation"
+  target             = "integrations/${aws_apigatewayv2_integration.activate_layout_version.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+
 # --- manage-auth ---
 
 resource "aws_apigatewayv2_integration" "manage_auth" {
