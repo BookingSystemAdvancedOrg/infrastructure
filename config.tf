@@ -74,6 +74,14 @@ module "order" {
   environment             = var.env
   notification_lambda_arn = module.notification_fn.function_arn
 }
+module "catering_discount_tiers" {
+  source      = "./storage/dynamodb/catering-discount-tiers"
+  environment = var.env
+}
+module "catering_requests" {
+  source      = "./storage/dynamodb/catering-requests"
+  environment = var.env
+}
 
 
 #S3 Buckets
@@ -297,6 +305,27 @@ module "notification_role" {
   ses_identity_arn       = module.ses.identity_arn
   region                 = var.aws_region
 }
+module "catering_settings_role" {
+  source             = "./security/iam/catering-settings"
+  environment        = var.env
+  location_table_arn = module.location.table_arn
+  region             = var.aws_region
+}
+module "catering_discount_tiers_role" {
+  source                            = "./security/iam/catering-discount-tiers"
+  environment                       = var.env
+  catering_discount_tiers_table_arn = module.catering_discount_tiers.table_arn
+  region                            = var.aws_region
+}
+module "catering_requests_role" {
+  source                            = "./security/iam/catering-requests"
+  environment                       = var.env
+  catering_requests_table_arn       = module.catering_requests.table_arn
+  location_table_arn                = module.location.table_arn
+  catering_discount_tiers_table_arn = module.catering_discount_tiers.table_arn
+  menu_table_arn                    = module.menu.table_arn
+  region                            = var.aws_region
+}
 
 #ECR
 module "activate_layout_version_ecr" {
@@ -397,6 +426,18 @@ module "stripe_webhook_ecr" {
 }
 module "webhook_payment_intent_ecr" {
   source      = "./storage/ecr/webhook-payment-intent"
+  environment = var.env
+}
+module "catering_settings_ecr" {
+  source      = "./storage/ecr/catering-settings"
+  environment = var.env
+}
+module "catering_discount_tiers_ecr" {
+  source      = "./storage/ecr/catering-discount-tiers"
+  environment = var.env
+}
+module "catering_requests_ecr" {
+  source      = "./storage/ecr/catering-requests"
   environment = var.env
 }
 
@@ -631,6 +672,33 @@ module "webhook_payment_intent_fn" {
   region                      = var.aws_region
   order_stripe_webhook_secret = module.stripe_webhooks.order_webhook_secret
 }
+module "catering_settings_fn" {
+  source              = "./compute/lambda/catering-settings"
+  environment         = var.env
+  role_arn            = module.catering_settings_role.role_arn
+  ecr_repository_url  = module.catering_settings_ecr.catering_settings_ecr_repository_url
+  location_table_name = module.location.table_name
+  region              = var.aws_region
+}
+module "catering_discount_tiers_fn" {
+  source                             = "./compute/lambda/catering-discount-tiers"
+  environment                        = var.env
+  role_arn                           = module.catering_discount_tiers_role.role_arn
+  ecr_repository_url                 = module.catering_discount_tiers_ecr.catering_discount_tiers_ecr_repository_url
+  catering_discount_tiers_table_name = module.catering_discount_tiers.table_name
+  region                             = var.aws_region
+}
+module "catering_requests_fn" {
+  source                             = "./compute/lambda/catering-requests"
+  environment                        = var.env
+  role_arn                           = module.catering_requests_role.role_arn
+  ecr_repository_url                 = module.catering_requests_ecr.catering_requests_ecr_repository_url
+  catering_requests_table_name       = module.catering_requests.table_name
+  location_table_name                = module.location.table_name
+  catering_discount_tiers_table_name = module.catering_discount_tiers.table_name
+  menu_table_name                    = module.menu.table_name
+  region                             = var.aws_region
+}
 
 
 #API Gateway
@@ -688,6 +756,12 @@ module "api_gateway" {
   stripe_webhook_invoke_arn                = module.stripe_webhook_fn.invoke_arn
   webhook_payment_intent_function_name     = module.webhook_payment_intent_fn.function_name
   webhook_payment_intent_invoke_arn        = module.webhook_payment_intent_fn.invoke_arn
+  catering_settings_function_name          = module.catering_settings_fn.function_name
+  catering_settings_invoke_arn             = module.catering_settings_fn.invoke_arn
+  catering_discount_tiers_function_name    = module.catering_discount_tiers_fn.function_name
+  catering_discount_tiers_invoke_arn       = module.catering_discount_tiers_fn.invoke_arn
+  catering_requests_function_name          = module.catering_requests_fn.function_name
+  catering_requests_invoke_arn             = module.catering_requests_fn.invoke_arn
 }
 
 # Stripe webhook endpoints - created in Stripe by Terraform, pointing at the
