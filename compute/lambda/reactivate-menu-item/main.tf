@@ -1,5 +1,5 @@
 locals {
-  function_name = var.environment == "prod" ? "notification" : "${var.environment}-notification"
+  function_name = var.environment == "prod" ? "reactivate-menu-item" : "${var.environment}-reactivate-menu-item"
 }
 
 # Declared explicitly, not left to be auto-created on first invoke, so log
@@ -25,9 +25,8 @@ resource "aws_lambda_function" "this" {
 
   environment {
     variables = {
-      ENVIRONMENT            = var.environment
-      NO_REPLY_EMAIL_ADDRESS = var.no_reply_email_address
-      ADMIN_DASHBOARD_URL    = var.admin_dashboard_url
+      ENVIRONMENT     = var.environment
+      MENU_TABLE_NAME = var.menu_table_name
     }
   }
 

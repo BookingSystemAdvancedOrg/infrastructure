@@ -36,7 +36,47 @@ resource "aws_dynamodb_table" "catering_requests" {
     enabled = true
   }
 
+  # NEW_IMAGE only - the owner notification below fires on INSERT (a brand
+  # new request), never on a status transition, so there's no OldImage to
+  # compare against. If a MODIFY-triggered notification (e.g. "request
+  # accepted") is ever added here, switch this to NEW_AND_OLD_IMAGES then,
+  # same as the reservation/order tables do for their transition filters.
+  stream_enabled   = true
+  stream_view_type = "NEW_IMAGE"
+
   tags = {
     Environment = var.environment
+  }
+}
+
+# Invokes NotificationFn on every new catering request (INSERT with
+# status "pending") so the restaurant owner gets a link-only email - no
+# offer details in the body, by design (see docs/catering ticket). Anchored
+# to status = "pending" rather than any INSERT so a future bulk-import or
+# migration script that writes catering-requests items directly doesn't
+# accidentally spam an email per row.
+#
+# Filtering happens here, at the event source mapping, so NotificationFn is
+# never even invoked for irrelevant stream records - same pattern as
+# notify_on_reservation_status_change (storage/dynamodb/reservation) and
+# notify_on_order_paid (storage/dynamodb/order).
+resource "aws_lambda_event_source_mapping" "notify_on_catering_request_created" {
+  event_source_arn  = aws_dynamodb_table.catering_requests.stream_arn
+  function_name     = var.notification_lambda_arn # this can be NAME or ARN, but ARN is safer in case the Lambda is in a different account
+  enabled           = true
+  starting_position = "LATEST"
+  batch_size        = 10
+
+  filter_criteria {
+    filter {
+      pattern = jsonencode({
+        eventName = ["INSERT"]
+        dynamodb = {
+          NewImage = {
+            status = { S = ["pending"] }
+          }
+        }
+      })
+    }
   }
 }

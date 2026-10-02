@@ -81,6 +81,34 @@ resource "aws_iam_role_policy" "order_stream_read" {
   })
 }
 
+# Same four stream-read actions, scoped to the catering-requests table's
+# stream - the catering-requests ESM (notify_on_catering_request_created in
+# storage/dynamodb/catering-requests) delivers new-pending-request events
+# through this same Lambda, which emails the restaurant owner a link-only
+# notification (no offer details in the body - that's deliberate, see the
+# catering ticket).
+resource "aws_iam_role_policy" "catering_requests_stream_read" {
+  name = "catering-requests-stream-read"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "ReadCateringRequestsStream"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:DescribeStream",
+          "dynamodb:GetRecords",
+          "dynamodb:GetShardIterator",
+          "dynamodb:ListStreams",
+        ]
+        Resource = "${var.catering_requests_stream_arn}"
+      }
+    ]
+  })
+}
+
 # SNS phone-number publishing (SMS) has no per-number ARN to scope to -
 # AWS requires Resource = "*" for direct-to-phone-number sns:Publish calls,
 # since an arbitrary customer phone number isn't a resource that exists in
