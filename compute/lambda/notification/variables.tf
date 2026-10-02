@@ -22,6 +22,12 @@ variable "no_reply_email_address" {
   sensitive   = false
 }
 
+variable "admin_dashboard_url" {
+  description = "Base URL of the admin front-end (private CloudFront distribution), passed as an environment variable so the handler can build a link-only catering-request notification email - e.g. https://<distribution_domain_name>"
+  type        = string
+  sensitive   = false
+}
+
 variable "region" {
   description = "AWS region this Lambda's log group, ECR repository, and image push target live in"
   type        = string

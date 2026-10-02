@@ -48,6 +48,48 @@ resource "aws_iam_role_policy" "dynamodb_crud" {
   })
 }
 
+# Lets this Lambda create/update/delete the one-time
+# "reactivate-menu-item-<...>" schedule when staff set a menu item inactive
+# for a date window, same pattern as ActivateLayoutVersionFn's
+# expire-layout-version schedule. CreateSchedule/UpdateSchedule/
+# DeleteSchedule are all scoped to that naming pattern in the default
+# schedule group, not every schedule in the account. Update+Delete are
+# included from the start (not just Create) so a staff member changing or
+# clearing the dates before the schedule fires re-targets or removes the
+# existing schedule instead of leaving an orphan that silently flips the
+# item back on later - activate-layout-version's own role only has Create
+# today and flags that exact gap in its comments; this role doesn't repeat
+# it. PassRole is scoped to the one role being handed to the Scheduler
+# service, further restricted by the PassedToService condition so this
+# permission can't be reused to pass that role to anything else.
+resource "aws_iam_role_policy" "eventbridge_scheduler" {
+  name = "manage-reactivate-menu-item-schedule"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "ManageReactivateMenuItemSchedule"
+        Effect   = "Allow"
+        Action   = ["scheduler:CreateSchedule", "scheduler:UpdateSchedule", "scheduler:DeleteSchedule", "scheduler:GetSchedule"]
+        Resource = "arn:aws:scheduler:${var.region}:${data.aws_caller_identity.current.account_id}:schedule/default/reactivate-menu-item-*"
+      },
+      {
+        Sid      = "PassSchedulerInvokeRole"
+        Effect   = "Allow"
+        Action   = "iam:PassRole"
+        Resource = "${var.scheduler_invoke_role_arn}"
+        Condition = {
+          StringEquals = {
+            "iam:PassedToService" = "scheduler.amazonaws.com"
+          }
+        }
+      }
+    ]
+  })
+}
+
 # Scoped to exactly this function's own log group — not logs:* on everything.
 #
 # No logs:CreateLogGroup - the log group is expected to be provisioned

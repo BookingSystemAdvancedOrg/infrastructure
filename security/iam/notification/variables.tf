@@ -27,3 +27,9 @@ variable "order_stream_arn" {
   type        = string
   sensitive   = false
 }
+
+variable "catering_requests_stream_arn" {
+  description = "ARN of the catering-requests DynamoDB table's Stream — read-only, for the new-request owner-notification email"
+  type        = string
+  sensitive   = false
+}

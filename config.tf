@@ -79,8 +79,9 @@ module "catering_discount_tiers" {
   environment = var.env
 }
 module "catering_requests" {
-  source      = "./storage/dynamodb/catering-requests"
-  environment = var.env
+  source                  = "./storage/dynamodb/catering-requests"
+  environment             = var.env
+  notification_lambda_arn = module.notification_fn.function_arn
 }
 
 
@@ -130,10 +131,11 @@ module "get_menu_role" {
   region         = var.aws_region
 }
 module "manage_menu_role" {
-  source         = "./security/iam/manage-menu"
-  environment    = var.env
-  menu_table_arn = module.menu.table_arn
-  region         = var.aws_region
+  source                    = "./security/iam/manage-menu"
+  environment               = var.env
+  menu_table_arn            = module.menu.table_arn
+  scheduler_invoke_role_arn = module.scheduler_invoke_reactivate_menu_item_role.role_arn
+  region                    = var.aws_region
 }
 module "manage_order_role" {
   source          = "./security/iam/manage-order"
@@ -214,6 +216,17 @@ module "expire_layout_version_role" {
   environment                         = var.env
   published_layout_snapshot_table_arn = module.published_layout_snapshot.table_arn
   region                              = var.aws_region
+}
+module "scheduler_invoke_reactivate_menu_item_role" {
+  source                          = "./security/iam/scheduler-invoke-reactivate-menu-item"
+  environment                     = var.env
+  reactivate_menu_item_lambda_arn = module.reactivate_menu_item_fn.function_arn
+}
+module "reactivate_menu_item_role" {
+  source         = "./security/iam/reactivate-menu-item"
+  environment    = var.env
+  menu_table_arn = module.menu.table_arn
+  region         = var.aws_region
 }
 module "get_location_role" {
   source             = "./security/iam/get-location"
@@ -298,12 +311,13 @@ module "block_table_role" {
   region                              = var.aws_region
 }
 module "notification_role" {
-  source                 = "./security/iam/notification"
-  environment            = var.env
-  reservation_stream_arn = module.reservation.stream_arn
-  order_stream_arn       = module.order.stream_arn
-  ses_identity_arn       = module.ses.identity_arn
-  region                 = var.aws_region
+  source                       = "./security/iam/notification"
+  environment                  = var.env
+  reservation_stream_arn       = module.reservation.stream_arn
+  order_stream_arn             = module.order.stream_arn
+  catering_requests_stream_arn = module.catering_requests.stream_arn
+  ses_identity_arn             = module.ses.identity_arn
+  region                       = var.aws_region
 }
 module "catering_settings_role" {
   source             = "./security/iam/catering-settings"
@@ -334,6 +348,10 @@ module "activate_layout_version_ecr" {
 }
 module "expire_layout_version_ecr" {
   source      = "./storage/ecr/expire-layout-version"
+  environment = var.env
+}
+module "reactivate_menu_item_ecr" {
+  source      = "./storage/ecr/reactivate-menu-item"
   environment = var.env
 }
 module "block_table_ecr" {
@@ -461,6 +479,14 @@ module "expire_layout_version_fn" {
   published_layout_snapshot_table_name = module.published_layout_snapshot.table_name
   region                               = var.aws_region
 }
+module "reactivate_menu_item_fn" {
+  source             = "./compute/lambda/reactivate-menu-item"
+  environment        = var.env
+  role_arn           = module.reactivate_menu_item_role.role_arn
+  ecr_repository_url = module.reactivate_menu_item_ecr.reactivate_menu_item_ecr_repository_url
+  menu_table_name    = module.menu.table_name
+  region             = var.aws_region
+}
 module "block_table_fn" {
   source                               = "./compute/lambda/block-table"
   environment                          = var.env
@@ -582,12 +608,14 @@ module "manage_layout_element_fn" {
   region                         = var.aws_region
 }
 module "manage_menu_fn" {
-  source             = "./compute/lambda/manage-menu"
-  environment        = var.env
-  role_arn           = module.manage_menu_role.role_arn
-  ecr_repository_url = module.manage_menu_ecr.manage_menu_ecr_repository_url
-  menu_table_name    = module.menu.table_name
-  region             = var.aws_region
+  source                            = "./compute/lambda/manage-menu"
+  environment                       = var.env
+  role_arn                          = module.manage_menu_role.role_arn
+  ecr_repository_url                = module.manage_menu_ecr.manage_menu_ecr_repository_url
+  menu_table_name                   = module.menu.table_name
+  scheduler_invoke_role_arn         = module.scheduler_invoke_reactivate_menu_item_role.role_arn
+  reactivate_menu_item_function_arn = module.reactivate_menu_item_fn.function_arn
+  region                            = var.aws_region
 }
 module "manage_order_fn" {
   source             = "./compute/lambda/manage-order"
@@ -631,6 +659,7 @@ module "notification_fn" {
   role_arn               = module.notification_role.role_arn
   ecr_repository_url     = module.notification_ecr.notification_ecr_repository_url
   no_reply_email_address = var.no_reply_email_address
+  admin_dashboard_url    = "https://${module.cloudfront_private.distribution_domain_name}"
   region                 = var.aws_region
 }
 module "pre_signed_url_fn" {

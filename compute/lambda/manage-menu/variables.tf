@@ -27,3 +27,15 @@ variable "region" {
   type        = string
   sensitive   = false
 }
+
+variable "scheduler_invoke_role_arn" {
+  description = "ARN of the IAM role handed to EventBridge Scheduler when creating a reactivate-menu-item schedule, passed as an environment variable for the handler's SDK calls"
+  type        = string
+  sensitive   = true
+}
+
+variable "reactivate_menu_item_function_arn" {
+  description = "ARN of the ReactivateMenuItemFn Lambda — the Scheduler target for the reactivate-menu-item schedule, passed as an environment variable for the handler's SDK calls"
+  type        = string
+  sensitive   = false
+}
