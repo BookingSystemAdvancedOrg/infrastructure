@@ -94,5 +94,6 @@ output "ecr_repository_urls" {
     catering_requests          = module.catering_requests_ecr.catering_requests_ecr_repository_url
     catering_settings          = module.catering_settings_ecr.catering_settings_ecr_repository_url
     webhook_payment_intent     = module.webhook_payment_intent_ecr.webhook_payment_intent_ecr_repository_url
+    reactivate_menu_item       = module.reactivate_menu_item_ecr.reactivate_menu_item_ecr_repository_url
   }
 }
