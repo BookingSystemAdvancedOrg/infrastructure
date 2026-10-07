@@ -533,6 +533,7 @@ module "platform_tenants_role" {
   offboarding_state_machine_arn   = module.tenant_workflows.offboarding_state_machine_arn
   stripe_secret_arn               = module.platform_secrets.stripe_secret_arn
   region                          = var.aws_region
+  operator_user_pool_arn          = module.cognito_platform.user_pool_arn
 }
 module "tenant_account_role" {
   source             = "./security/iam/tenant-account"
@@ -1237,6 +1238,8 @@ module "platform_tenants_fn" {
   admin_app_url                   = local.admin_app_url
   platform_admin_app_url          = local.platform_admin_app_url
   region                          = var.aws_region
+  operator_user_pool_id           = module.cognito_platform.user_pool_id
+  operator_group_name             = module.cognito_platform.admin_group_name
 }
 module "tenant_account_fn" {
   source                 = "./compute/lambda/tenant-account"
@@ -1365,7 +1368,6 @@ module "api_gateway" {
   allowed_origins                          = ["*"]
   platform_user_pool_id                    = module.cognito_platform.user_pool_id
   platform_client_id                       = module.cognito_platform.client_id
-  platform_admin_scope                     = module.cognito_platform.admin_scope
   platform_tenants_function_name           = module.platform_tenants_fn.function_name
   platform_tenants_invoke_arn              = module.platform_tenants_fn.alias_invoke_arn
   tenant_account_function_name             = module.tenant_account_fn.function_name

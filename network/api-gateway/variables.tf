@@ -338,11 +338,6 @@ variable "platform_client_id" {
   sensitive   = false
 }
 
-variable "platform_admin_scope" {
-  description = "OAuth scope every /platform/* route requires, e.g. platform/admin"
-  type        = string
-  sensitive   = false
-}
 
 variable "platform_tenants_function_name" {
   description = "Name of the platform-tenants Lambda"

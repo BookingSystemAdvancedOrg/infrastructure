@@ -57,6 +57,8 @@ resource "aws_lambda_function" "this" {
       TENANT_DOMAIN_CNAME_TARGET      = var.tenant_domain_cname_target
       ADMIN_APP_URL                   = var.admin_app_url
       PLATFORM_ADMIN_APP_URL          = var.platform_admin_app_url
+      OPERATOR_USER_POOL_ID           = var.operator_user_pool_id
+      OPERATOR_GROUP_NAME             = var.operator_group_name
     }
   }
 

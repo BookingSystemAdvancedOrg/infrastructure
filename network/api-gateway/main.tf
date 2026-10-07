@@ -65,8 +65,8 @@ resource "aws_apigatewayv2_authorizer" "cognito" {
 
 # Second authorizer, for /platform/* only: tokens from the OPERATOR user pool
 # (storage/cognito-platform). A tenant-pool token - even an owner's - is
-# rejected here by issuer before any Lambda runs, and each platform route
-# additionally requires the platform/admin scope (authorization_scopes).
+# rejected here by issuer before any Lambda runs; the platform-tenants Lambda
+# then requires the platform_admin group.
 resource "aws_apigatewayv2_authorizer" "platform" {
   api_id           = aws_apigatewayv2_api.this.id
   authorizer_type  = "JWT"
@@ -1238,8 +1238,8 @@ resource "aws_lambda_permission" "catering_signing_webhook_invoke" {
 # --- platform-tenants ---
 #
 # The operator dashboard's API: tenants, plans, domains, suspension,
-# offboarding. Operator pool token + platform/admin scope, checked by API
-# Gateway. Provisioning itself runs in Step Functions
+# offboarding, operator accounts. Operator pool token checked by API Gateway,
+# platform_admin group checked by the Lambda. Provisioning itself runs in Step Functions
 # (orchestration/tenant-workflows) - this Lambda validates, writes the
 # tenant row and starts the workflow.
 
@@ -1265,6 +1265,13 @@ locals {
     "DELETE /platform/tenants/{tenantId}/domains/{domain}",
     "POST /platform/tenants/{tenantId}/stripe/account-link",
     "POST /platform/tenants/{tenantId}/stripe/sync",
+    # Operator accounts (the operator pool itself) - every operator has the
+    # same rights, including managing other operators.
+    "GET /platform/operators",
+    "POST /platform/operators",
+    "PATCH /platform/operators/{username}",
+    "DELETE /platform/operators/{username}",
+    "POST /platform/operators/{username}/resend-invite",
   ]
 }
 
@@ -1276,15 +1283,20 @@ resource "aws_apigatewayv2_integration" "platform_tenants" {
   payload_format_version = "2.0"
 }
 
+# No authorization_scopes: sbs-admin signs operators in inside the app
+# (Cognito SRP via Amplify), and Cognito only puts custom scopes such as
+# platform/admin into tokens issued by its hosted OAuth flow. The authorizer
+# still only accepts access tokens from the OPERATOR pool for the sbs-admin
+# app client (issuer + client id), and the Lambda rejects any caller not in
+# the platform_admin group.
 resource "aws_apigatewayv2_route" "platform_tenants" {
   for_each = toset(local.platform_tenants_routes)
 
-  api_id               = aws_apigatewayv2_api.this.id
-  route_key            = each.value
-  target               = "integrations/${aws_apigatewayv2_integration.platform_tenants.id}"
-  authorization_type   = "JWT"
-  authorizer_id        = aws_apigatewayv2_authorizer.platform.id
-  authorization_scopes = [var.platform_admin_scope]
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = each.value
+  target             = "integrations/${aws_apigatewayv2_integration.platform_tenants.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.platform.id
 }
 
 resource "aws_lambda_permission" "platform_tenants_invoke" {

@@ -156,6 +156,23 @@ resource "aws_iam_role_policy" "cognito" {
           "cognito-idp:AdminUserGlobalSignOut",
         ]
         Resource = "${var.tenant_user_pool_arn}"
+      },
+      {
+        # Operators manage each other from sbs-admin (Operators page).
+        Sid    = "ManageOperators"
+        Effect = "Allow"
+        Action = [
+          "cognito-idp:ListUsersInGroup",
+          "cognito-idp:AdminGetUser",
+          "cognito-idp:AdminCreateUser",
+          "cognito-idp:AdminAddUserToGroup",
+          "cognito-idp:AdminUpdateUserAttributes",
+          "cognito-idp:AdminDisableUser",
+          "cognito-idp:AdminEnableUser",
+          "cognito-idp:AdminUserGlobalSignOut",
+          "cognito-idp:AdminDeleteUser",
+        ]
+        Resource = "${var.operator_user_pool_arn}"
       }
     ]
   })

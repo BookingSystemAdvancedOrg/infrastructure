@@ -19,6 +19,11 @@ output "hosted_login_url" {
 }
 
 output "admin_scope" {
-  description = "OAuth scope every /platform/* route requires"
+  description = "OAuth scope issued by the hosted login flow (the /platform/* routes no longer require it - see network/api-gateway)"
   value       = tolist(aws_cognito_resource_server.platform.scope_identifiers)[0]
+}
+
+output "admin_group_name" {
+  description = "Group every operator belongs to - the platform-tenants Lambda only serves members"
+  value       = aws_cognito_user_group.platform_admin.name
 }

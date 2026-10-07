@@ -63,3 +63,9 @@ variable "region" {
   type        = string
   sensitive   = false
 }
+
+variable "operator_user_pool_arn" {
+  description = "ARN of the operator user pool (storage/cognito-platform) - operators manage each other's accounts"
+  type        = string
+  sensitive   = false
+}

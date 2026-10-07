@@ -123,3 +123,15 @@ variable "region" {
   type        = string
   sensitive   = false
 }
+
+variable "operator_user_pool_id" {
+  description = "ID of the operator user pool - the Operators page manages its accounts"
+  type        = string
+  sensitive   = false
+}
+
+variable "operator_group_name" {
+  description = "Group every operator is added to (and the only one allowed to use this API)"
+  type        = string
+  sensitive   = false
+}
