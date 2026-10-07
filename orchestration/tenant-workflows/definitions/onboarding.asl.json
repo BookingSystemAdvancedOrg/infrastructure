@@ -298,9 +298,9 @@
                 ":stripe": {
                   "M": {
                     "accountId": { "S": "{% $stripeAccountId %}" },
-                    "chargesEnabled": { "BOOL": false },
-                    "payoutsEnabled": { "BOOL": false },
-                    "detailsSubmitted": { "BOOL": false },
+                    "chargesEnabled": { "Bool": false },
+                    "payoutsEnabled": { "Bool": false },
+                    "detailsSubmitted": { "Bool": false },
                     "taxRates": { "M": {} }
                   }
                 },
