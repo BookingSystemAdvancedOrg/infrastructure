@@ -29,7 +29,19 @@ variable "order_stream_arn" {
 }
 
 variable "catering_requests_stream_arn" {
-  description = "ARN of the catering-requests DynamoDB table's Stream — read-only, for the new-request owner-notification email"
+  description = "ARN of the catering-requests DynamoDB table's Stream — read-only, for the new-request owner email and customer-facing status emails"
+  type        = string
+  sensitive   = false
+}
+
+variable "notification_dlq_arn" {
+  description = "ARN of the notification-stream DLQ - all three stream mappings (reservation, order, catering-requests) send failed batches there"
+  type        = string
+  sensitive   = false
+}
+
+variable "catering_link_signing_key_secret_arn" {
+  description = "ARN of the catering magic-link HMAC key secret — read to build customer links in catering emails"
   type        = string
   sensitive   = false
 }

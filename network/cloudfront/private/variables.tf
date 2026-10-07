@@ -15,3 +15,17 @@ variable "menu_image_bucket_regional_domain_name" {
   type        = string
   sensitive   = false
 }
+
+variable "aliases" {
+  description = "Custom hostnames for this distribution (app.<platform domain>); empty until the platform domain is set"
+  type        = list(string)
+  sensitive   = false
+  default     = []
+}
+
+variable "acm_certificate_arn" {
+  description = "us-east-1 ACM certificate covering the aliases; empty = default *.cloudfront.net certificate"
+  type        = string
+  sensitive   = false
+  default     = ""
+}

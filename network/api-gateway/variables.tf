@@ -23,7 +23,7 @@ variable "cognito_client_id" {
 }
 
 variable "allowed_origins" {
-  description = "Front-end origin(s) allowed to call this API cross-origin, e.g. [\"https://app.example.com\"]"
+  description = "Origins allowed to call this API cross-origin. [\"*\"] for a multi-tenant platform (tenant sites live on domains added at runtime) - safe because the API uses bearer tokens, never cookies"
   type        = list(string)
   sensitive   = false
 }
@@ -255,26 +255,6 @@ variable "pre_signed_url_invoke_arn" {
   type        = string
   sensitive   = true
 }
-variable "stripe_webhook_function_name" {
-  type        = string
-  description = "Name of the StripeWebhookFn Lambda - for the invoke permission on the reservation-payment webhook route"
-  sensitive   = false
-}
-variable "stripe_webhook_invoke_arn" {
-  type        = string
-  description = "Invoke ARN of the StripeWebhookFn Lambda - integration target of POST /webhooks/stripe/reservation"
-  sensitive   = false
-}
-variable "webhook_payment_intent_function_name" {
-  type        = string
-  description = "Name of the WebhookPaymentIntentFn Lambda - for the invoke permission on the order-payment webhook route"
-  sensitive   = false
-}
-variable "webhook_payment_intent_invoke_arn" {
-  type        = string
-  description = "Invoke ARN of the WebhookPaymentIntentFn Lambda - integration target of POST /webhooks/stripe/order"
-  sensitive   = false
-}
 variable "manage_order_function_name" {
   type        = string
   description = "Name of the ManageOrderFn Lambda - for the invoke permission on the JWT-protected order-management routes"
@@ -314,4 +294,88 @@ variable "catering_requests_invoke_arn" {
   description = "Invoke ARN of the catering-requests Lambda (compute/lambda/catering-requests) - the integration target for its routes"
   type        = string
   sensitive   = true
+}
+variable "catering_offer_function_name" {
+  description = "Name of the catering-offer Lambda (compute/lambda/catering-offer) - granted permission to be invoked by this API"
+  type        = string
+  sensitive   = false
+}
+variable "catering_offer_invoke_arn" {
+  description = "Invoke ARN of the catering-offer Lambda (compute/lambda/catering-offer) - the integration target for its routes"
+  type        = string
+  sensitive   = true
+}
+variable "catering_customer_function_name" {
+  description = "Name of the catering-customer Lambda (compute/lambda/catering-customer) - granted permission to be invoked by this API"
+  type        = string
+  sensitive   = false
+}
+variable "catering_customer_invoke_arn" {
+  description = "Invoke ARN of the catering-customer Lambda (compute/lambda/catering-customer) - the integration target for its routes"
+  type        = string
+  sensitive   = true
+}
+variable "catering_signing_webhook_function_name" {
+  description = "Name of the catering-signing-webhook Lambda (compute/lambda/catering-signing-webhook) - granted permission to be invoked by this API"
+  type        = string
+  sensitive   = false
+}
+variable "catering_signing_webhook_invoke_arn" {
+  description = "Invoke ARN of the catering-signing-webhook Lambda (compute/lambda/catering-signing-webhook) - the integration target for its routes"
+  type        = string
+  sensitive   = true
+}
+
+variable "platform_user_pool_id" {
+  description = "ID of the operator Cognito user pool (storage/cognito-platform) - issuer of the platform authorizer"
+  type        = string
+  sensitive   = false
+}
+
+variable "platform_client_id" {
+  description = "App client ID of the platform admin app (operator pool) - audience of the platform authorizer"
+  type        = string
+  sensitive   = false
+}
+
+variable "platform_admin_scope" {
+  description = "OAuth scope every /platform/* route requires, e.g. platform/admin"
+  type        = string
+  sensitive   = false
+}
+
+variable "platform_tenants_function_name" {
+  description = "Name of the platform-tenants Lambda"
+  type        = string
+  sensitive   = false
+}
+
+variable "platform_tenants_invoke_arn" {
+  description = "Invoke ARN of the platform-tenants Lambda"
+  type        = string
+  sensitive   = false
+}
+
+variable "tenant_account_function_name" {
+  description = "Name of the tenant-account Lambda"
+  type        = string
+  sensitive   = false
+}
+
+variable "tenant_account_invoke_arn" {
+  description = "Invoke ARN of the tenant-account Lambda"
+  type        = string
+  sensitive   = false
+}
+
+variable "tenant_site_config_function_name" {
+  description = "Name of the tenant-site-config Lambda"
+  type        = string
+  sensitive   = false
+}
+
+variable "tenant_site_config_invoke_arn" {
+  description = "Invoke ARN of the tenant-site-config Lambda"
+  type        = string
+  sensitive   = false
 }

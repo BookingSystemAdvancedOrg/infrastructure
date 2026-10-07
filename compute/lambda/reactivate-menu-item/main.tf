@@ -25,12 +25,33 @@ resource "aws_lambda_function" "this" {
 
   environment {
     variables = {
-      ENVIRONMENT     = var.environment
-      MENU_TABLE_NAME = var.menu_table_name
+      TENANT_TABLE_NAME      = var.tenant_table_name
+      LOCATION_TABLE_NAME    = var.location_table_name
+      LOCATION_ID_INDEX_NAME = var.location_id_index_name
+      ENVIRONMENT            = var.environment
+      MENU_TABLE_NAME        = var.menu_table_name
     }
   }
 
   tags = {
     Environment = var.environment
+  }
+}
+
+# EventBridge Scheduler invokes this function ASYNCHRONOUSLY, so a failing
+# run is handled by Lambda's async retry logic, not by Scheduler: after the
+# retries below, Lambda hands the invocation record (original input in
+# requestPayload) to the scheduled-invocation DLQ. Configured here, so no
+# application code has to set anything per schedule. dlq-replay redelivers
+# from that queue on its own schedule.
+resource "aws_lambda_function_event_invoke_config" "this" {
+  function_name                = aws_lambda_function.this.function_name
+  maximum_retry_attempts       = 2
+  maximum_event_age_in_seconds = 21600 # 6h - a timer older than that is stale
+
+  destination_config {
+    on_failure {
+      destination = var.failure_destination_arn
+    }
   }
 }

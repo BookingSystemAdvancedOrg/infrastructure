@@ -33,3 +33,9 @@ variable "region" {
   type        = string
   sensitive   = false
 }
+
+variable "scheduled_invocation_dlq_arn" {
+  description = "ARN of the scheduled-invocation DLQ - this role sends the function's failed asynchronous invocations there"
+  type        = string
+  sensitive   = false
+}

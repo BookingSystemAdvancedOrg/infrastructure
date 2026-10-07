@@ -1,0 +1,284 @@
+{
+  "Comment": "Tenant offboarding. Started by platform-tenants (POST /platform/tenants/{tenantId}/offboard). Blocks the tenant immediately (status offboarding - every Lambda's tenant check then refuses it), disables and signs out all of its users, detaches all of its domains, and marks it offboarded. Data is NOT deleted here: export/deletion follows the retention policy (docs/TENANT-ONBOARDING.md, Offboarding) - bookkeeping records must be kept for 7 years. The restaurant keeps its Stripe account.",
+  "QueryLanguage": "JSONata",
+  "TimeoutSeconds": 21600,
+  "StartAt": "Init",
+  "States": {
+    "Init": {
+      "Type": "Pass",
+      "Assign": {
+        "tenantId": "{% $states.input.tenantId %}",
+        "requestedBy": "{% $exists($states.input.requestedBy) ? $states.input.requestedBy : 'unknown' %}",
+        "users": [],
+        "domains": [],
+        "detachFailures": [],
+        "failure": {},
+        "failedState": "{% '' %}"
+      },
+      "Next": "MarkOffboarding"
+    },
+    "MarkOffboarding": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:updateItem",
+      "Arguments": {
+        "TableName": "${tenant_table}",
+        "Key": {
+          "PK": { "S": "{% 'TENANT#' & $tenantId %}" },
+          "SK": { "S": "PROFILE" }
+        },
+        "UpdateExpression": "SET #status = :status, offboardingRequestedBy = :by, offboardingStartedAt = :now, updatedAt = :now",
+        "ConditionExpression": "attribute_exists(PK)",
+        "ExpressionAttributeNames": { "#status": "status" },
+        "ExpressionAttributeValues": {
+          ":status": { "S": "offboarding" },
+          ":by": { "S": "{% $requestedBy %}" },
+          ":now": { "S": "{% $now() %}" }
+        }
+      },
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Assign": { "failure": "{% $states.errorOutput %}", "failedState": "{% $states.context.State.Name %}" },
+          "Next": "NotifyFailure"
+        }
+      ],
+      "Next": "ListUsers"
+    },
+    "ListUsers": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:dynamodb:query",
+      "Arguments": {
+        "TableName": "${user_table}",
+        "IndexName": "${user_tenant_index}",
+        "KeyConditionExpression": "tenantId = :t",
+        "ProjectionExpression": "email, cognitoSub",
+        "ExpressionAttributeValues": {
+          ":t": { "S": "{% $tenantId %}" }
+        }
+      },
+      "Assign": {
+        "users": "{% $states.result.Items %}"
+      },
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Assign": { "failure": "{% $states.errorOutput %}", "failedState": "{% $states.context.State.Name %}" },
+          "Next": "NotifyFailure"
+        }
+      ],
+      "Next": "DisableUsers"
+    },
+    "DisableUsers": {
+      "Type": "Map",
+      "Items": "{% $users %}",
+      "MaxConcurrency": 5,
+      "ItemProcessor": {
+        "ProcessorConfig": { "Mode": "INLINE" },
+        "StartAt": "DisableUser",
+        "States": {
+          "DisableUser": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::aws-sdk:cognitoidentityprovider:adminDisableUser",
+            "Arguments": {
+              "UserPoolId": "${user_pool_id}",
+              "Username": "{% $states.input.email.S %}"
+            },
+            "Retry": [
+              {
+                "ErrorEquals": ["CognitoIdentityProvider.TooManyRequestsException", "CognitoIdentityProvider.InternalErrorException"],
+                "IntervalSeconds": 2,
+                "MaxAttempts": 5,
+                "BackoffRate": 2
+              }
+            ],
+            "Catch": [
+              {
+                "ErrorEquals": ["CognitoIdentityProvider.UserNotFoundException"],
+                "Next": "UserGone"
+              }
+            ],
+            "Output": "{% $states.input %}",
+            "Next": "SignOutUser"
+          },
+          "SignOutUser": {
+            "Type": "Task",
+            "Comment": "Revokes refresh tokens; access tokens already issued expire within the hour and are refused meanwhile by the tenant status check.",
+            "Resource": "arn:aws:states:::aws-sdk:cognitoidentityprovider:adminUserGlobalSignOut",
+            "Arguments": {
+              "UserPoolId": "${user_pool_id}",
+              "Username": "{% $states.input.email.S %}"
+            },
+            "Retry": [
+              {
+                "ErrorEquals": ["CognitoIdentityProvider.TooManyRequestsException", "CognitoIdentityProvider.InternalErrorException"],
+                "IntervalSeconds": 2,
+                "MaxAttempts": 5,
+                "BackoffRate": 2
+              }
+            ],
+            "Catch": [
+              {
+                "ErrorEquals": ["CognitoIdentityProvider.UserNotFoundException"],
+                "Next": "UserGone"
+              }
+            ],
+            "End": true
+          },
+          "UserGone": {
+            "Type": "Succeed"
+          }
+        }
+      },
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Assign": { "failure": "{% $states.errorOutput %}", "failedState": "{% $states.context.State.Name %}" },
+          "Next": "NotifyFailure"
+        }
+      ],
+      "Next": "ListDomains"
+    },
+    "ListDomains": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:dynamodb:query",
+      "Arguments": {
+        "TableName": "${tenant_table}",
+        "KeyConditionExpression": "PK = :pk AND begins_with(SK, :prefix)",
+        "ExpressionAttributeValues": {
+          ":pk": { "S": "{% 'TENANT#' & $tenantId %}" },
+          ":prefix": { "S": "DOMAIN#" }
+        }
+      },
+      "Assign": {
+        "domains": "{% $states.result.Items %}"
+      },
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Assign": { "failure": "{% $states.errorOutput %}", "failedState": "{% $states.context.State.Name %}" },
+          "Next": "NotifyFailure"
+        }
+      ],
+      "Next": "DetachDomains"
+    },
+    "DetachDomains": {
+      "Type": "Map",
+      "Comment": "Runs the domain-detach workflow for each domain (platform subdomain and custom domains alike) and waits for it. A failed detach is reported but doesn't stop offboarding - the tenant is already blocked.",
+      "Items": "{% $domains %}",
+      "MaxConcurrency": 2,
+      "ItemProcessor": {
+        "ProcessorConfig": { "Mode": "INLINE" },
+        "StartAt": "DetachDomain",
+        "States": {
+          "DetachDomain": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::states:startExecution.sync:2",
+            "Arguments": {
+              "StateMachineArn": "${domain_detach_state_machine_arn}",
+              "Input": {
+                "tenantId": "{% $tenantId %}",
+                "domain": "{% $substringAfter($states.input.SK.S, 'DOMAIN#') %}"
+              }
+            },
+            "Output": {
+              "domain": "{% $substringAfter($states.input.SK.S, 'DOMAIN#') %}",
+              "ok": true
+            },
+            "Catch": [
+              {
+                "ErrorEquals": ["States.ALL"],
+                "Output": {
+                  "domain": "{% $substringAfter($states.input.SK.S, 'DOMAIN#') %}",
+                  "ok": false,
+                  "error": "{% $string($states.errorOutput.Error) %}"
+                },
+                "Next": "DetachFailed"
+              }
+            ],
+            "End": true
+          },
+          "DetachFailed": {
+            "Type": "Pass",
+            "End": true
+          }
+        }
+      },
+      "Assign": {
+        "detachFailures": "{% $append([], $states.result[ok = false].domain) %}"
+      },
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Assign": { "failure": "{% $states.errorOutput %}", "failedState": "{% $states.context.State.Name %}" },
+          "Next": "NotifyFailure"
+        }
+      ],
+      "Next": "MarkOffboarded"
+    },
+    "MarkOffboarded": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:updateItem",
+      "Arguments": {
+        "TableName": "${tenant_table}",
+        "Key": {
+          "PK": { "S": "{% 'TENANT#' & $tenantId %}" },
+          "SK": { "S": "PROFILE" }
+        },
+        "UpdateExpression": "SET #status = :status, offboardedAt = :now, updatedAt = :now",
+        "ExpressionAttributeNames": { "#status": "status" },
+        "ExpressionAttributeValues": {
+          ":status": { "S": "offboarded" },
+          ":now": { "S": "{% $now() %}" }
+        }
+      },
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Assign": { "failure": "{% $states.errorOutput %}", "failedState": "{% $states.context.State.Name %}" },
+          "Next": "NotifyFailure"
+        }
+      ],
+      "Next": "NotifyOffboarded"
+    },
+    "NotifyOffboarded": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::sns:publish",
+      "Arguments": {
+        "TopicArn": "${alert_topic_arn}",
+        "Subject": "${environment}: tenant offboarded",
+        "Message": "{% 'Tenant ' & $tenantId & ' is offboarded: ' & $string($count($users)) & ' user(s) disabled, ' & $string($count($domains)) & ' domain(s) detached' & ($count($detachFailures) > 0 ? ' (FAILED: ' & $join($detachFailures, ', ') & ' - start domain-detach for these manually)' : '') & '.\\n\\nNext: export the tenant data if the customer asked for it and schedule deletion per the retention policy (docs/TENANT-ONBOARDING.md, Offboarding). The restaurant keeps its Stripe account.' %}"
+      },
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "Offboarded"
+        }
+      ],
+      "Next": "Offboarded"
+    },
+    "Offboarded": {
+      "Type": "Succeed"
+    },
+    "NotifyFailure": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::sns:publish",
+      "Arguments": {
+        "TopicArn": "${alert_topic_arn}",
+        "Subject": "${environment}: tenant offboarding failed",
+        "Message": "{% 'Offboarding tenant ' & $tenantId & ' failed at ' & $failedState & '.\\n\\n' & $string($failure) & '\\n\\nThe tenant is blocked (status offboarding) - fix the cause and start offboarding again. Execution: ' & $states.context.Execution.Id %}"
+      },
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "OffboardingFailed"
+        }
+      ],
+      "Next": "OffboardingFailed"
+    },
+    "OffboardingFailed": {
+      "Type": "Fail",
+      "Error": "OffboardingFailed",
+      "Cause": "See the alert email."
+    }
+  }
+}

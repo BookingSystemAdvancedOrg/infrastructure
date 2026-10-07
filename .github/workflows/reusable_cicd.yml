@@ -36,14 +36,22 @@ jobs:
           echo "TF_VAR_customer_frontend_repo=${{ env.CUSTOMER_FRONTEND_REPO }}" >> "$GITHUB_ENV"
           echo "TF_VAR_admin_frontend_repo=${{ env.ADMIN_FRONTEND_REPO }}" >> "$GITHUB_ENV"
           echo "TF_VAR_backend_repo=${{ env.BACKEND_REPO }}" >> "$GITHUB_ENV"
+          echo "TF_VAR_platform_admin_frontend_repo=${{ env.PLATFORM_ADMIN_FRONTEND_REPO }}" >> "$GITHUB_ENV"
 
       - name: Export Stripe secrets
         # Only the API key crosses CI now. The webhook signing secrets
         # (whsec_...) no longer exist as GitHub secrets at all - Terraform
-        # creates the webhook endpoints itself (payments/stripe) and wires
-        # each endpoint's secret straight into the receiving Lambda.
+        # creates the webhook endpoints itself (payments/stripe) and stores
+        # each endpoint's secret in Secrets Manager for the receiving Lambda.
         run: |
           echo "TF_VAR_stripe_secret_key=${{ inputs.environment == 'prod' && secrets.STRIPE_SECRET_KEY_PROD || secrets.STRIPE_SECRET_KEY_DEV }}" >> "$GITHUB_ENV"
+
+      - name: Unit test infra-owned Lambda code
+        # Lambdas whose code ships from THIS repo as zips (not backend
+        # images) - the Cognito pre-token-generation trigger runs on every
+        # login, so a broken one locks every tenant out. Fail before any
+        # Terraform runs.
+        run: python3 -m unittest discover -s compute/lambda/pre-token-generation/tests -v
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v5
@@ -168,8 +176,10 @@ jobs:
 
           customer_bucket=$(terraform output -raw customer_front_end_bucket_name)
           admin_bucket=$(terraform output -raw admin_front_end_bucket_name)
+          platform_admin_bucket=$(terraform output -raw platform_admin_front_end_bucket_name)
           customer_distribution_id=$(terraform output -raw customer_cloudfront_distribution_id)
           admin_distribution_id=$(terraform output -raw admin_cloudfront_distribution_id)
+          platform_admin_distribution_id=$(terraform output -raw platform_admin_cloudfront_distribution_id)
 
           deploy_placeholder() {
             local bucket="$1" src="$2" distribution_id="$3"
@@ -186,3 +196,4 @@ jobs:
 
           deploy_placeholder "$customer_bucket" "ci/placeholder-frontend/customer" "$customer_distribution_id"
           deploy_placeholder "$admin_bucket" "ci/placeholder-frontend/admin" "$admin_distribution_id"
+          deploy_placeholder "$platform_admin_bucket" "ci/placeholder-frontend/platform-admin" "$platform_admin_distribution_id"

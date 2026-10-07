@@ -85,6 +85,18 @@ resource "aws_lambda_event_source_mapping" "notify_on_reservation_status_change"
   starting_position = "LATEST"
   batch_size        = 10
 
+  # A failing batch must not block this shard for the stream's full 24h:
+  # cap retries, bisect to isolate a poison record, then hand the batch to
+  # the notification-stream DLQ, which dlq-replay drains on a schedule.
+  maximum_retry_attempts         = 5
+  bisect_batch_on_function_error = true
+
+  destination_config {
+    on_failure {
+      destination_arn = var.notification_dlq_arn
+    }
+  }
+
   filter_criteria {
     filter {
       pattern = jsonencode({

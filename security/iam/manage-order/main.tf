@@ -1,7 +1,7 @@
 # Execution role for the manage-order Lambda.
 #
 # Same structure as manage-menu's role - one IAM role per Lambda, never
-# shared. This Lambda is the staff/owner/super-admin write-and-query path
+# shared. This Lambda is the staff/owner write-and-query path (own tenant only)
 # for orders (status updates through the kitchen lifecycle, the day's-
 # orders dashboard Query, cancellations), so unlike manage-menu it needs
 # read actions too - dynamodb:* scoped to the one order table covers both

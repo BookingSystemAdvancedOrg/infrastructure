@@ -72,6 +72,20 @@ resource "aws_iam_role_policy" "ecr_push" {
           "ecr:PutImage",
         ]
         Resource = "arn:aws:ecr:${var.region}:${data.aws_caller_identity.current.account_id}:repository/*"
+      },
+      {
+        Sid    = "NotTheOperatorApiRepo"
+        Effect = "Deny"
+        Action = [
+          "ecr:InitiateLayerUpload",
+          "ecr:UploadLayerPart",
+          "ecr:CompleteLayerUpload",
+          "ecr:PutImage",
+        ]
+        Resource = [
+          "arn:aws:ecr:${var.region}:${data.aws_caller_identity.current.account_id}:repository/platform-tenants",
+          "arn:aws:ecr:${var.region}:${data.aws_caller_identity.current.account_id}:repository/*-platform-tenants",
+        ]
       }
     ]
   })
@@ -93,6 +107,25 @@ resource "aws_iam_role_policy" "lambda_deploy" {
           "lambda:GetFunctionConfiguration",
         ]
         Resource = "arn:aws:lambda:${var.region}:${data.aws_caller_identity.current.account_id}:function:*"
+      },
+      {
+        # pre-token-generation decides every token's tenant_id - its code is
+        # owned and deployed by this infra repo only. A backend workflow (any
+        # branch) must never be able to swap it.
+        Sid    = "NeverTouchTheTenantClaimTrigger"
+        Effect = "Deny"
+        Action = [
+          "lambda:UpdateFunctionCode",
+          "lambda:UpdateFunctionConfiguration",
+        ]
+        Resource = [
+          "arn:aws:lambda:${var.region}:${data.aws_caller_identity.current.account_id}:function:pre-token-generation",
+          "arn:aws:lambda:${var.region}:${data.aws_caller_identity.current.account_id}:function:*-pre-token-generation",
+          # platform-tenants (the operator API) is built and deployed by the
+          # sbs-admin repo - a backend workflow must not replace it.
+          "arn:aws:lambda:${var.region}:${data.aws_caller_identity.current.account_id}:function:platform-tenants",
+          "arn:aws:lambda:${var.region}:${data.aws_caller_identity.current.account_id}:function:*-platform-tenants",
+        ]
       }
     ]
   })

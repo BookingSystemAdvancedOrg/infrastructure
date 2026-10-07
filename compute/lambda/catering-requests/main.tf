@@ -24,11 +24,17 @@ resource "aws_lambda_function" "this" {
 
   environment {
     variables = {
-      ENVIRONMENT                        = var.environment
-      CATERING_REQUESTS_TABLE_NAME       = var.catering_requests_table_name
-      LOCATION_TABLE_NAME                = var.location_table_name
-      CATERING_DISCOUNT_TIERS_TABLE_NAME = var.catering_discount_tiers_table_name
-      MENU_TABLE_NAME                    = var.menu_table_name
+      TENANT_TABLE_NAME                   = var.tenant_table_name
+      LOCATION_ID_INDEX_NAME              = var.location_id_index_name
+      ENVIRONMENT                         = var.environment
+      CATERING_REQUESTS_TABLE_NAME        = var.catering_requests_table_name
+      LOCATION_TABLE_NAME                 = var.location_table_name
+      CATERING_DISCOUNT_TIERS_TABLE_NAME  = var.catering_discount_tiers_table_name
+      MENU_TABLE_NAME                     = var.menu_table_name
+      CATERING_REQUEST_HISTORY_TABLE_NAME = var.catering_request_history_table_name
+      TURNSTILE_SECRET_ARN                = var.turnstile_secret_arn
+      LINK_SIGNING_KEY_SECRET_ARN         = var.link_signing_key_secret_arn
+      CUSTOMER_SITE_URL                   = var.customer_site_url
     }
   }
 

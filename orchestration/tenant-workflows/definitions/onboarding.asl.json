@@ -1,0 +1,691 @@
+{
+  "Comment": "Tenant onboarding. Started by platform-tenants after it has written the tenant's PROFILE row (status provisioning). Invites the first owner, creates the restaurant's Stripe connected account and VAT rates, gives the tenant its <slug> subdomain, then marks it active. Every step is idempotent, so a failed run is simply started again (POST /platform/tenants/{tenantId}/onboarding/retry).",
+  "QueryLanguage": "JSONata",
+  "TimeoutSeconds": 3600,
+  "StartAt": "Init",
+  "States": {
+    "Init": {
+      "Type": "Pass",
+      "Assign": {
+        "tenantId": "{% $states.input.tenantId %}",
+        "slug": "{% $states.input.slug %}",
+        "tenantName": "{% $states.input.name %}",
+        "ownerEmail": "{% $lowercase($states.input.ownerEmail) %}",
+        "ownerName": "{% $states.input.ownerName %}",
+        "failure": {},
+        "failedState": "{% '' %}"
+      },
+      "Next": "GetTenant"
+    },
+    "GetTenant": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:getItem",
+      "Arguments": {
+        "TableName": "${tenant_table}",
+        "Key": {
+          "PK": { "S": "{% 'TENANT#' & $tenantId %}" },
+          "SK": { "S": "PROFILE" }
+        },
+        "ConsistentRead": true
+      },
+      "Assign": {
+        "tenantFound": "{% $exists($states.result.Item) %}",
+        "stripeAccountId": "{% ($a := $states.result.Item.stripe.M.accountId.S; $a ? $a : '') %}",
+        "existingTaxRateKeys": "{% $exists($states.result.Item.stripe.M.taxRates.M) ? $append([], $keys($states.result.Item.stripe.M.taxRates.M)) : [] %}",
+        "tenantStatus": "{% ($s := $states.result.Item.status.S; $s ? $s : '') %}"
+      },
+      "Retry": [
+        {
+          "ErrorEquals": ["DynamoDB.ThrottlingException", "DynamoDB.InternalServerErrorException", "DynamoDB.ProvisionedThroughputExceededException"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 4,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Assign": { "failure": "{% $states.errorOutput %}", "failedState": "{% $states.context.State.Name %}" },
+          "Next": "MarkFailed"
+        }
+      ],
+      "Next": "TenantExists"
+    },
+    "TenantExists": {
+      "Type": "Choice",
+      "Comment": "The owner is invited only while the tenant is being provisioned - a re-run on an active tenant must not re-invite or re-promote a former owner.",
+      "Choices": [
+        {
+          "Condition": "{% $tenantFound and $tenantStatus in ['provisioning', 'provisioning_failed'] %}",
+          "Next": "InviteOwner"
+        },
+        {
+          "Condition": "{% $tenantFound %}",
+          "Next": "HasStripeAccount"
+        }
+      ],
+      "Default": "TenantNotFound"
+    },
+    "TenantNotFound": {
+      "Type": "Fail",
+      "Error": "TenantNotFound",
+      "Cause": "No PROFILE row for this tenantId - platform-tenants must write it before starting onboarding."
+    },
+    "InviteOwner": {
+      "Type": "Task",
+      "Comment": "Creates the first owner with custom:tenant_id set (immutable). Cognito emails the temporary password using the pool's invite template.",
+      "Resource": "arn:aws:states:::aws-sdk:cognitoidentityprovider:adminCreateUser",
+      "Arguments": {
+        "UserPoolId": "${user_pool_id}",
+        "Username": "{% $ownerEmail %}",
+        "UserAttributes": [
+          { "Name": "email", "Value": "{% $ownerEmail %}" },
+          { "Name": "email_verified", "Value": "true" },
+          { "Name": "name", "Value": "{% $ownerName %}" },
+          { "Name": "custom:tenant_id", "Value": "{% $tenantId %}" }
+        ],
+        "DesiredDeliveryMediums": ["EMAIL"]
+      },
+      "Assign": {
+        "ownerSub": "{% $states.result.User.Attributes[Name = 'sub'].Value %}"
+      },
+      "Retry": [
+        {
+          "ErrorEquals": ["CognitoIdentityProvider.TooManyRequestsException", "CognitoIdentityProvider.InternalErrorException"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 5,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["CognitoIdentityProvider.UsernameExistsException"],
+          "Next": "LookupExistingOwner"
+        },
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Assign": { "failure": "{% $states.errorOutput %}", "failedState": "{% $states.context.State.Name %}" },
+          "Next": "MarkFailed"
+        }
+      ],
+      "Next": "AddOwnerToGroup"
+    },
+    "LookupExistingOwner": {
+      "Type": "Task",
+      "Comment": "A retry after a partial run finds its own user. An address that already belongs to ANOTHER tenant stops the run - custom:tenant_id is immutable, so one person can't be owner of two tenants with one login.",
+      "Resource": "arn:aws:states:::aws-sdk:cognitoidentityprovider:adminGetUser",
+      "Arguments": {
+        "UserPoolId": "${user_pool_id}",
+        "Username": "{% $ownerEmail %}"
+      },
+      "Assign": {
+        "ownerSub": "{% $states.result.UserAttributes[Name = 'sub'].Value %}",
+        "existingOwnerTenant": "{% ($t := $states.result.UserAttributes[Name = 'custom:tenant_id'].Value; $t ? $t : '') %}"
+      },
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Assign": { "failure": "{% $states.errorOutput %}", "failedState": "{% $states.context.State.Name %}" },
+          "Next": "MarkFailed"
+        }
+      ],
+      "Next": "OwnerBelongsToTenant"
+    },
+    "OwnerBelongsToTenant": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Condition": "{% $existingOwnerTenant = $tenantId %}",
+          "Next": "AddOwnerToGroup"
+        }
+      ],
+      "Default": "OwnerEmailInUse"
+    },
+    "OwnerEmailInUse": {
+      "Type": "Pass",
+      "Assign": {
+        "failedState": "InviteOwner",
+        "failure": {
+          "Error": "OwnerEmailInUse",
+          "Cause": "{% 'The owner email is already registered to another tenant (' & $existingOwnerTenant & '). Use a different address for this tenant.' %}"
+        }
+      },
+      "Next": "MarkFailed"
+    },
+    "AddOwnerToGroup": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:cognitoidentityprovider:adminAddUserToGroup",
+      "Arguments": {
+        "UserPoolId": "${user_pool_id}",
+        "Username": "{% $ownerEmail %}",
+        "GroupName": "${owner_group}"
+      },
+      "Retry": [
+        {
+          "ErrorEquals": ["CognitoIdentityProvider.TooManyRequestsException", "CognitoIdentityProvider.InternalErrorException"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 5,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Assign": { "failure": "{% $states.errorOutput %}", "failedState": "{% $states.context.State.Name %}" },
+          "Next": "MarkFailed"
+        }
+      ],
+      "Next": "PutOwnerProfile"
+    },
+    "PutOwnerProfile": {
+      "Type": "Task",
+      "Comment": "The user table mirrors Cognito for listing/editing staff; tenantId feeds its byTenant index. Written once - a re-run keeps whatever the owner has edited since.",
+      "Resource": "arn:aws:states:::dynamodb:putItem",
+      "Arguments": {
+        "TableName": "${user_table}",
+        "Item": {
+          "PK": { "S": "{% 'USER#' & $ownerSub %}" },
+          "SK": { "S": "PROFILE" },
+          "cognitoSub": { "S": "{% $ownerSub %}" },
+          "tenantId": { "S": "{% $tenantId %}" },
+          "role": { "S": "owner_user" },
+          "email": { "S": "{% $ownerEmail %}" },
+          "name": { "S": "{% $ownerName %}" },
+          "status": { "S": "active" },
+          "createdBy": { "S": "platform-onboarding" },
+          "createdAt": { "S": "{% $now() %}" }
+        },
+        "ConditionExpression": "attribute_not_exists(PK)"
+      },
+      "Retry": [
+        {
+          "ErrorEquals": ["DynamoDB.ThrottlingException", "DynamoDB.InternalServerErrorException", "DynamoDB.ProvisionedThroughputExceededException"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 4,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["DynamoDB.ConditionalCheckFailedException"],
+          "Next": "HasStripeAccount"
+        },
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Assign": { "failure": "{% $states.errorOutput %}", "failedState": "{% $states.context.State.Name %}" },
+          "Next": "MarkFailed"
+        }
+      ],
+      "Next": "HasStripeAccount"
+    },
+    "HasStripeAccount": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Condition": "{% $stripeAccountId != '' %}",
+          "Next": "PrepareTaxRates"
+        }
+      ],
+      "Default": "CreateStripeAccount"
+    },
+    "CreateStripeAccount": {
+      "Type": "Task",
+      "Comment": "Standard-equivalent connected account (own full Stripe Dashboard, restaurant is merchant of record and pays its own Stripe fees). The restaurant completes Stripe's identity verification through an Account Link (/tenant/stripe/account-link); no keys are ever exchanged.",
+      "Resource": "arn:aws:states:::http:invoke",
+      "Arguments": {
+        "ApiEndpoint": "https://api.stripe.com/v1/accounts",
+        "Method": "POST",
+        "Authentication": { "ConnectionArn": "${stripe_connection_arn}" },
+        "Headers": {
+          "Idempotency-Key": "{% 'create-account-' & $tenantId %}",
+          "Stripe-Version": "${stripe_api_version}"
+        },
+        "RequestBody": {
+          "controller": {
+            "stripe_dashboard": { "type": "full" },
+            "fees": { "payer": "account" },
+            "losses": { "payments": "stripe" },
+            "requirement_collection": "stripe"
+          },
+          "country": "SE",
+          "email": "{% $ownerEmail %}",
+          "business_profile": { "name": "{% $tenantName %}" },
+          "metadata": {
+            "tenantId": "{% $tenantId %}",
+            "environment": "${environment}"
+          }
+        },
+        "Transform": {
+          "RequestBodyEncoding": "URL_ENCODED",
+          "RequestEncodingOptions": { "ArrayFormat": "INDICES" }
+        }
+      },
+      "Assign": {
+        "stripeAccountId": "{% $states.result.ResponseBody.id %}"
+      },
+      "Retry": [
+        {
+          "ErrorEquals": ["States.Http.StatusCode.429", "States.Http.StatusCode.500", "States.Http.StatusCode.502", "States.Http.StatusCode.503", "States.Http.StatusCode.504", "States.Timeout"],
+          "IntervalSeconds": 3,
+          "MaxAttempts": 4,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Assign": { "failure": "{% $states.errorOutput %}", "failedState": "{% $states.context.State.Name %}" },
+          "Next": "MarkFailed"
+        }
+      ],
+      "Next": "SaveStripeAccount"
+    },
+    "SaveStripeAccount": {
+      "Type": "Task",
+      "Comment": "Stores the account on the tenant and claims STRIPE_ACCOUNT#<acct> so Connect webhooks (event.account) resolve to this tenant.",
+      "Resource": "arn:aws:states:::aws-sdk:dynamodb:transactWriteItems",
+      "Arguments": {
+        "TransactItems": [
+          {
+            "Update": {
+              "TableName": "${tenant_table}",
+              "Key": {
+                "PK": { "S": "{% 'TENANT#' & $tenantId %}" },
+                "SK": { "S": "PROFILE" }
+              },
+              "UpdateExpression": "SET stripe = :stripe, updatedAt = :now",
+              "ExpressionAttributeValues": {
+                ":stripe": {
+                  "M": {
+                    "accountId": { "S": "{% $stripeAccountId %}" },
+                    "chargesEnabled": { "BOOL": false },
+                    "payoutsEnabled": { "BOOL": false },
+                    "detailsSubmitted": { "BOOL": false },
+                    "taxRates": { "M": {} }
+                  }
+                },
+                ":now": { "S": "{% $now() %}" }
+              }
+            }
+          },
+          {
+            "Put": {
+              "TableName": "${tenant_table}",
+              "Item": {
+                "PK": { "S": "{% 'STRIPE_ACCOUNT#' & $stripeAccountId %}" },
+                "SK": { "S": "TENANT" },
+                "tenantId": { "S": "{% $tenantId %}" }
+              },
+              "ConditionExpression": "attribute_not_exists(PK) OR tenantId = :t",
+              "ExpressionAttributeValues": {
+                ":t": { "S": "{% $tenantId %}" }
+              }
+            }
+          }
+        ]
+      },
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Assign": { "failure": "{% $states.errorOutput %}", "failedState": "{% $states.context.State.Name %}" },
+          "Next": "MarkFailed"
+        }
+      ],
+      "Next": "PrepareTaxRates"
+    },
+    "PrepareTaxRates": {
+      "Type": "Task",
+      "Comment": "Makes sure PROFILE.stripe.taxRates exists so each rate can be stored under its own key below.",
+      "Resource": "arn:aws:states:::dynamodb:updateItem",
+      "Arguments": {
+        "TableName": "${tenant_table}",
+        "Key": {
+          "PK": { "S": "{% 'TENANT#' & $tenantId %}" },
+          "SK": { "S": "PROFILE" }
+        },
+        "UpdateExpression": "SET stripe.taxRates = if_not_exists(stripe.taxRates, :empty)",
+        "ExpressionAttributeValues": {
+          ":empty": { "M": {} }
+        }
+      },
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Assign": { "failure": "{% $states.errorOutput %}", "failedState": "{% $states.context.State.Name %}" },
+          "Next": "MarkFailed"
+        }
+      ],
+      "Next": "CreateTaxRates"
+    },
+    "CreateTaxRates": {
+      "Type": "Map",
+      "Comment": "One Stripe tax rate per var.default_tax_rates entry, created ON the restaurant's connected account (Stripe-Account header) - only for keys the tenant doesn't have yet, so a re-run after adding a rate creates just that one. Empty list = nothing to do.",
+      "Items": ${tax_rates_json},
+      "MaxConcurrency": 1,
+      "ItemProcessor": {
+        "ProcessorConfig": { "Mode": "INLINE" },
+        "StartAt": "TaxRateMissing",
+        "States": {
+          "TaxRateMissing": {
+            "Type": "Choice",
+            "Choices": [
+              {
+                "Condition": "{% $states.input.key in $existingTaxRateKeys %}",
+                "Next": "TaxRateExists"
+              }
+            ],
+            "Default": "CreateTaxRate"
+          },
+          "TaxRateExists": {
+            "Type": "Succeed"
+          },
+          "CreateTaxRate": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::http:invoke",
+            "Arguments": {
+              "ApiEndpoint": "https://api.stripe.com/v1/tax_rates",
+              "Method": "POST",
+              "Authentication": { "ConnectionArn": "${stripe_connection_arn}" },
+              "Headers": {
+                "Stripe-Account": "{% $stripeAccountId %}",
+                "Stripe-Version": "${stripe_api_version}",
+                "Idempotency-Key": "{% 'tax-rate-' & $tenantId & '-' & $states.input.key %}"
+              },
+              "RequestBody": {
+                "display_name": "{% $states.input.display_name %}",
+                "percentage": "{% $string($states.input.percentage) %}",
+                "inclusive": "{% $string($states.input.inclusive) %}",
+                "country": "SE",
+                "jurisdiction": "SE",
+                "tax_type": "vat",
+                "description": "{% $states.input.key %}",
+                "metadata": { "key": "{% $states.input.key %}" }
+              },
+              "Transform": { "RequestBodyEncoding": "URL_ENCODED" }
+            },
+            "Assign": { "taxRateId": "{% $states.result.ResponseBody.id %}" },
+            "Retry": [
+              {
+                "ErrorEquals": ["States.Http.StatusCode.429", "States.Http.StatusCode.500", "States.Http.StatusCode.502", "States.Http.StatusCode.503", "States.Http.StatusCode.504", "States.Timeout"],
+                "IntervalSeconds": 3,
+                "MaxAttempts": 4,
+                "BackoffRate": 2
+              }
+            ],
+            "Next": "SaveTaxRate"
+          },
+          "SaveTaxRate": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::dynamodb:updateItem",
+            "Arguments": {
+              "TableName": "${tenant_table}",
+              "Key": {
+                "PK": { "S": "{% 'TENANT#' & $tenantId %}" },
+                "SK": { "S": "PROFILE" }
+              },
+              "UpdateExpression": "SET stripe.taxRates.#k = :id, updatedAt = :now",
+              "ExpressionAttributeNames": { "#k": "{% $states.input.key %}" },
+              "ExpressionAttributeValues": {
+                ":id": { "S": "{% $taxRateId %}" },
+                ":now": { "S": "{% $now() %}" }
+              }
+            },
+            "Retry": [
+              {
+                "ErrorEquals": ["DynamoDB.ThrottlingException", "DynamoDB.InternalServerErrorException", "DynamoDB.ProvisionedThroughputExceededException"],
+                "IntervalSeconds": 2,
+                "MaxAttempts": 4,
+                "BackoffRate": 2
+              }
+            ],
+            "End": true
+          }
+        }
+      },
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Assign": { "failure": "{% $states.errorOutput %}", "failedState": "{% $states.context.State.Name %}" },
+          "Next": "MarkFailed"
+        }
+      ],
+      "Next": "PlatformDomainEnabled"
+    },
+    "PlatformDomainEnabled": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Condition": "{% ${platform_domain_enabled} %}",
+          "Next": "CreateSubdomainTenant"
+        }
+      ],
+      "Default": "ActivateTenant"
+    },
+    "CreateSubdomainTenant": {
+      "Type": "Task",
+      "Comment": "<slug>.<platform domain>, served by the multi-tenant distribution with its wildcard certificate (inherited - no per-tenant certificate) and a wildcard DNS record (no per-tenant DNS). The tenantId parameter becomes the S3 origin path, so the site is whatever is deployed under <tenantId>/ in the tenant-sites bucket.",
+      "Resource": "arn:aws:states:::aws-sdk:cloudfront:createDistributionTenant",
+      "Arguments": {
+        "DistributionId": "${distribution_id}",
+        "Name": "{% 'tenant-' & $tenantId %}",
+        "Domains": [
+          { "Domain": "{% $slug & '.${platform_domain}' %}" }
+        ],
+        "Parameters": [
+          { "Name": "tenantId", "Value": "{% $tenantId %}" }
+        ],
+        "ConnectionGroupId": "${connection_group_id}",
+        "Enabled": true
+      },
+      "Assign": {
+        "subdomainTenantId": "{% $states.result.DistributionTenant.Id %}"
+      },
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Assign": { "createError": "{% $states.errorOutput %}" },
+          "Next": "FindSubdomainTenant"
+        }
+      ],
+      "Next": "RecordSubdomain"
+    },
+    "FindSubdomainTenant": {
+      "Type": "Task",
+      "Comment": "A retry finds the distribution tenant a previous run already created (names are deterministic).",
+      "Resource": "arn:aws:states:::aws-sdk:cloudfront:getDistributionTenant",
+      "Arguments": {
+        "Identifier": "{% 'tenant-' & $tenantId %}"
+      },
+      "Assign": {
+        "subdomainTenantId": "{% $states.result.DistributionTenant.Id %}"
+      },
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Assign": { "failure": "{% $createError %}", "failedState": "CreateSubdomainTenant" },
+          "Next": "MarkFailed"
+        }
+      ],
+      "Next": "RecordSubdomain"
+    },
+    "RecordSubdomain": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:dynamodb:transactWriteItems",
+      "Arguments": {
+        "TransactItems": [
+          {
+            "Put": {
+              "TableName": "${tenant_table}",
+              "Item": {
+                "PK": { "S": "{% 'DOMAIN#' & $slug & '.${platform_domain}' %}" },
+                "SK": { "S": "TENANT" },
+                "tenantId": { "S": "{% $tenantId %}" }
+              },
+              "ConditionExpression": "attribute_not_exists(PK) OR tenantId = :t",
+              "ExpressionAttributeValues": {
+                ":t": { "S": "{% $tenantId %}" }
+              }
+            }
+          },
+          {
+            "Put": {
+              "TableName": "${tenant_table}",
+              "Item": {
+                "PK": { "S": "{% 'TENANT#' & $tenantId %}" },
+                "SK": { "S": "{% 'DOMAIN#' & $slug & '.${platform_domain}' %}" },
+                "domain": { "S": "{% $slug & '.${platform_domain}' %}" },
+                "kind": { "S": "platform" },
+                "status": { "S": "active" },
+                "distributionTenantId": { "S": "{% $subdomainTenantId %}" },
+                "createdAt": { "S": "{% $now() %}" }
+              }
+            }
+          },
+          {
+            "Update": {
+              "TableName": "${tenant_table}",
+              "Key": {
+                "PK": { "S": "{% 'TENANT#' & $tenantId %}" },
+                "SK": { "S": "PROFILE" }
+              },
+              "UpdateExpression": "SET primaryDomain = if_not_exists(primaryDomain, :d), updatedAt = :now",
+              "ExpressionAttributeValues": {
+                ":d": { "S": "{% $slug & '.${platform_domain}' %}" },
+                ":now": { "S": "{% $now() %}" }
+              }
+            }
+          }
+        ]
+      },
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Assign": { "failure": "{% $states.errorOutput %}", "failedState": "{% $states.context.State.Name %}" },
+          "Next": "MarkFailed"
+        }
+      ],
+      "Next": "SiteAlreadyDeployed"
+    },
+    "SiteAlreadyDeployed": {
+      "Type": "Task",
+      "Comment": "Only seeds the 'coming soon' page when nothing has been deployed for this tenant yet - never overwrites a real site.",
+      "Resource": "arn:aws:states:::aws-sdk:s3:headObject",
+      "Arguments": {
+        "Bucket": "${sites_bucket}",
+        "Key": "{% $tenantId & '/index.html' %}"
+      },
+      "Catch": [
+        {
+          "ErrorEquals": ["S3.NoSuchKeyException", "S3.NotFoundException", "S3.S3Exception"],
+          "Next": "SeedSitePlaceholder"
+        },
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "ActivateTenant"
+        }
+      ],
+      "Next": "ActivateTenant"
+    },
+    "SeedSitePlaceholder": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:s3:copyObject",
+      "Arguments": {
+        "Bucket": "${sites_bucket}",
+        "CopySource": "${sites_bucket}/${placeholder_key}",
+        "Key": "{% $tenantId & '/index.html' %}"
+      },
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "ActivateTenant"
+        }
+      ],
+      "Next": "ActivateTenant"
+    },
+    "ActivateTenant": {
+      "Type": "Task",
+      "Comment": "Only a tenant still in provisioning is activated - an operator who suspended it meanwhile wins.",
+      "Resource": "arn:aws:states:::dynamodb:updateItem",
+      "Arguments": {
+        "TableName": "${tenant_table}",
+        "Key": {
+          "PK": { "S": "{% 'TENANT#' & $tenantId %}" },
+          "SK": { "S": "PROFILE" }
+        },
+        "UpdateExpression": "SET #status = :active, activatedAt = :now, updatedAt = :now REMOVE lastError",
+        "ConditionExpression": "#status IN (:provisioning, :failed)",
+        "ExpressionAttributeNames": { "#status": "status" },
+        "ExpressionAttributeValues": {
+          ":active": { "S": "active" },
+          ":provisioning": { "S": "provisioning" },
+          ":failed": { "S": "provisioning_failed" },
+          ":now": { "S": "{% $now() %}" }
+        }
+      },
+      "Catch": [
+        {
+          "ErrorEquals": ["DynamoDB.ConditionalCheckFailedException"],
+          "Next": "Done"
+        },
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Assign": { "failure": "{% $states.errorOutput %}", "failedState": "{% $states.context.State.Name %}" },
+          "Next": "MarkFailed"
+        }
+      ],
+      "Next": "Done"
+    },
+    "Done": {
+      "Type": "Succeed"
+    },
+    "MarkFailed": {
+      "Type": "Task",
+      "Comment": "Only a tenant still being provisioned is marked failed - a failed re-run on an active (or suspended) tenant must not take it offline; the alert below still goes out.",
+      "Resource": "arn:aws:states:::dynamodb:updateItem",
+      "Arguments": {
+        "TableName": "${tenant_table}",
+        "Key": {
+          "PK": { "S": "{% 'TENANT#' & $tenantId %}" },
+          "SK": { "S": "PROFILE" }
+        },
+        "UpdateExpression": "SET #status = :failed, lastError = :error, updatedAt = :now",
+        "ConditionExpression": "#status IN (:provisioning, :failed)",
+        "ExpressionAttributeNames": { "#status": "status" },
+        "ExpressionAttributeValues": {
+          ":provisioning": { "S": "provisioning" },
+          ":failed": { "S": "provisioning_failed" },
+          ":error": { "S": "{% $substring($string($failure.Error) & ': ' & $string($failure.Cause), 0, 1000) %}" },
+          ":now": { "S": "{% $now() %}" }
+        }
+      },
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "NotifyFailure"
+        }
+      ],
+      "Next": "NotifyFailure"
+    },
+    "NotifyFailure": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::sns:publish",
+      "Arguments": {
+        "TopicArn": "${alert_topic_arn}",
+        "Subject": "${environment}: tenant onboarding failed",
+        "Message": "{% 'Onboarding of tenant ' & $tenantId & ' failed at ' & $failedState & '.\\n\\n' & $string($failure) & '\\n\\nFix the cause, then retry from the platform dashboard (POST /platform/tenants/' & $tenantId & '/onboarding/retry). Execution: ' & $states.context.Execution.Id %}"
+      },
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "OnboardingFailed"
+        }
+      ],
+      "Next": "OnboardingFailed"
+    },
+    "OnboardingFailed": {
+      "Type": "Fail",
+      "Error": "OnboardingFailed",
+      "Cause": "See the tenant's lastError and the alert email."
+    }
+  }
+}

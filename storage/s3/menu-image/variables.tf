@@ -21,3 +21,10 @@ variable "allowed_origins" {
   type        = list(string)
   sensitive   = false
 }
+
+variable "additional_cloudfront_distribution_arns" {
+  description = "Further CloudFront distributions allowed to read menu images through OAC (the tenant-sites multi-tenant distribution when the platform domain is set)"
+  type        = list(string)
+  sensitive   = false
+  default     = []
+}

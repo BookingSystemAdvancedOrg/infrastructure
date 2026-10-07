@@ -33,3 +33,33 @@ variable "region" {
   type        = string
   sensitive   = false
 }
+
+variable "customer_site_url" {
+  description = "Base URL of the customer front-end (public CloudFront distribution), e.g. https://<distribution_domain_name> - base of the magic links in catering customer emails"
+  type        = string
+  sensitive   = false
+}
+
+variable "catering_link_signing_key_secret_arn" {
+  description = "ARN of the catering magic-link HMAC key secret - the handler rebuilds each customer's link with it"
+  type        = string
+  sensitive   = false
+}
+
+variable "tenant_table_name" {
+  description = "Name of the tenant DynamoDB table - read by the shared tenant-context check (tenant status, plan features, Stripe account, sender)"
+  type        = string
+  sensitive   = false
+}
+
+variable "location_table_name" {
+  description = "Name of the location DynamoDB table, passed as an environment variable"
+  type        = string
+  sensitive   = false
+}
+
+variable "location_id_index_name" {
+  description = "Name of the location table's locationId GSI - resolves a {locationId} from the URL to its tenant"
+  type        = string
+  sensitive   = false
+}

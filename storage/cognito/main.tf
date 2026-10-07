@@ -1,13 +1,69 @@
 
+# The TENANT user pool: every restaurant's owners and staff, all tenants in
+# one pool. Which tenant a user belongs to is the immutable custom:tenant_id
+# attribute, put into every token as the tenant_id claim by the
+# pre-token-generation trigger. Platform operators (you) are NOT in this
+# pool - they have their own (storage/cognito-platform), so no tenant user
+# can ever hold platform rights.
+
 resource "aws_cognito_user_pool" "this" {
   name = var.environment == "prod" ? "staff-user-pool" : "${var.environment}-staff-user-pool"
 
+  # Essentials is the lowest feature plan that lets the pre token generation
+  # trigger customize ACCESS tokens (Lite only customizes ID tokens) - and
+  # the access token is what the API is called with.
+  user_pool_tier = "ESSENTIALS"
+
   # No public self-registration - accounts only ever get created via
-  # AdminCreateUser (from your "add staff/owner-user" API). This is also
-  # what keeps customers out of this pool entirely: there's no sign-up
-  # form to find, since the customer-facing flow never touches Cognito.
+  # AdminCreateUser (the onboarding workflow for a tenant's first owner,
+  # manage-user for everyone after that). This is also what keeps customers
+  # out of this pool entirely: there's no sign-up form to find, since the
+  # customer-facing flow never touches Cognito.
   admin_create_user_config {
     allow_admin_create_user_only = true
+
+    invite_message_template {
+      email_subject = var.invite_email_subject
+      email_message = replace(var.invite_email_message, "$${admin_app_url}", var.admin_app_url)
+      sms_message   = "Din inloggning: {username} / {####}"
+    }
+  }
+
+  # Which tenant the user belongs to. Immutable (mutable = false): set once
+  # at AdminCreateUser and never changeable afterwards, not even by an
+  # admin - moving someone to another tenant means a new account. Also left
+  # out of the app client's write_attributes below, so a signed-in user
+  # can't touch it either.
+  schema {
+    name                     = "tenant_id"
+    attribute_data_type      = "String"
+    mutable                  = false
+    developer_only_attribute = false
+    required                 = false
+
+    string_attribute_constraints {
+      min_length = 1
+      max_length = 64
+    }
+  }
+
+  lambda_config {
+    pre_token_generation_config {
+      lambda_arn     = var.pre_token_generation_lambda_arn
+      lambda_version = "V2_0"
+    }
+  }
+
+  # Cognito's built-in sender is capped at 50 emails/day - fine for dev,
+  # not for onboarding customers. var.invites_via_ses switches invites and
+  # password resets to the platform's SES identity.
+  dynamic "email_configuration" {
+    for_each = var.invites_via_ses ? [1] : []
+    content {
+      email_sending_account = "DEVELOPER"
+      source_arn            = var.ses_identity_arn
+      from_email_address    = var.invite_from_address
+    }
   }
 
   # Email is the username - login is email + password directly, no
@@ -72,80 +128,29 @@ resource "aws_cognito_user_pool_client" "this" {
   # Avoids leaking "that email doesn't exist" vs "wrong password" on
   # failed logins - basic protection against account enumeration.
   prevent_user_existence_errors = "ENABLED"
+
+  # What a signed-in user may change about themselves. custom:tenant_id is
+  # deliberately absent (it's immutable anyway - belt and braces).
+  write_attributes = ["name", "given_name", "family_name", "phone_number"]
 }
 
 resource "aws_cognito_user_group" "staff_user" {
   name         = "staff_user"
   user_pool_id = aws_cognito_user_pool.this.id
-  description  = "Staff - scoped to one or more locations"
+  description  = "Staff - scoped to locations of their own tenant (locationId on their user profile)"
 }
 
 resource "aws_cognito_user_group" "owner_user" {
   name         = "owner_user"
   user_pool_id = aws_cognito_user_pool.this.id
-  description  = "Owner-user - access to all locations"
+  description  = "Restaurant owner - every location of their own tenant, nothing outside it"
 }
 
-resource "aws_cognito_user_group" "super_user" {
-  name         = "super_user"
-  user_pool_id = aws_cognito_user_pool.this.id
-  description  = "Super-user - full platform access, can add locations and delete owner-users"
-
-  lifecycle {
-    # This group must always exist - accidentally destroying it would
-    # strip super_user membership from everyone in super_admin_emails.
-    prevent_destroy = true
-  }
-}
-
-# --- Bootstrap super_user accounts -----------------------------------------
-#
-# One aws_cognito_user + one aws_cognito_user_in_group per email in
-# super_admin_emails. AdminCreateUser-style: account is created in
-# FORCE_CHANGE_PASSWORD status with a fixed, shared temporary password
-# (var.super_admin_temp_password - "Helloworld123!" by default, chosen to
-# satisfy this pool's password_policy), no email sent (message_action =
-# SUPPRESS). Whoever owns each address logs in once with that temp
-# password, Cognito forces them to set a real one, and from then on
-# `ignore_changes` keeps Terraform from ever touching their attributes or
-# password again.
-#
-# NOTE: a fixed, shared, non-secret temp password means anyone who knows
-# it (it's in this repo) can attempt the FORCE_CHANGE_PASSWORD login for
-# any address in super_admin_emails until that person actually logs in
-# and rotates it - there is no per-user secret gating that first login.
-# Get each new super_admin logged in (and thus off the shared password)
-# promptly after apply.
-#
-# Removing an email from the list removes that person's user_in_group
-# membership AND the aws_cognito_user account itself on next apply - this
-# is destructive by design so off-boarding staff actually revokes access.
-# Add new super-admins by adding emails, never by editing this block.
-
-resource "aws_cognito_user" "super_admin" {
-  for_each = toset(var.super_admin_emails)
-
-  user_pool_id = aws_cognito_user_pool.this.id
-  username     = each.value
-
-  attributes = {
-    email          = each.value
-    email_verified = true
-  }
-
-  temporary_password   = var.super_admin_temp_password
-  message_action       = "SUPPRESS"
-  force_alias_creation = false
-
-  lifecycle {
-    ignore_changes = [attributes, temporary_password]
-  }
-}
-
-resource "aws_cognito_user_in_group" "super_admin_membership" {
-  for_each = toset(var.super_admin_emails)
-
-  user_pool_id = aws_cognito_user_pool.this.id
-  group_name   = aws_cognito_user_group.super_user.name
-  username     = aws_cognito_user.super_admin[each.key].username
+# Cognito invokes the trigger on every sign-in and token refresh.
+resource "aws_lambda_permission" "pre_token_generation" {
+  statement_id  = "AllowCognitoInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = var.pre_token_generation_function_name
+  principal     = "cognito-idp.amazonaws.com"
+  source_arn    = aws_cognito_user_pool.this.arn
 }

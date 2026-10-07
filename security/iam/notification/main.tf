@@ -109,6 +109,46 @@ resource "aws_iam_role_policy" "catering_requests_stream_read" {
   })
 }
 
+# All three stream mappings (reservation, order, catering-requests) send
+# batches they gave up on to the notification-stream DLQ - Lambda writes the
+# failure record with this role, so it needs SendMessage on exactly that queue.
+resource "aws_iam_role_policy" "stream_dlq" {
+  name = "notification-stream-dlq-send"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "SendFailedStreamBatchesToDlq"
+        Effect   = "Allow"
+        Action   = "sqs:SendMessage"
+        Resource = "${var.notification_dlq_arn}"
+      }
+    ]
+  })
+}
+
+# Catering emails to customers carry their magic link, which is an HMAC
+# over the request id - NotificationFn rebuilds it from the stream record
+# with this key instead of the raw link ever being stored.
+resource "aws_iam_role_policy" "catering_link_signing_key" {
+  name = "catering-link-signing-key-read"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "ReadCateringLinkSigningKey"
+        Effect   = "Allow"
+        Action   = "secretsmanager:GetSecretValue"
+        Resource = "${var.catering_link_signing_key_secret_arn}"
+      }
+    ]
+  })
+}
+
 # SNS phone-number publishing (SMS) has no per-number ARN to scope to -
 # AWS requires Resource = "*" for direct-to-phone-number sns:Publish calls,
 # since an arbitrary customer phone number isn't a resource that exists in

@@ -25,13 +25,15 @@ resource "aws_lambda_function" "this" {
 
   environment {
     variables = {
+      TENANT_TABLE_NAME              = var.tenant_table_name
+      LOCATION_ID_INDEX_NAME         = var.location_id_index_name
       ENVIRONMENT                    = var.environment
       LOCATION_TABLE_NAME            = var.location_table_name
       RESERVATION_TABLE_NAME         = var.reservation_table_name
       PAYMENT_DELINQUENCY_TABLE_NAME = var.payment_delinquency_table_name
       SCHEDULER_INVOKE_ROLE_ARN      = var.scheduler_invoke_role_arn  # the Role for EventBridge Scheduler to assume when invoking the Lambda, so the Lambda can be invoked by Scheduler
       NO_SHOW_CHECK_FUNCTION_ARN     = var.no_show_check_function_arn # the Lambda function ARN for the no-show check Lambda, so this Lambda can invoke it to check for no-shows
-      STRIPE_WEBHOOK_SECRET          = var.stripe_webhook_secret      # signing secret the handler checks the Stripe-Signature header against - see the authorization_type = NONE comment below for why this is the actual authentication boundary
+      STRIPE_WEBHOOK_SECRET_ARN      = var.stripe_webhook_secret_arn  # Secrets Manager secret holding the endpoint signing secret (whsec_...), filled in by payments/stripe
     }
   }
 
@@ -40,13 +42,25 @@ resource "aws_lambda_function" "this" {
   }
 }
 
-# Stripe reaches this Lambda through the HTTP API route POST /webhooks/stripe/reservation
-# (see network/api-gateway), not a Function URL. The route is
-# unauthenticated at the gateway - the real authentication boundary is the
-# handler's verification of the Stripe-Signature header against
-# STRIPE_WEBHOOK_SECRET. The Function URL this module used to declare
-# was removed when the webhook endpoint itself moved into Terraform
-# (payments/stripe): a Function URL is derived from this function, and this
-# function's environment needs the endpoint's signing secret - a dependency
-# cycle. The API route's URL depends only on the API itself, so the whole
-# chain applies in one pass.
+# Stripe calls this function directly through its Function URL - no API
+# Gateway in front. Stripe can't sign requests with SigV4 and has no Cognito
+# token, so the URL is deliberately unauthenticated (authorization_type =
+# NONE); the real authentication boundary is the handler's verification of
+# the Stripe-Signature header against the endpoint's signing secret.
+#
+# The secret reaches the handler via Secrets Manager (STRIPE_WEBHOOK_SECRET_ARN), not
+# as a plain environment variable: the Stripe endpoint is created from this
+# URL, the URL is derived from this function, so the function's environment
+# can't also hold the endpoint's secret (a dependency cycle). It CAN hold
+# the ARN of a secret that payments/stripe fills in after creating the
+# endpoint. The handler reads it at cold start and re-reads once on a
+# signature mismatch (covers an endpoint being re-created with a new secret).
+#
+# For authorization_type = NONE, AWS adds the two resource-policy statements
+# a public URL needs (lambda:InvokeFunctionUrl, and lambda:InvokeFunction
+# with InvokedViaFunctionUrl = true) when the URL is created.
+resource "aws_lambda_function_url" "this" {
+  function_name      = aws_lambda_function.this.function_name
+  authorization_type = "NONE"
+  invoke_mode        = "BUFFERED"
+}

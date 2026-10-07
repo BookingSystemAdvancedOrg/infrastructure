@@ -39,3 +39,9 @@ variable "region" {
   type        = string
   sensitive   = false
 }
+
+variable "stripe_secret_arn" {
+  description = "ARN of the platform Stripe API key secret (security/secrets/platform)"
+  type        = string
+  sensitive   = false
+}

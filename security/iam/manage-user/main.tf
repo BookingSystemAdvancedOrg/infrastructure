@@ -5,7 +5,7 @@
 #
 # Cognito access is scoped to the specific Admin* actions "manage-user"
 # actually needs to run the full staff lifecycle - inviting (AdminCreateUser
-# + AdminAddUserToGroup to assign staff/owner_user/super_user), updating,
+# + AdminAddUserToGroup to assign staff_user/owner_user within the caller's own tenant - new users get custom:tenant_id = the caller's tenant_id claim), updating,
 # deactivating/reactivating, and removing someone - rather than a blanket
 # cognito-idp:* wildcard, which would also grant things like deleting the
 # user pool itself.
@@ -47,6 +47,13 @@ resource "aws_iam_role_policy" "dynamodb_full" {
         Effect   = "Allow"
         Action   = "dynamodb:*"
         Resource = "${var.user_table_arn}"
+      },
+      {
+        # List a tenant's users (Query byTenant) - never a Scan.
+        Sid      = "ListUsersByTenant"
+        Effect   = "Allow"
+        Action   = "dynamodb:Query"
+        Resource = "${var.user_table_arn}/index/byTenant"
       }
     ]
   })

@@ -18,14 +18,33 @@ resource "aws_dynamodb_table" "user" {
   # (one item per sub), so SK doesn't need to distinguish anything. It
   # exists only so this table follows the same PK+SK composite-key shape
   # as the rest of the tables in this project.
-  #
-  # Listing every staff member at a given location is the rare operation
-  # here, and isn't served by the primary key - it's handled with an
-  # occasional Scan filtered on locationId, which is cheap enough given
-  # this table's realistic size (a staff directory, not millions of rows).
   attribute {
     name = "SK"
     type = "S"
+  }
+
+  # Every profile carries tenantId (= the user's immutable custom:tenant_id
+  # in Cognito). "List a tenant's staff" - and suspending/offboarding a
+  # tenant, which disables all of its users - is a Query on this index.
+  # Never Scan this table for that: a Scan reads every tenant's staff.
+  attribute {
+    name = "tenantId"
+    type = "S"
+  }
+
+  global_secondary_index {
+    name            = "byTenant"
+    projection_type = "ALL"
+
+    key_schema {
+      attribute_name = "tenantId"
+      key_type       = "HASH"
+    }
+
+    key_schema {
+      attribute_name = "PK"
+      key_type       = "RANGE"
+    }
   }
 
   point_in_time_recovery {
