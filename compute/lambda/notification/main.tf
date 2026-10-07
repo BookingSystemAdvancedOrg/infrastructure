@@ -25,9 +25,14 @@ resource "aws_lambda_function" "this" {
 
   environment {
     variables = {
-      ENVIRONMENT            = var.environment
-      NO_REPLY_EMAIL_ADDRESS = var.no_reply_email_address
-      ADMIN_DASHBOARD_URL    = var.admin_dashboard_url
+      TENANT_TABLE_NAME                    = var.tenant_table_name
+      LOCATION_TABLE_NAME                  = var.location_table_name
+      LOCATION_ID_INDEX_NAME               = var.location_id_index_name
+      ENVIRONMENT                          = var.environment
+      NO_REPLY_EMAIL_ADDRESS               = var.no_reply_email_address
+      ADMIN_DASHBOARD_URL                  = var.admin_dashboard_url
+      CUSTOMER_SITE_URL                    = var.customer_site_url # base of the catering magic links in customer emails
+      CATERING_LINK_SIGNING_KEY_SECRET_ARN = var.catering_link_signing_key_secret_arn
     }
   }
 

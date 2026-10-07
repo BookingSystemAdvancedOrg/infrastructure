@@ -46,3 +46,7 @@ terraform.rc
 
 # macOS Finder metadata
 .DS_Store
+
+# Lambda zips built by data.archive_file for infra-owned functions
+.build/
+__pycache__/

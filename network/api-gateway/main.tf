@@ -8,15 +8,21 @@ resource "aws_apigatewayv2_api" "this" {
 
   # Authorization header is what carries the Cognito JWT - it has to be an
   # allowed header or the browser's preflight OPTIONS request fails before
-  # the real request is ever sent. Wildcard origin is not used on purpose:
-  # a wildcard origin can't be combined with credentialed requests anyway,
-  # and this repo already treats "allow everything" as something to avoid
-  # by default (same reasoning as scoping IAM to specific actions/tables
-  # elsewhere) - allowed_origins is a real list of front-end origins.
+  # the real request is ever sent.
+  #
+  # Origins: every tenant website lives on its own domain (restaurant.se,
+  # <slug>.<platform_domain>), and tenants are added at runtime - a static
+  # origin list would mean a Terraform change per customer. allowed_origins
+  # is therefore ["*"] by default, which is safe for THIS API because it
+  # never relies on cookies or other ambient credentials: every privileged
+  # call carries an explicit bearer token (or the magic-link HMAC header),
+  # which a foreign origin can't obtain. allow_credentials stays false, so
+  # browsers never attach cookies cross-origin. Authorization is the
+  # authorizer + the tenant check in each Lambda, not CORS.
   cors_configuration {
     allow_origins = var.allowed_origins
     allow_methods = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
-    allow_headers = ["authorization", "content-type"]
+    allow_headers = ["authorization", "content-type", "x-order-token"] # x-order-token: catering magic-link HMAC, sent as a header so it never lands in access logs or Referer headers
     max_age       = 300
   }
 
@@ -54,6 +60,22 @@ resource "aws_apigatewayv2_authorizer" "cognito" {
   jwt_configuration {
     audience = [var.cognito_client_id]
     issuer   = "https://cognito-idp.${var.region}.amazonaws.com/${var.cognito_user_pool_id}"
+  }
+}
+
+# Second authorizer, for /platform/* only: tokens from the OPERATOR user pool
+# (storage/cognito-platform). A tenant-pool token - even an owner's - is
+# rejected here by issuer before any Lambda runs, and each platform route
+# additionally requires the platform/admin scope (authorization_scopes).
+resource "aws_apigatewayv2_authorizer" "platform" {
+  api_id           = aws_apigatewayv2_api.this.id
+  authorizer_type  = "JWT"
+  identity_sources = ["$request.header.Authorization"]
+  name             = "platform-operator-jwt"
+
+  jwt_configuration {
+    audience = [var.platform_client_id]
+    issuer   = "https://cognito-idp.${var.region}.amazonaws.com/${var.platform_user_pool_id}"
   }
 }
 
@@ -775,73 +797,9 @@ resource "aws_lambda_permission" "pre_signed_url_invoke" {
 }
 
 
-# --- stripe-webhook ---
-#
-# Stripe calls this route directly. It can't sign requests with AWS SigV4
-# and has no Cognito token, so the route is deliberately unauthenticated at
-# the gateway (authorization_type = NONE) - the real authentication boundary
-# is inside the handler, which verifies the Stripe-Signature header against
-# the endpoint's signing secret and rejects anything that doesn't match.
-# Payload format 2.0 delivers the same event shape as the Lambda Function
-# URL this webhook used before, so the handler code is unchanged.
-
-resource "aws_apigatewayv2_integration" "stripe_webhook" {
-  api_id                 = aws_apigatewayv2_api.this.id
-  integration_type       = "AWS_PROXY"
-  integration_uri        = var.stripe_webhook_invoke_arn
-  integration_method     = "POST" # Lambda proxy integrations always invoke via POST, regardless of the route's own method
-  payload_format_version = "2.0"
-}
-
-resource "aws_apigatewayv2_route" "stripe_webhook" {
-  api_id             = aws_apigatewayv2_api.this.id
-  route_key          = "POST /webhooks/stripe/reservation"
-  target             = "integrations/${aws_apigatewayv2_integration.stripe_webhook.id}"
-  authorization_type = "NONE"
-}
-
-resource "aws_lambda_permission" "stripe_webhook_invoke" {
-  statement_id  = "AllowAPIGatewayInvoke"
-  action        = "lambda:InvokeFunction"
-  function_name = var.stripe_webhook_function_name
-  principal     = "apigateway.amazonaws.com"
-  source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
-}
-
-
-# --- webhook-payment-intent ---
-#
-# Same reasoning as stripe-webhook above: unauthenticated at the gateway,
-# authenticated inside the handler via the Stripe-Signature check against
-# the order-payment endpoint's own signing secret.
-
-resource "aws_apigatewayv2_integration" "webhook_payment_intent" {
-  api_id                 = aws_apigatewayv2_api.this.id
-  integration_type       = "AWS_PROXY"
-  integration_uri        = var.webhook_payment_intent_invoke_arn
-  integration_method     = "POST" # Lambda proxy integrations always invoke via POST, regardless of the route's own method
-  payload_format_version = "2.0"
-}
-
-resource "aws_apigatewayv2_route" "webhook_payment_intent" {
-  api_id             = aws_apigatewayv2_api.this.id
-  route_key          = "POST /webhooks/stripe/order"
-  target             = "integrations/${aws_apigatewayv2_integration.webhook_payment_intent.id}"
-  authorization_type = "NONE"
-}
-
-resource "aws_lambda_permission" "webhook_payment_intent_invoke" {
-  statement_id  = "AllowAPIGatewayInvoke"
-  action        = "lambda:InvokeFunction"
-  function_name = var.webhook_payment_intent_function_name
-  principal     = "apigateway.amazonaws.com"
-  source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
-}
-
-
 # --- manage-order ---
 #
-# Staff/owner/super-admin order management: the day's-orders dashboard
+# Staff/owner order management (own tenant): the day's-orders dashboard
 # Query (GET on the collection), kitchen status updates (PUT), staff-
 # created orders (POST), and cancellations (DELETE). All JWT-protected -
 # customers never call this; their reads go through get-order and their
@@ -907,6 +865,7 @@ resource "aws_apigatewayv2_integration" "catering_settings" {
   payload_format_version = "2.0"
 }
 
+# --- catering-settings ---
 resource "aws_apigatewayv2_route" "catering_settings_get" {
   api_id             = aws_apigatewayv2_api.this.id
   route_key          = "GET /locations/{locationId}/catering/settings"
@@ -914,6 +873,7 @@ resource "aws_apigatewayv2_route" "catering_settings_get" {
   authorization_type = "NONE"
 }
 
+# --- catering-settings ---
 resource "aws_apigatewayv2_route" "catering_settings_put" {
   api_id             = aws_apigatewayv2_api.this.id
   route_key          = "PUT /locations/{locationId}/catering/settings"
@@ -945,6 +905,7 @@ resource "aws_apigatewayv2_integration" "catering_discount_tiers" {
   payload_format_version = "2.0"
 }
 
+# --- catering-discount-tiers ---
 resource "aws_apigatewayv2_route" "catering_discount_tiers_get" {
   api_id             = aws_apigatewayv2_api.this.id
   route_key          = "GET /locations/{locationId}/catering/discount-tiers"
@@ -952,6 +913,7 @@ resource "aws_apigatewayv2_route" "catering_discount_tiers_get" {
   authorization_type = "NONE"
 }
 
+# --- catering-discount-tiers ---
 resource "aws_apigatewayv2_route" "catering_discount_tiers_post" {
   api_id             = aws_apigatewayv2_api.this.id
   route_key          = "POST /locations/{locationId}/catering/discount-tiers"
@@ -960,6 +922,7 @@ resource "aws_apigatewayv2_route" "catering_discount_tiers_post" {
   authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
 
+# --- catering-discount-tiers ---
 resource "aws_apigatewayv2_route" "catering_discount_tiers_put" {
   api_id             = aws_apigatewayv2_api.this.id
   route_key          = "PUT /locations/{locationId}/catering/discount-tiers/{tierId}"
@@ -968,6 +931,7 @@ resource "aws_apigatewayv2_route" "catering_discount_tiers_put" {
   authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
 
+# --- catering-discount-tiers ---
 resource "aws_apigatewayv2_route" "catering_discount_tiers_delete" {
   api_id             = aws_apigatewayv2_api.this.id
   route_key          = "DELETE /locations/{locationId}/catering/discount-tiers/{tierId}"
@@ -989,8 +953,10 @@ resource "aws_lambda_permission" "catering_discount_tiers_invoke" {
 #
 # Customer-submitted catering enquiries and owner responses.
 # POST is unauthenticated — customers submit requests without an account.
-# GET and PATCH are JWT-protected — only owners and staff can view all
-# requests and accept or reject them.
+# GET is JWT-protected — only owners and staff can list a location's requests.
+# Everything that happens to a request afterwards (adjust, send, decline,
+# cancel, delivered) goes through catering-offer below; the former
+# PATCH accept/reject route was removed with the offer workflow.
 
 resource "aws_apigatewayv2_integration" "catering_requests" {
   api_id                 = aws_apigatewayv2_api.this.id
@@ -1000,6 +966,7 @@ resource "aws_apigatewayv2_integration" "catering_requests" {
   payload_format_version = "2.0"
 }
 
+# --- catering-requests ---
 resource "aws_apigatewayv2_route" "catering_requests_post" {
   api_id             = aws_apigatewayv2_api.this.id
   route_key          = "POST /locations/{locationId}/catering/requests"
@@ -1007,17 +974,10 @@ resource "aws_apigatewayv2_route" "catering_requests_post" {
   authorization_type = "NONE"
 }
 
+# --- catering-requests ---
 resource "aws_apigatewayv2_route" "catering_requests_get" {
   api_id             = aws_apigatewayv2_api.this.id
   route_key          = "GET /locations/{locationId}/catering/requests"
-  target             = "integrations/${aws_apigatewayv2_integration.catering_requests.id}"
-  authorization_type = "JWT"
-  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
-}
-
-resource "aws_apigatewayv2_route" "catering_requests_patch" {
-  api_id             = aws_apigatewayv2_api.this.id
-  route_key          = "PATCH /locations/{locationId}/catering/requests/{requestId}"
   target             = "integrations/${aws_apigatewayv2_integration.catering_requests.id}"
   authorization_type = "JWT"
   authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
@@ -1027,6 +987,356 @@ resource "aws_lambda_permission" "catering_requests_invoke" {
   statement_id  = "AllowAPIGatewayInvokeCateringRequests"
   action        = "lambda:InvokeFunction"
   function_name = var.catering_requests_function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
+}
+
+
+# --- catering-offer ---
+#
+# Owner side of the catering workflow. Every route is JWT-protected; the
+# handler additionally checks that the caller's Cognito user belongs to
+# {locationId} (the authorizer only proves the token is valid).
+
+resource "aws_apigatewayv2_integration" "catering_offer" {
+  api_id                 = aws_apigatewayv2_api.this.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = var.catering_offer_invoke_arn
+  integration_method     = "POST" # Lambda proxy integrations always invoke via POST, regardless of the route's own method
+  payload_format_version = "2.0"
+}
+
+# Request detail for the owner: head item, every offer version and the audit log.
+
+resource "aws_apigatewayv2_route" "catering_offer_get" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "GET /locations/{locationId}/catering/requests/{requestId}"
+  target             = "integrations/${aws_apigatewayv2_integration.catering_offer.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# --- catering-offer ---
+# Presigned download URL for an offer, signed agreement or invoice PDF.
+
+resource "aws_apigatewayv2_route" "catering_offer_documents_get" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "GET /locations/{locationId}/catering/requests/{requestId}/documents/{docId}"
+  target             = "integrations/${aws_apigatewayv2_integration.catering_offer.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# --- catering-offer ---
+# Save an adjusted draft - every save is a new, immutable offer version.
+
+resource "aws_apigatewayv2_route" "catering_offer_offer_put" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "PUT /locations/{locationId}/catering/requests/{requestId}/offer"
+  target             = "integrations/${aws_apigatewayv2_integration.catering_offer.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# --- catering-offer ---
+# Render the PDF, reserve the date's capacity and send version N to the customer.
+
+resource "aws_apigatewayv2_route" "catering_offer_offer_send" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "POST /locations/{locationId}/catering/requests/{requestId}/offer/send"
+  target             = "integrations/${aws_apigatewayv2_integration.catering_offer.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# --- catering-offer ---
+# Decline with a reason - releases any held capacity.
+
+resource "aws_apigatewayv2_route" "catering_offer_decline" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "POST /locations/{locationId}/catering/requests/{requestId}/decline"
+  target             = "integrations/${aws_apigatewayv2_integration.catering_offer.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# --- catering-offer ---
+# Restaurant-only cancellation of a confirmed order - Stripe refund (private) or credit note (company).
+
+resource "aws_apigatewayv2_route" "catering_offer_cancel" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "POST /locations/{locationId}/catering/requests/{requestId}/cancel"
+  target             = "integrations/${aws_apigatewayv2_integration.catering_offer.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# --- catering-offer ---
+# Mark delivered/picked up - the order closes once it's also paid.
+
+resource "aws_apigatewayv2_route" "catering_offer_delivered" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "POST /locations/{locationId}/catering/requests/{requestId}/delivered"
+  target             = "integrations/${aws_apigatewayv2_integration.catering_offer.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# --- catering-offer ---
+# Invoice register for the dashboard (mirrored from Stripe).
+
+resource "aws_apigatewayv2_route" "catering_offer_invoices_get" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "GET /locations/{locationId}/catering/invoices"
+  target             = "integrations/${aws_apigatewayv2_integration.catering_offer.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# --- catering-offer ---
+# Record a Bankgiro payment - marks the Stripe invoice paid out of band.
+
+resource "aws_apigatewayv2_route" "catering_offer_invoice_mark_paid" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "POST /locations/{locationId}/catering/invoices/{invoiceId}/mark-paid"
+  target             = "integrations/${aws_apigatewayv2_integration.catering_offer.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_lambda_permission" "catering_offer_invoke" {
+  statement_id  = "AllowAPIGatewayInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = var.catering_offer_function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
+}
+
+
+# --- catering-customer ---
+#
+# Customer side of the catering workflow, reached through the magic link -
+# no account, so NONE at the gateway. The authentication boundary is the
+# handler's check of the HMAC sent in the x-order-token header (see
+# security/secrets/catering), scoped to exactly this location + request.
+
+resource "aws_apigatewayv2_integration" "catering_customer" {
+  api_id                 = aws_apigatewayv2_api.this.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = var.catering_customer_invoke_arn
+  integration_method     = "POST" # Lambda proxy integrations always invoke via POST, regardless of the route's own method
+  payload_format_version = "2.0"
+}
+
+# The customer's view of their request/offer.
+
+resource "aws_apigatewayv2_route" "catering_customer_get" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "GET /locations/{locationId}/catering/requests/{requestId}/customer"
+  target             = "integrations/${aws_apigatewayv2_integration.catering_customer.id}"
+  authorization_type = "NONE"
+}
+
+# --- catering-customer ---
+# Start BankID signing of the current offer version (terms must be accepted).
+
+resource "aws_apigatewayv2_route" "catering_customer_sign" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "POST /locations/{locationId}/catering/requests/{requestId}/customer/sign"
+  target             = "integrations/${aws_apigatewayv2_integration.catering_customer.id}"
+  authorization_type = "NONE"
+}
+
+# --- catering-customer ---
+# Private customers: start (or retry) Stripe Checkout after signing.
+
+resource "aws_apigatewayv2_route" "catering_customer_checkout" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "POST /locations/{locationId}/catering/requests/{requestId}/customer/checkout"
+  target             = "integrations/${aws_apigatewayv2_integration.catering_customer.id}"
+  authorization_type = "NONE"
+}
+
+# --- catering-customer ---
+# Presigned download URL for the customer's own offer or signed agreement.
+
+resource "aws_apigatewayv2_route" "catering_customer_documents_get" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "GET /locations/{locationId}/catering/requests/{requestId}/customer/documents/{docId}"
+  target             = "integrations/${aws_apigatewayv2_integration.catering_customer.id}"
+  authorization_type = "NONE"
+}
+
+resource "aws_lambda_permission" "catering_customer_invoke" {
+  statement_id  = "AllowAPIGatewayInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = var.catering_customer_function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
+}
+
+
+# --- catering-signing-webhook ---
+#
+# BankID signing provider callbacks. Unauthenticated at the gateway - the
+# real authentication boundary is the handler's verification of the
+# provider's callback signature with the webhookSecret in the
+# signing-provider secret. Register this URL with the provider (output
+# catering_signing_webhook_url) - or the handler passes it per signing order.
+
+resource "aws_apigatewayv2_integration" "catering_signing_webhook" {
+  api_id                 = aws_apigatewayv2_api.this.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = var.catering_signing_webhook_invoke_arn
+  integration_method     = "POST" # Lambda proxy integrations always invoke via POST, regardless of the route's own method
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "catering_signing_webhook_post" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "POST /webhooks/signing/catering"
+  target             = "integrations/${aws_apigatewayv2_integration.catering_signing_webhook.id}"
+  authorization_type = "NONE"
+}
+
+resource "aws_lambda_permission" "catering_signing_webhook_invoke" {
+  statement_id  = "AllowAPIGatewayInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = var.catering_signing_webhook_function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
+}
+
+
+# --- platform-tenants ---
+#
+# The operator dashboard's API: tenants, plans, domains, suspension,
+# offboarding. Operator pool token + platform/admin scope, checked by API
+# Gateway. Provisioning itself runs in Step Functions
+# (orchestration/tenant-workflows) - this Lambda validates, writes the
+# tenant row and starts the workflow.
+
+locals {
+  platform_tenants_routes = [
+    "GET /platform/plans",
+    "GET /platform/tenants",
+    "POST /platform/tenants",
+    "GET /platform/tenants/{tenantId}",
+    "PATCH /platform/tenants/{tenantId}",
+    "PUT /platform/tenants/{tenantId}/plan",
+    "POST /platform/tenants/{tenantId}/suspend",
+    "POST /platform/tenants/{tenantId}/resume",
+    "POST /platform/tenants/{tenantId}/offboard",
+    "POST /platform/tenants/{tenantId}/onboarding/retry",
+    "GET /platform/tenants/{tenantId}/users",
+    "POST /platform/tenants/{tenantId}/owners",
+    "GET /platform/tenants/{tenantId}/locations",
+    "POST /platform/tenants/{tenantId}/locations",
+    "PATCH /platform/tenants/{tenantId}/locations/{locationId}",
+    "DELETE /platform/tenants/{tenantId}/locations/{locationId}",
+    "POST /platform/tenants/{tenantId}/domains",
+    "DELETE /platform/tenants/{tenantId}/domains/{domain}",
+    "POST /platform/tenants/{tenantId}/stripe/account-link",
+    "POST /platform/tenants/{tenantId}/stripe/sync",
+  ]
+}
+
+resource "aws_apigatewayv2_integration" "platform_tenants" {
+  api_id                 = aws_apigatewayv2_api.this.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = var.platform_tenants_invoke_arn
+  integration_method     = "POST" # Lambda proxy integrations always invoke via POST, regardless of the route's own method
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "platform_tenants" {
+  for_each = toset(local.platform_tenants_routes)
+
+  api_id               = aws_apigatewayv2_api.this.id
+  route_key            = each.value
+  target               = "integrations/${aws_apigatewayv2_integration.platform_tenants.id}"
+  authorization_type   = "JWT"
+  authorizer_id        = aws_apigatewayv2_authorizer.platform.id
+  authorization_scopes = [var.platform_admin_scope]
+}
+
+resource "aws_lambda_permission" "platform_tenants_invoke" {
+  statement_id  = "AllowAPIGatewayInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = var.platform_tenants_function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
+}
+
+
+# --- tenant-account ---
+#
+# An owner's own tenant: plan, usage, domains, Stripe onboarding status;
+# edit sender name/reply-to/branding; fresh Stripe onboarding link. Tenant
+# pool token - the handler reads tenant_id from the token, never from the
+# request, and requires role owner_user for anything but GET.
+
+locals {
+  tenant_account_routes = [
+    "GET /tenant",
+    "PATCH /tenant",
+    "POST /tenant/stripe/account-link",
+  ]
+}
+
+resource "aws_apigatewayv2_integration" "tenant_account" {
+  api_id                 = aws_apigatewayv2_api.this.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = var.tenant_account_invoke_arn
+  integration_method     = "POST" # Lambda proxy integrations always invoke via POST, regardless of the route's own method
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "tenant_account" {
+  for_each = toset(local.tenant_account_routes)
+
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = each.value
+  target             = "integrations/${aws_apigatewayv2_integration.tenant_account.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_lambda_permission" "tenant_account_invoke" {
+  statement_id  = "AllowAPIGatewayInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = var.tenant_account_function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
+}
+
+
+# --- tenant-site-config ---
+#
+# Public bootstrap call every tenant website makes on load:
+# GET /site-config?host=<window.location.hostname> -> which tenant this site
+# is, its locations, branding, enabled features. The site template is the
+# same for every tenant; only the hostname differs.
+
+resource "aws_apigatewayv2_integration" "tenant_site_config" {
+  api_id                 = aws_apigatewayv2_api.this.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = var.tenant_site_config_invoke_arn
+  integration_method     = "POST" # Lambda proxy integrations always invoke via POST, regardless of the route's own method
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "tenant_site_config" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "GET /site-config"
+  target             = "integrations/${aws_apigatewayv2_integration.tenant_site_config.id}"
+  authorization_type = "NONE"
+}
+
+resource "aws_lambda_permission" "tenant_site_config_invoke" {
+  statement_id  = "AllowAPIGatewayInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = var.tenant_site_config_function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
 }

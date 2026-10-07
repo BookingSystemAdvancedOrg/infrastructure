@@ -5,7 +5,7 @@
 #   - Login: cognito-idp:InitiateAuth with USER_PASSWORD_AUTH
 #   - Silent refresh: cognito-idp:InitiateAuth with REFRESH_TOKEN_AUTH, to
 #     mint new access/id tokens without the user re-entering credentials
-#   - First-time "registration": when a super-user/owner-user creates a new
+#   - First-time "registration": when an owner-user creates a new
 #     staff account, Cognito issues a temporary password by email (via SES,
 #     handled by manage-user). The invited user's first login trips a
 #     NEW_PASSWORD_REQUIRED challenge, which this function completes with

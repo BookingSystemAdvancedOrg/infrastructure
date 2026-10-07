@@ -21,12 +21,12 @@ variable "stripe_api_version" {
 }
 variable "stripe_secret_key" {
   type        = string
-  description = "Stripe secret API key (sk_...) - dev or prod value depending on which environment is deploying"
+  description = "Secret API key (sk_... or rk_...) of YOUR platform Stripe account - sandbox for dev, live for prod. Restaurants are Connect accounts under it; their keys are never needed. Used by Terraform (webhook endpoints), the onboarding workflow (creating connected accounts) and to seed the platform Stripe secret the Lambdas read."
   sensitive   = true
 }
 variable "github_org" {
   type        = string
-  description = "Shared GitHub organization all three OIDC-trusted repos live under - combined with each *_repo variable below to build the \"org/repo-name\" each role's trust policy matches against"
+  description = "Shared GitHub organization all OIDC-trusted repos live under - combined with each *_repo variable below to build the \"org/repo-name\" each role's trust policy matches against"
   sensitive   = false
 }
 variable "customer_frontend_repo" {
@@ -44,8 +44,99 @@ variable "backend_repo" {
   description = "Backend repo name (no org prefix) - trusted by security/iam/oidc/back-end-role's trust policy"
   sensitive   = false
 }
-variable "super_admin_emails" {
-  type        = list(string)
-  description = "Emails of the bootstrap super_user accounts to create in the Cognito staff pool for this environment"
+variable "platform_admin_frontend_repo" {
+  type        = string
+  description = "Operator console repo name (no org prefix), e.g. sbs-admin - holds the operator web app AND the platform-tenants Lambda; trusted by security/iam/oidc/platform-admin-front-end-role to deploy both"
   sensitive   = false
+}
+variable "platform_operator_emails" {
+  type        = list(string)
+  description = "Platform operators (you) - bootstrapped into the separate operator user pool (MFA required) that alone can call /platform/* to create and manage tenants. Removing an address deletes that operator's account on the next apply."
+  sensitive   = false
+
+  validation {
+    condition     = length(var.platform_operator_emails) > 0
+    error_message = "At least one platform operator is required - otherwise nobody can create tenants."
+  }
+}
+variable "platform_domain" {
+  type        = string
+  description = "Domain the platform owns, e.g. bokning.example.se. Empty (default) switches off everything that needs it: tenant subdomains (<slug>.<domain>), customer custom domains (CloudFront multi-tenant distribution), app./ops. aliases and the SES sending domain. Setting it creates a Route 53 hosted zone - delegate the domain to the name servers in the platform_domain_name_servers output."
+  sensitive   = false
+  default     = ""
+
+  validation {
+    condition     = var.platform_domain == "" || can(regex("^([a-z0-9]([a-z0-9-]*[a-z0-9])?\\.)+[a-z]{2,}$", var.platform_domain))
+    error_message = "platform_domain must be a lowercase domain name like bokning.example.se, or empty."
+  }
+}
+variable "plans" {
+  type = map(object({
+    name          = string
+    max_locations = number
+    features      = map(bool)
+  }))
+  description = "Plan catalog (packages you sell). A tenant's limits are copied from its plan when the plan is assigned and can be overridden per tenant from the platform dashboard - no deploy either way. Feature keys: reservations, ordering, catering."
+  sensitive   = false
+  default = {
+    starter = {
+      name          = "Starter"
+      max_locations = 1
+      features      = { reservations = true, ordering = true, catering = false }
+    }
+    growth = {
+      name          = "Growth"
+      max_locations = 3
+      features      = { reservations = true, ordering = true, catering = true }
+    }
+  }
+}
+variable "default_tax_rates" {
+  type = map(object({
+    display_name = string
+    percentage   = number
+    inclusive    = bool
+  }))
+  description = "VAT rates the onboarding workflow creates on every new restaurant's connected Stripe account, keyed by how the Lambdas refer to them (e.g. food, delivery). The resulting txr_ ids are stored per tenant (PROFILE.stripe.taxRates). Set once an accountant has confirmed them; empty means none are created."
+  sensitive   = false
+  default     = {}
+}
+variable "cognito_invites_via_ses" {
+  type        = bool
+  description = "Send Cognito invitation/reset emails through SES (no daily cap, your sender address) instead of Cognito's built-in sender (max 50 emails/day). Turn on once the SES identity is verified and production access is granted - see docs/PLATFORM-SETUP.md."
+  sensitive   = false
+  default     = false
+}
+variable "dlq_replay_interval_minutes" {
+  type        = number
+  description = "How often dlq-replay drains the dead-letter queues, in minutes - short in dev to see replays work, longer in prod; keep it under 1440 (24h) so stream records can still be re-read"
+  sensitive   = false
+
+  validation {
+    condition     = var.dlq_replay_interval_minutes >= 1 && var.dlq_replay_interval_minutes < 1440
+    error_message = "dlq_replay_interval_minutes must be between 1 and 1439 (stream records expire after 24 hours)."
+  }
+}
+variable "alert_emails" {
+  type        = list(string)
+  description = "Email addresses that receive alerts about failed background work (dead-letter queues) (SNS) - each gets a confirmation email after the first apply"
+  sensitive   = false
+}
+variable "tenant_site_repo_pattern" {
+  type        = string
+  description = "Name pattern of the tenant website repos in github_org allowed to publish to the tenant-sites bucket (IAM StringLike, e.g. site-*) - one deploy role for every site"
+  sensitive   = false
+  default     = "site-*"
+}
+variable "turnstile_site_key" {
+  type        = string
+  description = "Public Cloudflare Turnstile site key of the platform's widget - handed to tenant websites by GET /site-config (the secret key stays in Secrets Manager)"
+  sensitive   = false
+  default     = ""
+}
+variable "stripe_publishable_key" {
+  type        = string
+  description = "Publishable key (pk_test_... in dev, pk_live_... in prod) of the platform Stripe account - not a secret; returned to tenant websites by GET /site-config"
+  sensitive   = false
+  default     = ""
 }

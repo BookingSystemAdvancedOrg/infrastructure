@@ -4,37 +4,60 @@ variable "environment" {
   sensitive   = false
 }
 
-variable "super_admin_emails" {
-  description = "Emails of the bootstrap super_user accounts to create in this pool. Membership is reconciled on every apply - remove an email here to remove that person from super_user, but the Cognito user itself is only created, never deleted, by this list."
-  type        = list(string)
+variable "pre_token_generation_lambda_arn" {
+  description = "ARN of the pre-token-generation trigger (compute/lambda/pre-token-generation) that adds tenant_id and role claims"
+  type        = string
   sensitive   = false
+}
+
+variable "pre_token_generation_function_name" {
+  description = "Function name of the pre-token-generation trigger, for the Cognito invoke permission"
+  type        = string
+  sensitive   = false
+}
+
+variable "admin_app_url" {
+  description = "URL of the shared restaurant admin app, put into the invitation email"
+  type        = string
+  sensitive   = false
+}
+
+variable "invite_email_subject" {
+  description = "Subject of the email a new owner/staff member gets with their temporary password"
+  type        = string
+  sensitive   = false
+  default     = "Ditt konto till restaurangens adminpanel"
+}
+
+variable "invite_email_message" {
+  description = "Body of the invitation email. Must contain {username} and {####} (Cognito fills those in); $${admin_app_url} is replaced with var.admin_app_url."
+  type        = string
+  sensitive   = false
+  default     = "Hej!<br><br>Du har fått ett konto i restaurangens adminpanel.<br>Logga in på <a href=\"$${admin_app_url}\">$${admin_app_url}</a> med e-postadressen {username} och det tillfälliga lösenordet <b>{####}</b>.<br>Du väljer ett eget lösenord vid första inloggningen."
 
   validation {
-    condition     = length(var.super_admin_emails) > 0
-    error_message = "At least one super_admin_emails entry is required - a pool must never be left with zero super_user accounts."
+    condition     = strcontains(var.invite_email_message, "{username}") && strcontains(var.invite_email_message, "{####}")
+    error_message = "invite_email_message must contain both {username} and {####}."
   }
 }
 
-variable "super_admin_temp_password" {
-  description = "Shared temporary password (FORCE_CHANGE_PASSWORD) assigned to every account in super_admin_emails at creation. Must satisfy this pool's password_policy (min 8 chars, upper/lower/number/symbol)."
-  type        = string
-  sensitive   = true
-  default     = "Helloworld123!"
+variable "invites_via_ses" {
+  description = "Send invitation/reset emails through SES (DEVELOPER) instead of Cognito's capped built-in sender"
+  type        = bool
+  sensitive   = false
+  default     = false
+}
 
-  # Terraform's regex() uses RE2 (Go regexp), which has no lookahead
-  # support - a single "match all of these classes" pattern like
-  # ^(?=.*[a-z])(?=.*[A-Z])...$ silently fails to compile, and can()
-  # around a non-compiling regex just returns false unconditionally,
-  # rejecting every value including valid ones. Check each character
-  # class as its own regex instead.
-  validation {
-    condition = alltrue([
-      length(var.super_admin_temp_password) >= 8,
-      can(regex("[a-z]", var.super_admin_temp_password)),
-      can(regex("[A-Z]", var.super_admin_temp_password)),
-      can(regex("[0-9]", var.super_admin_temp_password)),
-      can(regex("[^a-zA-Z0-9]", var.super_admin_temp_password)),
-    ])
-    error_message = "super_admin_temp_password must be at least 8 characters and include a lowercase letter, an uppercase letter, a number, and a symbol - matching this pool's password_policy."
-  }
+variable "ses_identity_arn" {
+  description = "ARN of the verified SES identity Cognito sends from when invites_via_ses is true"
+  type        = string
+  sensitive   = false
+  default     = ""
+}
+
+variable "invite_from_address" {
+  description = "From address for invitation emails when invites_via_ses is true, e.g. Plattformen <noreply@mail.example.se>"
+  type        = string
+  sensitive   = false
+  default     = ""
 }

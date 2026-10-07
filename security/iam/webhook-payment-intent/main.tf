@@ -48,6 +48,25 @@ resource "aws_iam_role_policy" "dynamodb_full" {
   })
 }
 
+# Reads this endpoint's Stripe signing secret from Secrets Manager (written
+# there by payments/stripe) - only this one secret.
+resource "aws_iam_role_policy" "webhook_secret" {
+  name = "stripe-webhook-secret-read"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "ReadStripeWebhookSigningSecret"
+        Effect   = "Allow"
+        Action   = "secretsmanager:GetSecretValue"
+        Resource = "${var.webhook_secret_arn}"
+      }
+    ]
+  })
+}
+
 # Scoped to exactly this function's own log group — not logs:* on everything.
 #
 # No logs:CreateLogGroup - the log group is expected to be provisioned

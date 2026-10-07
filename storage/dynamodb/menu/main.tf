@@ -14,7 +14,7 @@ resource "aws_dynamodb_table" "menu" {
   }
 
   # SK: MENU#<menuItemId> - one dish per item within that location's menu.
-  # PK + SK together let staff/owner/super-admin get, update, or delete one
+  # PK + SK together let staff/owner get, update, or delete one
   # specific dish directly by its key.
   attribute {
     name = "SK"

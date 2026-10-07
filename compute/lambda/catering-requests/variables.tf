@@ -45,3 +45,39 @@ variable "region" {
   type        = string
   sensitive   = false
 }
+
+variable "catering_request_history_table_name" {
+  description = "Name of the catering-request-history DynamoDB table, passed as an environment variable for the first audit entry"
+  type        = string
+  sensitive   = false
+}
+
+variable "turnstile_secret_arn" {
+  description = "ARN of the Cloudflare Turnstile secret key secret - the handler verifies the submit's Turnstile token with it"
+  type        = string
+  sensitive   = false
+}
+
+variable "link_signing_key_secret_arn" {
+  description = "ARN of the magic-link HMAC key secret - the handler builds the customer's order link with it"
+  type        = string
+  sensitive   = false
+}
+
+variable "customer_site_url" {
+  description = "Base URL of the customer front-end, e.g. https://<distribution_domain_name> - base of the customer's magic link"
+  type        = string
+  sensitive   = false
+}
+
+variable "tenant_table_name" {
+  description = "Name of the tenant DynamoDB table - read by the shared tenant-context check (tenant status, plan features, Stripe account, sender)"
+  type        = string
+  sensitive   = false
+}
+
+variable "location_id_index_name" {
+  description = "Name of the location table's locationId GSI - resolves a {locationId} from the URL to its tenant"
+  type        = string
+  sensitive   = false
+}

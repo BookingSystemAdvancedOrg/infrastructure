@@ -25,9 +25,12 @@ resource "aws_lambda_function" "this" {
 
   environment {
     variables = {
-      ENVIRONMENT       = var.environment
-      ORDER_TABLE_NAME  = var.order_table_name
-      STRIPE_SECRET_KEY = var.stripe_secret_key # to create the PaymentIntent for a new order
+      TENANT_TABLE_NAME      = var.tenant_table_name
+      LOCATION_TABLE_NAME    = var.location_table_name
+      LOCATION_ID_INDEX_NAME = var.location_id_index_name
+      ENVIRONMENT            = var.environment
+      ORDER_TABLE_NAME       = var.order_table_name
+      STRIPE_SECRET_ARN      = var.stripe_secret_arn # platform Stripe key secret (Connect) - to create the PaymentIntent for a new order on the tenant's connected account
     }
   }
 

@@ -9,3 +9,9 @@ variable "notification_lambda_arn" {
   type        = string
   sensitive   = false
 }
+
+variable "notification_dlq_arn" {
+  description = "ARN of the notification-stream DLQ (storage/sqs/dead-letter) - NotificationFn batches that fail all retries go there"
+  type        = string
+  sensitive   = false
+}

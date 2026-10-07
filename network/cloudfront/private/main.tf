@@ -30,6 +30,10 @@ resource "aws_cloudfront_distribution" "this" {
   comment             = local.distribution_comment
   default_root_object = "index.html"
 
+  # app.<platform domain> once the platform domain is set - one shared admin
+  # app for every tenant (who you are comes from your login, not the URL).
+  aliases = var.aliases
+
   # Sweden-based platform (same reasoning as the eu-north-1 region choice
   # for GDPR data residency) - no need to pay for edge locations on every
   # continent when the audience is regional. Easy to widen later.
@@ -48,7 +52,7 @@ resource "aws_cloudfront_distribution" "this" {
   }
 
   # Everything not matched by a more specific behavior below goes to the
-  # staff/owner/super-user admin SPA.
+  # restaurant admin SPA (owners + staff of every tenant).
   default_cache_behavior {
     allowed_methods        = ["GET", "HEAD"]
     cached_methods         = ["GET", "HEAD"]
@@ -92,12 +96,14 @@ resource "aws_cloudfront_distribution" "this" {
     }
   }
 
-  # No ACM certificate yet (on hold) - launches on the default
-  # *.cloudfront.net domain. Swap this for viewer_certificate.acm_certificate_arn
-  # once a cert exists, same approach already used for API Gateway's
-  # default execute-api endpoint.
+  # Default *.cloudfront.net certificate until the platform domain is set;
+  # then the platform's wildcard certificate (network/platform-domain) for
+  # app.<domain>.
   viewer_certificate {
-    cloudfront_default_certificate = true
+    cloudfront_default_certificate = var.acm_certificate_arn == ""
+    acm_certificate_arn            = var.acm_certificate_arn == "" ? null : var.acm_certificate_arn
+    ssl_support_method             = var.acm_certificate_arn == "" ? null : "sni-only"
+    minimum_protocol_version       = var.acm_certificate_arn == "" ? "TLSv1" : "TLSv1.2_2021"
   }
 
   tags = {

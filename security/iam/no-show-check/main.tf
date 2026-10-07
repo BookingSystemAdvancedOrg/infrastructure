@@ -118,3 +118,23 @@ resource "aws_iam_role_policy" "logs" {
     ]
   })
 }
+
+# Lambda delivers this function's failed asynchronous (scheduled) invocations
+# to the scheduled-invocation DLQ using THIS role, so it needs SendMessage on
+# exactly that queue (compute/lambda/<name>: aws_lambda_function_event_invoke_config).
+resource "aws_iam_role_policy" "scheduled_invocation_dlq" {
+  name = "scheduled-invocation-dlq-send"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "SendFailedScheduledInvocationsToDlq"
+        Effect   = "Allow"
+        Action   = "sqs:SendMessage"
+        Resource = "${var.scheduled_invocation_dlq_arn}"
+      }
+    ]
+  })
+}

@@ -1,0 +1,29 @@
+variable "environment" {
+  description = "The environment to deploy to (dev or prod)"
+  type        = string
+  sensitive   = false
+}
+
+variable "tenant_table_arn" {
+  description = "ARN of the tenant DynamoDB table (storage/dynamodb/tenant)"
+  type        = string
+  sensitive   = false
+}
+
+variable "location_table_arn" {
+  description = "ARN of the location DynamoDB table"
+  type        = string
+  sensitive   = false
+}
+
+variable "location_id_index_name" {
+  description = "Name of the location table's locationId GSI"
+  type        = string
+  sensitive   = false
+}
+
+variable "role_names" {
+  description = "Execution roles to attach the policy to, keyed by a stable name (keys must be known at plan time)"
+  type        = map(string)
+  sensitive   = false
+}
