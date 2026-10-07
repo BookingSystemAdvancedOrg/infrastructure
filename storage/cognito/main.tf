@@ -151,6 +151,7 @@ resource "aws_lambda_permission" "pre_token_generation" {
   statement_id  = "AllowCognitoInvoke"
   action        = "lambda:InvokeFunction"
   function_name = var.pre_token_generation_function_name
+  qualifier     = var.lambda_alias_name
   principal     = "cognito-idp.amazonaws.com"
   source_arn    = aws_cognito_user_pool.this.arn
 }

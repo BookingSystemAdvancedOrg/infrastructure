@@ -161,6 +161,37 @@ jobs:
         if: github.event_name == 'push'
         run: terraform apply -input=false -auto-approve -var-file="${{ inputs.environment }}.tfvars"
 
+      - name: Release Lambda configuration changes
+        # Terraform publishes a new version when an apply changes a
+        # function's configuration (environment variables, memory, timeout,
+        # ...) but never moves the "live" alias callers invoke - so such a
+        # change is released here exactly like the app repos release code:
+        # CodeDeploy canary, automatic rollback on alarm, result emailed.
+        # Functions whose configuration didn't change are skipped (no email).
+        if: github.event_name == 'push'
+        run: |
+          set -euo pipefail
+
+          releases=$(terraform output -json lambda_releases)
+          app=$(jq -r '.app_name' <<<"$releases")
+          topic=$(jq -r '.alert_topic_arn' <<<"$releases")
+          mkdir -p release-logs
+          : > release-logs/FAILED
+
+          export app topic
+          export ENVIRONMENT="${{ inputs.environment }}"
+          export SOURCE="infrastructure@${GITHUB_SHA::7} (configuration)"
+          jq -r '.deployment_groups | keys[]' <<<"$releases" \
+            | xargs -P 8 -I{} bash -c \
+                'bash ci/lambda-release.sh --function "$1" --app "$app" --topic "$topic" --environment "$ENVIRONMENT" --source "$SOURCE" \
+                   > "release-logs/$1.log" 2>&1 || echo "$1" >> release-logs/FAILED' _ {}
+
+          cat release-logs/*.log
+          if [ -s release-logs/FAILED ]; then
+            echo "::error::rolled back (still on the previous version): $(tr '\n' ' ' < release-logs/FAILED)"
+            exit 1
+          fi
+
       - name: Deploy placeholder front-end (if not already replaced)
         # Confirms the S3 + CloudFront wiring works end-to-end right after
         # infra is applied, before either front-end repo's own CI/CD has

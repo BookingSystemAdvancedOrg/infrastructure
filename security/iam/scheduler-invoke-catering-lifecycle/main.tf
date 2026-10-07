@@ -52,10 +52,13 @@ resource "aws_iam_role_policy" "invoke_catering_lifecycle" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid      = "InvokeCateringLifecycleFunction"
-        Effect   = "Allow"
-        Action   = "lambda:InvokeFunction"
-        Resource = "${var.catering_lifecycle_lambda_arn}"
+        Sid    = "InvokeCateringLifecycleFunction"
+        Effect = "Allow"
+        Action = "lambda:InvokeFunction"
+        Resource = [
+          "${var.catering_lifecycle_lambda_arn}",
+          "${var.catering_lifecycle_lambda_arn}:*", # its versions and the "live" alias callers invoke
+        ]
       },
       {
         Sid      = "SendUndeliverableToDlq"

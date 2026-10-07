@@ -32,10 +32,13 @@ resource "aws_iam_role_policy" "invoke_no_show_check" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid      = "InvokeNoShowCheckFunction"
-        Effect   = "Allow"
-        Action   = "lambda:InvokeFunction"
-        Resource = "${var.no_show_check_lambda_arn}"
+        Sid    = "InvokeNoShowCheckFunction"
+        Effect = "Allow"
+        Action = "lambda:InvokeFunction"
+        Resource = [
+          "${var.no_show_check_lambda_arn}",
+          "${var.no_show_check_lambda_arn}:*", # its versions and the "live" alias callers invoke
+        ]
       }
     ]
   })

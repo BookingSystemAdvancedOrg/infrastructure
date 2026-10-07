@@ -379,3 +379,9 @@ variable "tenant_site_config_invoke_arn" {
   type        = string
   sensitive   = false
 }
+
+variable "lambda_alias_name" {
+  description = "Alias every Lambda is invoked through (compute/lambda/*/alias.tf) - resource-policy permissions must be granted on it"
+  type        = string
+  default     = "live"
+}

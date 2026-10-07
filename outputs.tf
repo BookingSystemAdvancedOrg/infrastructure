@@ -191,5 +191,19 @@ output "sbs_admin_deploy" {
     VITE_COGNITO_CLIENT_ID     = module.cognito_platform.client_id
     VITE_COGNITO_DOMAIN        = module.cognito_platform.hosted_login_url
     VITE_PLATFORM_DOMAIN       = var.platform_domain
+    CODEDEPLOY_APP             = module.lambda_releases.app_name
+    ALERT_TOPIC_ARN            = module.alerts.topic_arn
+  }
+}
+
+# Read by the release step in reusable_cicd.yml and by the app repos'
+# pipelines (ci/lambda-release.sh): where releases run and where their
+# results are emailed.
+output "lambda_releases" {
+  description = "CodeDeploy application, deployment groups (function name => group) and the alerts topic for release emails"
+  value = {
+    app_name          = module.lambda_releases.app_name
+    alert_topic_arn   = module.alerts.topic_arn
+    deployment_groups = module.lambda_releases.deployment_group_names
   }
 }

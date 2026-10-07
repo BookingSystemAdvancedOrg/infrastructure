@@ -32,10 +32,13 @@ resource "aws_iam_role_policy" "invoke_dlq_replay" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid      = "InvokeDlqReplayFunction"
-        Effect   = "Allow"
-        Action   = "lambda:InvokeFunction"
-        Resource = "${var.dlq_replay_lambda_arn}"
+        Sid    = "InvokeDlqReplayFunction"
+        Effect = "Allow"
+        Action = "lambda:InvokeFunction"
+        Resource = [
+          "${var.dlq_replay_lambda_arn}",
+          "${var.dlq_replay_lambda_arn}:*", # its versions and the "live" alias callers invoke
+        ]
       }
     ]
   })
