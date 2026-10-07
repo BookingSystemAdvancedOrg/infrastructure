@@ -61,3 +61,9 @@ variable "invite_from_address" {
   sensitive   = false
   default     = ""
 }
+
+variable "lambda_alias_name" {
+  description = "Alias every Lambda is invoked through (compute/lambda/*/alias.tf) - resource-policy permissions must be granted on it"
+  type        = string
+  default     = "live"
+}

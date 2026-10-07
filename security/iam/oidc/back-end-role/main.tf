@@ -130,3 +130,87 @@ resource "aws_iam_role_policy" "lambda_deploy" {
     ]
   })
 }
+
+# Blue/green releases (ci/lambda-release.sh): publish the new code as a
+# version, shift the "live" alias through CodeDeploy, email the result -
+# and on a failed release put the previous image back on :latest/$LATEST.
+resource "aws_iam_role_policy" "lambda_release" {
+  name = "lambda-blue-green-release"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "PublishVersionsAndReadAliases"
+        Effect = "Allow"
+        Action = [
+          "lambda:PublishVersion",
+          "lambda:GetAlias",
+          "lambda:ListVersionsByFunction",
+        ]
+        Resource = [
+          "arn:aws:lambda:${var.region}:${data.aws_caller_identity.current.account_id}:function:*",
+        ]
+      },
+      {
+        Sid      = "ManualRollbackMovesTheLiveAlias"
+        Effect   = "Allow"
+        Action   = "lambda:UpdateAlias"
+        Resource = "arn:aws:lambda:${var.region}:${data.aws_caller_identity.current.account_id}:function:*:live"
+      },
+      {
+        Sid    = "NotTheOperatorApiOrTheClaimTrigger"
+        Effect = "Deny"
+        Action = [
+          "lambda:PublishVersion",
+          "lambda:UpdateAlias",
+        ]
+        Resource = [
+          "arn:aws:lambda:${var.region}:${data.aws_caller_identity.current.account_id}:function:pre-token-generation*",
+          "arn:aws:lambda:${var.region}:${data.aws_caller_identity.current.account_id}:function:*-pre-token-generation*",
+          "arn:aws:lambda:${var.region}:${data.aws_caller_identity.current.account_id}:function:platform-tenants*",
+          "arn:aws:lambda:${var.region}:${data.aws_caller_identity.current.account_id}:function:*-platform-tenants*",
+        ]
+      },
+      {
+        Sid    = "RunReleasesInTheLambdaReleasesApp"
+        Effect = "Allow"
+        Action = [
+          "codedeploy:CreateDeployment",
+          "codedeploy:GetDeployment",
+          "codedeploy:GetDeploymentGroup",
+          "codedeploy:StopDeployment",
+          "codedeploy:ListDeployments",
+          "codedeploy:GetApplicationRevision",
+          "codedeploy:RegisterApplicationRevision",
+        ]
+        Resource = [
+          "arn:aws:codedeploy:${var.region}:${data.aws_caller_identity.current.account_id}:application:${var.codedeploy_app_name}",
+          "arn:aws:codedeploy:${var.region}:${data.aws_caller_identity.current.account_id}:deploymentgroup:${var.codedeploy_app_name}/*",
+        ]
+      },
+      {
+        Sid      = "ReadDeploymentConfigs"
+        Effect   = "Allow"
+        Action   = "codedeploy:GetDeploymentConfig"
+        Resource = "arn:aws:codedeploy:${var.region}:${data.aws_caller_identity.current.account_id}:deploymentconfig:*"
+      },
+      {
+        Sid    = "ReadImagesToRestoreOnRollback"
+        Effect = "Allow"
+        Action = [
+          "ecr:BatchGetImage",
+          "ecr:DescribeImages",
+        ]
+        Resource = "arn:aws:ecr:${var.region}:${data.aws_caller_identity.current.account_id}:repository/*"
+      },
+      {
+        Sid      = "EmailReleaseResults"
+        Effect   = "Allow"
+        Action   = "sns:Publish"
+        Resource = var.alert_topic_arn
+      }
+    ]
+  })
+}

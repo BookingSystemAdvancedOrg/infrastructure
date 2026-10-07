@@ -127,3 +127,77 @@ resource "aws_iam_role_policy" "api_deploy" {
     ]
   })
 }
+
+# Blue/green release of platform-tenants (sbs-admin .github/scripts/
+# lambda-release.sh): publish a version, shift "live" through CodeDeploy,
+# email the result, and restore the previous image on a failed release.
+resource "aws_iam_role_policy" "api_release" {
+  name = "platform-tenants-blue-green-release"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "PublishVersionsAndReadAliasOfOwnFunctionOnly"
+        Effect = "Allow"
+        Action = [
+          "lambda:PublishVersion",
+          "lambda:GetAlias",
+          "lambda:ListVersionsByFunction",
+          "lambda:GetFunction",
+          "lambda:GetFunctionConfiguration",
+        ]
+        Resource = [
+          "${var.api_function_arn}",
+          "${var.api_function_arn}:*",
+        ]
+      },
+      {
+        Sid      = "ManualRollbackMovesTheLiveAlias"
+        Effect   = "Allow"
+        Action   = "lambda:UpdateAlias"
+        Resource = "${var.api_function_arn}:live"
+      },
+      {
+        Sid    = "RunOwnReleasesOnly"
+        Effect = "Allow"
+        Action = [
+          "codedeploy:CreateDeployment",
+          "codedeploy:GetDeployment",
+          "codedeploy:GetDeploymentGroup",
+          "codedeploy:StopDeployment",
+          "codedeploy:ListDeployments",
+        ]
+        Resource = "${var.codedeploy_deployment_group_arn}"
+      },
+      {
+        Sid    = "RegisterRevisionsInTheReleasesApp"
+        Effect = "Allow"
+        Action = [
+          "codedeploy:GetApplicationRevision",
+          "codedeploy:RegisterApplicationRevision",
+        ]
+        Resource = "${var.codedeploy_app_arn}"
+      },
+      {
+        Sid      = "ReadDeploymentConfigs"
+        Effect   = "Allow"
+        Action   = "codedeploy:GetDeploymentConfig"
+        Resource = "*"
+      },
+      {
+        Sid      = "CheckImageTagsWhenRestoring"
+        Effect   = "Allow"
+        Action   = "ecr:DescribeImages"
+        Resource = "${var.api_ecr_repository_arn}"
+      },
+      {
+        Sid      = "EmailReleaseResults"
+        Effect   = "Allow"
+        Action   = "sns:Publish"
+        Resource = "${var.alert_topic_arn}"
+      }
+    ]
+  })
+}

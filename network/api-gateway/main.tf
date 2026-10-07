@@ -102,6 +102,7 @@ resource "aws_lambda_permission" "get_location_invoke" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
   function_name = var.get_location_function_name
+  qualifier     = var.lambda_alias_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
 }
@@ -165,6 +166,7 @@ resource "aws_lambda_permission" "create_location_invoke" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
   function_name = var.create_location_function_name
+  qualifier     = var.lambda_alias_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
 }
@@ -219,6 +221,7 @@ resource "aws_lambda_permission" "get_menu_invoke" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
   function_name = var.get_menu_function_name
+  qualifier     = var.lambda_alias_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
 }
@@ -257,6 +260,7 @@ resource "aws_lambda_permission" "manage_menu_invoke" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
   function_name = var.manage_menu_function_name
+  qualifier     = var.lambda_alias_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
 }
@@ -283,6 +287,7 @@ resource "aws_lambda_permission" "get_availability_invoke" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
   function_name = var.get_availability_function_name
+  qualifier     = var.lambda_alias_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
 }
@@ -309,6 +314,7 @@ resource "aws_lambda_permission" "create_pending_reservation_invoke" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
   function_name = var.create_pending_reservation_function_name
+  qualifier     = var.lambda_alias_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
 }
@@ -336,6 +342,7 @@ resource "aws_lambda_permission" "get_reservation_invoke" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
   function_name = var.get_reservation_function_name
+  qualifier     = var.lambda_alias_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
 }
@@ -363,6 +370,7 @@ resource "aws_lambda_permission" "get_order_invoke" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
   function_name = var.get_order_function_name
+  qualifier     = var.lambda_alias_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
 }
@@ -393,6 +401,7 @@ resource "aws_lambda_permission" "payment_intent_invoke" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
   function_name = var.payment_intent_function_name
+  qualifier     = var.lambda_alias_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
 }
@@ -419,6 +428,7 @@ resource "aws_lambda_permission" "cancel_reservation_invoke" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
   function_name = var.cancel_reservation_function_name
+  qualifier     = var.lambda_alias_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
 }
@@ -446,6 +456,7 @@ resource "aws_lambda_permission" "mark_arrived_invoke" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
   function_name = var.mark_arrived_function_name
+  qualifier     = var.lambda_alias_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
 }
@@ -473,6 +484,7 @@ resource "aws_lambda_permission" "block_table_invoke" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
   function_name = var.block_table_function_name
+  qualifier     = var.lambda_alias_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
 }
@@ -510,6 +522,7 @@ resource "aws_lambda_permission" "manage_layout_element_invoke" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
   function_name = var.manage_layout_element_function_name
+  qualifier     = var.lambda_alias_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
 }
@@ -537,6 +550,7 @@ resource "aws_lambda_permission" "publish_layout_invoke" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
   function_name = var.publish_layout_function_name
+  qualifier     = var.lambda_alias_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
 }
@@ -564,6 +578,7 @@ resource "aws_lambda_permission" "list_layout_version_invoke" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
   function_name = var.list_layout_version_function_name
+  qualifier     = var.lambda_alias_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
 }
@@ -591,6 +606,7 @@ resource "aws_lambda_permission" "archive_layout_version_invoke" {
   statement_id  = "AllowAPIGatewayInvokeArchiveLayoutVersion"
   action        = "lambda:InvokeFunction"
   function_name = var.list_layout_version_function_name
+  qualifier     = var.lambda_alias_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/DELETE/locations/*/layout/versions/*"
 }
@@ -639,6 +655,7 @@ resource "aws_lambda_permission" "activate_layout_version_invoke" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
   function_name = var.activate_layout_version_function_name
+  qualifier     = var.lambda_alias_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
 }
@@ -702,6 +719,7 @@ resource "aws_lambda_permission" "manage_auth_invoke" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
   function_name = var.manage_auth_function_name
+  qualifier     = var.lambda_alias_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
 }
@@ -748,6 +766,7 @@ resource "aws_lambda_permission" "manage_user_invoke" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
   function_name = var.manage_user_function_name
+  qualifier     = var.lambda_alias_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
 }
@@ -792,6 +811,7 @@ resource "aws_lambda_permission" "pre_signed_url_invoke" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
   function_name = var.pre_signed_url_function_name
+  qualifier     = var.lambda_alias_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
 }
@@ -845,6 +865,7 @@ resource "aws_lambda_permission" "manage_order_invoke" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
   function_name = var.manage_order_function_name
+  qualifier     = var.lambda_alias_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
 }
@@ -886,6 +907,7 @@ resource "aws_lambda_permission" "catering_settings_invoke" {
   statement_id  = "AllowAPIGatewayInvokeCateringSettings"
   action        = "lambda:InvokeFunction"
   function_name = var.catering_settings_function_name
+  qualifier     = var.lambda_alias_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
 }
@@ -944,6 +966,7 @@ resource "aws_lambda_permission" "catering_discount_tiers_invoke" {
   statement_id  = "AllowAPIGatewayInvokeCateringDiscountTiers"
   action        = "lambda:InvokeFunction"
   function_name = var.catering_discount_tiers_function_name
+  qualifier     = var.lambda_alias_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
 }
@@ -987,6 +1010,7 @@ resource "aws_lambda_permission" "catering_requests_invoke" {
   statement_id  = "AllowAPIGatewayInvokeCateringRequests"
   action        = "lambda:InvokeFunction"
   function_name = var.catering_requests_function_name
+  qualifier     = var.lambda_alias_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
 }
@@ -1108,6 +1132,7 @@ resource "aws_lambda_permission" "catering_offer_invoke" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
   function_name = var.catering_offer_function_name
+  qualifier     = var.lambda_alias_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
 }
@@ -1171,6 +1196,7 @@ resource "aws_lambda_permission" "catering_customer_invoke" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
   function_name = var.catering_customer_function_name
+  qualifier     = var.lambda_alias_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
 }
@@ -1203,6 +1229,7 @@ resource "aws_lambda_permission" "catering_signing_webhook_invoke" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
   function_name = var.catering_signing_webhook_function_name
+  qualifier     = var.lambda_alias_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
 }
@@ -1264,6 +1291,7 @@ resource "aws_lambda_permission" "platform_tenants_invoke" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
   function_name = var.platform_tenants_function_name
+  qualifier     = var.lambda_alias_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
 }
@@ -1306,6 +1334,7 @@ resource "aws_lambda_permission" "tenant_account_invoke" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
   function_name = var.tenant_account_function_name
+  qualifier     = var.lambda_alias_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
 }
@@ -1337,6 +1366,7 @@ resource "aws_lambda_permission" "tenant_site_config_invoke" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
   function_name = var.tenant_site_config_function_name
+  qualifier     = var.lambda_alias_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
 }

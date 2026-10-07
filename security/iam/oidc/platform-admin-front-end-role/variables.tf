@@ -39,3 +39,21 @@ variable "api_function_arn" {
   type        = string
   sensitive   = false
 }
+
+variable "codedeploy_app_arn" {
+  description = "ARN of the CodeDeploy application releases run in (orchestration/lambda-releases)"
+  type        = string
+  sensitive   = false
+}
+
+variable "codedeploy_deployment_group_arn" {
+  description = "ARN of platform-tenants' CodeDeploy deployment group - the only one this role may deploy to"
+  type        = string
+  sensitive   = false
+}
+
+variable "alert_topic_arn" {
+  description = "Platform alerts SNS topic - release results are emailed through it"
+  type        = string
+  sensitive   = false
+}

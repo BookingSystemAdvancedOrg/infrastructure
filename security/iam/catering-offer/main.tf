@@ -146,7 +146,10 @@ resource "aws_iam_role_policy" "invoke_document" {
         Action = [
           "lambda:InvokeFunction",
         ]
-        Resource = "${var.document_function_arn}"
+        Resource = [
+          "${var.document_function_arn}",
+          "${var.document_function_arn}:*", # its versions and the "live" alias callers invoke
+        ]
       }
     ]
   })

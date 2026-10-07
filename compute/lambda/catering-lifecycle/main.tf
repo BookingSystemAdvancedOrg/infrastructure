@@ -24,6 +24,11 @@ resource "aws_cloudwatch_log_group" "this" {
 }
 
 resource "aws_lambda_function" "this" {
+  # Every code/config change Terraform makes is published as a new version.
+  # Callers never invoke the function directly - they invoke the "live"
+  # alias (alias.tf).
+  publish = true
+
   function_name = local.function_name
   role          = var.role_arn
   package_type  = "Image"
@@ -64,6 +69,22 @@ resource "aws_lambda_function" "this" {
 # from that queue on its own schedule.
 resource "aws_lambda_function_event_invoke_config" "this" {
   function_name                = aws_lambda_function.this.function_name
+  maximum_retry_attempts       = 2
+  maximum_event_age_in_seconds = 21600 # 6h - a timer older than that is stale
+
+  destination_config {
+    on_failure {
+      destination = var.failure_destination_arn
+    }
+  }
+}
+
+# Same retry/DLQ settings for invocations through the "live" alias - an
+# event invoke config only applies to the qualifier it is attached to.
+# The unqualified one above stays for schedules created before the alias.
+resource "aws_lambda_function_event_invoke_config" "live" {
+  function_name                = aws_lambda_function.this.function_name
+  qualifier                    = aws_lambda_alias.live.name
   maximum_retry_attempts       = 2
   maximum_event_age_in_seconds = 21600 # 6h - a timer older than that is stale
 

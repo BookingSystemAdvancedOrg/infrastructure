@@ -80,10 +80,15 @@ resource "aws_iam_role_policy" "invoke" {
         ]
         Resource = [
           "${var.catering_lifecycle_function_arn}",
+          "${var.catering_lifecycle_function_arn}:*",
           "${var.notification_function_arn}",
+          "${var.notification_function_arn}:*",
           "${var.no_show_check_function_arn}",
+          "${var.no_show_check_function_arn}:*",
           "${var.reactivate_menu_item_function_arn}",
+          "${var.reactivate_menu_item_function_arn}:*",
           "${var.expire_layout_version_function_arn}",
+          "${var.expire_layout_version_function_arn}:*",
         ]
       }
     ]

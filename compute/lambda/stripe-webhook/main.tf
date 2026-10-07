@@ -14,6 +14,11 @@ resource "aws_cloudwatch_log_group" "this" {
 }
 
 resource "aws_lambda_function" "this" {
+  # Every code/config change Terraform makes is published as a new version.
+  # Callers never invoke the function directly - they invoke the "live"
+  # alias (alias.tf).
+  publish = true
+
   function_name = local.function_name
   role          = var.role_arn
   package_type  = "Image"
@@ -61,6 +66,7 @@ resource "aws_lambda_function" "this" {
 # with InvokedViaFunctionUrl = true) when the URL is created.
 resource "aws_lambda_function_url" "this" {
   function_name      = aws_lambda_function.this.function_name
+  qualifier          = aws_lambda_alias.live.name
   authorization_type = "NONE"
   invoke_mode        = "BUFFERED"
 }

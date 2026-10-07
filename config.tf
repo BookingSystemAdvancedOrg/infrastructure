@@ -62,7 +62,7 @@ module "published_layout_snapshot" {
 module "reservation" {
   source                  = "./storage/dynamodb/reservation"
   environment             = var.env
-  notification_lambda_arn = module.notification_fn.function_arn
+  notification_lambda_arn = module.notification_fn.alias_arn
   notification_dlq_arn    = module.dead_letter.notification_stream_dlq_arn
 }
 module "slot_occupancy" {
@@ -80,7 +80,7 @@ module "payment_delinquency" {
 module "order" {
   source                  = "./storage/dynamodb/order"
   environment             = var.env
-  notification_lambda_arn = module.notification_fn.function_arn
+  notification_lambda_arn = module.notification_fn.alias_arn
   notification_dlq_arn    = module.dead_letter.notification_stream_dlq_arn
 }
 module "catering_discount_tiers" {
@@ -90,9 +90,9 @@ module "catering_discount_tiers" {
 module "catering_requests" {
   source                  = "./storage/dynamodb/catering-requests"
   environment             = var.env
-  notification_lambda_arn = module.notification_fn.function_arn
+  notification_lambda_arn = module.notification_fn.alias_arn
   notification_dlq_arn    = module.dead_letter.notification_stream_dlq_arn
-  lifecycle_lambda_arn    = module.catering_lifecycle_fn.function_arn
+  lifecycle_lambda_arn    = module.catering_lifecycle_fn.alias_arn
   lifecycle_dlq_arn       = module.dead_letter.lifecycle_stream_dlq_arn
 }
 module "catering_request_history" {
@@ -165,7 +165,7 @@ module "platform_admin_front_end_asset" {
 module "cognito" {
   source                             = "./storage/cognito"
   environment                        = var.env
-  pre_token_generation_lambda_arn    = module.pre_token_generation_fn.function_arn
+  pre_token_generation_lambda_arn    = module.pre_token_generation_fn.alias_arn
   pre_token_generation_function_name = module.pre_token_generation_fn.function_name
   admin_app_url                      = local.admin_app_url
   invites_via_ses                    = var.cognito_invites_via_ses
@@ -746,7 +746,7 @@ module "activate_layout_version_fn" {
   ecr_repository_url                   = module.activate_layout_version_ecr.activate_layout_version_ecr_repository_url
   published_layout_snapshot_table_name = module.published_layout_snapshot.table_name
   scheduler_invoke_role_arn            = module.scheduler_invoke_expire_layout_version_role.role_arn
-  expire_layout_version_function_arn   = module.expire_layout_version_fn.function_arn
+  expire_layout_version_function_arn   = module.expire_layout_version_fn.alias_arn
   region                               = var.aws_region
   tenant_table_name                    = module.tenant.table_name
   location_table_name                  = module.location.table_name
@@ -933,7 +933,7 @@ module "manage_menu_fn" {
   ecr_repository_url                = module.manage_menu_ecr.manage_menu_ecr_repository_url
   menu_table_name                   = module.menu.table_name
   scheduler_invoke_role_arn         = module.scheduler_invoke_reactivate_menu_item_role.role_arn
-  reactivate_menu_item_function_arn = module.reactivate_menu_item_fn.function_arn
+  reactivate_menu_item_function_arn = module.reactivate_menu_item_fn.alias_arn
   region                            = var.aws_region
   tenant_table_name                 = module.tenant.table_name
   location_table_name               = module.location.table_name
@@ -1035,7 +1035,7 @@ module "stripe_webhook_fn" {
   reservation_table_name         = module.reservation.table_name
   payment_delinquency_table_name = module.payment_delinquency.table_name
   scheduler_invoke_role_arn      = module.scheduler_invoke_no_show_check_role.role_arn
-  no_show_check_function_arn     = module.no_show_check_fn.function_arn
+  no_show_check_function_arn     = module.no_show_check_fn.alias_arn
   region                         = var.aws_region
   stripe_webhook_secret_arn      = module.stripe_webhooks.reservation_webhook_secret_arn
   tenant_table_name              = module.tenant.table_name
@@ -1102,7 +1102,7 @@ module "catering_offer_fn" {
   location_table_name                 = module.location.table_name
   menu_table_name                     = module.menu.table_name
   catering_documents_bucket_name      = module.catering_documents.bucket_name
-  document_function_name              = module.catering_document_fn.function_name
+  document_function_name              = "${module.catering_document_fn.function_name}:${module.catering_document_fn.alias_name}"
   stripe_secret_arn                   = module.platform_secrets.stripe_secret_arn
   stripe_api_version                  = var.stripe_api_version
   region                              = var.aws_region
@@ -1195,13 +1195,17 @@ module "dlq_replay_fn" {
   role_arn                        = module.dlq_replay_role.role_arn
   ecr_repository_url              = module.dlq_replay_ecr.dlq_replay_ecr_repository_url
   queue_urls                      = module.dead_letter.queue_urls
-  catering_lifecycle_function_arn = module.catering_lifecycle_fn.function_arn
-  notification_function_arn       = module.notification_fn.function_arn
+  catering_lifecycle_function_arn = module.catering_lifecycle_fn.alias_arn
+  notification_function_arn       = module.notification_fn.alias_arn
   replayable_function_arns = [
     module.catering_lifecycle_fn.function_arn,
+    module.catering_lifecycle_fn.alias_arn,
     module.no_show_check_fn.function_arn,
+    module.no_show_check_fn.alias_arn,
     module.reactivate_menu_item_fn.function_arn,
+    module.reactivate_menu_item_fn.alias_arn,
     module.expire_layout_version_fn.function_arn,
+    module.expire_layout_version_fn.alias_arn,
   ]
   alert_topic_arn           = module.alerts.topic_arn
   scheduler_invoke_role_arn = module.scheduler_invoke_dlq_replay_role.role_arn
@@ -1284,6 +1288,70 @@ module "alerts" {
   replay_interval_minutes = var.dlq_replay_interval_minutes
 }
 
+# Blue/green releases (CodeDeploy) for every container-image Lambda - see
+# orchestration/lambda-releases. pre-token-generation is not listed: its
+# code ships from this repo and its alias follows Terraform directly.
+module "lambda_releases" {
+  source          = "./orchestration/lambda-releases"
+  environment     = var.env
+  alert_topic_arn = module.alerts.topic_arn
+
+  # prod: 10% of traffic for 5 minutes, then 100%, rolled back automatically
+  # if the function's error-rate or throttle alarm fires.
+  # dev: all at once, no alarms (they are billed monthly even when idle);
+  # a deployment that fails outright is still rolled back.
+  # For the linear rollout (10% more every minute) set type
+  # "TimeBasedLinear" and interval 1 - once prod traffic is steady enough
+  # for 1-minute alarm windows to see real requests.
+  traffic_shift_type             = var.env == "prod" ? "TimeBasedCanary" : "AllAtOnce"
+  traffic_shift_percentage       = 10
+  traffic_shift_interval_minutes = 5
+  rollback_alarms_enabled        = var.env == "prod"
+
+  functions = {
+    (module.activate_layout_version_fn.function_name)    = { alias_name = module.activate_layout_version_fn.alias_name }
+    (module.block_table_fn.function_name)                = { alias_name = module.block_table_fn.alias_name }
+    (module.cancel_reservation_fn.function_name)         = { alias_name = module.cancel_reservation_fn.alias_name }
+    (module.catering_customer_fn.function_name)          = { alias_name = module.catering_customer_fn.alias_name }
+    (module.catering_discount_tiers_fn.function_name)    = { alias_name = module.catering_discount_tiers_fn.alias_name }
+    (module.catering_document_fn.function_name)          = { alias_name = module.catering_document_fn.alias_name }
+    (module.catering_lifecycle_fn.function_name)         = { alias_name = module.catering_lifecycle_fn.alias_name }
+    (module.catering_offer_fn.function_name)             = { alias_name = module.catering_offer_fn.alias_name }
+    (module.catering_requests_fn.function_name)          = { alias_name = module.catering_requests_fn.alias_name }
+    (module.catering_settings_fn.function_name)          = { alias_name = module.catering_settings_fn.alias_name }
+    (module.catering_signing_webhook_fn.function_name)   = { alias_name = module.catering_signing_webhook_fn.alias_name }
+    (module.catering_stripe_webhook_fn.function_name)    = { alias_name = module.catering_stripe_webhook_fn.alias_name }
+    (module.create_location_fn.function_name)            = { alias_name = module.create_location_fn.alias_name }
+    (module.create_pending_reservation_fn.function_name) = { alias_name = module.create_pending_reservation_fn.alias_name }
+    (module.dlq_replay_fn.function_name)                 = { alias_name = module.dlq_replay_fn.alias_name }
+    (module.expire_layout_version_fn.function_name)      = { alias_name = module.expire_layout_version_fn.alias_name }
+    (module.get_availability_fn.function_name)           = { alias_name = module.get_availability_fn.alias_name }
+    (module.get_location_fn.function_name)               = { alias_name = module.get_location_fn.alias_name }
+    (module.get_menu_fn.function_name)                   = { alias_name = module.get_menu_fn.alias_name }
+    (module.get_order_fn.function_name)                  = { alias_name = module.get_order_fn.alias_name }
+    (module.get_reservation_fn.function_name)            = { alias_name = module.get_reservation_fn.alias_name }
+    (module.list_layout_version_fn.function_name)        = { alias_name = module.list_layout_version_fn.alias_name }
+    (module.manage_auth_fn.function_name)                = { alias_name = module.manage_auth_fn.alias_name }
+    (module.manage_layout_element_fn.function_name)      = { alias_name = module.manage_layout_element_fn.alias_name }
+    (module.manage_menu_fn.function_name)                = { alias_name = module.manage_menu_fn.alias_name }
+    (module.manage_order_fn.function_name)               = { alias_name = module.manage_order_fn.alias_name }
+    (module.manage_user_fn.function_name)                = { alias_name = module.manage_user_fn.alias_name }
+    (module.mark_arrived_fn.function_name)               = { alias_name = module.mark_arrived_fn.alias_name }
+    (module.no_show_check_fn.function_name)              = { alias_name = module.no_show_check_fn.alias_name }
+    (module.notification_fn.function_name)               = { alias_name = module.notification_fn.alias_name }
+    (module.payment_intent_fn.function_name)             = { alias_name = module.payment_intent_fn.alias_name }
+    (module.platform_stripe_webhook_fn.function_name)    = { alias_name = module.platform_stripe_webhook_fn.alias_name }
+    (module.platform_tenants_fn.function_name)           = { alias_name = module.platform_tenants_fn.alias_name }
+    (module.pre_signed_url_fn.function_name)             = { alias_name = module.pre_signed_url_fn.alias_name }
+    (module.publish_layout_fn.function_name)             = { alias_name = module.publish_layout_fn.alias_name }
+    (module.reactivate_menu_item_fn.function_name)       = { alias_name = module.reactivate_menu_item_fn.alias_name }
+    (module.stripe_webhook_fn.function_name)             = { alias_name = module.stripe_webhook_fn.alias_name }
+    (module.tenant_account_fn.function_name)             = { alias_name = module.tenant_account_fn.alias_name }
+    (module.tenant_site_config_fn.function_name)         = { alias_name = module.tenant_site_config_fn.alias_name }
+    (module.webhook_payment_intent_fn.function_name)     = { alias_name = module.webhook_payment_intent_fn.alias_name }
+  }
+}
+
 
 #API Gateway
 module "api_gateway" {
@@ -1299,63 +1367,63 @@ module "api_gateway" {
   platform_client_id                       = module.cognito_platform.client_id
   platform_admin_scope                     = module.cognito_platform.admin_scope
   platform_tenants_function_name           = module.platform_tenants_fn.function_name
-  platform_tenants_invoke_arn              = module.platform_tenants_fn.invoke_arn
+  platform_tenants_invoke_arn              = module.platform_tenants_fn.alias_invoke_arn
   tenant_account_function_name             = module.tenant_account_fn.function_name
-  tenant_account_invoke_arn                = module.tenant_account_fn.invoke_arn
+  tenant_account_invoke_arn                = module.tenant_account_fn.alias_invoke_arn
   tenant_site_config_function_name         = module.tenant_site_config_fn.function_name
-  tenant_site_config_invoke_arn            = module.tenant_site_config_fn.invoke_arn
+  tenant_site_config_invoke_arn            = module.tenant_site_config_fn.alias_invoke_arn
   get_location_function_name               = module.get_location_fn.function_name
-  get_location_invoke_arn                  = module.get_location_fn.invoke_arn
+  get_location_invoke_arn                  = module.get_location_fn.alias_invoke_arn
   create_location_function_name            = module.create_location_fn.function_name
-  create_location_invoke_arn               = module.create_location_fn.invoke_arn
+  create_location_invoke_arn               = module.create_location_fn.alias_invoke_arn
   get_menu_function_name                   = module.get_menu_fn.function_name
-  get_menu_invoke_arn                      = module.get_menu_fn.invoke_arn
+  get_menu_invoke_arn                      = module.get_menu_fn.alias_invoke_arn
   manage_menu_function_name                = module.manage_menu_fn.function_name
-  manage_menu_invoke_arn                   = module.manage_menu_fn.invoke_arn
+  manage_menu_invoke_arn                   = module.manage_menu_fn.alias_invoke_arn
   manage_order_function_name               = module.manage_order_fn.function_name
-  manage_order_invoke_arn                  = module.manage_order_fn.invoke_arn
+  manage_order_invoke_arn                  = module.manage_order_fn.alias_invoke_arn
   get_availability_function_name           = module.get_availability_fn.function_name
-  get_availability_invoke_arn              = module.get_availability_fn.invoke_arn
+  get_availability_invoke_arn              = module.get_availability_fn.alias_invoke_arn
   create_pending_reservation_function_name = module.create_pending_reservation_fn.function_name
-  create_pending_reservation_invoke_arn    = module.create_pending_reservation_fn.invoke_arn
+  create_pending_reservation_invoke_arn    = module.create_pending_reservation_fn.alias_invoke_arn
   get_reservation_function_name            = module.get_reservation_fn.function_name
-  get_reservation_invoke_arn               = module.get_reservation_fn.invoke_arn
+  get_reservation_invoke_arn               = module.get_reservation_fn.alias_invoke_arn
   get_order_function_name                  = module.get_order_fn.function_name
-  get_order_invoke_arn                     = module.get_order_fn.invoke_arn
+  get_order_invoke_arn                     = module.get_order_fn.alias_invoke_arn
   payment_intent_function_name             = module.payment_intent_fn.function_name
-  payment_intent_invoke_arn                = module.payment_intent_fn.invoke_arn
+  payment_intent_invoke_arn                = module.payment_intent_fn.alias_invoke_arn
   cancel_reservation_function_name         = module.cancel_reservation_fn.function_name
-  cancel_reservation_invoke_arn            = module.cancel_reservation_fn.invoke_arn
+  cancel_reservation_invoke_arn            = module.cancel_reservation_fn.alias_invoke_arn
   mark_arrived_function_name               = module.mark_arrived_fn.function_name
-  mark_arrived_invoke_arn                  = module.mark_arrived_fn.invoke_arn
+  mark_arrived_invoke_arn                  = module.mark_arrived_fn.alias_invoke_arn
   block_table_function_name                = module.block_table_fn.function_name
-  block_table_invoke_arn                   = module.block_table_fn.invoke_arn
+  block_table_invoke_arn                   = module.block_table_fn.alias_invoke_arn
   manage_layout_element_function_name      = module.manage_layout_element_fn.function_name
-  manage_layout_element_invoke_arn         = module.manage_layout_element_fn.invoke_arn
+  manage_layout_element_invoke_arn         = module.manage_layout_element_fn.alias_invoke_arn
   publish_layout_function_name             = module.publish_layout_fn.function_name
-  publish_layout_invoke_arn                = module.publish_layout_fn.invoke_arn
+  publish_layout_invoke_arn                = module.publish_layout_fn.alias_invoke_arn
   list_layout_version_function_name        = module.list_layout_version_fn.function_name
-  list_layout_version_invoke_arn           = module.list_layout_version_fn.invoke_arn
+  list_layout_version_invoke_arn           = module.list_layout_version_fn.alias_invoke_arn
   activate_layout_version_function_name    = module.activate_layout_version_fn.function_name
-  activate_layout_version_invoke_arn       = module.activate_layout_version_fn.invoke_arn
+  activate_layout_version_invoke_arn       = module.activate_layout_version_fn.alias_invoke_arn
   manage_auth_function_name                = module.manage_auth_fn.function_name
-  manage_auth_invoke_arn                   = module.manage_auth_fn.invoke_arn
+  manage_auth_invoke_arn                   = module.manage_auth_fn.alias_invoke_arn
   manage_user_function_name                = module.manage_user_fn.function_name
-  manage_user_invoke_arn                   = module.manage_user_fn.invoke_arn
+  manage_user_invoke_arn                   = module.manage_user_fn.alias_invoke_arn
   pre_signed_url_function_name             = module.pre_signed_url_fn.function_name
-  pre_signed_url_invoke_arn                = module.pre_signed_url_fn.invoke_arn
+  pre_signed_url_invoke_arn                = module.pre_signed_url_fn.alias_invoke_arn
   catering_settings_function_name          = module.catering_settings_fn.function_name
-  catering_settings_invoke_arn             = module.catering_settings_fn.invoke_arn
+  catering_settings_invoke_arn             = module.catering_settings_fn.alias_invoke_arn
   catering_discount_tiers_function_name    = module.catering_discount_tiers_fn.function_name
-  catering_discount_tiers_invoke_arn       = module.catering_discount_tiers_fn.invoke_arn
+  catering_discount_tiers_invoke_arn       = module.catering_discount_tiers_fn.alias_invoke_arn
   catering_requests_function_name          = module.catering_requests_fn.function_name
-  catering_requests_invoke_arn             = module.catering_requests_fn.invoke_arn
+  catering_requests_invoke_arn             = module.catering_requests_fn.alias_invoke_arn
   catering_offer_function_name             = module.catering_offer_fn.function_name
-  catering_offer_invoke_arn                = module.catering_offer_fn.invoke_arn
+  catering_offer_invoke_arn                = module.catering_offer_fn.alias_invoke_arn
   catering_customer_function_name          = module.catering_customer_fn.function_name
-  catering_customer_invoke_arn             = module.catering_customer_fn.invoke_arn
+  catering_customer_invoke_arn             = module.catering_customer_fn.alias_invoke_arn
   catering_signing_webhook_function_name   = module.catering_signing_webhook_fn.function_name
-  catering_signing_webhook_invoke_arn      = module.catering_signing_webhook_fn.invoke_arn
+  catering_signing_webhook_invoke_arn      = module.catering_signing_webhook_fn.alias_invoke_arn
 }
 
 # Stripe webhook endpoints - created in Stripe by Terraform, pointing straight
@@ -1540,14 +1608,17 @@ module "admin_front_end_role" {
   cloudfront_distribution_arn = module.cloudfront_private.distribution_arn
 }
 module "platform_admin_front_end_role" {
-  source                      = "./security/iam/oidc/platform-admin-front-end-role"
-  environment                 = var.env
-  oidc_provider_arn           = module.github_oidc_provider.provider_arn
-  github_repo                 = "${var.github_org}@*/${var.platform_admin_frontend_repo}"
-  platform_admin_bucket_arn   = module.platform_admin_front_end_asset.bucket_arn
-  cloudfront_distribution_arn = module.cloudfront_platform_admin.distribution_arn
-  api_ecr_repository_arn      = module.platform_tenants_ecr.platform_tenants_ecr_repository_arn
-  api_function_arn            = module.platform_tenants_fn.function_arn
+  source                          = "./security/iam/oidc/platform-admin-front-end-role"
+  environment                     = var.env
+  oidc_provider_arn               = module.github_oidc_provider.provider_arn
+  github_repo                     = "${var.github_org}@*/${var.platform_admin_frontend_repo}"
+  platform_admin_bucket_arn       = module.platform_admin_front_end_asset.bucket_arn
+  cloudfront_distribution_arn     = module.cloudfront_platform_admin.distribution_arn
+  api_ecr_repository_arn          = module.platform_tenants_ecr.platform_tenants_ecr_repository_arn
+  api_function_arn                = module.platform_tenants_fn.function_arn
+  codedeploy_app_arn              = module.lambda_releases.app_arn
+  codedeploy_deployment_group_arn = module.lambda_releases.deployment_group_arns[module.platform_tenants_fn.function_name]
+  alert_topic_arn                 = module.alerts.topic_arn
 }
 # Tenant website repos (site-*) publish to the tenant-sites bucket
 module "tenant_sites_deploy_role" {
@@ -1560,9 +1631,11 @@ module "tenant_sites_deploy_role" {
   sites_bucket_arn  = module.platform_domain[0].sites_bucket_arn
 }
 module "back_end_role" {
-  source            = "./security/iam/oidc/back-end-role"
-  environment       = var.env
-  oidc_provider_arn = module.github_oidc_provider.provider_arn
-  github_repo       = "${var.github_org}@*/${var.backend_repo}"
-  region            = var.aws_region
+  source              = "./security/iam/oidc/back-end-role"
+  environment         = var.env
+  oidc_provider_arn   = module.github_oidc_provider.provider_arn
+  github_repo         = "${var.github_org}@*/${var.backend_repo}"
+  region              = var.aws_region
+  codedeploy_app_name = module.lambda_releases.app_name
+  alert_topic_arn     = module.alerts.topic_arn
 }
