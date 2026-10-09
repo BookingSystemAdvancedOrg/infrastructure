@@ -31,6 +31,7 @@ resource "aws_lambda_function" "this" {
   environment {
     variables = {
       TENANT_TABLE_NAME                    = var.tenant_table_name
+      USER_TABLE_NAME                      = var.user_table_name
       LOCATION_TABLE_NAME                  = var.location_table_name
       LOCATION_ID_INDEX_NAME               = var.location_id_index_name
       ENVIRONMENT                          = var.environment

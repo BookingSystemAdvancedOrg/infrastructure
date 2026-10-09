@@ -27,3 +27,15 @@ variable "role_names" {
   type        = map(string)
   sensitive   = false
 }
+
+variable "user_table_arn" {
+  description = "ARN of the user DynamoDB table (storage/dynamodb/user)"
+  type        = string
+  sensitive   = false
+}
+
+variable "staff_check_role_names" {
+  description = "Roles of the functions staff_user may call - they may read a user profile by key (GetItem) to check the caller's assigned location and status"
+  type        = map(string)
+  default     = {}
+}

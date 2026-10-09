@@ -1,6 +1,6 @@
 
 terraform {
-  required_version = ">=1.14.0, < 2.0.0"
+  required_version = ">= 1.14.0, < 2.0.0"
   backend "s3" {}
 
   required_providers {
@@ -568,6 +568,17 @@ module "tenant_context_policy" {
   location_table_arn     = module.location.table_arn
   location_id_index_name = module.location.location_id_index_name
   role_names             = local.tenant_aware_role_names
+
+  # Functions where staff_user may act: they read the caller's own user
+  # profile to keep staff on their assigned location.
+  user_table_arn = module.user.table_arn
+  staff_check_role_names = {
+    get_location          = module.get_location_role.role_name
+    get_menu              = module.get_menu_role.role_name
+    manage_menu           = module.manage_menu_role.role_name
+    manage_layout_element = module.manage_layout_element_role.role_name
+    list_layout_version   = module.list_layout_version_role.role_name
+  }
 }
 
 #ECR
@@ -848,6 +859,7 @@ module "get_location_fn" {
   location_table_name    = module.location.table_name
   region                 = var.aws_region
   tenant_table_name      = module.tenant.table_name
+  user_table_name        = module.user.table_name
   location_id_index_name = module.location.location_id_index_name
 }
 module "get_menu_fn" {
@@ -858,6 +870,7 @@ module "get_menu_fn" {
   menu_table_name        = module.menu.table_name
   region                 = var.aws_region
   tenant_table_name      = module.tenant.table_name
+  user_table_name        = module.user.table_name
   location_table_name    = module.location.table_name
   location_id_index_name = module.location.location_id_index_name
 }
@@ -903,6 +916,7 @@ module "list_layout_version_fn" {
   published_layout_snapshot_table_name = module.published_layout_snapshot.table_name
   region                               = var.aws_region
   tenant_table_name                    = module.tenant.table_name
+  user_table_name                      = module.user.table_name
   location_table_name                  = module.location.table_name
   location_id_index_name               = module.location.location_id_index_name
 }
@@ -924,6 +938,7 @@ module "manage_layout_element_fn" {
   live_layout_element_table_name = module.live_layout_element.table_name
   region                         = var.aws_region
   tenant_table_name              = module.tenant.table_name
+  user_table_name                = module.user.table_name
   location_table_name            = module.location.table_name
   location_id_index_name         = module.location.location_id_index_name
 }
@@ -937,6 +952,7 @@ module "manage_menu_fn" {
   reactivate_menu_item_function_arn = module.reactivate_menu_item_fn.alias_arn
   region                            = var.aws_region
   tenant_table_name                 = module.tenant.table_name
+  user_table_name                   = module.user.table_name
   location_table_name               = module.location.table_name
   location_id_index_name            = module.location.location_id_index_name
 }

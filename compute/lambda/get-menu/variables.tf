@@ -45,3 +45,9 @@ variable "location_id_index_name" {
   type        = string
   sensitive   = false
 }
+
+variable "user_table_name" {
+  description = "Name of the user DynamoDB table - the shared tenant-context check reads the caller's own profile to keep staff on their assigned location"
+  type        = string
+  sensitive   = false
+}
