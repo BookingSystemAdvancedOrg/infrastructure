@@ -230,34 +230,43 @@
     },
     "CreateStripeAccount": {
       "Type": "Task",
-      "Comment": "Standard-equivalent connected account (own full Stripe Dashboard, restaurant is merchant of record and pays its own Stripe fees). The restaurant completes Stripe's identity verification through an Account Link (/tenant/stripe/account-link); no keys are ever exchanged.",
+      "Comment": "Accounts v2 (POST /v2/core/accounts - Stripe blocks v1 account creation for new Connect platforms). Standard-equivalent: full Stripe Dashboard, Stripe collects its fees from the restaurant (fees_collector) and carries negative balances (losses_collector), so Stripe also collects KYC. Merchant configuration with card_payments covers online and Terminal (card_present) payments. entity_type is left to Stripe's onboarding form - a restaurant can be an AB or a sole trader. The restaurant completes verification through an Account Link; no keys are ever exchanged.",
       "Resource": "arn:aws:states:::http:invoke",
       "Arguments": {
-        "ApiEndpoint": "https://api.stripe.com/v1/accounts",
+        "ApiEndpoint": "https://api.stripe.com/v2/core/accounts",
         "Method": "POST",
         "Authentication": { "ConnectionArn": "${stripe_connection_arn}" },
         "Headers": {
-          "Idempotency-Key": "{% 'create-account-' & $tenantId %}",
+          "Content-Type": "application/json",
+          "Idempotency-Key": "{% 'create-account-v2-' & $tenantId %}",
           "Stripe-Version": "${stripe_api_version}"
         },
         "RequestBody": {
-          "controller": {
-            "stripe_dashboard": { "type": "full" },
-            "fees": { "payer": "account" },
-            "losses": { "payments": "stripe" },
-            "requirement_collection": "stripe"
+          "contact_email": "{% $ownerEmail %}",
+          "display_name": "{% $tenantName %}",
+          "dashboard": "full",
+          "identity": {
+            "country": "se"
           },
-          "country": "SE",
-          "email": "{% $ownerEmail %}",
-          "business_profile": { "name": "{% $tenantName %}" },
+          "configuration": {
+            "merchant": {
+              "capabilities": {
+                "card_payments": { "requested": true }
+              }
+            }
+          },
+          "defaults": {
+            "currency": "sek",
+            "locales": ["sv-SE"],
+            "responsibilities": {
+              "fees_collector": "stripe",
+              "losses_collector": "stripe"
+            }
+          },
           "metadata": {
             "tenantId": "{% $tenantId %}",
             "environment": "${environment}"
           }
-        },
-        "Transform": {
-          "RequestBodyEncoding": "URL_ENCODED",
-          "RequestEncodingOptions": { "ArrayFormat": "INDICES" }
         }
       },
       "Assign": {

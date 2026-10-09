@@ -1265,6 +1265,12 @@ locals {
     "DELETE /platform/tenants/{tenantId}/domains/{domain}",
     "POST /platform/tenants/{tenantId}/stripe/account-link",
     "POST /platform/tenants/{tenantId}/stripe/sync",
+    # Card terminals (Stripe Terminal) per restaurant location
+    "GET /platform/tenants/{tenantId}/locations/{locationId}/terminal",
+    "POST /platform/tenants/{tenantId}/locations/{locationId}/terminal",
+    "PATCH /platform/tenants/{tenantId}/locations/{locationId}/terminal",
+    "POST /platform/tenants/{tenantId}/locations/{locationId}/terminal/readers",
+    "DELETE /platform/tenants/{tenantId}/locations/{locationId}/terminal/readers/{readerId}",
     # Operator accounts (the operator pool itself) - every operator has the
     # same rights, including managing other operators.
     "GET /platform/operators",

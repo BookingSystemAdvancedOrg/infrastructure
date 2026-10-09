@@ -50,3 +50,4 @@ terraform.rc
 # Lambda zips built by data.archive_file for infra-owned functions
 .build/
 __pycache__/
+.pytest_cache/

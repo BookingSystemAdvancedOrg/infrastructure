@@ -18,19 +18,23 @@ workflow. You never handle a restaurant's keys.
 - [ ] **Connect → Get started**: choose "platform/marketplace", complete
       the platform profile (live mode requires it before connected
       accounts can be created). Connected accounts are created with
-      controller properties equivalent to *Standard*: the restaurant has
+      Accounts v2 settings equivalent to *Standard* (`dashboard: full`,
+      `fees_collector: stripe`, `losses_collector: stripe`): the restaurant has
       the full Stripe dashboard, pays Stripe's fees, and Stripe handles
       its losses and KYC.
 - [ ] Settings → Connect → Branding: name, icon, colour - shown on the
       onboarding pages restaurants fill in.
+- [ ] Accounts are created with **Accounts v2** (`POST /v2/core/accounts`):
+      Stripe refuses v1 account creation for new Connect platforms. Leave
+      "Accounts v1 support" (Settings → Developers → API policies) **off**.
 - [ ] Sandbox (dev) and live (prod) are separate: repeat the Connect
       setup in the sandbox.
 - [ ] Keys - per environment (sandbox for dev, live for prod):
 
 | Key | Where | Needs |
 |---|---|---|
-| Pipeline key (`rk_...` or `sk_...`) | GitHub secrets `STRIPE_SECRET_KEY_DEV` / `STRIPE_SECRET_KEY_PROD` | Webhook Endpoints: Write, Connect → Accounts: Write, Tax Rates: Write. Used by Terraform (webhook endpoints), the onboarding workflow (creating connected accounts + their VAT rates) and to seed the Lambda secret on first apply. |
-| Lambda key (`rk_...`) | Secrets Manager `<env->stripe/api-key` as `{"apiKey":"rk_..."}` | Checkout Sessions, PaymentIntents, SetupIntents, Customers, Invoices, Invoice items, Credit notes, Refunds, Charges, Tax Rates: Write; Account Links: Write; Accounts: Read. Replace the seeded pipeline key after the first apply - Terraform never overwrites it. |
+| Pipeline key (`rk_...` or `sk_...`) | GitHub secrets `STRIPE_SECRET_KEY_DEV` / `STRIPE_SECRET_KEY_PROD` | Webhook Endpoints: Write, Connect → Accounts: Write (v1 + v2), Tax Rates: Write. Used by Terraform (webhook endpoints), the onboarding workflow (creating connected accounts + their VAT rates) and to seed the Lambda secret on first apply. |
+| Lambda key (`rk_...`) | Secrets Manager `<env->stripe/api-key` as `{"apiKey":"rk_..."}` | Checkout Sessions, PaymentIntents, SetupIntents, Customers, Invoices, Invoice items, Credit notes, Refunds, Charges, Tax Rates: Write; Account Links: Write (v2); Accounts: Read; Terminal Locations + Readers: Write. Replace the seeded pipeline key after the first apply - Terraform never overwrites it. |
 | Publishable key (`pk_...`) | `stripe_publishable_key` in `dev.tfvars` / `prod.tfvars` | Not secret. Websites get it from `GET /site-config`. |
 
   ```
