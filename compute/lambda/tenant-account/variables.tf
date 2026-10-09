@@ -28,6 +28,12 @@ variable "location_table_name" {
   sensitive   = false
 }
 
+variable "user_table_name" {
+  description = "Name of the user DynamoDB table - staff users' assigned location"
+  type        = string
+  sensitive   = false
+}
+
 variable "stripe_secret_arn" {
   description = "ARN of the platform Stripe API key secret - the handler reads the key at cold start"
   type        = string

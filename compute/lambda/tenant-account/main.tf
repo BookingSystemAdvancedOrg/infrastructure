@@ -38,6 +38,7 @@ resource "aws_lambda_function" "this" {
       ENVIRONMENT            = var.environment
       TENANT_TABLE_NAME      = var.tenant_table_name
       LOCATION_TABLE_NAME    = var.location_table_name
+      USER_TABLE_NAME        = var.user_table_name
       STRIPE_SECRET_ARN      = var.stripe_secret_arn
       STRIPE_API_VERSION     = var.stripe_api_version
       ADMIN_APP_URL          = var.admin_app_url

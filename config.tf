@@ -578,6 +578,8 @@ module "tenant_context_policy" {
     manage_menu           = module.manage_menu_role.role_name
     manage_layout_element = module.manage_layout_element_role.role_name
     list_layout_version   = module.list_layout_version_role.role_name
+    # GET /tenant lists a staff user's assigned location.
+    tenant_account = module.tenant_account_role.role_name
   }
 }
 
@@ -1264,6 +1266,7 @@ module "tenant_account_fn" {
   ecr_repository_url     = module.tenant_account_ecr.tenant_account_ecr_repository_url
   tenant_table_name      = module.tenant.table_name
   location_table_name    = module.location.table_name
+  user_table_name        = module.user.table_name
   stripe_secret_arn      = module.platform_secrets.stripe_secret_arn
   stripe_api_version     = var.stripe_api_version
   admin_app_url          = local.admin_app_url
