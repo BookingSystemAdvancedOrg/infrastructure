@@ -176,12 +176,17 @@ data "aws_iam_policy_document" "onboarding" {
       test     = "StringEquals"
       variable = "states:HTTPMethod"
       values   = ["POST"]
-    }
+    } 
 
+    # Exactly the two endpoints onboarding calls: account creation (Accounts
+    # v2) and the restaurant's VAT rates (v1, on the connected account).
     condition {
-      test     = "StringLike"
+      test     = "StringEquals"
       variable = "states:HTTPEndpoint"
-      values   = ["https://api.stripe.com/v1/*"]
+      values = [
+        "https://api.stripe.com/v2/core/accounts",
+        "https://api.stripe.com/v1/tax_rates",
+      ]
     }
   }
 
