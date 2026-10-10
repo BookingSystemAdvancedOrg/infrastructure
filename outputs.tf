@@ -208,3 +208,10 @@ output "lambda_releases" {
     deployment_groups = module.lambda_releases.deployment_group_names
   }
 }
+
+# Publish these at the sender domain's DNS provider (once per AWS account)
+# so SES can DKIM-sign and send from the no-reply address.
+output "ses_dkim_records" {
+  description = "DKIM CNAME records for the SES sender domain"
+  value       = module.ses.dkim_records
+}
