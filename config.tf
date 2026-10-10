@@ -240,10 +240,12 @@ module "payment_intent_role" {
   stripe_secret_arn = module.platform_secrets.stripe_secret_arn
 }
 module "mark_arrived_role" {
-  source                = "./security/iam/mark-arrived"
-  environment           = var.env
-  reservation_table_arn = module.reservation.table_arn
-  region                = var.aws_region
+  source                              = "./security/iam/mark-arrived"
+  environment                         = var.env
+  reservation_table_arn               = module.reservation.table_arn
+  slot_occupancy_table_arn            = module.slot_occupancy.table_arn
+  published_layout_snapshot_table_arn = module.published_layout_snapshot.table_arn
+  region                              = var.aws_region
 }
 module "create_location_role" {
   source             = "./security/iam/create-location"
@@ -580,6 +582,10 @@ module "tenant_context_policy" {
     list_layout_version   = module.list_layout_version_role.role_name
     # GET /tenant lists a staff user's assigned location.
     tenant_account = module.tenant_account_role.role_name
+    # Reservations: staff work only on their own location's bookings.
+    create_pending_reservation = module.create_pending_reservation_role.role_name
+    get_reservation            = module.get_reservation_role.role_name
+    mark_arrived               = module.mark_arrived_role.role_name
   }
 }
 
@@ -835,6 +841,7 @@ module "create_pending_reservation_fn" {
   published_layout_snapshot_table_name = module.published_layout_snapshot.table_name
   slot_occupancy_table_name            = module.slot_occupancy.table_name
   reservation_table_name               = module.reservation.table_name
+  user_table_name                      = module.user.table_name
   payment_delinquency_table_name       = module.payment_delinquency.table_name
   stripe_secret_arn                    = module.platform_secrets.stripe_secret_arn
   region                               = var.aws_region
@@ -882,6 +889,7 @@ module "get_reservation_fn" {
   role_arn               = module.get_reservation_role.role_arn
   ecr_repository_url     = module.get_reservation_ecr.get_reservation_ecr_repository_url
   reservation_table_name = module.reservation.table_name
+  user_table_name        = module.user.table_name
   region                 = var.aws_region
   tenant_table_name      = module.tenant.table_name
   location_table_name    = module.location.table_name
@@ -983,15 +991,18 @@ module "manage_user_fn" {
   location_id_index_name = module.location.location_id_index_name
 }
 module "mark_arrived_fn" {
-  source                 = "./compute/lambda/mark-arrived"
-  environment            = var.env
-  role_arn               = module.mark_arrived_role.role_arn
-  ecr_repository_url     = module.mark_arrived_ecr.mark_arrived_ecr_repository_url
-  reservation_table_name = module.reservation.table_name
-  region                 = var.aws_region
-  tenant_table_name      = module.tenant.table_name
-  location_table_name    = module.location.table_name
-  location_id_index_name = module.location.location_id_index_name
+  source                               = "./compute/lambda/mark-arrived"
+  environment                          = var.env
+  role_arn                             = module.mark_arrived_role.role_arn
+  ecr_repository_url                   = module.mark_arrived_ecr.mark_arrived_ecr_repository_url
+  reservation_table_name               = module.reservation.table_name
+  slot_occupancy_table_name            = module.slot_occupancy.table_name
+  published_layout_snapshot_table_name = module.published_layout_snapshot.table_name
+  user_table_name                      = module.user.table_name
+  region                               = var.aws_region
+  tenant_table_name                    = module.tenant.table_name
+  location_table_name                  = module.location.table_name
+  location_id_index_name               = module.location.location_id_index_name
 }
 module "no_show_check_fn" {
   source                         = "./compute/lambda/no-show-check"

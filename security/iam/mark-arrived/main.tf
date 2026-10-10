@@ -28,6 +28,43 @@ resource "aws_iam_role" "this" {
   }
 }
 
+# Releasing / moving a booking's table holds: the hold rows and the per
+# table and date lock counters live in Slot Occupancy (written in one
+# transaction with the reservation row).
+resource "aws_iam_role_policy" "slot_occupancy" {
+  name = "slot-occupancy-holds"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "TableHoldsAndLocks"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:GetItem",
+          "dynamodb:BatchGetItem",
+          "dynamodb:Query",
+          "dynamodb:PutItem",
+          "dynamodb:UpdateItem",
+          "dynamodb:DeleteItem",
+          "dynamodb:ConditionCheckItem",
+        ]
+        Resource = "${var.slot_occupancy_table_arn}"
+      },
+      {
+        Sid    = "ReadPublishedLayouts"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:GetItem",
+          "dynamodb:Query",
+        ]
+        Resource = "${var.published_layout_snapshot_table_arn}"
+      }
+    ]
+  })
+}
+
 resource "aws_iam_role_policy" "dynamodb_full" {
   name = "reservation-table-full-access"
   role = aws_iam_role.this.id

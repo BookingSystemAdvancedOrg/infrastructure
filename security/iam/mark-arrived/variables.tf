@@ -15,3 +15,15 @@ variable "region" {
   type        = string
   sensitive   = false
 }
+
+variable "slot_occupancy_table_arn" {
+  description = "ARN of the slot occupancy DynamoDB table (table holds and locks)"
+  type        = string
+  sensitive   = false
+}
+
+variable "published_layout_snapshot_table_arn" {
+  description = "ARN of the published layout snapshot DynamoDB table (bookable tables, for moves)"
+  type        = string
+  sensitive   = false
+}

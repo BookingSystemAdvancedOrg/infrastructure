@@ -22,7 +22,10 @@ resource "aws_apigatewayv2_api" "this" {
   cors_configuration {
     allow_origins = var.allowed_origins
     allow_methods = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
-    allow_headers = ["authorization", "content-type", "x-order-token"] # x-order-token: catering magic-link HMAC, sent as a header so it never lands in access logs or Referer headers
+    # x-order-token: catering magic-link HMAC; x-manage-token: a guest's
+    # reservation manage link. Sent as headers so they never land in access
+    # logs or Referer headers.
+    allow_headers = ["authorization", "content-type", "x-order-token", "x-manage-token"]
     max_age       = 300
   }
 
@@ -303,11 +306,23 @@ resource "aws_apigatewayv2_integration" "create_pending_reservation" {
   payload_format_version = "2.0"
 }
 
+# Guests book without an account; staff phone/walk-in bookings use the
+# tenant token. Same function - it dispatches on the route key.
+locals {
+  create_reservation_routes = {
+    "POST /locations/{locationId}/reservations"        = "NONE"
+    "POST /locations/{locationId}/reservations/manual" = "JWT"
+  }
+}
+
 resource "aws_apigatewayv2_route" "create_pending_reservation" {
+  for_each = local.create_reservation_routes
+
   api_id             = aws_apigatewayv2_api.this.id
-  route_key          = "POST /reservations"
+  route_key          = each.key
   target             = "integrations/${aws_apigatewayv2_integration.create_pending_reservation.id}"
-  authorization_type = "NONE"
+  authorization_type = each.value
+  authorizer_id      = each.value == "JWT" ? aws_apigatewayv2_authorizer.cognito.id : null
 }
 
 resource "aws_lambda_permission" "create_pending_reservation_invoke" {
@@ -330,12 +345,24 @@ resource "aws_apigatewayv2_integration" "get_reservation" {
   payload_format_version = "2.0"
 }
 
+# Staff day list + detail (JWT); the guest's own booking through the manage
+# link (no account - the X-Manage-Token header is checked in the Lambda).
+locals {
+  get_reservation_routes = {
+    "GET /locations/{locationId}/reservations"                       = "JWT"
+    "GET /locations/{locationId}/reservations/{reservationId}"       = "JWT"
+    "GET /locations/{locationId}/reservations/{reservationId}/guest" = "NONE"
+  }
+}
+
 resource "aws_apigatewayv2_route" "get_reservation" {
+  for_each = local.get_reservation_routes
+
   api_id             = aws_apigatewayv2_api.this.id
-  route_key          = "GET /reservations/{reservationId}"
+  route_key          = each.key
   target             = "integrations/${aws_apigatewayv2_integration.get_reservation.id}"
-  authorization_type = "JWT"
-  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+  authorization_type = each.value
+  authorizer_id      = each.value == "JWT" ? aws_apigatewayv2_authorizer.cognito.id : null
 }
 
 resource "aws_lambda_permission" "get_reservation_invoke" {
@@ -417,9 +444,11 @@ resource "aws_apigatewayv2_integration" "cancel_reservation" {
   payload_format_version = "2.0"
 }
 
+# The guest cancels through the manage link (X-Manage-Token, checked in the
+# Lambda). Restaurant cancellations go through mark-arrived's /status.
 resource "aws_apigatewayv2_route" "cancel_reservation" {
   api_id             = aws_apigatewayv2_api.this.id
-  route_key          = "POST /reservations/{reservationId}/cancel"
+  route_key          = "POST /locations/{locationId}/reservations/{reservationId}/cancel"
   target             = "integrations/${aws_apigatewayv2_integration.cancel_reservation.id}"
   authorization_type = "NONE"
 }
@@ -444,9 +473,20 @@ resource "aws_apigatewayv2_integration" "mark_arrived" {
   payload_format_version = "2.0"
 }
 
+# Staff reservation actions: status changes (arrived / no-show / cancel /
+# undo) and edits incl. moving to another table, time or day.
+locals {
+  staff_reservation_routes = [
+    "POST /locations/{locationId}/reservations/{reservationId}/status",
+    "PATCH /locations/{locationId}/reservations/{reservationId}",
+  ]
+}
+
 resource "aws_apigatewayv2_route" "mark_arrived" {
+  for_each = toset(local.staff_reservation_routes)
+
   api_id             = aws_apigatewayv2_api.this.id
-  route_key          = "POST /reservations/{reservationId}/arrive"
+  route_key          = each.value
   target             = "integrations/${aws_apigatewayv2_integration.mark_arrived.id}"
   authorization_type = "JWT"
   authorizer_id      = aws_apigatewayv2_authorizer.cognito.id

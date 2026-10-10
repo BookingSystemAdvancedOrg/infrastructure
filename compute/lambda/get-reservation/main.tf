@@ -35,6 +35,7 @@ resource "aws_lambda_function" "this" {
       LOCATION_ID_INDEX_NAME = var.location_id_index_name
       ENVIRONMENT            = var.environment
       RESERVATION_TABLE_NAME = var.reservation_table_name
+      USER_TABLE_NAME        = var.user_table_name
     }
   }
 

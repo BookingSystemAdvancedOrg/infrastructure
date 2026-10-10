@@ -45,3 +45,21 @@ variable "location_id_index_name" {
   type        = string
   sensitive   = false
 }
+
+variable "slot_occupancy_table_name" {
+  description = "Name of the slot occupancy DynamoDB table - table holds and locks"
+  type        = string
+  sensitive   = false
+}
+
+variable "published_layout_snapshot_table_name" {
+  description = "Name of the published layout snapshot DynamoDB table - bookable tables"
+  type        = string
+  sensitive   = false
+}
+
+variable "user_table_name" {
+  description = "Name of the user DynamoDB table - staff users' assigned location"
+  type        = string
+  sensitive   = false
+}
