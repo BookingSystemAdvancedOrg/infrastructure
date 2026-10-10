@@ -312,6 +312,8 @@ locals {
   create_reservation_routes = {
     "POST /locations/{locationId}/reservations"        = "NONE"
     "POST /locations/{locationId}/reservations/manual" = "JWT"
+    # The guest finished the card form (card guarantee) - X-Manage-Token.
+    "POST /locations/{locationId}/reservations/{reservationId}/confirm" = "NONE"
   }
 }
 
@@ -479,6 +481,8 @@ locals {
   staff_reservation_routes = [
     "POST /locations/{locationId}/reservations/{reservationId}/status",
     "PATCH /locations/{locationId}/reservations/{reservationId}",
+    # Card-guarantee fees: charge / retry, refund (owner only, in the Lambda).
+    "POST /locations/{locationId}/reservations/{reservationId}/payment",
   ]
 }
 

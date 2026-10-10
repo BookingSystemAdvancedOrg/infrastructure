@@ -45,3 +45,9 @@ variable "reservation_table_name" {
   type        = string
   sensitive   = false
 }
+
+variable "slot_occupancy_table_name" {
+  description = "Name of the slot occupancy table"
+  type        = string
+  sensitive   = false
+}

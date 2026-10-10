@@ -194,7 +194,14 @@ module "cognito_platform" {
 
 
 #Network
+moved {
+  from = module.ses
+  to   = module.ses[0]
+}
+# Fallback sender while there is no platform domain; with one, mail goes out
+# from mail.<platform domain> (network/platform-domain) and this is not created.
 module "ses" {
+  count                  = local.platform_domain_enabled ? 0 : 1
   source                 = "./network/ses"
   no_reply_email_address = var.no_reply_email_address
 }
@@ -257,6 +264,7 @@ module "mark_arrived_role" {
   reservation_table_arn               = module.reservation.table_arn
   slot_occupancy_table_arn            = module.slot_occupancy.table_arn
   published_layout_snapshot_table_arn = module.published_layout_snapshot.table_arn
+  stripe_secret_arn                   = module.platform_secrets.stripe_secret_arn
   region                              = var.aws_region
 }
 module "create_location_role" {
@@ -564,11 +572,12 @@ module "tenant_site_config_role" {
   region             = var.aws_region
 }
 module "reservation_reminders_role" {
-  source                = "./security/iam/reservation-reminders"
-  environment           = var.env
-  location_table_arn    = module.location.table_arn
-  reservation_table_arn = module.reservation.table_arn
-  region                = var.aws_region
+  source                   = "./security/iam/reservation-reminders"
+  environment              = var.env
+  location_table_arn       = module.location.table_arn
+  reservation_table_arn    = module.reservation.table_arn
+  slot_occupancy_table_arn = module.slot_occupancy.table_arn
+  region                   = var.aws_region
 }
 module "scheduler_invoke_reservation_reminders_role" {
   source                           = "./security/iam/scheduler-invoke-reservation-reminders"
@@ -850,6 +859,7 @@ module "cancel_reservation_fn" {
   tenant_table_name               = module.tenant.table_name
   location_id_index_name          = module.location.location_id_index_name
   reservation_link_key_secret_arn = module.reservation_secrets.link_signing_key_secret_arn
+  stripe_api_version              = var.stripe_api_version
 }
 module "create_location_fn" {
   source                 = "./compute/lambda/create-location"
@@ -877,6 +887,7 @@ module "create_pending_reservation_fn" {
   tenant_table_name                    = module.tenant.table_name
   location_id_index_name               = module.location.location_id_index_name
   reservation_link_key_secret_arn      = module.reservation_secrets.link_signing_key_secret_arn
+  stripe_api_version                   = var.stripe_api_version
 }
 module "get_availability_fn" {
   source                               = "./compute/lambda/get-availability"
@@ -1034,6 +1045,8 @@ module "mark_arrived_fn" {
   tenant_table_name                    = module.tenant.table_name
   location_table_name                  = module.location.table_name
   location_id_index_name               = module.location.location_id_index_name
+  stripe_secret_arn                    = module.platform_secrets.stripe_secret_arn
+  stripe_api_version                   = var.stripe_api_version
 }
 module "no_show_check_fn" {
   source                         = "./compute/lambda/no-show-check"
@@ -1339,6 +1352,7 @@ module "reservation_reminders_fn" {
   location_table_name       = module.location.table_name
   location_id_index_name    = module.location.location_id_index_name
   reservation_table_name    = module.reservation.table_name
+  slot_occupancy_table_name = module.slot_occupancy.table_name
 }
 module "platform_stripe_webhook_fn" {
   source                     = "./compute/lambda/platform-stripe-webhook"
@@ -1542,7 +1556,7 @@ locals {
   # address in Reply-To): mail.<platform domain> once it exists.
   no_reply_email        = local.platform_domain_enabled ? module.platform_domain[0].no_reply_address : var.no_reply_email_address
   no_reply_from_address = local.no_reply_email
-  ses_identity_arn      = local.platform_domain_enabled ? module.platform_domain[0].ses_identity_arn : module.ses.identity_arn
+  ses_identity_arn      = local.platform_domain_enabled ? module.platform_domain[0].ses_identity_arn : module.ses[0].identity_arn
 
   tenant_domain_cname_target = local.platform_domain_enabled ? module.platform_domain[0].cname_target : ""
 
@@ -1605,9 +1619,20 @@ module "platform_domain" {
 
   environment                             = var.env
   platform_domain                         = var.platform_domain
+  subdomain_delegations                   = var.platform_subdomain_delegations
   menu_image_bucket_regional_domain_name  = module.menu_image.bucket_regional_domain_name
   admin_distribution_domain_name          = module.cloudfront_private.distribution_domain_name
   platform_admin_distribution_domain_name = module.cloudfront_platform_admin.distribution_domain_name
+}
+
+# Adopt an existing hosted zone for the platform domain (var.platform_domain_zone_id)
+# instead of creating a second one: no name server change at the registrar, and
+# dev's zone can be delegated from prod before the certificate needs it. A no-op
+# once the zone is in state.
+import {
+  for_each = local.platform_domain_enabled && var.platform_domain_zone_id != "" ? toset([var.platform_domain_zone_id]) : toset([])
+  to       = module.platform_domain[0].aws_route53_zone.platform
+  id       = each.value
 }
 
 # --- Control plane workflows --------------------------------------------------------

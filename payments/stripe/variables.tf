@@ -23,21 +23,19 @@ variable "reservation_events" {
   type        = list(string)
   description = "Stripe events delivered to the reservation-payment webhook - must stay in sync with what the stripe-webhook Lambda handler actually processes"
   sensitive   = false
-  # Current handler's events. The target set for the card-on-file
-  # SetupIntent flow (docs/RESERVATION-PAYMENT-FLOW.md) is:
-  #   "setup_intent.succeeded",
-  #   "setup_intent.setup_failed",
-  #   "payment_intent.succeeded",
-  #   "payment_intent.payment_failed",
-  # Switch this list and the handler in the SAME release - subscribing to
-  # events the deployed handler errors on makes Stripe retry until the
-  # endpoint is flagged. Reservations are deliberately card-only: Swish is
+  # The card-guarantee backstop (application functions/stripe-webhook):
+  # setup_intent.succeeded confirms a booking the guest left before the
+  # site called POST .../confirm; payment_intent.* settle a fee whose
+  # synchronous result was unknown; charge.refunded records Dashboard
+  # refunds. The handler answers 200 to anything else, so a superset is
+  # harmless - but keep this list and the handler in the same release. Reservations are deliberately card-only: Swish is
   # push-only (no merchant-initiated later charge) and Klarna underwrites
   # per-purchase - neither can express "0 kr now, maybe a fee later".
   default = [
-    "checkout.session.completed",
+    "setup_intent.succeeded",
     "payment_intent.succeeded",
     "payment_intent.payment_failed",
+    "charge.refunded",
   ]
 }
 variable "order_events" {

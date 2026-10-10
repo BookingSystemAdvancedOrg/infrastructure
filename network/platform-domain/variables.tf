@@ -41,3 +41,10 @@ variable "web_acl_arn" {
   sensitive   = false
   default     = ""
 }
+
+variable "subdomain_delegations" {
+  description = "label => name servers of a zone in another account that answers <label>.<platform_domain> (prod: dev)"
+  type        = map(list(string))
+  sensitive   = false
+  default     = {}
+}

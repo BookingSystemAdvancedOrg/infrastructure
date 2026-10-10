@@ -38,6 +38,7 @@ resource "aws_lambda_function" "this" {
       RESERVATION_TABLE_NAME          = var.reservation_table_name
       RESERVATION_LINK_KEY_SECRET_ARN = var.reservation_link_key_secret_arn # verifies the guest's manage token
       STRIPE_SECRET_ARN               = var.stripe_secret_arn               # platform Stripe key secret (Connect) - to charge the card on file when a late cancellation applies the location's charge policy
+      STRIPE_API_VERSION              = var.stripe_api_version
     }
   }
 

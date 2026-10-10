@@ -70,6 +70,28 @@ variable "platform_domain" {
     error_message = "platform_domain must be a lowercase domain name like bokning.example.se, or empty."
   }
 }
+variable "platform_domain_zone_id" {
+  type        = string
+  description = "ID of an EXISTING Route 53 hosted zone for platform_domain to adopt instead of creating a new one: prod - the zone Route 53 created when the domain was registered (already the domain's name servers); dev - the dev.<domain> zone created by hand and delegated from prod before the first apply (the wildcard certificate validates in it). Empty = Terraform creates the zone."
+  sensitive   = false
+  default     = ""
+}
+
+variable "platform_subdomain_delegations" {
+  type        = map(list(string))
+  description = "Subdomains of platform_domain served by ANOTHER account's hosted zone: label => that zone's 4 name servers. Prod sets { dev = [...] } so dev.<domain> is answered by the dev account."
+  sensitive   = false
+  default     = {}
+
+  validation {
+    condition = alltrue([
+      for label, ns in var.platform_subdomain_delegations :
+      can(regex("^[a-z0-9]([a-z0-9-]*[a-z0-9])?$", label)) && length(ns) >= 2
+    ])
+    error_message = "platform_subdomain_delegations: lowercase labels (e.g. dev), each with at least 2 name servers."
+  }
+}
+
 variable "plans" {
   type = map(object({
     name          = string

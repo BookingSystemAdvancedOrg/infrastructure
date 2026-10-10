@@ -110,3 +110,22 @@ resource "aws_iam_role_policy" "logs" {
     ]
   })
 }
+
+# Card-guarantee fees: no-show charges, retries and refunds on the
+# restaurant's connected account, with the platform key.
+resource "aws_iam_role_policy" "stripe_secret" {
+  name = "stripe-secret-read"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "ReadPlatformStripeKey"
+        Effect   = "Allow"
+        Action   = "secretsmanager:GetSecretValue"
+        Resource = var.stripe_secret_arn
+      }
+    ]
+  })
+}

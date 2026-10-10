@@ -63,3 +63,15 @@ variable "user_table_name" {
   type        = string
   sensitive   = false
 }
+
+variable "stripe_api_version" {
+  description = "Pinned Stripe-Version header for the card-guarantee calls"
+  type        = string
+  sensitive   = false
+}
+
+variable "stripe_secret_arn" {
+  description = "ARN of the platform Stripe API key secret"
+  type        = string
+  sensitive   = false
+}

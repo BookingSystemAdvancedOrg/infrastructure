@@ -32,6 +32,8 @@ resource "aws_lambda_function" "this" {
     variables = {
       TENANT_TABLE_NAME                    = var.tenant_table_name
       LOCATION_TABLE_NAME                  = var.location_table_name
+      STRIPE_SECRET_ARN                    = var.stripe_secret_arn # card-guarantee fees and refunds
+      STRIPE_API_VERSION                   = var.stripe_api_version
       LOCATION_ID_INDEX_NAME               = var.location_id_index_name
       ENVIRONMENT                          = var.environment
       RESERVATION_TABLE_NAME               = var.reservation_table_name

@@ -1,7 +1,8 @@
 # Execution role for the ReservationRemindersFn Lambda - every 15 minutes it
 # marks bookings due a reminder (reminderSentAt + a "reminder" notice, one
-# conditional UpdateItem each); NotificationFn sends the message off the
-# Reservation stream. Tenant rows come from the shared tenant-context policy.
+# conditional UpdateItem each; NotificationFn sends the message off the
+# Reservation stream) and expires card-guarantee bookings whose card was
+# never confirmed (tables released in one transaction). Tenant rows come from the shared tenant-context policy.
 
 data "aws_caller_identity" "current" {}
 
@@ -43,23 +44,31 @@ resource "aws_iam_role_policy" "tables" {
         Resource = var.location_table_arn
       },
       {
-        # A location's bookings for the dates the reminder window touches.
-        Sid      = "FindDueBookings"
-        Effect   = "Allow"
-        Action   = "dynamodb:Query"
+        # Due reminders (Query + conditional UpdateItem) and expired card
+        # guarantees (GetItem, transaction Update/Delete of the booking and
+        # its PENDING# marker).
+        Sid    = "BookingsRemindersAndExpiry"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:Query",
+          "dynamodb:GetItem",
+          "dynamodb:UpdateItem",
+          "dynamodb:DeleteItem",
+          "dynamodb:ConditionCheckItem",
+        ]
         Resource = var.reservation_table_arn
       },
       {
-        Sid      = "MarkReminderSent"
-        Effect   = "Allow"
-        Action   = "dynamodb:UpdateItem"
-        Resource = var.reservation_table_arn
-        Condition = {
-          # Only the reminder marker - never status, guest data or anything else.
-          "ForAllValues:StringEquals" = {
-            "dynamodb:Attributes" = ["PK", "SK", "reminderSentAt", "notice", "status", "bookedFor"]
-          }
-        }
+        # Releasing an expired booking's table holds and bumping the locks.
+        Sid    = "ReleaseExpiredHolds"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:BatchGetItem",
+          "dynamodb:UpdateItem",
+          "dynamodb:DeleteItem",
+          "dynamodb:ConditionCheckItem",
+        ]
+        Resource = var.slot_occupancy_table_arn
       }
     ]
   })

@@ -21,3 +21,9 @@ variable "region" {
   type        = string
   sensitive   = false
 }
+
+variable "slot_occupancy_table_arn" {
+  description = "ARN of the slot occupancy table (holds and locks of expired bookings)"
+  type        = string
+  sensitive   = false
+}

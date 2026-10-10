@@ -15,10 +15,15 @@ alert_emails = [
   "arya.eisa@ithjalparna.se",
 ]
 
-# Domain the platform owns - leave unset until decided. Setting it turns on
-# tenant subdomains, customer custom domains, app./ops. hostnames and the
-# SES sending domain (see docs/PLATFORM-SETUP.md, "Platform domain").
-# platform_domain = "bokning.example.se"
+# Domain the platform owns. Dev runs on dev.booqy.se: its own hosted zone in
+# THIS account (created by hand, delegated from the booqy.se zone in prod), so
+# dev and prod DNS never touch. Turns on tenant subdomains (<slug>.dev.booqy.se),
+# customer custom domains, app./ops. hostnames and the SES sending domain
+# mail.dev.booqy.se (see docs/PLATFORM-SETUP.md, "Platform domain").
+# Switched on once booqy.se is registered and dev.booqy.se is delegated
+# from prod (the wildcard certificate validates through that delegation):
+# platform_domain         = "dev.booqy.se"
+# platform_domain_zone_id = "Z0571042RSRT4D1DDZ1L"
 
 # Public keys handed to restaurant websites by GET /site-config - not
 # secrets (see docs/PLATFORM-SETUP.md).

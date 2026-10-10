@@ -63,3 +63,9 @@ variable "reservation_link_key_secret_arn" {
   type        = string
   sensitive   = false
 }
+
+variable "stripe_api_version" {
+  description = "Pinned Stripe-Version header for the card-guarantee calls"
+  type        = string
+  sensitive   = false
+}

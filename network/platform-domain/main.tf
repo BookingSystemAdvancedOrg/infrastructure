@@ -47,6 +47,19 @@ resource "aws_route53_zone" "platform" {
   }
 }
 
+# Subdomains answered by another account (prod delegates dev.<domain> to the
+# dev account's zone). allow_overwrite adopts a record created by hand.
+resource "aws_route53_record" "delegation" {
+  for_each = var.subdomain_delegations
+
+  zone_id         = aws_route53_zone.platform.zone_id
+  name            = "${each.key}.${var.platform_domain}"
+  type            = "NS"
+  ttl             = 3600
+  records         = each.value
+  allow_overwrite = true
+}
+
 # --- Certificate ---------------------------------------------------------------
 #
 # One wildcard certificate covers app., ops. and every <slug>. subdomain.
