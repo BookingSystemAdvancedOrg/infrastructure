@@ -194,14 +194,12 @@ module "cognito_platform" {
 
 
 #Network
-moved {
-  from = module.ses
-  to   = module.ses[0]
-}
 # Fallback sender while there is no platform domain; with one, mail goes out
-# from mail.<platform domain> (network/platform-domain) and this is not created.
+# from mail.<platform domain> (network/platform-domain) and this identity is
+# simply unused. No count here on purpose: a count would need a `moved` block,
+# and Terraform refuses the CI's targeted ECR bootstrap apply while a move is
+# pending.
 module "ses" {
-  count                  = local.platform_domain_enabled ? 0 : 1
   source                 = "./network/ses"
   no_reply_email_address = var.no_reply_email_address
 }
@@ -1556,7 +1554,7 @@ locals {
   # address in Reply-To): mail.<platform domain> once it exists.
   no_reply_email        = local.platform_domain_enabled ? module.platform_domain[0].no_reply_address : var.no_reply_email_address
   no_reply_from_address = local.no_reply_email
-  ses_identity_arn      = local.platform_domain_enabled ? module.platform_domain[0].ses_identity_arn : module.ses[0].identity_arn
+  ses_identity_arn      = local.platform_domain_enabled ? module.platform_domain[0].ses_identity_arn : module.ses.identity_arn
 
   tenant_domain_cname_target = local.platform_domain_enabled ? module.platform_domain[0].cname_target : ""
 

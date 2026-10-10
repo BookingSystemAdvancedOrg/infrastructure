@@ -213,5 +213,5 @@ output "lambda_releases" {
 # so SES can DKIM-sign and send from the no-reply address.
 output "ses_dkim_records" {
   description = "DKIM CNAME records for the SES sender domain"
-  value       = local.platform_domain_enabled ? [] : module.ses[0].dkim_records
+  value       = local.platform_domain_enabled ? [] : module.ses.dkim_records
 }
