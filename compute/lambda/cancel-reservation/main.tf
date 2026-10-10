@@ -30,13 +30,14 @@ resource "aws_lambda_function" "this" {
 
   environment {
     variables = {
-      TENANT_TABLE_NAME         = var.tenant_table_name
-      LOCATION_ID_INDEX_NAME    = var.location_id_index_name
-      ENVIRONMENT               = var.environment
-      LOCATION_TABLE_NAME       = var.location_table_name
-      SLOT_OCCUPANCY_TABLE_NAME = var.slot_occupancy_table_name
-      RESERVATION_TABLE_NAME    = var.reservation_table_name
-      STRIPE_SECRET_ARN         = var.stripe_secret_arn # platform Stripe key secret (Connect) - to charge the card on file when a late cancellation applies the location's charge policy
+      TENANT_TABLE_NAME               = var.tenant_table_name
+      LOCATION_ID_INDEX_NAME          = var.location_id_index_name
+      ENVIRONMENT                     = var.environment
+      LOCATION_TABLE_NAME             = var.location_table_name
+      SLOT_OCCUPANCY_TABLE_NAME       = var.slot_occupancy_table_name
+      RESERVATION_TABLE_NAME          = var.reservation_table_name
+      RESERVATION_LINK_KEY_SECRET_ARN = var.reservation_link_key_secret_arn # verifies the guest's manage token
+      STRIPE_SECRET_ARN               = var.stripe_secret_arn               # platform Stripe key secret (Connect) - to charge the card on file when a late cancellation applies the location's charge policy
     }
   }
 

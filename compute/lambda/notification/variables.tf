@@ -63,3 +63,15 @@ variable "location_id_index_name" {
   type        = string
   sensitive   = false
 }
+
+variable "reservation_link_key_secret_arn" {
+  description = "ARN of the Secrets Manager secret holding the HMAC key behind guests' manage links (security/secrets/reservations)"
+  type        = string
+  sensitive   = false
+}
+
+variable "reservation_table_name" {
+  description = "Name of the reservation table - the function tells its stream records apart from the order/catering streams by it"
+  type        = string
+  sensitive   = false
+}

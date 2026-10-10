@@ -51,3 +51,9 @@ variable "user_table_name" {
   type        = string
   sensitive   = false
 }
+
+variable "reservation_link_key_secret_arn" {
+  description = "ARN of the Secrets Manager secret holding the HMAC key behind guests' manage links (security/secrets/reservations)"
+  type        = string
+  sensitive   = false
+}

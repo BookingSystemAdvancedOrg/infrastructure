@@ -47,10 +47,9 @@ resource "aws_dynamodb_table" "reservation" {
     enabled = true
   }
 
-  # NEW_AND_OLD_IMAGES (not just NEW_IMAGE) is required here - the filter
-  # below has to compare OldImage.status against NewImage.status to catch
-  # only the transition into "reserved", not every write already sitting
-  # in that state.
+  # NEW_AND_OLD_IMAGES (not just NEW_IMAGE) is required here - NotificationFn
+  # compares OldImage.notice.id with NewImage.notice.id so a notice is sent
+  # once, not on every later write of the same booking.
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
 
@@ -59,25 +58,11 @@ resource "aws_dynamodb_table" "reservation" {
   }
 }
 
-# Invokes NotificationFn on the two customer-facing status transitions that
-# warrant an SMS. Filter blocks within one filter_criteria are OR'd - a
-# stream record only needs to match one of them to be delivered:
-#
-#   1. pending -> reserved: booking confirmed.
-#   2. reserved -> a terminal cancel/no-show outcome: tells the customer
-#      whether they were charged and why. NewImage is an explicit allow-list
-#      of the five terminal statuses (not "anything-but pending, arrived"),
-#      same reasoning as the OldImage exact-match below - a future status
-#      value added to the enum won't silently start matching here.
-#
-# Anchoring filter 2's OldImage to exactly "reserved" also rules out
-# resolving a failed charge later (e.g. cancelled_charge_failed ->
-# cancelled_charged once the payment link is paid) triggering this - that
-# transition's OldImage is never "reserved", so it can't match either
-# pattern.
-#
-# Filtering happens here, at the event source mapping, so NotificationFn is
-# never even invoked for irrelevant stream records.
+# Invokes NotificationFn for every booking write that carries a guest
+# notice (confirmed, changed, cancelled_by_guest, cancelled_by_restaurant,
+# reminder - and M4's charge outcomes). The application decides what is
+# worth a message by setting `notice`; this mapping only forwards those
+# records, so NotificationFn is never invoked for irrelevant writes.
 resource "aws_lambda_event_source_mapping" "notify_on_reservation_status_change" {
   event_source_arn  = aws_dynamodb_table.reservation.stream_arn
   function_name     = var.notification_lambda_arn # this can be NAME or ARN, but ARN is safer in case the Lambda is in a different account
@@ -97,32 +82,24 @@ resource "aws_lambda_event_source_mapping" "notify_on_reservation_status_change"
     }
   }
 
+  # Only records the guest should hear about: a write that wants a message
+  # sets `notice` = {id, type, at} on the booking (application
+  # shared/reservations.py). The function skips records whose OldImage has
+  # the same notice id, so later unrelated writes never resend.
   filter_criteria {
     filter {
       pattern = jsonencode({
-        eventName = ["MODIFY"]
+        eventName = ["INSERT", "MODIFY"]
         dynamodb = {
-          OldImage = {
-            status = { S = ["pending"] }
-          }
           NewImage = {
-            status = { S = ["reserved"] }
-          }
-        }
-      })
-    }
-    filter {
-      pattern = jsonencode({
-        eventName = ["MODIFY"]
-        dynamodb = {
-          OldImage = {
-            status = { S = ["reserved"] }
-          }
-          NewImage = {
-            status = { S = ["cancelled_no_charge", "cancelled_charged", "cancelled_charge_failed", "no_show_charged", "no_show_charge_failed"] }
+            notice = { M = { id = { S = [{ exists = true }] } } }
           }
         }
       })
     }
   }
+
+  # A record that fails (e.g. SES throttling before anything was sent) is
+  # retried on its own instead of re-running - and re-sending - the batch.
+  function_response_types = ["ReportBatchItemFailures"]
 }

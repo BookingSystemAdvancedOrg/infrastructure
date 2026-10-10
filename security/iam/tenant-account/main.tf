@@ -72,7 +72,7 @@ resource "aws_iam_role_policy" "tenant_profile_edit" {
         Resource = "${var.tenant_table_arn}"
         Condition = {
           "ForAllValues:StringEquals" = {
-            "dynamodb:Attributes" = ["PK", "SK", "senderName", "replyToEmail", "branding", "updatedAt", "updatedBy"]
+            "dynamodb:Attributes" = ["PK", "SK", "senderName", "replyToEmail", "branding", "notifications", "updatedAt", "updatedBy"]
           }
           # ALL_OLD / ALL_NEW would hand back the whole row (plan, Stripe
           # ids...) through an update - only the touched attributes may return.

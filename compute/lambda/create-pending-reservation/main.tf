@@ -39,7 +39,8 @@ resource "aws_lambda_function" "this" {
       RESERVATION_TABLE_NAME               = var.reservation_table_name
       USER_TABLE_NAME                      = var.user_table_name
       PAYMENT_DELINQUENCY_TABLE_NAME       = var.payment_delinquency_table_name
-      STRIPE_SECRET_ARN                    = var.stripe_secret_arn # platform Stripe key secret (Connect) - to create a SetupIntent (card-on-file, no charge yet) on the tenant's connected account
+      RESERVATION_LINK_KEY_SECRET_ARN      = var.reservation_link_key_secret_arn # signs the manage token returned to the guest
+      STRIPE_SECRET_ARN                    = var.stripe_secret_arn               # platform Stripe key secret (Connect) - to create a SetupIntent (card-on-file, no charge yet) on the tenant's connected account
     }
   }
 

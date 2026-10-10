@@ -106,6 +106,7 @@ output "ecr_repository_urls" {
     platform_tenants           = module.platform_tenants_ecr.platform_tenants_ecr_repository_url
     tenant_account             = module.tenant_account_ecr.tenant_account_ecr_repository_url
     tenant_site_config         = module.tenant_site_config_ecr.tenant_site_config_ecr_repository_url
+    reservation_reminders      = module.reservation_reminders_ecr.reservation_reminders_ecr_repository_url
     platform_stripe_webhook    = module.platform_stripe_webhook_ecr.platform_stripe_webhook_ecr_repository_url
   }
 }

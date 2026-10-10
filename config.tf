@@ -118,6 +118,18 @@ module "catering_secrets" {
   source      = "./security/secrets/catering"
   environment = var.env
 }
+# Reservation manage-link signing key + read access for the functions that
+# build (create, notification) or verify (guest get / cancel) the link.
+module "reservation_secrets" {
+  source      = "./security/secrets/reservations"
+  environment = var.env
+  reader_role_names = {
+    create_pending_reservation = module.create_pending_reservation_role.role_name
+    cancel_reservation         = module.cancel_reservation_role.role_name
+    get_reservation            = module.get_reservation_role.role_name
+    notification               = module.notification_role.role_name
+  }
+}
 # Platform Stripe key (Connect platform account) - the only Stripe key in the stack
 module "platform_secrets" {
   source            = "./security/secrets/platform"
@@ -551,6 +563,18 @@ module "tenant_site_config_role" {
   location_table_arn = module.location.table_arn
   region             = var.aws_region
 }
+module "reservation_reminders_role" {
+  source                = "./security/iam/reservation-reminders"
+  environment           = var.env
+  location_table_arn    = module.location.table_arn
+  reservation_table_arn = module.reservation.table_arn
+  region                = var.aws_region
+}
+module "scheduler_invoke_reservation_reminders_role" {
+  source                           = "./security/iam/scheduler-invoke-reservation-reminders"
+  environment                      = var.env
+  reservation_reminders_lambda_arn = module.reservation_reminders_fn.function_arn
+}
 module "platform_stripe_webhook_role" {
   source                     = "./security/iam/platform-stripe-webhook"
   environment                = var.env
@@ -746,6 +770,10 @@ module "tenant_site_config_ecr" {
   source      = "./storage/ecr/tenant-site-config"
   environment = var.env
 }
+module "reservation_reminders_ecr" {
+  source      = "./storage/ecr/reservation-reminders"
+  environment = var.env
+}
 module "platform_stripe_webhook_ecr" {
   source      = "./storage/ecr/platform-stripe-webhook"
   environment = var.env
@@ -810,17 +838,18 @@ module "block_table_fn" {
   location_id_index_name               = module.location.location_id_index_name
 }
 module "cancel_reservation_fn" {
-  source                    = "./compute/lambda/cancel-reservation"
-  environment               = var.env
-  role_arn                  = module.cancel_reservation_role.role_arn
-  ecr_repository_url        = module.cancel_reservation_ecr.cancel_reservation_ecr_repository_url
-  location_table_name       = module.location.table_name
-  slot_occupancy_table_name = module.slot_occupancy.table_name
-  reservation_table_name    = module.reservation.table_name
-  stripe_secret_arn         = module.platform_secrets.stripe_secret_arn
-  region                    = var.aws_region
-  tenant_table_name         = module.tenant.table_name
-  location_id_index_name    = module.location.location_id_index_name
+  source                          = "./compute/lambda/cancel-reservation"
+  environment                     = var.env
+  role_arn                        = module.cancel_reservation_role.role_arn
+  ecr_repository_url              = module.cancel_reservation_ecr.cancel_reservation_ecr_repository_url
+  location_table_name             = module.location.table_name
+  slot_occupancy_table_name       = module.slot_occupancy.table_name
+  reservation_table_name          = module.reservation.table_name
+  stripe_secret_arn               = module.platform_secrets.stripe_secret_arn
+  region                          = var.aws_region
+  tenant_table_name               = module.tenant.table_name
+  location_id_index_name          = module.location.location_id_index_name
+  reservation_link_key_secret_arn = module.reservation_secrets.link_signing_key_secret_arn
 }
 module "create_location_fn" {
   source                 = "./compute/lambda/create-location"
@@ -847,6 +876,7 @@ module "create_pending_reservation_fn" {
   region                               = var.aws_region
   tenant_table_name                    = module.tenant.table_name
   location_id_index_name               = module.location.location_id_index_name
+  reservation_link_key_secret_arn      = module.reservation_secrets.link_signing_key_secret_arn
 }
 module "get_availability_fn" {
   source                               = "./compute/lambda/get-availability"
@@ -884,16 +914,17 @@ module "get_menu_fn" {
   location_id_index_name = module.location.location_id_index_name
 }
 module "get_reservation_fn" {
-  source                 = "./compute/lambda/get-reservation"
-  environment            = var.env
-  role_arn               = module.get_reservation_role.role_arn
-  ecr_repository_url     = module.get_reservation_ecr.get_reservation_ecr_repository_url
-  reservation_table_name = module.reservation.table_name
-  user_table_name        = module.user.table_name
-  region                 = var.aws_region
-  tenant_table_name      = module.tenant.table_name
-  location_table_name    = module.location.table_name
-  location_id_index_name = module.location.location_id_index_name
+  source                          = "./compute/lambda/get-reservation"
+  environment                     = var.env
+  role_arn                        = module.get_reservation_role.role_arn
+  ecr_repository_url              = module.get_reservation_ecr.get_reservation_ecr_repository_url
+  reservation_table_name          = module.reservation.table_name
+  user_table_name                 = module.user.table_name
+  region                          = var.aws_region
+  tenant_table_name               = module.tenant.table_name
+  location_table_name             = module.location.table_name
+  location_id_index_name          = module.location.location_id_index_name
+  reservation_link_key_secret_arn = module.reservation_secrets.link_signing_key_secret_arn
 }
 module "get_order_fn" {
   source                 = "./compute/lambda/get-order"
@@ -1032,6 +1063,8 @@ module "notification_fn" {
   tenant_table_name                    = module.tenant.table_name
   location_table_name                  = module.location.table_name
   location_id_index_name               = module.location.location_id_index_name
+  reservation_table_name               = module.reservation.table_name
+  reservation_link_key_secret_arn      = module.reservation_secrets.link_signing_key_secret_arn
 }
 module "pre_signed_url_fn" {
   source                  = "./compute/lambda/pre-signed-url"
@@ -1296,6 +1329,17 @@ module "tenant_site_config_fn" {
   region                 = var.aws_region
   location_id_index_name = module.location.location_id_index_name
 }
+module "reservation_reminders_fn" {
+  source                    = "./compute/lambda/reservation-reminders"
+  environment               = var.env
+  role_arn                  = module.reservation_reminders_role.role_arn
+  ecr_repository_url        = module.reservation_reminders_ecr.reservation_reminders_ecr_repository_url
+  scheduler_invoke_role_arn = module.scheduler_invoke_reservation_reminders_role.role_arn
+  tenant_table_name         = module.tenant.table_name
+  location_table_name       = module.location.table_name
+  location_id_index_name    = module.location.location_id_index_name
+  reservation_table_name    = module.reservation.table_name
+}
 module "platform_stripe_webhook_fn" {
   source                     = "./compute/lambda/platform-stripe-webhook"
   environment                = var.env
@@ -1381,6 +1425,7 @@ module "lambda_releases" {
     (module.stripe_webhook_fn.function_name)             = { alias_name = module.stripe_webhook_fn.alias_name }
     (module.tenant_account_fn.function_name)             = { alias_name = module.tenant_account_fn.alias_name }
     (module.tenant_site_config_fn.function_name)         = { alias_name = module.tenant_site_config_fn.alias_name }
+    (module.reservation_reminders_fn.function_name)      = { alias_name = module.reservation_reminders_fn.alias_name }
     (module.webhook_payment_intent_fn.function_name)     = { alias_name = module.webhook_payment_intent_fn.alias_name }
   }
 }
@@ -1544,6 +1589,7 @@ locals {
     stripe_webhook             = module.stripe_webhook_role.role_name
     tenant_account             = module.tenant_account_role.role_name
     tenant_site_config         = module.tenant_site_config_role.role_name
+    reservation_reminders      = module.reservation_reminders_role.role_name
     webhook_payment_intent     = module.webhook_payment_intent_role.role_name
   }
 }
