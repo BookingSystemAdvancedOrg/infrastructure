@@ -27,7 +27,7 @@ alert_emails = [
 
 # Public keys handed to restaurant websites by GET /site-config - not
 # secrets (see docs/PLATFORM-SETUP.md).
-# stripe_publishable_key = "pk_test_..."
+stripe_publishable_key = "pk_test_51U4OsHHhsMraauJUMyW7ID1lQq1jsS3Pdtzqu04WDgEnJW8VQIvGktIUNMPo8cZNgIRYPafALaLKQxLfckdiXOKX00LbiD1Obc"
 # turnstile_site_key     = "0x..."
 
 # VAT rates created on every new restaurant's Stripe account - set once an
