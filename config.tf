@@ -416,6 +416,7 @@ module "notification_role" {
   order_stream_arn             = module.order.stream_arn
   catering_requests_stream_arn = module.catering_requests.stream_arn
   ses_identity_arn             = local.ses_identity_arn
+  from_address                 = local.no_reply_email
   region                       = var.aws_region
 
   notification_dlq_arn                 = module.dead_letter.notification_stream_dlq_arn

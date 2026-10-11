@@ -16,6 +16,12 @@ variable "ses_identity_arn" {
   sensitive   = false
 }
 
+variable "from_address" {
+  description = "The no-reply address mail is sent from - the only From the recipient-identity grant allows"
+  type        = string
+  sensitive   = false
+}
+
 variable "region" {
   description = "AWS region this Lambda's log group lives in"
   type        = string

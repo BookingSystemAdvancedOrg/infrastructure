@@ -182,6 +182,21 @@ resource "aws_iam_role_policy" "ses_send_email" {
         Effect   = "Allow"
         Action   = "ses:SendEmail"
         Resource = "${var.ses_identity_arn}"
+      },
+      {
+        # SES also authorizes against the RECIPIENT's identity when the
+        # recipient is itself a verified identity (always the case in the SES
+        # sandbox, where only verified addresses can receive). Any identity in
+        # this account, but only for mail sent FROM the no-reply address.
+        Sid      = "SendToVerifiedRecipientIdentities"
+        Effect   = "Allow"
+        Action   = "ses:SendEmail"
+        Resource = "arn:aws:ses:${var.region}:${data.aws_caller_identity.current.account_id}:identity/*"
+        Condition = {
+          StringLike = {
+            "ses:FromAddress" = [var.from_address, "*<${var.from_address}>"]
+          }
+        }
       }
     ]
   })
