@@ -380,3 +380,31 @@ variable "lambda_alias_name" {
   type        = string
   default     = "live"
 }
+
+variable "throttle_rate_limit" {
+  description = "Default steady-state requests per second per route"
+  type        = number
+  sensitive   = false
+  default     = 100
+}
+
+variable "throttle_burst_limit" {
+  description = "Default burst (requests) per route"
+  type        = number
+  sensitive   = false
+  default     = 200
+}
+
+variable "booking_throttle_rate_limit" {
+  description = "Steady-state requests per second for the public online booking route (all guests together)"
+  type        = number
+  sensitive   = false
+  default     = 10
+}
+
+variable "booking_throttle_burst_limit" {
+  description = "Burst (requests) for the public online booking route"
+  type        = number
+  sensitive   = false
+  default     = 20
+}

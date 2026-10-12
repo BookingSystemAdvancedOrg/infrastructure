@@ -74,6 +74,19 @@ workflow. You never handle a restaurant's keys.
 - [ ] Then set `cognito_invites_via_ses = true` in tfvars: owner/staff
       invitations go through SES (Cognito's own sender is capped at 50
       emails/day).
+- [ ] **SMS** (guest confirmations/reminders, when a restaurant turns SMS
+      on): new accounts are in the SNS SMS sandbox and have a 1 USD/month
+      SMS quota. Prod: request SMS production access and a higher monthly
+      quota (support case), then set `sms_monthly_spend_limit_usd` in
+      prod.tfvars - Terraform sets the account's spend limit and alarms at
+      80 % of it. Check the current limit first
+      (`aws sns get-sms-attributes --region eu-north-1`): a lower value in
+      tfvars stops SMS sooner. Unset (prod today), the account's SMS
+      settings are left alone and there is no spend alarm. SMS only go to
+      Nordic numbers (+46, +45, +47, +358, +354); everyone else gets the
+      email only.
+- [ ] SES and SMS alarms (bounce rate, complaint rate, SMS spend) mail
+      `alert_emails` - confirm the subscription email once.
 
 ## 3. Platform domain (when decided)
 
@@ -109,9 +122,15 @@ apps run on `*.cloudfront.net` and restaurants have no website URL yet.
       platform contract; register the `catering_signing_webhook_url`
       output as webhook URL; credentials per environment:
       `aws secretsmanager put-secret-value --secret-id <env->catering/signing-provider --secret-string '{"provider":"...","clientId":"...","clientSecret":"...","webhookSecret":"..."}'`
-- [ ] **Cloudflare Turnstile** - one widget for the platform:
+- [ ] **Cloudflare Turnstile** - one widget for the platform, used by the
+      table booking form and the catering request form:
   - site key → `turnstile_site_key` in tfvars (websites get it from `/site-config`);
-  - secret → `<env->catering/turnstile` as `{"secretKey":"..."}`;
+    once it is set, every online booking needs a valid token
+    (`TURNSTILE_REQUIRED` on create-pending-reservation) - until then
+    bookings are not bot-checked, so set it before launch;
+  - secret → `<env->catering/turnstile` as `{"secretKey":"..."}`. Dev uses
+    Cloudflare's test keys (dev.tfvars site key + the test secret written
+    by security/secrets/catering), so nothing to set there;
   - hostnames: add the platform domain, and each restaurant's custom
     domain when it is attached (TENANT-ONBOARDING §5). Mind your
     Cloudflare plan's hostname-per-widget limit; past it, automate the

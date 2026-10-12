@@ -13,6 +13,11 @@
 # Alarms deliberately don't fire on "a message arrived in a DLQ": arrivals
 # are expected occasionally and the scheduled replay handles most of them
 # without anyone needing to look.
+#
+# Messaging guardrails (bottom of the file): the account's SMS spend limit
+# with an alarm before it is reached, and SES reputation alarms - a bounce
+# or complaint rate that keeps rising gets the account's email paused by
+# AWS, for every restaurant at once.
 
 data "aws_caller_identity" "current" {}
 
@@ -109,6 +114,87 @@ resource "aws_cloudwatch_metric_alarm" "replay_errors" {
   treat_missing_data  = "notBreaching"
 
   alarm_actions = ["${aws_sns_topic.alerts.arn}"]
+
+  tags = {
+    Environment = var.environment
+  }
+}
+
+# --- messaging guardrails -------------------------------------------------------
+
+# Account-wide SMS settings in this region, managed only when the
+# environment sets sms_monthly_spend_limit_usd (otherwise the account's
+# current settings are left as they are). monthly_spend_limit can't exceed
+# the account's SMS quota (new accounts: 1 USD) - raise the quota with an
+# AWS support case first, then this variable. When the limit is reached SNS
+# stops sending SMS for the rest of the month (the e-mails still go out).
+resource "aws_sns_sms_preferences" "this" {
+  count = var.sms_monthly_spend_limit_usd == null ? 0 : 1
+
+  monthly_spend_limit = var.sms_monthly_spend_limit_usd
+  default_sms_type    = "Transactional"
+}
+
+resource "aws_cloudwatch_metric_alarm" "sms_spend" {
+  count = var.sms_monthly_spend_limit_usd == null ? 0 : 1
+
+  alarm_name        = "${local.prefix}sms-spend-near-limit"
+  alarm_description = "SMS spend this month has passed 80% of the account's monthly limit (${var.sms_monthly_spend_limit_usd} USD). At the limit SNS stops sending SMS until next month - raise the quota (support case) and sms_monthly_spend_limit_usd, or look for abuse."
+  namespace         = "AWS/SNS"
+  metric_name       = "SMSMonthToDateSpentUSD"
+
+  statistic           = "Maximum"
+  period              = 3600
+  evaluation_periods  = 1
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  threshold           = var.sms_monthly_spend_limit_usd * 0.8
+  treat_missing_data  = "notBreaching"
+
+  alarm_actions = ["${aws_sns_topic.alerts.arn}"]
+
+  tags = {
+    Environment = var.environment
+  }
+}
+
+# AWS reviews an account at 5 % bounces / 0.1 % complaints and may pause
+# sending at 10 % / 0.5 %. These fire well before the review level.
+resource "aws_cloudwatch_metric_alarm" "ses_bounce_rate" {
+  alarm_name        = "${local.prefix}ses-bounce-rate"
+  alarm_description = "SES bounce rate is above 4% - AWS reviews the account at 5% and can pause email for every restaurant. Look for bookings with fake addresses."
+  namespace         = "AWS/SES"
+  metric_name       = "Reputation.BounceRate"
+
+  statistic           = "Maximum"
+  period              = 3600
+  evaluation_periods  = 1
+  comparison_operator = "GreaterThanThreshold"
+  threshold           = 0.04
+  treat_missing_data  = "notBreaching"
+
+  alarm_actions = ["${aws_sns_topic.alerts.arn}"]
+  ok_actions    = ["${aws_sns_topic.alerts.arn}"]
+
+  tags = {
+    Environment = var.environment
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "ses_complaint_rate" {
+  alarm_name        = "${local.prefix}ses-complaint-rate"
+  alarm_description = "SES complaint rate is above 0.08% - AWS reviews the account at 0.1% and can pause email for every restaurant."
+  namespace         = "AWS/SES"
+  metric_name       = "Reputation.ComplaintRate"
+
+  statistic           = "Maximum"
+  period              = 3600
+  evaluation_periods  = 1
+  comparison_operator = "GreaterThanThreshold"
+  threshold           = 0.0008
+  treat_missing_data  = "notBreaching"
+
+  alarm_actions = ["${aws_sns_topic.alerts.arn}"]
+  ok_actions    = ["${aws_sns_topic.alerts.arn}"]
 
   tags = {
     Environment = var.environment

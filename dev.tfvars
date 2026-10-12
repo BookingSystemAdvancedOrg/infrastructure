@@ -28,7 +28,14 @@ alert_emails = [
 # Public keys handed to restaurant websites by GET /site-config - not
 # secrets (see docs/PLATFORM-SETUP.md).
 stripe_publishable_key = "pk_test_51U4OsHHhsMraauJUMyW7ID1lQq1jsS3Pdtzqu04WDgEnJW8VQIvGktIUNMPo8cZNgIRYPafALaLKQxLfckdiXOKX00LbiD1Obc"
-# turnstile_site_key     = "0x..."
+# Cloudflare's TEST site key (always passes; its secret counterpart is
+# written by security/secrets/catering outside prod). Online bookings in dev
+# therefore run the real bot check with a "testing only" widget.
+turnstile_site_key = "1x00000000000000000000AA"
+
+# The account's monthly SMS spend limit (USD), alarmed at 80% - check the
+# current value first: aws sns get-sms-attributes --region eu-north-1
+sms_monthly_spend_limit_usd = 1
 
 # VAT rates created on every new restaurant's Stripe account - set once an
 # accountant has confirmed them.

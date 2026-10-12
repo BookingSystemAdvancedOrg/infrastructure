@@ -283,6 +283,27 @@ registered on the widget in Cloudflare - the platform domain and every
 custom domain must be on that list (operator step, see
 `docs/TENANT-ONBOARDING.md`). Use Cloudflare's test site keys locally.
 
+Table bookings: when `cfg.turnstile.siteKey` is set, render the widget
+with `action: "booking"` and send its token as `turnstileToken` in
+`POST /locations/{id}/reservations`. A token works once (and for 5
+minutes): reset the widget after every attempt that fails.
+
+### 3.4.1 Table bookings: party size, options, special days
+
+- Ask for times with the party size: `GET /locations/{id}/availability?date=&partySize=N`.
+  Each slot's `options` are the only table choices that party may book
+  online - one table, or a table combination the restaurant set up (best
+  fit first). Send the chosen option's `tableIds` unchanged; anything else
+  is refused (400 `tableIds are not offered online for this party size`).
+- `day` on the response explains a special day: `closed`, `hours`
+  (special opening hours) or `no_online` (call the restaurant). On those
+  days the list may be empty.
+- `cfg.locations[].specialDays` lists the next 60 days of special days
+  (date list, opening hours).
+- 429 `too_many_requests` (with `Retry-After`): too many attempts from
+  this address (10 per 10 minutes) or bookings with this phone number or
+  e-mail (5 per 24 hours).
+
 ### 3.5 Deploy (GitHub Actions)
 
 ```yaml

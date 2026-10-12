@@ -45,3 +45,15 @@ variable "stripe_secret_arn" {
   type        = string
   sensitive   = false
 }
+
+variable "turnstile_secret_arn" {
+  description = "ARN of the platform's Cloudflare Turnstile secret (security/secrets/catering) - the bot check on online bookings"
+  type        = string
+  sensitive   = false
+}
+
+variable "request_guard_table_arn" {
+  description = "ARN of the request guard DynamoDB table (storage/dynamodb/request-guard) - attempt counters for online bookings"
+  type        = string
+  sensitive   = false
+}

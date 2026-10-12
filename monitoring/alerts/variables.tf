@@ -33,3 +33,10 @@ variable "replay_interval_minutes" {
   type        = number
   sensitive   = false
 }
+
+variable "sms_monthly_spend_limit_usd" {
+  description = "Account-wide monthly SMS spend limit in USD (aws_sns_sms_preferences) - can't exceed the account's SMS quota; alarmed at 80%. null = the account's SMS settings aren't managed here"
+  type        = number
+  sensitive   = false
+  default     = null
+}

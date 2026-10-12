@@ -43,6 +43,25 @@ resource "aws_apigatewayv2_stage" "this" {
   name        = "$default"
   auto_deploy = true
 
+  # Throttling (steady requests per second / burst): a ceiling on how hard
+  # anyone can push the API - and through it Lambda, DynamoDB and the
+  # messages bookings send. Every route gets the default; the public
+  # booking route a much lower one. Per-client limits (IP address, phone,
+  # e-mail) are in the application (shared/request_guard.py).
+  default_route_settings {
+    throttling_rate_limit  = var.throttle_rate_limit
+    throttling_burst_limit = var.throttle_burst_limit
+  }
+
+  route_settings {
+    route_key              = "POST /locations/{locationId}/reservations"
+    throttling_rate_limit  = var.booking_throttle_rate_limit
+    throttling_burst_limit = var.booking_throttle_burst_limit
+  }
+
+  # route_settings names a route by key - it has to exist first.
+  depends_on = [aws_apigatewayv2_route.create_pending_reservation]
+
   tags = {
     Environment = var.environment
   }

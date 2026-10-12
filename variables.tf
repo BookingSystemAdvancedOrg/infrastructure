@@ -162,3 +162,10 @@ variable "stripe_publishable_key" {
   sensitive   = false
   default     = ""
 }
+
+variable "sms_monthly_spend_limit_usd" {
+  type        = number
+  description = "Account-wide monthly SMS spend limit in USD for this environment's account, alarmed at 80%. Check the current value first (aws sns get-sms-attributes) - a lower value here stops SMS sooner. New AWS accounts have a 1 USD SMS quota; raise it with an AWS support case before setting a higher value. null (default) = the account's SMS settings aren't managed by Terraform"
+  sensitive   = false
+  default     = null
+}

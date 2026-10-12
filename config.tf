@@ -77,6 +77,11 @@ module "payment_delinquency" {
   source      = "./storage/dynamodb/payment-delinquency"
   environment = var.env
 }
+# Attempt limits for online bookings (per IP address / phone / e-mail).
+module "request_guard" {
+  source      = "./storage/dynamodb/request-guard"
+  environment = var.env
+}
 module "order" {
   source                  = "./storage/dynamodb/order"
   environment             = var.env
@@ -346,6 +351,8 @@ module "create_pending_reservation_role" {
   payment_delinquency_table_arn       = module.payment_delinquency.table_arn
   region                              = var.aws_region
   stripe_secret_arn                   = module.platform_secrets.stripe_secret_arn
+  turnstile_secret_arn                = module.catering_secrets.turnstile_secret_arn
+  request_guard_table_arn             = module.request_guard.table_arn
 }
 module "scheduler_invoke_no_show_check_role" {
   source                   = "./security/iam/scheduler-invoke-no-show-check"
@@ -887,6 +894,10 @@ module "create_pending_reservation_fn" {
   location_id_index_name               = module.location.location_id_index_name
   reservation_link_key_secret_arn      = module.reservation_secrets.link_signing_key_secret_arn
   stripe_api_version                   = var.stripe_api_version
+  # Bot check on online bookings only once the sites show the widget.
+  turnstile_required       = var.turnstile_site_key != ""
+  turnstile_secret_arn     = module.catering_secrets.turnstile_secret_arn
+  request_guard_table_name = module.request_guard.table_name
 }
 module "get_availability_fn" {
   source                               = "./compute/lambda/get-availability"
@@ -1376,6 +1387,8 @@ module "alerts" {
   dlq_queue_names         = module.dead_letter.queue_names
   replay_function_name    = module.dlq_replay_fn.function_name
   replay_interval_minutes = var.dlq_replay_interval_minutes
+
+  sms_monthly_spend_limit_usd = var.sms_monthly_spend_limit_usd
 }
 
 # Blue/green releases (CodeDeploy) for every container-image Lambda - see

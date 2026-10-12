@@ -78,3 +78,19 @@ resource "aws_secretsmanager_secret" "turnstile" {
     Environment = var.environment
   }
 }
+
+# Outside prod: Cloudflare's documented TEST secret key (always passes, and
+# only accepts the dummy token of the test site key 1x00000000000000000000AA
+# set in dev.tfvars), so the bot check on bookings runs end to end without
+# a real widget. Not a secret. Written once; a real key set by hand later is
+# left alone (ignore_changes). Prod's key is always set by hand.
+resource "aws_secretsmanager_secret_version" "turnstile_test_key" {
+  count = var.environment == "prod" ? 0 : 1
+
+  secret_id     = aws_secretsmanager_secret.turnstile.id
+  secret_string = jsonencode({ secretKey = "1x0000000000000000000000000000000AA" })
+
+  lifecycle {
+    ignore_changes = [secret_string]
+  }
+}

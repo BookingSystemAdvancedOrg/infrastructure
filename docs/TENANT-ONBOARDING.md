@@ -84,7 +84,9 @@ is theirs, not routed through you.
       The workflow waits up to ~3 days for the CNAME (`validation_timeout`
       after that - fix the DNS and **Add domain** again; it resumes).
 - [ ] Add the domain to the platform's Turnstile widget hostnames in
-      Cloudflare (catering request form) - the one manual step.
+      Cloudflare (table booking and catering request forms) - the one
+      manual step. Without it guests on that domain can't book online.
+      Subdomains of the platform domain are covered already.
 
 No Route 53 import: the restaurant keeps its domain wherever it is
 registered; only the one CNAME points at the platform.
