@@ -37,6 +37,16 @@ turnstile_site_key = "1x00000000000000000000AA"
 # current value first: aws sns get-sms-attributes --region eu-north-1
 sms_monthly_spend_limit_usd = 1
 
+# Both Cognito pools email through SES instead of Cognito's built-in sender -
+# needed for the "forgot password" LINK emails (Cognito only sends a custom
+# email through SES). Off until booqy.se is live: set platform_domain above,
+# wait until the mail.dev.booqy.se identity is verified
+# (aws sesv2 get-email-identity --email-identity mail.dev.booqy.se --region eu-north-1 --query VerifiedForSendingStatus),
+# then set this to true. Until then the reset email shows a 6-digit code,
+# which both apps accept. While this account's SES is in the sandbox,
+# Cognito's emails then only reach verified addresses/domains.
+cognito_invites_via_ses = false
+
 # VAT rates created on every new restaurant's Stripe account - set once an
 # accountant has confirmed them.
 # default_tax_rates = {

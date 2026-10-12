@@ -54,6 +54,28 @@ resource "aws_cognito_user_pool" "this" {
     }
   }
 
+  # Same switch as the tenant pool (var.invites_via_ses): through the
+  # platform's SES identity instead of Cognito's capped built-in sender.
+  dynamic "email_configuration" {
+    for_each = var.invites_via_ses ? [1] : []
+    content {
+      email_sending_account = "DEVELOPER"
+      source_arn            = var.ses_identity_arn
+      from_email_address    = var.from_address
+    }
+  }
+
+  # "Forgot password" emails a link to SBS Admin's /reset-password page
+  # (compute/lambda/cognito-custom-message) - only with SES, as Cognito
+  # refuses a custom email from a trigger when it sends itself. Without SES
+  # the email shows the plain code, which SBS Admin also takes.
+  dynamic "lambda_config" {
+    for_each = var.invites_via_ses ? [1] : []
+    content {
+      custom_message = var.custom_message_lambda_arn
+    }
+  }
+
   deletion_protection = "ACTIVE"
 
   tags = {
@@ -140,6 +162,16 @@ resource "aws_cognito_user" "operator" {
   lifecycle {
     ignore_changes = [attributes]
   }
+}
+
+# Cognito invokes the custom message trigger for the emails it sends.
+resource "aws_lambda_permission" "custom_message" {
+  statement_id  = "AllowCognitoInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = var.custom_message_function_name
+  qualifier     = var.lambda_alias_name
+  principal     = "cognito-idp.amazonaws.com"
+  source_arn    = aws_cognito_user_pool.this.arn
 }
 
 resource "aws_cognito_user_in_group" "operator" {

@@ -1,7 +1,6 @@
 # Execution role for the ManageAuthFn Lambda.
 #
-# Covers the three flows this function handles against the Cognito user
-# pool:
+# Covers the flows this function handles against the Cognito user pool:
 #   - Login: cognito-idp:InitiateAuth with USER_PASSWORD_AUTH
 #   - Silent refresh: cognito-idp:InitiateAuth with REFRESH_TOKEN_AUTH, to
 #     mint new access/id tokens without the user re-entering credentials
@@ -10,6 +9,12 @@
 #     handled by manage-user). The invited user's first login trips a
 #     NEW_PASSWORD_REQUIRED challenge, which this function completes with
 #     cognito-idp:RespondToAuthChallenge to set their real password.
+#   - Forgot password: cognito-idp:ForgotPassword (Cognito emails a code or
+#     reset link) and cognito-idp:ConfirmForgotPassword (code + new
+#     password) - both need the emailed code, nothing here sets a password
+#     without it.
+# Plus item updates on the request-guard table: per-IP limits on the
+# forgot/reset password routes.
 #
 # No AdminCreateUser/AdminSetUserPassword here - creating the user account
 # itself is manage-user's job, not this function's.
@@ -54,6 +59,32 @@ resource "aws_iam_role_policy" "cognito_auth" {
           "cognito-idp:RespondToAuthChallenge",
         ]
         Resource = "${var.user_pool_arn}"
+      },
+      {
+        Sid    = "ForgotPassword"
+        Effect = "Allow"
+        Action = [
+          "cognito-idp:ForgotPassword",
+          "cognito-idp:ConfirmForgotPassword",
+        ]
+        Resource = "${var.user_pool_arn}"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "request_guard" {
+  name = "forgot-password-limits"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "CountResetAttempts"
+        Effect   = "Allow"
+        Action   = "dynamodb:UpdateItem"
+        Resource = var.request_guard_table_arn
       }
     ]
   })

@@ -71,9 +71,27 @@ workflow. You never handle a restaurant's keys.
 - [ ] Once the platform domain is live (§3) Terraform creates the
       `mail.<platform domain>` identity with DKIM, MAIL FROM and DMARC;
       sending switches to `noreply@mail.<platform domain>` automatically.
-- [ ] Then set `cognito_invites_via_ses = true` in tfvars: owner/staff
-      invitations go through SES (Cognito's own sender is capped at 50
-      emails/day).
+- [ ] Then set `cognito_invites_via_ses = true` in tfvars (once the
+      sending domain is verified): both Cognito pools - restaurant owners/staff and you, the
+      operators - email through SES (Cognito's own sender is capped at 50
+      emails/day), and "Glömt lösenordet?" / "Forgot your password?" email
+      a **link** to the app's reset page (custom message triggers,
+      `compute/lambda/cognito-custom-message`). Without it the reset email
+      shows a 6-digit code instead, which both apps also take. The first
+      apply needs `iam:CreateServiceLinkedRole` (Cognito's SES email role);
+      if the deploy role lacks it, run once:
+      `aws iam create-service-linked-role --aws-service-name email.cognito-idp.amazonaws.com`.
+      While an account's SES is in the sandbox, Cognito's emails only reach
+      verified addresses and addresses on the verified sender domain.
+- [ ] Once per environment: mark the existing restaurant users' emails
+      verified - Cognito only sends a reset to a verified address, and
+      staff invited before this release weren't marked (owners were).
+      New invitations and email changes are marked automatically:
+      ```bash
+      POOL_ID=$(aws cognito-idp list-user-pools --region eu-north-1 --max-results 60 --query "UserPools[?Name=='<env->staff-user-pool'].Id | [0]" --output text)
+      for U in $(aws cognito-idp list-users --region eu-north-1 --user-pool-id "$POOL_ID" --query "Users[].Username" --output text); do aws cognito-idp admin-update-user-attributes --region eu-north-1 --user-pool-id "$POOL_ID" --username "$U" --user-attributes Name=email_verified,Value=true; done
+      ```
+      (`dev-staff-user-pool` in dev, `staff-user-pool` in prod.)
 - [ ] **SMS** (guest confirmations/reminders, when a restaurant turns SMS
       on): new accounts are in the SNS SMS sandbox and have a 1 USD/month
       SMS quota. Prod: request SMS production access and a higher monthly

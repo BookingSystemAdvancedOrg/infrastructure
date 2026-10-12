@@ -52,6 +52,22 @@ resource "aws_cognito_user_pool" "this" {
       lambda_arn     = var.pre_token_generation_lambda_arn
       lambda_version = "V2_0"
     }
+
+    # "Forgot password" emails a link to the admin app's reset page
+    # (compute/lambda/cognito-custom-message). Only when the pool sends
+    # through SES: Cognito refuses a custom email from a trigger when it
+    # sends itself, which would fail every reset. Without SES the email
+    # shows the plain code, which the app also takes.
+    custom_message = var.invites_via_ses ? var.custom_message_lambda_arn : null
+  }
+
+  # Password resets go to the verified email only - never SMS (staff have
+  # phone numbers, and the reset link is an email).
+  account_recovery_setting {
+    recovery_mechanism {
+      name     = "verified_email"
+      priority = 1
+    }
   }
 
   # Cognito's built-in sender is capped at 50 emails/day - fine for dev,
@@ -151,6 +167,18 @@ resource "aws_lambda_permission" "pre_token_generation" {
   statement_id  = "AllowCognitoInvoke"
   action        = "lambda:InvokeFunction"
   function_name = var.pre_token_generation_function_name
+  qualifier     = var.lambda_alias_name
+  principal     = "cognito-idp.amazonaws.com"
+  source_arn    = aws_cognito_user_pool.this.arn
+}
+
+# Cognito invokes the custom message trigger for the emails it sends.
+# Granted even while the trigger isn't attached (no SES) - it only allows
+# this pool to call it.
+resource "aws_lambda_permission" "custom_message" {
+  statement_id  = "AllowCognitoInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = var.custom_message_function_name
   qualifier     = var.lambda_alias_name
   principal     = "cognito-idp.amazonaws.com"
   source_arn    = aws_cognito_user_pool.this.arn

@@ -184,6 +184,8 @@ module "cognito" {
   environment                        = var.env
   pre_token_generation_lambda_arn    = module.pre_token_generation_fn.alias_arn
   pre_token_generation_function_name = module.pre_token_generation_fn.function_name
+  custom_message_lambda_arn          = module.tenant_custom_message_fn.alias_arn
+  custom_message_function_name       = module.tenant_custom_message_fn.function_name
   admin_app_url                      = local.admin_app_url
   invites_via_ses                    = var.cognito_invites_via_ses
   ses_identity_arn                   = local.ses_identity_arn
@@ -191,10 +193,15 @@ module "cognito" {
 }
 # Operator pool - you; the only tokens /platform/* accepts
 module "cognito_platform" {
-  source          = "./storage/cognito-platform"
-  environment     = var.env
-  operator_emails = var.platform_operator_emails
-  app_urls        = local.platform_admin_app_urls
+  source                       = "./storage/cognito-platform"
+  environment                  = var.env
+  operator_emails              = var.platform_operator_emails
+  app_urls                     = local.platform_admin_app_urls
+  invites_via_ses              = var.cognito_invites_via_ses
+  ses_identity_arn             = local.ses_identity_arn
+  from_address                 = local.no_reply_from_address
+  custom_message_lambda_arn    = module.operator_custom_message_fn.alias_arn
+  custom_message_function_name = module.operator_custom_message_fn.function_name
 }
 
 
@@ -214,6 +221,19 @@ module "ses" {
 module "pre_token_generation_role" {
   source      = "./security/iam/pre-token-generation"
   environment = var.env
+  region      = var.aws_region
+}
+# "Forgot password" email triggers (one per user pool) - logs only.
+module "tenant_custom_message_role" {
+  source      = "./security/iam/cognito-custom-message"
+  environment = var.env
+  name        = "tenant-custom-message"
+  region      = var.aws_region
+}
+module "operator_custom_message_role" {
+  source      = "./security/iam/cognito-custom-message"
+  environment = var.env
+  name        = "operator-custom-message"
   region      = var.aws_region
 }
 module "get_menu_role" {
@@ -385,10 +405,11 @@ module "pre_signed_url_role" {
   region                 = var.aws_region
 }
 module "manage_auth_role" {
-  source        = "./security/iam/manage-auth"
-  environment   = var.env
-  user_pool_arn = module.cognito.user_pool_arn
-  region        = var.aws_region
+  source                  = "./security/iam/manage-auth"
+  environment             = var.env
+  user_pool_arn           = module.cognito.user_pool_arn
+  region                  = var.aws_region
+  request_guard_table_arn = module.request_guard.table_arn
 }
 module "stripe_webhook_role" {
   source                        = "./security/iam/stripe-webhook"
@@ -802,6 +823,25 @@ module "pre_token_generation_fn" {
   environment = var.env
   role_arn    = module.pre_token_generation_role.role_arn
 }
+# Infra-owned zip Lambdas: the "forgot password" email as a link to each
+# app's reset page (attached to the pools only when they send through SES -
+# var.cognito_invites_via_ses).
+module "tenant_custom_message_fn" {
+  source      = "./compute/lambda/cognito-custom-message"
+  environment = var.env
+  name        = "tenant-custom-message"
+  role_arn    = module.tenant_custom_message_role.role_arn
+  reset_url   = "${local.admin_app_url}/aterstall-losenord"
+  language    = "sv"
+}
+module "operator_custom_message_fn" {
+  source      = "./compute/lambda/cognito-custom-message"
+  environment = var.env
+  name        = "operator-custom-message"
+  role_arn    = module.operator_custom_message_role.role_arn
+  reset_url   = "${local.platform_admin_app_url}/reset-password"
+  language    = "en"
+}
 module "activate_layout_version_fn" {
   source                               = "./compute/lambda/activate-layout-version"
   environment                          = var.env
@@ -983,14 +1023,15 @@ module "list_layout_version_fn" {
   location_id_index_name               = module.location.location_id_index_name
 }
 module "manage_auth_fn" {
-  source                = "./compute/lambda/manage-auth"
-  environment           = var.env
-  role_arn              = module.manage_auth_role.role_arn
-  ecr_repository_url    = module.manage_auth_ecr.manage_auth_ecr_repository_url
-  cognito_user_pool_id  = module.cognito.user_pool_id
-  cognito_client_id     = module.cognito.user_pool_client_id
-  cognito_client_secret = module.cognito.user_pool_client_secret
-  region                = var.aws_region
+  source                   = "./compute/lambda/manage-auth"
+  environment              = var.env
+  role_arn                 = module.manage_auth_role.role_arn
+  ecr_repository_url       = module.manage_auth_ecr.manage_auth_ecr_repository_url
+  cognito_user_pool_id     = module.cognito.user_pool_id
+  cognito_client_id        = module.cognito.user_pool_client_id
+  cognito_client_secret    = module.cognito.user_pool_client_secret
+  region                   = var.aws_region
+  request_guard_table_name = module.request_guard.table_name
 }
 module "manage_layout_element_fn" {
   source                         = "./compute/lambda/manage-layout-element"

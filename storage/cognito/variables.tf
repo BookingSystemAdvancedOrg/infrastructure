@@ -16,6 +16,18 @@ variable "pre_token_generation_function_name" {
   sensitive   = false
 }
 
+variable "custom_message_lambda_arn" {
+  description = "Alias ARN of the custom message trigger (compute/lambda/cognito-custom-message) that makes the forgot-password email a link - attached only when invites_via_ses is true"
+  type        = string
+  sensitive   = false
+}
+
+variable "custom_message_function_name" {
+  description = "Function name of the custom message trigger, for the Cognito invoke permission"
+  type        = string
+  sensitive   = false
+}
+
 variable "admin_app_url" {
   description = "URL of the shared restaurant admin app, put into the invitation email"
   type        = string

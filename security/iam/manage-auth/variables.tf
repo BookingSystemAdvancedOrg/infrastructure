@@ -15,3 +15,9 @@ variable "region" {
   type        = string
   sensitive   = false
 }
+
+variable "request_guard_table_arn" {
+  description = "ARN of the request-guard table (storage/dynamodb/request-guard) - per-IP limits on forgot/reset password"
+  type        = string
+  sensitive   = false
+}
