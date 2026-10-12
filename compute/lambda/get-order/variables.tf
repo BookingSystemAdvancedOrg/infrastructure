@@ -45,3 +45,21 @@ variable "location_id_index_name" {
   type        = string
   sensitive   = false
 }
+
+variable "reservation_link_key_secret_arn" {
+  description = "ARN of the guest-link HMAC key secret (security/secrets/reservations) - signs order status links and table QR codes"
+  type        = string
+  sensitive   = false
+}
+
+variable "stripe_api_version" {
+  description = "Pinned Stripe-Version header"
+  type        = string
+  sensitive   = false
+}
+
+variable "stripe_secret_arn" {
+  description = "ARN of the platform Stripe API key secret (security/secrets/platform)"
+  type        = string
+  sensitive   = false
+}

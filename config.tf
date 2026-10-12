@@ -133,6 +133,10 @@ module "reservation_secrets" {
     cancel_reservation         = module.cancel_reservation_role.role_name
     get_reservation            = module.get_reservation_role.role_name
     notification               = module.notification_role.role_name
+    # Food orders: status tokens and table QR codes.
+    payment_intent = module.payment_intent_role.role_name
+    get_order      = module.get_order_role.role_name
+    manage_order   = module.manage_order_role.role_name
   }
 }
 # Platform Stripe key (Connect platform account) - the only Stripe key in the stack
@@ -250,10 +254,12 @@ module "manage_menu_role" {
   region                    = var.aws_region
 }
 module "manage_order_role" {
-  source          = "./security/iam/manage-order"
-  environment     = var.env
-  order_table_arn = module.order.table_arn
-  region          = var.aws_region
+  source             = "./security/iam/manage-order"
+  environment        = var.env
+  order_table_arn    = module.order.table_arn
+  location_table_arn = module.location.table_arn
+  stripe_secret_arn  = module.platform_secrets.stripe_secret_arn
+  region             = var.aws_region
 }
 module "manage_user_role" {
   source         = "./security/iam/manage-user"
@@ -269,17 +275,21 @@ module "get_reservation_role" {
   region                = var.aws_region
 }
 module "get_order_role" {
-  source          = "./security/iam/get-order"
-  environment     = var.env
-  order_table_arn = module.order.table_arn
-  region          = var.aws_region
-}
-module "payment_intent_role" {
-  source            = "./security/iam/payment-intent"
+  source            = "./security/iam/get-order"
   environment       = var.env
   order_table_arn   = module.order.table_arn
-  region            = var.aws_region
   stripe_secret_arn = module.platform_secrets.stripe_secret_arn
+  region            = var.aws_region
+}
+module "payment_intent_role" {
+  source                  = "./security/iam/payment-intent"
+  environment             = var.env
+  order_table_arn         = module.order.table_arn
+  menu_table_arn          = module.menu.table_arn
+  region                  = var.aws_region
+  stripe_secret_arn       = module.platform_secrets.stripe_secret_arn
+  turnstile_secret_arn    = module.catering_secrets.turnstile_secret_arn
+  request_guard_table_arn = module.request_guard.table_arn
 }
 module "mark_arrived_role" {
   source                              = "./security/iam/mark-arrived"
@@ -646,6 +656,8 @@ module "tenant_context_policy" {
     create_pending_reservation = module.create_pending_reservation_role.role_name
     get_reservation            = module.get_reservation_role.role_name
     mark_arrived               = module.mark_arrived_role.role_name
+    # Food orders: staff work only on their own location's orders.
+    manage_order = module.manage_order_role.role_name
   }
 }
 
@@ -988,27 +1000,38 @@ module "get_reservation_fn" {
   reservation_link_key_secret_arn = module.reservation_secrets.link_signing_key_secret_arn
 }
 module "get_order_fn" {
-  source                 = "./compute/lambda/get-order"
-  environment            = var.env
-  role_arn               = module.get_order_role.role_arn
-  ecr_repository_url     = module.get_order_ecr.get_order_ecr_repository_url
-  order_table_name       = module.order.table_name
-  region                 = var.aws_region
-  tenant_table_name      = module.tenant.table_name
-  location_table_name    = module.location.table_name
-  location_id_index_name = module.location.location_id_index_name
+  source                          = "./compute/lambda/get-order"
+  environment                     = var.env
+  role_arn                        = module.get_order_role.role_arn
+  ecr_repository_url              = module.get_order_ecr.get_order_ecr_repository_url
+  order_table_name                = module.order.table_name
+  region                          = var.aws_region
+  tenant_table_name               = module.tenant.table_name
+  location_table_name             = module.location.table_name
+  location_id_index_name          = module.location.location_id_index_name
+  reservation_link_key_secret_arn = module.reservation_secrets.link_signing_key_secret_arn
+  stripe_secret_arn               = module.platform_secrets.stripe_secret_arn
+  stripe_api_version              = var.stripe_api_version
 }
 module "payment_intent_fn" {
-  source                 = "./compute/lambda/payment-intent"
-  environment            = var.env
-  role_arn               = module.payment_intent_role.role_arn
-  ecr_repository_url     = module.payment_intent_ecr.payment_intent_ecr_repository_url
-  order_table_name       = module.order.table_name
-  stripe_secret_arn      = module.platform_secrets.stripe_secret_arn
-  region                 = var.aws_region
-  tenant_table_name      = module.tenant.table_name
-  location_table_name    = module.location.table_name
-  location_id_index_name = module.location.location_id_index_name
+  source                          = "./compute/lambda/payment-intent"
+  environment                     = var.env
+  role_arn                        = module.payment_intent_role.role_arn
+  ecr_repository_url              = module.payment_intent_ecr.payment_intent_ecr_repository_url
+  order_table_name                = module.order.table_name
+  menu_table_name                 = module.menu.table_name
+  stripe_secret_arn               = module.platform_secrets.stripe_secret_arn
+  stripe_api_version              = var.stripe_api_version
+  region                          = var.aws_region
+  tenant_table_name               = module.tenant.table_name
+  location_table_name             = module.location.table_name
+  location_id_index_name          = module.location.location_id_index_name
+  customer_site_url               = local.customer_site_url
+  reservation_link_key_secret_arn = module.reservation_secrets.link_signing_key_secret_arn
+  # Bot check on the order form only once the sites show the widget.
+  turnstile_required       = var.turnstile_site_key != ""
+  turnstile_secret_arn     = module.catering_secrets.turnstile_secret_arn
+  request_guard_table_name = module.request_guard.table_name
 }
 module "list_layout_version_fn" {
   source                               = "./compute/lambda/list-layout-version"
@@ -1060,15 +1083,20 @@ module "manage_menu_fn" {
   location_id_index_name            = module.location.location_id_index_name
 }
 module "manage_order_fn" {
-  source                 = "./compute/lambda/manage-order"
-  environment            = var.env
-  role_arn               = module.manage_order_role.role_arn
-  ecr_repository_url     = module.manage_order_ecr.manage_order_ecr_repository_url
-  order_table_name       = module.order.table_name
-  region                 = var.aws_region
-  tenant_table_name      = module.tenant.table_name
-  location_table_name    = module.location.table_name
-  location_id_index_name = module.location.location_id_index_name
+  source                          = "./compute/lambda/manage-order"
+  environment                     = var.env
+  role_arn                        = module.manage_order_role.role_arn
+  ecr_repository_url              = module.manage_order_ecr.manage_order_ecr_repository_url
+  order_table_name                = module.order.table_name
+  customer_site_url               = local.customer_site_url
+  user_table_name                 = module.user.table_name
+  region                          = var.aws_region
+  tenant_table_name               = module.tenant.table_name
+  location_table_name             = module.location.table_name
+  location_id_index_name          = module.location.location_id_index_name
+  reservation_link_key_secret_arn = module.reservation_secrets.link_signing_key_secret_arn
+  stripe_secret_arn               = module.platform_secrets.stripe_secret_arn
+  stripe_api_version              = var.stripe_api_version
 }
 module "manage_user_fn" {
   source                 = "./compute/lambda/manage-user"
@@ -1128,6 +1156,7 @@ module "notification_fn" {
   location_table_name                  = module.location.table_name
   location_id_index_name               = module.location.location_id_index_name
   reservation_table_name               = module.reservation.table_name
+  order_table_name                     = module.order.table_name
   reservation_link_key_secret_arn      = module.reservation_secrets.link_signing_key_secret_arn
 }
 module "pre_signed_url_fn" {

@@ -1,7 +1,8 @@
 # Execution role for the webhook-payment-intent Lambda.
 #
-# Full access on order only - this Lambda reacts to Stripe payment events
-# and updates the matching order's status/payment reference. No location
+# Order table only, GetItem + UpdateItem - this Lambda reads the order a
+# Stripe event names (pointer + order) and settles it (status, payment
+# reference, the day's number counter). No location
 # access: unlike stripe-webhook (which reads location config to schedule
 # the no-show-check trigger), this function has no equivalent need - it
 # doesn't touch reservations or scheduling at all.
@@ -42,13 +43,7 @@ resource "aws_iam_role_policy" "dynamodb_full" {
         Sid    = "ItemAccessOrderTable"
         Effect = "Allow"
         Action = [
-          "dynamodb:BatchGetItem",
-          "dynamodb:BatchWriteItem",
-          "dynamodb:ConditionCheckItem",
-          "dynamodb:DeleteItem",
           "dynamodb:GetItem",
-          "dynamodb:PutItem",
-          "dynamodb:Query",
           "dynamodb:UpdateItem",
         ]
         Resource = "${var.order_table_arn}"

@@ -21,3 +21,21 @@ variable "stripe_secret_arn" {
   type        = string
   sensitive   = false
 }
+
+variable "menu_table_arn" {
+  description = "ARN of the menu table (prices are read from it)"
+  type        = string
+  sensitive   = false
+}
+
+variable "turnstile_secret_arn" {
+  description = "ARN of the Turnstile secret (bot check on the order form)"
+  type        = string
+  sensitive   = false
+}
+
+variable "request_guard_table_arn" {
+  description = "ARN of the attempt-counter table (request_guard)"
+  type        = string
+  sensitive   = false
+}

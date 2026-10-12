@@ -30,12 +30,19 @@ resource "aws_lambda_function" "this" {
 
   environment {
     variables = {
-      TENANT_TABLE_NAME      = var.tenant_table_name
-      LOCATION_TABLE_NAME    = var.location_table_name
-      LOCATION_ID_INDEX_NAME = var.location_id_index_name
-      ENVIRONMENT            = var.environment
-      ORDER_TABLE_NAME       = var.order_table_name
-      STRIPE_SECRET_ARN      = var.stripe_secret_arn # platform Stripe key secret (Connect) - to create the PaymentIntent for a new order on the tenant's connected account
+      TENANT_TABLE_NAME               = var.tenant_table_name
+      LOCATION_TABLE_NAME             = var.location_table_name
+      LOCATION_ID_INDEX_NAME          = var.location_id_index_name
+      ENVIRONMENT                     = var.environment
+      ORDER_TABLE_NAME                = var.order_table_name
+      STRIPE_SECRET_ARN               = var.stripe_secret_arn # platform Stripe key secret (Connect) - creates the Checkout Session on the tenant's connected account
+      STRIPE_API_VERSION              = var.stripe_api_version
+      MENU_TABLE_NAME                 = var.menu_table_name
+      CUSTOMER_SITE_URL               = var.customer_site_url
+      RESERVATION_LINK_KEY_SECRET_ARN = var.reservation_link_key_secret_arn # status token in the answer
+      TURNSTILE_REQUIRED              = var.turnstile_required ? "true" : "false"
+      TURNSTILE_SECRET_ARN            = var.turnstile_secret_arn
+      REQUEST_GUARD_TABLE_NAME        = var.request_guard_table_name
     }
   }
 

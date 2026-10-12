@@ -75,3 +75,9 @@ variable "reservation_table_name" {
   type        = string
   sensitive   = false
 }
+
+variable "order_table_name" {
+  description = "Name of the order table - routes its stream records (food order messages)"
+  type        = string
+  sensitive   = false
+}

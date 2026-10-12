@@ -30,11 +30,14 @@ resource "aws_lambda_function" "this" {
 
   environment {
     variables = {
-      TENANT_TABLE_NAME      = var.tenant_table_name
-      LOCATION_TABLE_NAME    = var.location_table_name
-      LOCATION_ID_INDEX_NAME = var.location_id_index_name
-      ENVIRONMENT            = var.environment
-      ORDER_TABLE_NAME       = var.order_table_name
+      TENANT_TABLE_NAME               = var.tenant_table_name
+      LOCATION_TABLE_NAME             = var.location_table_name
+      LOCATION_ID_INDEX_NAME          = var.location_id_index_name
+      ENVIRONMENT                     = var.environment
+      ORDER_TABLE_NAME                = var.order_table_name
+      RESERVATION_LINK_KEY_SECRET_ARN = var.reservation_link_key_secret_arn # verifies the guest's status token
+      STRIPE_SECRET_ARN               = var.stripe_secret_arn               # looks up a pending order's Checkout Session
+      STRIPE_API_VERSION              = var.stripe_api_version
     }
   }
 

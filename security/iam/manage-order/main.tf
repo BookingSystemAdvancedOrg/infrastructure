@@ -2,10 +2,8 @@
 #
 # Same structure as manage-menu's role - one IAM role per Lambda, never
 # shared. This Lambda is the staff/owner write-and-query path (own tenant only)
-# for orders (status updates through the kitchen lifecycle, the day's-
-# orders dashboard Query, cancellations), so unlike manage-menu it needs
-# read actions too - the standard item-level read/write set on the one
-# order table (no code yet; narrow once the function exists), never
+# for orders: the day's-orders Query, reading one order by key (GetItem)
+# and status moves / refunds (UpdateItem) - item-level only, never
 # table-level actions.
 
 data "aws_caller_identity" "current" {}
@@ -41,19 +39,51 @@ resource "aws_iam_role_policy" "dynamodb_crud" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "CRUDOrderTable"
+        Sid    = "ItemAccessOrderTable"
         Effect = "Allow"
         Action = [
-          "dynamodb:BatchGetItem",
-          "dynamodb:BatchWriteItem",
-          "dynamodb:ConditionCheckItem",
-          "dynamodb:DeleteItem",
           "dynamodb:GetItem",
-          "dynamodb:PutItem",
           "dynamodb:Query",
           "dynamodb:UpdateItem",
         ]
         Resource = "${var.order_table_arn}"
+      }
+    ]
+  })
+}
+
+# Pausing orders writes orderingPausedUntil on the location row (item
+# update by key only).
+resource "aws_iam_role_policy" "location_pause" {
+  name = "location-ordering-pause"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "PauseOrdering"
+        Effect   = "Allow"
+        Action   = "dynamodb:UpdateItem"
+        Resource = var.location_table_arn
+      }
+    ]
+  })
+}
+
+# Platform Stripe key - refunds when staff cancel a paid order.
+resource "aws_iam_role_policy" "stripe_secret" {
+  name = "platform-stripe-secret"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "ReadPlatformStripeKey"
+        Effect   = "Allow"
+        Action   = "secretsmanager:GetSecretValue"
+        Resource = var.stripe_secret_arn
       }
     ]
   })

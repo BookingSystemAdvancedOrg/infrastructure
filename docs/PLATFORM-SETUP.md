@@ -103,6 +103,14 @@ workflow. You never handle a restaurant's keys.
       settings are left alone and there is no spend alarm. SMS only go to
       Nordic numbers (+46, +45, +47, +358, +354); everyone else gets the
       email only.
+      Food orders always send SMS (confirmation, "ready to collect") -
+      not only when a restaurant turns booking SMS on. While dev is in
+      the SMS sandbox, verify each test phone number first (it gets a
+      one-time code):
+      ```bash
+      aws sns create-sms-sandbox-phone-number --region eu-north-1 --phone-number +46701234567 --language-code sv-SE
+      aws sns verify-sms-sandbox-phone-number --region eu-north-1 --phone-number +46701234567 --one-time-password 123456
+      ```
 - [ ] SES and SMS alarms (bounce rate, complaint rate, SMS spend) mail
       `alert_emails` - confirm the subscription email once.
 

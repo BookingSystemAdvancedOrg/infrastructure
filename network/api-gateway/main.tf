@@ -59,8 +59,16 @@ resource "aws_apigatewayv2_stage" "this" {
     throttling_burst_limit = var.booking_throttle_burst_limit
   }
 
+  # The public order form: same low limit as online booking (each order
+  # also creates a Stripe Checkout Session).
+  route_settings {
+    route_key              = "POST /order"
+    throttling_rate_limit  = var.booking_throttle_rate_limit
+    throttling_burst_limit = var.booking_throttle_burst_limit
+  }
+
   # route_settings names a route by key - it has to exist first.
-  depends_on = [aws_apigatewayv2_route.create_pending_reservation]
+  depends_on = [aws_apigatewayv2_route.create_pending_reservation, aws_apigatewayv2_route.payment_intent]
 
   tags = {
     Environment = var.environment
@@ -406,12 +414,20 @@ resource "aws_apigatewayv2_integration" "get_order" {
   payload_format_version = "2.0"
 }
 
+# Guest routes, public like the order form itself: whether the location
+# takes orders right now (and which table a QR code is), and the guest's
+# order - that one only with the X-Order-Token the order was created with
+# (checked in the Lambda; a wrong token answers 404).
 resource "aws_apigatewayv2_route" "get_order" {
+  for_each = toset([
+    "GET /locations/{locationId}/ordering",
+    "GET /locations/{locationId}/order-status/{orderId}",
+  ])
+
   api_id             = aws_apigatewayv2_api.this.id
-  route_key          = "GET /reservations/{reservationId}/orders/{orderId}"
+  route_key          = each.value
   target             = "integrations/${aws_apigatewayv2_integration.get_order.id}"
-  authorization_type = "JWT"
-  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+  authorization_type = "NONE"
 }
 
 resource "aws_lambda_permission" "get_order_invoke" {
@@ -882,12 +898,13 @@ resource "aws_lambda_permission" "pre_signed_url_invoke" {
 
 # --- manage-order ---
 #
-# Staff/owner order management (own tenant): the day's-orders dashboard
-# Query (GET on the collection), kitchen status updates (PUT), staff-
-# created orders (POST), and cancellations (DELETE). All JWT-protected -
-# customers never call this; their reads go through get-order and their
-# orders are created by the checkout flow. Reads live here (not in a
-# public lambda) because a location's order list is operational data.
+# Staff/owner order management (own tenant): the day's orders (GET on the
+# collection), one order (GET .../{orderId}), kitchen status moves and
+# cancel + refund (PUT .../{orderId}/status), pausing orders (PUT
+# .../pause) and table QR codes (POST .../table-codes). All JWT-protected -
+# guests never call this; their reads go through get-order and their
+# orders are created by payment-intent. Reads live here (not in a public
+# lambda) because a location's order list is operational data.
 
 resource "aws_apigatewayv2_integration" "manage_order" {
   api_id                 = aws_apigatewayv2_api.this.id

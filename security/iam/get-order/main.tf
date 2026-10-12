@@ -1,9 +1,10 @@
 # Execution role for the get-order Lambda.
 #
-# Least privilege: read-only, and only the order table — same shape as
-# get-reservation/get-location/get-menu. Scan included alongside
-# GetItem/Query for parity with those roles; drop it if this function
-# only ever does a direct PK+SK GetItem/Query and never a full scan.
+# Guest routes: reads an order by key (pointer + order, GetItem) and, while
+# the order still waits for payment, settles it from the Checkout Session
+# (UpdateItem on the order and the day's number counter). Stripe key to
+# look the session up; link signing key (status token) from
+# security/secrets/reservations; tenant/location reads from tenant-context.
 
 data "aws_caller_identity" "current" {}
 
@@ -38,14 +39,32 @@ resource "aws_iam_role_policy" "dynamodb_read" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "ReadOrderTable"
+        Sid    = "ReadAndSettleOrders"
         Effect = "Allow"
         Action = [
-          "dynamodb:Scan",
           "dynamodb:GetItem",
-          "dynamodb:Query",
+          "dynamodb:UpdateItem",
         ]
         Resource = "${var.order_table_arn}"
+      }
+    ]
+  })
+}
+
+# Platform Stripe key - to look up a pending order's Checkout Session on
+# the restaurant's connected account.
+resource "aws_iam_role_policy" "stripe_secret" {
+  name = "platform-stripe-secret"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "ReadPlatformStripeKey"
+        Effect   = "Allow"
+        Action   = "secretsmanager:GetSecretValue"
+        Resource = var.stripe_secret_arn
       }
     ]
   })

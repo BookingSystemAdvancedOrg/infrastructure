@@ -67,10 +67,9 @@ resource "aws_dynamodb_table" "order" {
     enabled = true
   }
 
-  # NEW_AND_OLD_IMAGES (not just NEW_IMAGE) is required here - the filters
-  # below compare OldImage.paymentStatus against NewImage.paymentStatus to
-  # catch only the transition out of "processing", not every write already
-  # sitting in a paid/failed state. Same reasoning as the reservation table.
+  # NEW_AND_OLD_IMAGES (not just NEW_IMAGE) is required here - the
+  # notification function compares OldImage.notice.id with NewImage's so a
+  # notice is sent once. Same reasoning as the reservation table.
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
 
@@ -84,25 +83,17 @@ resource "aws_dynamodb_table" "order" {
   }
 }
 
-# Invokes NotificationFn on exactly one transition: processing -> paid.
-# This is the receipt/"we've got your order" message.
-#
-# The filter anchors OldImage to exactly "processing" on purpose: kitchen
-# writes to an already-paid order (status -> preparing/served, updatedAt
-# bumps) change paymentStatus not at all or not from "processing", so they
-# can never re-fire the receipt. Transitions out of "paid" (refunds) don't
-# match either.
-#
-# Deliberately NOT here: processing -> failed. Today the success page is
-# expected to surface a failed payment to the customer. Note the gap that
-# leaves once Swish/Klarna are live: their payments can fail AFTER the
-# customer has left the browser (async_payment_failed), and no page exists
-# to show it on - if that becomes a support-call source, the fix is a
-# second filter block here (OldImage processing -> NewImage failed), OR'd
-# with this one.
+# Invokes NotificationFn for order records that carry a guest notice
+# (shared/orders.py): order_confirmed (payment confirmed - SMS + receipt),
+# order_ready (pickup ready - SMS), order_cancelled (refunded - SMS +
+# e-mail). Same contract as the reservation table: a write that should
+# reach the guest sets notice = {id, type, at}; the function sends only when
+# the id is new (OldImage.notice.id differs), so later writes to the order
+# (kitchen moves, refund bookkeeping) never resend anything.
 #
 # Filtering happens here, at the event source mapping, so NotificationFn is
-# never even invoked for irrelevant stream records.
+# never even invoked for irrelevant stream records (pending orders, the
+# daily number counter, pointers).
 resource "aws_lambda_event_source_mapping" "notify_on_order_paid" {
   event_source_arn  = aws_dynamodb_table.order.stream_arn
   function_name     = var.notification_lambda_arn # NAME or ARN both work, but ARN is safer in case the Lambda is in a different account
@@ -125,13 +116,10 @@ resource "aws_lambda_event_source_mapping" "notify_on_order_paid" {
   filter_criteria {
     filter {
       pattern = jsonencode({
-        eventName = ["MODIFY"]
+        eventName = ["INSERT", "MODIFY"]
         dynamodb = {
-          OldImage = {
-            paymentStatus = { S = ["processing"] }
-          }
           NewImage = {
-            paymentStatus = { S = ["paid"] }
+            notice = { M = { id = { S = [{ exists = true }] } } }
           }
         }
       })
