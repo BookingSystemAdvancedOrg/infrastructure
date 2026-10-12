@@ -108,7 +108,7 @@ workflow. You never handle a restaurant's keys.
       the SMS sandbox, verify each test phone number first (it gets a
       one-time code):
       ```bash
-      aws sns create-sms-sandbox-phone-number --region eu-north-1 --phone-number +46701234567 --language-code sv-SE
+      aws sns create-sms-sandbox-phone-number --region eu-north-1 --phone-number +46701234567 --language-code en-GB
       aws sns verify-sms-sandbox-phone-number --region eu-north-1 --phone-number +46701234567 --one-time-password 123456
       ```
 - [ ] SES and SMS alarms (bounce rate, complaint rate, SMS spend) mail
