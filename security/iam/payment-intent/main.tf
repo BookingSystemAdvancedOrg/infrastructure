@@ -1,10 +1,11 @@
 # Execution role for the payment-intent Lambda.
 #
-# Full access on the order table - this Lambda creates the order record
+# Item-level read/write on the order table (no code yet - the standard
+# set, to narrow once the function exists; never table-level actions) -
+# this Lambda creates the order record
 # and the Stripe PaymentIntent together, and needs to write/update order
 # status as the payment lifecycle progresses (PENDING_PAYMENT -> PAID/
-# FAILED), same reasoning as cancel-reservation's dynamodb:* grant on
-# the tables it actually mutates.
+# FAILED).
 
 data "aws_caller_identity" "current" {}
 
@@ -39,9 +40,18 @@ resource "aws_iam_role_policy" "dynamodb_full" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid      = "FullAccessOrderTable"
-        Effect   = "Allow"
-        Action   = "dynamodb:*"
+        Sid    = "ItemAccessOrderTable"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:BatchGetItem",
+          "dynamodb:BatchWriteItem",
+          "dynamodb:ConditionCheckItem",
+          "dynamodb:DeleteItem",
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:Query",
+          "dynamodb:UpdateItem",
+        ]
         Resource = "${var.order_table_arn}"
       }
     ]

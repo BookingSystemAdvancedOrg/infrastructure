@@ -1,7 +1,9 @@
 # Execution role for the mark-arrived Lambda.
 #
-# Per explicit request: full dynamodb:* on the reservation table, rather
-# than a scoped action set.
+# DynamoDB: only the item-level actions the function's code calls (application repo:
+# functions/<name>/app.py and the shared modules it imports) - no table-
+# level actions (DeleteTable, UpdateTable, backups, TTL...). Add an action
+# here when the code starts calling a new one.
 
 data "aws_caller_identity" "current" {}
 
@@ -73,9 +75,16 @@ resource "aws_iam_role_policy" "dynamodb_full" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid      = "FullAccessReservationTable"
-        Effect   = "Allow"
-        Action   = "dynamodb:*"
+        Sid    = "ItemAccessReservationTable"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:BatchGetItem",
+          "dynamodb:DeleteItem",
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:Query",
+          "dynamodb:UpdateItem",
+        ]
         Resource = "${var.reservation_table_arn}"
       }
     ]

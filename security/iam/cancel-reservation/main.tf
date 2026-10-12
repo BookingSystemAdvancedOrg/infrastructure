@@ -58,9 +58,16 @@ resource "aws_iam_role_policy" "dynamodb_full" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "FullAccessSlotOccupancyAndReservationTables"
+        Sid    = "ItemAccessSlotOccupancyAndReservationTables"
         Effect = "Allow"
-        Action = "dynamodb:*"
+        Action = [
+          "dynamodb:BatchGetItem",
+          "dynamodb:DeleteItem",
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:Query",
+          "dynamodb:UpdateItem",
+        ]
         Resource = [
           "${var.slot_occupancy_table_arn}",
           "${var.reservation_table_arn}",

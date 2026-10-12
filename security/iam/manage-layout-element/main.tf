@@ -1,6 +1,9 @@
 # Execution role for the ManageLayoutElementFn Lambda.
 #
-# Per established pattern: full dynamodb:* on the live-layout-element table.
+# Live-layout-element table: only the item-level actions the function's code calls (application repo:
+# functions/<name>/app.py and the shared modules it imports) - no table-
+# level actions (DeleteTable, UpdateTable, backups, TTL...). Add an action
+# here when the code starts calling a new one.
 
 data "aws_caller_identity" "current" {}
 
@@ -35,9 +38,14 @@ resource "aws_iam_role_policy" "dynamodb_full" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid      = "FullAccessLiveLayoutElementTable"
-        Effect   = "Allow"
-        Action   = "dynamodb:*"
+        Sid    = "ItemAccessLiveLayoutElementTable"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:DeleteItem",
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:Query",
+        ]
         Resource = "${var.live_layout_element_table_arn}"
       }
     ]

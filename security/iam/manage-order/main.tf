@@ -4,8 +4,9 @@
 # shared. This Lambda is the staff/owner write-and-query path (own tenant only)
 # for orders (status updates through the kitchen lifecycle, the day's-
 # orders dashboard Query, cancellations), so unlike manage-menu it needs
-# read actions too - dynamodb:* scoped to the one order table covers both
-# without ever reaching another table.
+# read actions too - the standard item-level read/write set on the one
+# order table (no code yet; narrow once the function exists), never
+# table-level actions.
 
 data "aws_caller_identity" "current" {}
 
@@ -40,9 +41,18 @@ resource "aws_iam_role_policy" "dynamodb_crud" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid      = "CRUDOrderTable"
-        Effect   = "Allow"
-        Action   = "dynamodb:*"
+        Sid    = "CRUDOrderTable"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:BatchGetItem",
+          "dynamodb:BatchWriteItem",
+          "dynamodb:ConditionCheckItem",
+          "dynamodb:DeleteItem",
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:Query",
+          "dynamodb:UpdateItem",
+        ]
         Resource = "${var.order_table_arn}"
       }
     ]

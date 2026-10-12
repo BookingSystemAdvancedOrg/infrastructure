@@ -1,7 +1,10 @@
 # Execution role for the create-location Lambda.
 #
-# Per established pattern: full dynamodb:* on the location table. Plus a
-# narrow write on the tenant table for the plan's location quota (below).
+# Location table: only the item-level actions the function's code calls (application repo:
+# functions/<name>/app.py and the shared modules it imports) - no table-
+# level actions (DeleteTable, UpdateTable, backups, TTL...). Add an action
+# here when the code starts calling a new one.
+# Plus a narrow write on the tenant table for the plan's location quota (below).
 
 data "aws_caller_identity" "current" {}
 
@@ -36,9 +39,16 @@ resource "aws_iam_role_policy" "dynamodb_full" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid      = "FullAccessLocationTable"
-        Effect   = "Allow"
-        Action   = "dynamodb:*"
+        Sid    = "ItemAccessLocationTable"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:BatchGetItem",
+          "dynamodb:DeleteItem",
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:Query",
+          "dynamodb:UpdateItem",
+        ]
         Resource = "${var.location_table_arn}"
       }
     ]

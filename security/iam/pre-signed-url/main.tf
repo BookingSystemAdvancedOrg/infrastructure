@@ -1,10 +1,10 @@
 # Execution role for the PreSignedURLFn Lambda.
 #
-# Full s3:* on the MenuImages bucket (bucket + objects), and permission to
-# invalidate CloudFront caches after an image is replaced. No CloudFront
-# distribution ARNs are managed in Terraform yet, so per explicit request
-# the invalidation policy is scoped to Resource = "*" rather than to
-# specific distribution ARNs — tighten this once those ARNs are available.
+# The function only signs PutObject URLs for menu image uploads
+# (application functions/pre-signed-url), so that is all it may do: the
+# browser's upload runs with this role's permissions. No reads, deletes or
+# bucket-level actions, and no CloudFront invalidation (the code doesn't
+# invalidate; image keys are unique, so nothing needs it).
 
 data "aws_caller_identity" "current" {}
 
@@ -32,41 +32,22 @@ resource "aws_iam_role" "this" {
 }
 
 resource "aws_iam_role_policy" "s3_full" {
-  name = "menu-images-full-access"
+  name = "menu-images-upload"
   role = aws_iam_role.this.id
 
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "FullAccessMenuImagesBucket"
-        Effect = "Allow"
-        Action = "s3:*"
-        Resource = [
-          "${var.menu_images_bucket_arn}",
-          "${var.menu_images_bucket_arn}/*",
-        ]
-      }
-    ]
-  })
-}
-
-resource "aws_iam_role_policy" "cloudfront_invalidation" {
-  name = "cloudfront-create-invalidation"
-  role = aws_iam_role.this.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Sid      = "CreateInvalidationOnBothDistributions"
+        Sid      = "UploadMenuImages"
         Effect   = "Allow"
-        Action   = "cloudfront:CreateInvalidation"
-        Resource = "*"
+        Action   = "s3:PutObject"
+        Resource = "${var.menu_images_bucket_arn}/*"
       }
     ]
   })
 }
+
 
 # Scoped to exactly this function's own log group — not logs:* on everything.
 #

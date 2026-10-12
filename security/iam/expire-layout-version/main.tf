@@ -1,7 +1,11 @@
 # Execution role for the ExpireLayoutVersionFn Lambda.
 #
-# Per explicit request: full dynamodb:* on the published layout snapshot
-# table. This is the Lambda targeted by the one-time EventBridge Schedule
+# DynamoDB: only the item-level actions the function's code calls (application repo:
+# functions/<name>/app.py and the shared modules it imports) - no table-
+# level actions (DeleteTable, UpdateTable, backups, TTL...). Add an action
+# here when the code starts calling a new one.
+#
+# This is the Lambda targeted by the one-time EventBridge Schedule
 # created at publish time — it fires at cutover and conditionally flips
 # isCurrent = false on the superseded version.
 
@@ -38,9 +42,12 @@ resource "aws_iam_role_policy" "dynamodb_full" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid      = "FullAccessPublishedLayoutSnapshotTable"
-        Effect   = "Allow"
-        Action   = "dynamodb:*"
+        Sid    = "ItemAccessPublishedLayoutSnapshotTable"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:GetItem",
+          "dynamodb:UpdateItem",
+        ]
         Resource = "${var.published_layout_snapshot_table_arn}"
       }
     ]

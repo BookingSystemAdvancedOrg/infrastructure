@@ -86,9 +86,18 @@ resource "aws_iam_role_policy" "catering_requests" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid      = "FullAccessCateringRequestsTable"
-        Effect   = "Allow"
-        Action   = "dynamodb:*"
+        Sid    = "ItemAccessCateringRequestsTable"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:BatchGetItem",
+          "dynamodb:BatchWriteItem",
+          "dynamodb:ConditionCheckItem",
+          "dynamodb:DeleteItem",
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:Query",
+          "dynamodb:UpdateItem",
+        ]
         Resource = "${var.catering_requests_table_arn}"
       }
     ]
@@ -103,9 +112,18 @@ resource "aws_iam_role_policy" "catering_request_history" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid      = "FullAccessCateringRequestHistoryTable"
-        Effect   = "Allow"
-        Action   = "dynamodb:*"
+        Sid    = "ItemAccessCateringRequestHistoryTable"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:BatchGetItem",
+          "dynamodb:BatchWriteItem",
+          "dynamodb:ConditionCheckItem",
+          "dynamodb:DeleteItem",
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:Query",
+          "dynamodb:UpdateItem",
+        ]
         Resource = "${var.catering_request_history_table_arn}"
       }
     ]

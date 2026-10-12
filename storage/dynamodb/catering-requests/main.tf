@@ -59,6 +59,11 @@ resource "aws_dynamodb_table" "catering_requests" {
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
 
+  # Prod: a plan that deletes or replaces this table fails instead of
+  # wiping data (set false in an apply first if that is really intended).
+  # Dev stays off so the environment can still be torn down.
+  deletion_protection_enabled = var.environment == "prod"
+
   tags = {
     Environment = var.environment
   }

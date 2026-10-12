@@ -7,7 +7,8 @@
 # CAPACITY#<date> items (reserved on send, released on decline/cancel), all
 # in one TransactWriteItems call - IAM authorizes each action inside a
 # transaction individually, so there is no separate "transact" permission.
-# Write access follows the repo convention (dynamodb:* on the table). On
+# Item-level actions only (no code yet - the standard read/write set, to
+# narrow once the function exists). On
 # catering-request-history that does NOT make history editable: the
 # table's resource policy explicitly denies UpdateItem/DeleteItem to every
 # principal, and an explicit Deny always wins over this Allow - so in
@@ -46,9 +47,18 @@ resource "aws_iam_role_policy" "catering_requests" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid      = "FullAccessCateringRequestsTable"
-        Effect   = "Allow"
-        Action   = "dynamodb:*"
+        Sid    = "ItemAccessCateringRequestsTable"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:BatchGetItem",
+          "dynamodb:BatchWriteItem",
+          "dynamodb:ConditionCheckItem",
+          "dynamodb:DeleteItem",
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:Query",
+          "dynamodb:UpdateItem",
+        ]
         Resource = "${var.catering_requests_table_arn}"
       }
     ]
@@ -63,9 +73,18 @@ resource "aws_iam_role_policy" "catering_request_history" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid      = "FullAccessCateringRequestHistoryTable"
-        Effect   = "Allow"
-        Action   = "dynamodb:*"
+        Sid    = "ItemAccessCateringRequestHistoryTable"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:BatchGetItem",
+          "dynamodb:BatchWriteItem",
+          "dynamodb:ConditionCheckItem",
+          "dynamodb:DeleteItem",
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:Query",
+          "dynamodb:UpdateItem",
+        ]
         Resource = "${var.catering_request_history_table_arn}"
       }
     ]

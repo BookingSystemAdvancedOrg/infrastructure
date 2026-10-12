@@ -1,7 +1,9 @@
 # Execution role for the manage-user Lambda.
 #
-# Per explicit request: full dynamodb:* on the user table, rather than the
-# scoped Scan/PutItem/UpdateItem/DeleteItem set that was recommended.
+# User table: only the item-level actions the function's code calls (application repo:
+# functions/<name>/app.py and the shared modules it imports) - no table-
+# level actions (DeleteTable, UpdateTable, backups, TTL...). Add an action
+# here when the code starts calling a new one.
 #
 # Cognito access is scoped to the specific Admin* actions "manage-user"
 # actually needs to run the full staff lifecycle - inviting (AdminCreateUser
@@ -43,9 +45,14 @@ resource "aws_iam_role_policy" "dynamodb_full" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid      = "FullAccessUserTable"
-        Effect   = "Allow"
-        Action   = "dynamodb:*"
+        Sid    = "ItemAccessUserTable"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:DeleteItem",
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:Query",
+        ]
         Resource = "${var.user_table_arn}"
       },
       {
