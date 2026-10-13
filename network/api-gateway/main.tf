@@ -59,6 +59,13 @@ resource "aws_apigatewayv2_stage" "this" {
     throttling_burst_limit = var.booking_throttle_burst_limit
   }
 
+  # Table holds block tables for 15 minutes each: same low limit.
+  route_settings {
+    route_key              = "POST /locations/{locationId}/holds"
+    throttling_rate_limit  = var.booking_throttle_rate_limit
+    throttling_burst_limit = var.booking_throttle_burst_limit
+  }
+
   # The public order form: same low limit as online booking (each order
   # also creates a Stripe Checkout Session).
   route_settings {
@@ -349,6 +356,10 @@ locals {
     "POST /locations/{locationId}/reservations/manual" = "JWT"
     # The guest finished the card form (card guarantee) - X-Manage-Token.
     "POST /locations/{locationId}/reservations/{reservationId}/confirm" = "NONE"
+    # Table hold: the guest confirmed their table(s) - claimed for 15 min
+    # while they fill in the form; DELETE lets go (X-Manage-Token).
+    "POST /locations/{locationId}/holds"            = "NONE"
+    "DELETE /locations/{locationId}/holds/{holdId}" = "NONE"
   }
 }
 
