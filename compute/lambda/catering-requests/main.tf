@@ -40,6 +40,9 @@ resource "aws_lambda_function" "this" {
       TURNSTILE_SECRET_ARN                = var.turnstile_secret_arn
       LINK_SIGNING_KEY_SECRET_ARN         = var.link_signing_key_secret_arn
       CUSTOMER_SITE_URL                   = var.customer_site_url
+      USER_TABLE_NAME                     = var.user_table_name
+      REQUEST_GUARD_TABLE_NAME            = var.request_guard_table_name
+      TURNSTILE_REQUIRED                  = var.turnstile_required ? "true" : "false"
     }
   }
 

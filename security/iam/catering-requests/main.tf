@@ -148,6 +148,25 @@ resource "aws_iam_role_policy" "secrets" {
   })
 }
 
+# Attempt counters for the public request form (shared/request_guard.py) -
+# item updates only, on that one table.
+resource "aws_iam_role_policy" "request_guard" {
+  name = "count-catering-requests"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "CountCateringRequestAttempts"
+        Effect   = "Allow"
+        Action   = "dynamodb:UpdateItem"
+        Resource = var.request_guard_table_arn
+      }
+    ]
+  })
+}
+
 resource "aws_iam_role_policy" "logs" {
   name = "cloudwatch-logs"
   role = aws_iam_role.this.id

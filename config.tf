@@ -482,6 +482,7 @@ module "catering_requests_role" {
   menu_table_arn                     = module.menu.table_arn
   turnstile_secret_arn               = module.catering_secrets.turnstile_secret_arn
   link_signing_key_secret_arn        = module.catering_secrets.link_signing_key_secret_arn
+  request_guard_table_arn            = module.request_guard.table_arn
   region                             = var.aws_region
 }
 module "catering_offer_role" {
@@ -658,6 +659,9 @@ module "tenant_context_policy" {
     mark_arrived               = module.mark_arrived_role.role_name
     # Food orders: staff work only on their own location's orders.
     manage_order = module.manage_order_role.role_name
+    # Catering: staff see their own location's requests.
+    catering_requests = module.catering_requests_role.role_name
+    catering_offer    = module.catering_offer_role.role_name
   }
 }
 
@@ -1157,6 +1161,7 @@ module "notification_fn" {
   location_id_index_name               = module.location.location_id_index_name
   reservation_table_name               = module.reservation.table_name
   order_table_name                     = module.order.table_name
+  catering_requests_table_name         = module.catering_requests.table_name
   reservation_link_key_secret_arn      = module.reservation_secrets.link_signing_key_secret_arn
 }
 module "pre_signed_url_fn" {
@@ -1247,6 +1252,10 @@ module "catering_requests_fn" {
   customer_site_url                   = local.customer_site_url
   tenant_table_name                   = module.tenant.table_name
   location_id_index_name              = module.location.location_id_index_name
+  user_table_name                     = module.user.table_name
+  request_guard_table_name            = module.request_guard.table_name
+  # Bot check on the catering form only once the sites show the widget.
+  turnstile_required = var.turnstile_site_key != ""
 }
 module "catering_offer_fn" {
   source                              = "./compute/lambda/catering-offer"
@@ -1264,6 +1273,7 @@ module "catering_offer_fn" {
   region                              = var.aws_region
   tenant_table_name                   = module.tenant.table_name
   location_id_index_name              = module.location.location_id_index_name
+  user_table_name                     = module.user.table_name
 }
 module "catering_customer_fn" {
   source                              = "./compute/lambda/catering-customer"

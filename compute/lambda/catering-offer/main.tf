@@ -45,6 +45,7 @@ resource "aws_lambda_function" "this" {
       CATERING_DOCUMENT_FUNCTION_NAME     = var.document_function_name
       STRIPE_SECRET_ARN                   = var.stripe_secret_arn
       STRIPE_API_VERSION                  = var.stripe_api_version
+      USER_TABLE_NAME                     = var.user_table_name
     }
   }
 

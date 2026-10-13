@@ -43,13 +43,8 @@ resource "aws_iam_role_policy" "catering_requests" {
         Sid    = "ItemAccessCateringRequestsTable"
         Effect = "Allow"
         Action = [
-          "dynamodb:BatchGetItem",
-          "dynamodb:BatchWriteItem",
           "dynamodb:ConditionCheckItem",
-          "dynamodb:DeleteItem",
           "dynamodb:GetItem",
-          "dynamodb:PutItem",
-          "dynamodb:Query",
           "dynamodb:UpdateItem",
         ]
         Resource = "${var.catering_requests_table_arn}"
@@ -69,14 +64,8 @@ resource "aws_iam_role_policy" "catering_request_history" {
         Sid    = "ItemAccessCateringRequestHistoryTable"
         Effect = "Allow"
         Action = [
-          "dynamodb:BatchGetItem",
-          "dynamodb:BatchWriteItem",
-          "dynamodb:ConditionCheckItem",
-          "dynamodb:DeleteItem",
           "dynamodb:GetItem",
           "dynamodb:PutItem",
-          "dynamodb:Query",
-          "dynamodb:UpdateItem",
         ]
         Resource = "${var.catering_request_history_table_arn}"
       }
@@ -142,6 +131,26 @@ resource "aws_iam_role_policy" "secrets" {
           "${var.signing_provider_secret_arn}",
           "${var.stripe_secret_arn}",
         ]
+      }
+    ]
+  })
+}
+
+# BankID signature evidence (signature, OCSP response, the signed
+# document) - written once per signed offer version under <tenant>/signed/.
+# The bucket's Object Lock keeps it unchanged.
+resource "aws_iam_role_policy" "signature_evidence" {
+  name = "store-signature-evidence"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "PutSignatureEvidence"
+        Effect   = "Allow"
+        Action   = "s3:PutObject"
+        Resource = "${var.catering_documents_bucket_arn}/*/signed/*"
       }
     ]
   })

@@ -82,3 +82,9 @@ variable "location_id_index_name" {
   type        = string
   sensitive   = false
 }
+
+variable "user_table_name" {
+  description = "Name of the user table (staff are kept to their own location)"
+  type        = string
+  sensitive   = false
+}

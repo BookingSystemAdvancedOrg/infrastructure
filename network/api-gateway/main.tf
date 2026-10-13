@@ -67,8 +67,16 @@ resource "aws_apigatewayv2_stage" "this" {
     throttling_burst_limit = var.booking_throttle_burst_limit
   }
 
+  # The public catering request form.
+  route_settings {
+    route_key              = "POST /locations/{locationId}/catering/requests"
+    throttling_rate_limit  = var.booking_throttle_rate_limit
+    throttling_burst_limit = var.booking_throttle_burst_limit
+  }
+
   # route_settings names a route by key - it has to exist first.
-  depends_on = [aws_apigatewayv2_route.create_pending_reservation, aws_apigatewayv2_route.payment_intent]
+  depends_on = [aws_apigatewayv2_route.create_pending_reservation, aws_apigatewayv2_route.payment_intent,
+  aws_apigatewayv2_route.catering_requests_post]
 
   tags = {
     Environment = var.environment
@@ -1248,6 +1256,21 @@ resource "aws_apigatewayv2_route" "catering_customer_get" {
 resource "aws_apigatewayv2_route" "catering_customer_sign" {
   api_id             = aws_apigatewayv2_api.this.id
   route_key          = "POST /locations/{locationId}/catering/requests/{requestId}/customer/sign"
+  target             = "integrations/${aws_apigatewayv2_integration.catering_customer.id}"
+  authorization_type = "NONE"
+}
+
+# The guest's other steps (magic-link token checked in the Lambda):
+# polling the BankID signing, asking for changes, declining the offer.
+resource "aws_apigatewayv2_route" "catering_customer_steps" {
+  for_each = toset([
+    "POST /locations/{locationId}/catering/requests/{requestId}/customer/sign/status",
+    "POST /locations/{locationId}/catering/requests/{requestId}/customer/change",
+    "POST /locations/{locationId}/catering/requests/{requestId}/customer/reject",
+  ])
+
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = each.value
   target             = "integrations/${aws_apigatewayv2_integration.catering_customer.id}"
   authorization_type = "NONE"
 }

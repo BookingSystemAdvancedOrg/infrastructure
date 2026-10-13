@@ -27,17 +27,13 @@ resource "aws_iam_role_policy" "dynamodb" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "CateringDiscountTiersTableFullAccess"
+        Sid    = "CateringDiscountTiersItemAccess"
         Effect = "Allow"
         Action = [
-          "dynamodb:BatchGetItem",
-          "dynamodb:BatchWriteItem",
-          "dynamodb:ConditionCheckItem",
           "dynamodb:DeleteItem",
           "dynamodb:GetItem",
           "dynamodb:PutItem",
           "dynamodb:Query",
-          "dynamodb:UpdateItem",
         ]
         Resource = "${var.catering_discount_tiers_table_arn}"
       }

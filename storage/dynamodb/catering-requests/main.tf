@@ -69,23 +69,13 @@ resource "aws_dynamodb_table" "catering_requests" {
   }
 }
 
-# Invokes NotificationFn for catering emails. Two filters, OR'd:
-#
-#   1. INSERT of a new request - the owner's link-only "new catering
-#      request" email (no offer details in the body, by design) and the
-#      customer's confirmation. Both "pending" (status written by the
-#      pre-workflow catering-requests code) and "requested" (the new
-#      workflow's initial status) match, so notifications keep working
-#      while the backend is migrated.
-#   2. MODIFY of a request head item into a customer-facing status.
-#      NewImage is an explicit allow-list, same reasoning as the
-#      reservation table - a future status won't silently start emailing.
-#      The handler must still compare OldImage.status vs NewImage.status:
-#      a write that keeps status "confirmed" (invoice mirroring) matches
-#      this pattern too.
-#
-# CAPACITY#<date> items never match - they carry no status attribute and
-# filter 2 is anchored to SK prefix REQUEST#.
+# Invokes NotificationFn for catering messages: request head items that
+# carry a notice (shared/catering.py) - the same contract as the
+# reservation and order tables. A write the guest or the restaurant should
+# hear about sets notice = {id, type, at}; the function sends only when the
+# id is new (OldImage.notice.id differs), so later writes (invoice
+# mirroring, capacity, drafts) never resend anything. CAPACITY#<date> items
+# never carry a notice.
 #
 # Failure handling: a broken handler or an SES outage must not block this
 # shard for 24 hours, so retries are capped and the batch is bisected to
@@ -111,23 +101,10 @@ resource "aws_lambda_event_source_mapping" "notify_on_catering_request_change" {
   filter_criteria {
     filter {
       pattern = jsonencode({
-        eventName = ["INSERT"]
+        eventName = ["INSERT", "MODIFY"]
         dynamodb = {
           NewImage = {
-            status = { S = ["pending", "requested"] }
-          }
-        }
-      })
-    }
-    filter {
-      pattern = jsonencode({
-        eventName = ["MODIFY"]
-        dynamodb = {
-          Keys = {
-            SK = { S = [{ prefix = "REQUEST#" }] }
-          }
-          NewImage = {
-            status = { S = ["offer_sent", "signed", "confirmed", "declined", "expired", "cancelled_by_restaurant"] }
+            notice = { M = { id = { S = [{ exists = true }] } } }
           }
         }
       })

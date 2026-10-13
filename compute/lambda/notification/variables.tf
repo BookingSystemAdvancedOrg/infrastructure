@@ -81,3 +81,9 @@ variable "order_table_name" {
   type        = string
   sensitive   = false
 }
+
+variable "catering_requests_table_name" {
+  description = "Name of the catering-requests table - routes its stream records (catering messages)"
+  type        = string
+  sensitive   = false
+}

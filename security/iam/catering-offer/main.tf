@@ -50,12 +50,8 @@ resource "aws_iam_role_policy" "catering_requests" {
         Sid    = "ItemAccessCateringRequestsTable"
         Effect = "Allow"
         Action = [
-          "dynamodb:BatchGetItem",
-          "dynamodb:BatchWriteItem",
           "dynamodb:ConditionCheckItem",
-          "dynamodb:DeleteItem",
           "dynamodb:GetItem",
-          "dynamodb:PutItem",
           "dynamodb:Query",
           "dynamodb:UpdateItem",
         ]
@@ -76,14 +72,9 @@ resource "aws_iam_role_policy" "catering_request_history" {
         Sid    = "ItemAccessCateringRequestHistoryTable"
         Effect = "Allow"
         Action = [
-          "dynamodb:BatchGetItem",
-          "dynamodb:BatchWriteItem",
-          "dynamodb:ConditionCheckItem",
-          "dynamodb:DeleteItem",
           "dynamodb:GetItem",
           "dynamodb:PutItem",
           "dynamodb:Query",
-          "dynamodb:UpdateItem",
         ]
         Resource = "${var.catering_request_history_table_arn}"
       }

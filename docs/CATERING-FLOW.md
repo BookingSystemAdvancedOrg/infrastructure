@@ -10,7 +10,14 @@ document is what the handlers must implement for that to hold.
   access is a magic link.
 - The owner can adjust an offer freely; every save is a new, immutable
   offer version. The customer signs **one specific version**.
-- The customer always signs with **BankID** (through a signing provider).
+- The customer always signs with **BankID**: BankID's RP API v6
+  (`shared/bankid.py`, provider chosen by the `catering/signing-provider`
+  secret; a dev-only simulator for testing). The guest's page polls
+  `…/customer/sign/status` (animated QR code + hints); on completion
+  catering-customer stores the evidence (signature, OCSP response, signed
+  document) under `<tenant>/signed/` and moves the request to `signed`.
+  BankID has no callback, so catering-signing-webhook is only needed for a
+  provider that calls back.
 - **No changes and no cancellation by the customer** after signing. Only the
   restaurant can cancel (illness/force majeure) → refund or credit note.
 - Capacity for a date is **checked** at submit and **reserved** when the
@@ -29,6 +36,9 @@ document is what the handlers must implement for that to hold.
 
 ```
 requested ─► offer_sent (vN, capacity held) ─► signed ─► confirmed ─► delivered ─► closed
+                 │  ▲
+                 ▼  │ owner sends vN+1
+           change_requested (guest asked for changes)        offer_sent ─► rejected (guest declined)
    │              │   ▲ (owner sends vN+1)        │  (B2C paid)  ▲
    │              │   └──────────┘                │              │ B2B: confirmed directly at signing
    ▼              ▼                               ▼              │      + Stripe invoice

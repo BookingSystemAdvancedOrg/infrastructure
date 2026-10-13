@@ -41,6 +41,7 @@ resource "aws_lambda_function" "this" {
       RESERVATION_LINK_KEY_SECRET_ARN      = var.reservation_link_key_secret_arn # rebuilds the guest's manage link for emails/SMS
       RESERVATION_TABLE_NAME               = var.reservation_table_name          # routes this table's stream records
       ORDER_TABLE_NAME                     = var.order_table_name                # routes this table's stream records
+      CATERING_REQUESTS_TABLE_NAME         = var.catering_requests_table_name    # routes this table's stream records
     }
   }
 

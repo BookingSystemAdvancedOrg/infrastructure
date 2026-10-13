@@ -144,10 +144,32 @@ apps run on `*.cloudfront.net` and restaurants have no website URL yet.
 
 ## 5. Catering third parties
 
-- [ ] **BankID signing provider** (Scrive / Idura / Signicat) - one
-      platform contract; register the `catering_signing_webhook_url`
-      output as webhook URL; credentials per environment:
-      `aws secretsmanager put-secret-value --secret-id <env->catering/signing-provider --secret-string '{"provider":"...","clientId":"...","clientSecret":"...","webhookSecret":"..."}'`
+- [ ] **BankID signing** (catering offers) - the secret
+      `<env->catering/signing-provider` picks the provider
+      (application `shared/bankid.py`):
+  - **Quick dev test, no BankID at all** - the simulator (refused in
+    prod): signs as "Test Testsson" on the second status poll:
+    `aws secretsmanager put-secret-value --region eu-north-1 --secret-id dev-catering/signing-provider --secret-string '{"provider":"simulator"}'`
+  - **BankID test environment** (real BankID app in test mode): download
+    BankID's public test RP certificate (`FPTestcert5_*.p12`, password
+    `qwerty123`) and the test CA (`appapi2.test.bankid.com` server root)
+    from bankid.com/utvecklare, convert and store:
+    ```bash
+    openssl pkcs12 -in FPTestcert5_20240610.p12 -passin pass:qwerty123 -nokeys -clcerts -out cert.pem -legacy
+    openssl pkcs12 -in FPTestcert5_20240610.p12 -passin pass:qwerty123 -nocerts -nodes -out key.pem -legacy
+    python3 -c 'import json;print(json.dumps({"provider":"bankid","environment":"test","certPem":open("cert.pem").read(),"keyPem":open("key.pem").read(),"caPem":open("ca.pem").read()}))' > signing.json
+    aws secretsmanager put-secret-value --region eu-north-1 --secret-id dev-catering/signing-provider --secret-string file://signing.json
+    rm cert.pem key.pem signing.json
+    ```
+    Then get a test BankID: the BankID app in test mode + a test
+    identity from demo.bankid.com.
+  - **Production**: BankID's rules don't allow one company's relying-party
+    agreement to sign on behalf of other companies (the guest signs with
+    *the restaurant*). Either a licensed signing provider (Idura / Scrive /
+    Signicat - add it as a provider in `shared/bankid.py`) or written
+    approval from your bank (SEB) for the platform setup, then
+    `{"provider":"bankid","environment":"prod",...}` with the production
+    certificate.
 - [ ] **Cloudflare Turnstile** - one widget for the platform, used by the
       table booking form and the catering request form:
   - site key → `turnstile_site_key` in tfvars (websites get it from `/site-config`);

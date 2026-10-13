@@ -81,3 +81,22 @@ variable "location_id_index_name" {
   type        = string
   sensitive   = false
 }
+
+variable "user_table_name" {
+  description = "Name of the user table (staff are kept to their own location)"
+  type        = string
+  sensitive   = false
+}
+
+variable "request_guard_table_name" {
+  description = "Name of the attempt-counter table"
+  type        = string
+  sensitive   = false
+}
+
+variable "turnstile_required" {
+  description = "Whether catering requests must carry a Turnstile token"
+  type        = bool
+  sensitive   = false
+  default     = false
+}
