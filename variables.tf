@@ -129,6 +129,17 @@ variable "cognito_invites_via_ses" {
   sensitive   = false
   default     = false
 }
+variable "mail_outbox" {
+  type        = bool
+  description = "Dev only: save every platform email to a private S3 outbox (read in sbs-admin, \"Mail outbox\") instead of sending it through SES - for while the sending domain isn't verified. Must stay false in prod."
+  sensitive   = false
+  default     = false
+
+  validation {
+    condition     = !var.mail_outbox || var.env != "prod"
+    error_message = "mail_outbox can't be turned on in prod - emails would never reach guests."
+  }
+}
 variable "dlq_replay_interval_minutes" {
   type        = number
   description = "How often dlq-replay drains the dead-letter queues, in minutes - short in dev to see replays work, longer in prod; keep it under 1440 (24h) so stream records can still be re-read"

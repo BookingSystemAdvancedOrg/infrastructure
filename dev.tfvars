@@ -46,6 +46,10 @@ sms_monthly_spend_limit_usd = 1
 # which both apps accept. While this account's SES is in the sandbox,
 # Cognito's emails then only reach verified addresses/domains.
 cognito_invites_via_ses = false
+# Until booqy.se is verified in SES, emails are saved to a private S3
+# outbox instead of sent - read them in sbs-admin under "Mail outbox".
+# Switch off (false) once mail.dev.booqy.se is verified to send for real.
+mail_outbox = true
 
 # VAT rates created on every new restaurant's Stripe account - set once an
 # accountant has confirmed them.

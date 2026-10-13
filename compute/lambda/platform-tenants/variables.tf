@@ -135,3 +135,10 @@ variable "operator_group_name" {
   type        = string
   sensitive   = false
 }
+
+variable "mail_outbox_bucket_name" {
+  description = "Dev mail outbox bucket the operator console reads (GET /platform/outbox). Empty string = outbox off (always in prod)."
+  type        = string
+  sensitive   = false
+  default     = ""
+}

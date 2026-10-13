@@ -87,3 +87,10 @@ variable "catering_requests_table_name" {
   type        = string
   sensitive   = false
 }
+
+variable "mail_outbox_bucket_name" {
+  description = "Dev mail outbox bucket - when set, emails are saved there instead of sent through SES. Empty string = send normally (always in prod)."
+  type        = string
+  sensitive   = false
+  default     = ""
+}

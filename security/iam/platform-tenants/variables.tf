@@ -69,3 +69,17 @@ variable "operator_user_pool_arn" {
   type        = string
   sensitive   = false
 }
+
+variable "mail_outbox_bucket_arn" {
+  description = "ARN of the dev mail outbox bucket (empty = no outbox, always in prod) - list/read outbox/* for GET /platform/outbox"
+  type        = string
+  sensitive   = false
+  default     = ""
+}
+
+variable "mail_outbox_enabled" {
+  description = "Whether the dev mail outbox exists (plain bool so the policy count is known at plan time, unlike the bucket ARN)"
+  type        = bool
+  sensitive   = false
+  default     = false
+}

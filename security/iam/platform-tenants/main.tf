@@ -245,6 +245,35 @@ resource "aws_iam_role_policy" "stripe_secret" {
   })
 }
 
+# Dev mail outbox (sbs-admin "Mail outbox"): read-only, only when the
+# outbox exists (var.mail_outbox, never prod).
+resource "aws_iam_role_policy" "mail_outbox" {
+  count = var.mail_outbox_enabled ? 1 : 0
+  name  = "mail-outbox-read"
+  role  = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "ListDevMailOutbox"
+        Effect   = "Allow"
+        Action   = "s3:ListBucket"
+        Resource = var.mail_outbox_bucket_arn
+        Condition = {
+          StringLike = { "s3:prefix" = ["outbox/*"] }
+        }
+      },
+      {
+        Sid      = "ReadDevMailOutbox"
+        Effect   = "Allow"
+        Action   = "s3:GetObject"
+        Resource = "${var.mail_outbox_bucket_arn}/outbox/*"
+      }
+    ]
+  })
+}
+
 # Scoped to exactly this function's own log group - not logs:* on everything.
 # No logs:CreateLogGroup: the log group is provisioned explicitly alongside
 # the function (compute/lambda/<name>) with a real retention period.

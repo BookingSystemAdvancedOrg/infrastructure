@@ -111,6 +111,14 @@ workflow. You never handle a restaurant's keys.
       aws sns create-sms-sandbox-phone-number --region eu-north-1 --phone-number +46701234567 --language-code en-GB
       aws sns verify-sms-sandbox-phone-number --region eu-north-1 --phone-number +46701234567 --one-time-password 123456
       ```
+- [ ] **Dev mail outbox** (until the platform domain is verified): with
+      `mail_outbox = true` in dev.tfvars the notification Lambda saves
+      every email to a private S3 bucket (`dev-mail-outbox-<account>`)
+      instead of sending it, and copies every SMS there too (the SMS is
+      still sent). Read them in sbs-admin → **Mail outbox** (HTML, text and
+      every link in the message). Kept 30 days; can't be turned on in prod
+      (variable validation). Set it to `false` once
+      `mail.dev.booqy.se` is verified to send for real.
 - [ ] SES and SMS alarms (bounce rate, complaint rate, SMS spend) mail
       `alert_emails` - confirm the subscription email once.
 

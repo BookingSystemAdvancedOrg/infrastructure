@@ -169,6 +169,13 @@ module "catering_documents" {
   source      = "./storage/s3/catering-documents"
   environment = var.env
 }
+
+# Dev mail outbox (var.mail_outbox): emails saved to S3 instead of SES.
+module "mail_outbox" {
+  count       = local.mail_outbox_enabled ? 1 : 0
+  source      = "./storage/s3/mail-outbox"
+  environment = var.env
+}
 module "admin_front_end_asset" {
   source                      = "./storage/s3/admin-front-end-asset"
   environment                 = var.env
@@ -459,6 +466,8 @@ module "notification_role" {
 
   notification_dlq_arn                 = module.dead_letter.notification_stream_dlq_arn
   catering_link_signing_key_secret_arn = module.catering_secrets.link_signing_key_secret_arn
+  mail_outbox_enabled                  = local.mail_outbox_enabled
+  mail_outbox_bucket_arn               = local.mail_outbox_arn
 }
 module "catering_settings_role" {
   source             = "./security/iam/catering-settings"
@@ -594,6 +603,8 @@ module "platform_tenants_role" {
   stripe_secret_arn               = module.platform_secrets.stripe_secret_arn
   region                          = var.aws_region
   operator_user_pool_arn          = module.cognito_platform.user_pool_arn
+  mail_outbox_enabled             = local.mail_outbox_enabled
+  mail_outbox_bucket_arn          = local.mail_outbox_arn
 }
 module "tenant_account_role" {
   source             = "./security/iam/tenant-account"
@@ -1163,6 +1174,7 @@ module "notification_fn" {
   order_table_name                     = module.order.table_name
   catering_requests_table_name         = module.catering_requests.table_name
   reservation_link_key_secret_arn      = module.reservation_secrets.link_signing_key_secret_arn
+  mail_outbox_bucket_name              = local.mail_outbox_bucket
 }
 module "pre_signed_url_fn" {
   source                  = "./compute/lambda/pre-signed-url"
@@ -1405,6 +1417,7 @@ module "platform_tenants_fn" {
   region                          = var.aws_region
   operator_user_pool_id           = module.cognito_platform.user_pool_id
   operator_group_name             = module.cognito_platform.admin_group_name
+  mail_outbox_bucket_name         = local.mail_outbox_bucket
 }
 module "tenant_account_fn" {
   source                 = "./compute/lambda/tenant-account"
@@ -1647,6 +1660,9 @@ locals {
   # One sender for all tenants (their name goes in the display name, their
   # address in Reply-To): mail.<platform domain> once it exists.
   no_reply_email        = local.platform_domain_enabled ? module.platform_domain[0].no_reply_address : var.no_reply_email_address
+  mail_outbox_enabled   = var.mail_outbox && var.env != "prod"
+  mail_outbox_bucket    = local.mail_outbox_enabled ? module.mail_outbox[0].bucket_name : ""
+  mail_outbox_arn       = local.mail_outbox_enabled ? module.mail_outbox[0].bucket_arn : ""
   no_reply_from_address = local.no_reply_email
   ses_identity_arn      = local.platform_domain_enabled ? module.platform_domain[0].ses_identity_arn : module.ses.identity_arn
 

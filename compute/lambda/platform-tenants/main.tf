@@ -59,6 +59,7 @@ resource "aws_lambda_function" "this" {
       PLATFORM_ADMIN_APP_URL          = var.platform_admin_app_url
       OPERATOR_USER_POOL_ID           = var.operator_user_pool_id
       OPERATOR_GROUP_NAME             = var.operator_group_name
+      MAIL_OUTBOX_BUCKET_NAME         = var.mail_outbox_bucket_name # dev only: GET /platform/outbox reads it ("" = off)
     }
   }
 

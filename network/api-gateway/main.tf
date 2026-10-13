@@ -1381,6 +1381,9 @@ locals {
     "PATCH /platform/operators/{username}",
     "DELETE /platform/operators/{username}",
     "POST /platform/operators/{username}/resend-invite",
+    # Dev mail outbox (var.mail_outbox) - {"enabled": false} when it's off
+    "GET /platform/outbox",
+    "GET /platform/outbox/{messageId}",
   ]
 }
 
