@@ -24,8 +24,10 @@ resource "aws_lambda_function" "this" {
   image_uri     = "${var.ecr_repository_url}:latest"
   architectures = ["arm64"]
 
-  timeout     = 120
-  memory_size = 256
+  # Works through every location in parallel (16 threads) and stops early
+  # near the deadline, leaving the rest to the next run - see app.py.
+  timeout     = 300
+  memory_size = 512
 
   environment {
     variables = {

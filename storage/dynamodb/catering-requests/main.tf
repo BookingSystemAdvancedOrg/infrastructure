@@ -88,6 +88,10 @@ resource "aws_lambda_event_source_mapping" "notify_on_catering_request_change" {
   enabled           = true
   starting_position = "LATEST"
   batch_size        = 10
+  # Up to 10 batches per stream shard at once (records with the same key
+  # stay in order): a dinner-rush burst of notices is sent in parallel
+  # instead of queueing behind one batch at a time.
+  parallelization_factor = 10
 
   maximum_retry_attempts         = 5
   bisect_batch_on_function_error = true
@@ -129,6 +133,10 @@ resource "aws_lambda_event_source_mapping" "lifecycle_on_catering_request_change
   enabled           = true
   starting_position = "LATEST"
   batch_size        = 10
+  # Up to 10 batches per stream shard at once (records with the same key
+  # stay in order): a dinner-rush burst of notices is sent in parallel
+  # instead of queueing behind one batch at a time.
+  parallelization_factor = 10
 
   maximum_retry_attempts         = 10
   bisect_batch_on_function_error = true

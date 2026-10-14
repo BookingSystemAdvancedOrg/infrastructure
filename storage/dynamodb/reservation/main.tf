@@ -74,6 +74,10 @@ resource "aws_lambda_event_source_mapping" "notify_on_reservation_status_change"
   enabled           = true
   starting_position = "LATEST"
   batch_size        = 10
+  # Up to 10 batches per stream shard at once (records with the same key
+  # stay in order): a dinner-rush burst of notices is sent in parallel
+  # instead of queueing behind one batch at a time.
+  parallelization_factor = 10
 
   # A failing batch must not block this shard for the stream's full 24h:
   # cap retries, bisect to isolate a poison record, then hand the batch to

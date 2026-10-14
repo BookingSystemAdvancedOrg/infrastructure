@@ -382,29 +382,29 @@ variable "lambda_alias_name" {
 }
 
 variable "throttle_rate_limit" {
-  description = "Default steady-state requests per second per route"
+  description = "Default steady-state requests per second per route, ALL tenants and guests together (kitchen screens, booking lists, menus, availability). A platform-wide ceiling, not a per-client limit - those are in shared/request_guard.py. Keep under the account's Lambda concurrency (avg duration x rate). Costs nothing while idle; it also caps the bill if someone floods the API"
   type        = number
   sensitive   = false
-  default     = 100
+  default     = 500
 }
 
 variable "throttle_burst_limit" {
   description = "Default burst (requests) per route"
   type        = number
   sensitive   = false
-  default     = 200
+  default     = 1000
 }
 
 variable "booking_throttle_rate_limit" {
-  description = "Steady-state requests per second for the public online booking route (all guests together)"
+  description = "Steady-state requests per second for EACH public write route (online booking, table holds, food orders, catering requests) - all restaurants and guests together, so it must cover the platform's peak (Friday dinner rush). Abuse is stopped per IP / phone / e-mail and by Turnstile, not here"
   type        = number
   sensitive   = false
-  default     = 10
+  default     = 50
 }
 
 variable "booking_throttle_burst_limit" {
-  description = "Burst (requests) for the public online booking route"
+  description = "Burst (requests) for each public write route"
   type        = number
   sensitive   = false
-  default     = 20
+  default     = 100
 }

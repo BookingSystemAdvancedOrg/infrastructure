@@ -45,9 +45,13 @@ resource "aws_apigatewayv2_stage" "this" {
 
   # Throttling (steady requests per second / burst): a ceiling on how hard
   # anyone can push the API - and through it Lambda, DynamoDB and the
-  # messages bookings send. Every route gets the default; the public
-  # booking route a much lower one. Per-client limits (IP address, phone,
-  # e-mail) are in the application (shared/request_guard.py).
+  # messages bookings send. These are PLATFORM-WIDE (every restaurant and
+  # guest share them), so they are sized for the whole platform's peak,
+  # not for one client. Every route gets the default; the public write
+  # routes (booking, holds, orders, catering requests) a lower one, since
+  # each also sends messages or opens a Stripe session. Per-client limits
+  # (IP address, phone, e-mail) are in the application
+  # (shared/request_guard.py) and Turnstile.
   default_route_settings {
     throttling_rate_limit  = var.throttle_rate_limit
     throttling_burst_limit = var.throttle_burst_limit
