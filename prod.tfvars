@@ -15,10 +15,25 @@ alert_emails = [
   "arya.eisa@ithjalparna.se",
 ]
 
-# Domain the platform owns - leave unset until decided. Setting it turns on
-# tenant subdomains, customer custom domains, app./ops. hostnames and the
-# SES sending domain (see docs/PLATFORM-SETUP.md, "Platform domain").
-# platform_domain = "bokning.example.se"
+# Domain the platform owns. Turns on tenant subdomains (<slug>.booqy.se),
+# customer custom domains, app./ops. hostnames and the SES sending domain
+# mail.booqy.se (see docs/PLATFORM-SETUP.md, "Platform domain").
+# The zone is the one Route 53 created when booqy.se was registered in this
+# account - adopted, so the domain's name servers never change.
+platform_domain         = "booqy.se"
+platform_domain_zone_id = "Z04764661GIIKO8677SYH"
+
+# dev.booqy.se is answered by the dev account's zone (Z0571042RSRT4D1DDZ1L).
+# The NS record was created by hand first so dev could go live before prod;
+# Terraform adopts it (allow_overwrite).
+platform_subdomain_delegations = {
+  dev = [
+    "ns-1903.awsdns-45.co.uk",
+    "ns-1430.awsdns-50.org",
+    "ns-45.awsdns-05.com",
+    "ns-981.awsdns-58.net",
+  ]
+}
 
 # Public keys handed to restaurant websites by GET /site-config - not
 # secrets (see docs/PLATFORM-SETUP.md).

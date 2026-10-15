@@ -20,10 +20,11 @@ alert_emails = [
 # dev and prod DNS never touch. Turns on tenant subdomains (<slug>.dev.booqy.se),
 # customer custom domains, app./ops. hostnames and the SES sending domain
 # mail.dev.booqy.se (see docs/PLATFORM-SETUP.md, "Platform domain").
-# Switched on once booqy.se is registered and dev.booqy.se is delegated
-# from prod (the wildcard certificate validates through that delegation):
-# platform_domain         = "dev.booqy.se"
-# platform_domain_zone_id = "Z0571042RSRT4D1DDZ1L"
+# dev.booqy.se is delegated from the booqy.se zone in prod (NS record, also
+# kept by prod.tfvars platform_subdomain_delegations), so the wildcard
+# certificate validates here.
+platform_domain         = "dev.booqy.se"
+platform_domain_zone_id = "Z0571042RSRT4D1DDZ1L"
 
 # Public keys handed to restaurant websites by GET /site-config - not
 # secrets (see docs/PLATFORM-SETUP.md).
