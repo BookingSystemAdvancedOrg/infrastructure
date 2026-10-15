@@ -153,7 +153,7 @@ module "menu_image" {
   environment                             = var.env
   public_cloudfront_distribution_arn      = module.cloudfront_public.distribution_arn
   private_cloudfront_distribution_arn     = module.cloudfront_private.distribution_arn
-  additional_cloudfront_distribution_arns = local.platform_domain_enabled ? [module.platform_domain[0].multitenant_distribution_arn] : []
+  additional_cloudfront_distribution_arns = local.tenant_sites_enabled ? [module.platform_domain[0].multitenant_distribution_arn] : []
   allowed_origins = distinct([
     "https://${module.cloudfront_public.distribution_domain_name}",
     "https://${module.cloudfront_private.distribution_domain_name}",
@@ -1410,7 +1410,7 @@ module "platform_tenants_fn" {
   offboarding_state_machine_arn   = module.tenant_workflows.offboarding_state_machine_arn
   stripe_secret_arn               = module.platform_secrets.stripe_secret_arn
   stripe_api_version              = var.stripe_api_version
-  platform_domain                 = var.platform_domain
+  platform_domain                 = local.tenant_sites_enabled ? var.platform_domain : "" # "" = custom domains refused (409)
   tenant_domain_cname_target      = local.tenant_domain_cname_target
   admin_app_url                   = local.admin_app_url
   platform_admin_app_url          = local.platform_admin_app_url
@@ -1647,6 +1647,9 @@ locals {
   # Everything that needs a domain the platform owns switches on with
   # var.platform_domain (network/platform-domain).
   platform_domain_enabled = var.platform_domain != ""
+  # Restaurant websites on <slug>.<domain> and customer domains - a separate
+  # switch, so the domain can serve only app./ops./mail.
+  tenant_sites_enabled = local.platform_domain_enabled && var.tenant_sites_enabled
 
   admin_app_url          = local.platform_domain_enabled ? "https://app.${var.platform_domain}" : "https://${module.cloudfront_private.distribution_domain_name}"
   platform_admin_app_url = local.platform_domain_enabled ? "https://ops.${var.platform_domain}" : "https://${module.cloudfront_platform_admin.distribution_domain_name}"
@@ -1666,7 +1669,7 @@ locals {
   no_reply_from_address = local.no_reply_email
   ses_identity_arn      = local.platform_domain_enabled ? module.platform_domain[0].ses_identity_arn : module.ses.identity_arn
 
-  tenant_domain_cname_target = local.platform_domain_enabled ? module.platform_domain[0].cname_target : ""
+  tenant_domain_cname_target = local.tenant_sites_enabled ? module.platform_domain[0].cname_target : ""
 
   # Every application Lambda that serves tenant data gets the shared
   # tenant-context read policy (security/iam/tenant-context). Not here:
@@ -1728,6 +1731,7 @@ module "platform_domain" {
   environment                             = var.env
   platform_domain                         = var.platform_domain
   subdomain_delegations                   = var.platform_subdomain_delegations
+  tenant_sites_enabled                    = var.tenant_sites_enabled
   menu_image_bucket_regional_domain_name  = module.menu_image.bucket_regional_domain_name
   admin_distribution_domain_name          = module.cloudfront_private.distribution_domain_name
   platform_admin_distribution_domain_name = module.cloudfront_platform_admin.distribution_domain_name
@@ -1761,16 +1765,16 @@ module "tenant_workflows" {
   stripe_api_version      = var.stripe_api_version
   default_tax_rates       = var.default_tax_rates
   alert_topic_arn         = module.alerts.topic_arn
-  platform_domain_enabled = local.platform_domain_enabled
-  platform_domain         = var.platform_domain
+  platform_domain_enabled = local.tenant_sites_enabled
+  platform_domain         = local.tenant_sites_enabled ? var.platform_domain : ""
 
-  multitenant_distribution_id  = local.platform_domain_enabled ? module.platform_domain[0].multitenant_distribution_id : ""
-  multitenant_distribution_arn = local.platform_domain_enabled ? module.platform_domain[0].multitenant_distribution_arn : ""
-  connection_group_id          = local.platform_domain_enabled ? module.platform_domain[0].connection_group_id : ""
-  connection_group_arn         = local.platform_domain_enabled ? module.platform_domain[0].connection_group_arn : ""
+  multitenant_distribution_id  = local.tenant_sites_enabled ? module.platform_domain[0].multitenant_distribution_id : ""
+  multitenant_distribution_arn = local.tenant_sites_enabled ? module.platform_domain[0].multitenant_distribution_arn : ""
+  connection_group_id          = local.tenant_sites_enabled ? module.platform_domain[0].connection_group_id : ""
+  connection_group_arn         = local.tenant_sites_enabled ? module.platform_domain[0].connection_group_arn : ""
   cname_target                 = local.tenant_domain_cname_target
-  sites_bucket_name            = local.platform_domain_enabled ? module.platform_domain[0].sites_bucket_name : ""
-  sites_bucket_arn             = local.platform_domain_enabled ? module.platform_domain[0].sites_bucket_arn : ""
+  sites_bucket_name            = local.tenant_sites_enabled ? module.platform_domain[0].sites_bucket_name : ""
+  sites_bucket_arn             = local.tenant_sites_enabled ? module.platform_domain[0].sites_bucket_arn : ""
 }
 
 #CloudFront
@@ -1833,7 +1837,7 @@ module "platform_admin_front_end_role" {
 }
 # Tenant website repos (site-*) publish to the tenant-sites bucket
 module "tenant_sites_deploy_role" {
-  count             = local.platform_domain_enabled ? 1 : 0
+  count             = local.tenant_sites_enabled ? 1 : 0
   source            = "./security/iam/oidc/tenant-sites-deploy-role"
   environment       = var.env
   oidc_provider_arn = module.github_oidc_provider.provider_arn

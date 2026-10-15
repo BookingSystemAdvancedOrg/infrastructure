@@ -26,6 +26,11 @@ alert_emails = [
 platform_domain         = "dev.booqy.se"
 platform_domain_zone_id = "Z0571042RSRT4D1DDZ1L"
 
+# The domain serves only app. (restaurant admin), ops. (Booqy Console) and
+# mail. (SES) - no restaurant websites on <slug>.<domain> or customer
+# domains (no wildcard record, no multi-tenant distribution).
+tenant_sites_enabled = false
+
 # Public keys handed to restaurant websites by GET /site-config - not
 # secrets (see docs/PLATFORM-SETUP.md).
 stripe_publishable_key = "pk_test_51U4OsHHhsMraauJUMyW7ID1lQq1jsS3Pdtzqu04WDgEnJW8VQIvGktIUNMPo8cZNgIRYPafALaLKQxLfckdiXOKX00LbiD1Obc"

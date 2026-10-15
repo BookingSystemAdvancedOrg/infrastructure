@@ -92,6 +92,13 @@ variable "platform_subdomain_delegations" {
   }
 }
 
+variable "tenant_sites_enabled" {
+  type        = bool
+  description = "Host restaurant websites on the platform domain: <slug>.<platform_domain> subdomains and customer custom domains (tenant-sites bucket, CloudFront multi-tenant distribution, *.<domain> record, site deploy role). Off = the domain is used only for app. (restaurant admin), ops. (Booqy Console) and mail. (SES); customer links keep using the customer site's own URL."
+  sensitive   = false
+  default     = false
+}
+
 variable "plans" {
   type = map(object({
     name          = string

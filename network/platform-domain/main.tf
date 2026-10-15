@@ -32,6 +32,10 @@ data "aws_region" "current" {}
 locals {
   prefix      = var.environment == "prod" ? "" : "${var.environment}-"
   mail_domain = "mail.${var.platform_domain}"
+  # Restaurant websites on <slug>.<domain> and customer domains (bucket,
+  # multi-tenant distribution, connection group, wildcard record) - off
+  # unless var.tenant_sites_enabled; app./ops./mail. never depend on them.
+  tenant_sites_count = var.tenant_sites_enabled ? 1 : 0
   # CloudFront's fixed hosted zone ID for alias records
   cloudfront_zone_id = "Z2FDTNDATAQYW2"
 }
@@ -117,6 +121,8 @@ resource "aws_acm_certificate_validation" "wildcard" {
 # back object by object.
 
 resource "aws_s3_bucket" "sites" {
+  count = local.tenant_sites_count
+
   bucket = "${local.prefix}tenant-sites-${data.aws_caller_identity.current.account_id}"
 
   tags = {
@@ -125,7 +131,9 @@ resource "aws_s3_bucket" "sites" {
 }
 
 resource "aws_s3_bucket_public_access_block" "sites" {
-  bucket = aws_s3_bucket.sites.id
+  count = local.tenant_sites_count
+
+  bucket = aws_s3_bucket.sites[0].id
 
   block_public_acls       = true
   block_public_policy     = true
@@ -134,7 +142,9 @@ resource "aws_s3_bucket_public_access_block" "sites" {
 }
 
 resource "aws_s3_bucket_ownership_controls" "sites" {
-  bucket = aws_s3_bucket.sites.id
+  count = local.tenant_sites_count
+
+  bucket = aws_s3_bucket.sites[0].id
 
   rule {
     object_ownership = "BucketOwnerEnforced"
@@ -142,7 +152,9 @@ resource "aws_s3_bucket_ownership_controls" "sites" {
 }
 
 resource "aws_s3_bucket_versioning" "sites" {
-  bucket = aws_s3_bucket.sites.id
+  count = local.tenant_sites_count
+
+  bucket = aws_s3_bucket.sites[0].id
 
   versioning_configuration {
     status = "Enabled"
@@ -150,7 +162,9 @@ resource "aws_s3_bucket_versioning" "sites" {
 }
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "sites" {
-  bucket = aws_s3_bucket.sites.id
+  count = local.tenant_sites_count
+
+  bucket = aws_s3_bucket.sites[0].id
 
   rule {
     apply_server_side_encryption_by_default {
@@ -160,7 +174,9 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "sites" {
 }
 
 resource "aws_s3_bucket_lifecycle_configuration" "sites" {
-  bucket = aws_s3_bucket.sites.id
+  count = local.tenant_sites_count
+
+  bucket = aws_s3_bucket.sites[0].id
 
   rule {
     id     = "expire-replaced-site-files"
@@ -175,7 +191,9 @@ resource "aws_s3_bucket_lifecycle_configuration" "sites" {
 }
 
 resource "aws_s3_bucket_policy" "sites" {
-  bucket = aws_s3_bucket.sites.id
+  count = local.tenant_sites_count
+
+  bucket = aws_s3_bucket.sites[0].id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -185,10 +203,10 @@ resource "aws_s3_bucket_policy" "sites" {
         Effect    = "Allow"
         Principal = { Service = "cloudfront.amazonaws.com" }
         Action    = "s3:GetObject"
-        Resource  = "${aws_s3_bucket.sites.arn}/*"
+        Resource  = "${aws_s3_bucket.sites[0].arn}/*"
         Condition = {
           StringEquals = {
-            "AWS:SourceArn" = aws_cloudfront_multitenant_distribution.tenants.arn
+            "AWS:SourceArn" = aws_cloudfront_multitenant_distribution.tenants[0].arn
           }
         }
       },
@@ -197,7 +215,7 @@ resource "aws_s3_bucket_policy" "sites" {
         Effect    = "Deny"
         Principal = "*"
         Action    = "s3:*"
-        Resource  = [aws_s3_bucket.sites.arn, "${aws_s3_bucket.sites.arn}/*"]
+        Resource  = [aws_s3_bucket.sites[0].arn, "${aws_s3_bucket.sites[0].arn}/*"]
         Condition = {
           Bool = { "aws:SecureTransport" = "false" }
         }
@@ -212,7 +230,9 @@ resource "aws_s3_bucket_policy" "sites" {
 # subdomain shows "coming soon" instead of an error until its real site is
 # deployed. Never copied over an existing site.
 resource "aws_s3_object" "placeholder" {
-  bucket        = aws_s3_bucket.sites.id
+  count = local.tenant_sites_count
+
+  bucket        = aws_s3_bucket.sites[0].id
   key           = var.site_placeholder_key
   content       = file("${path.module}/files/coming-soon.html")
   content_type  = "text/html; charset=utf-8"
@@ -223,6 +243,8 @@ resource "aws_s3_object" "placeholder" {
 # --- CloudFront: multi-tenant distribution ------------------------------------
 
 resource "aws_cloudfront_origin_access_control" "sites" {
+  count = local.tenant_sites_count
+
   name                              = "${local.prefix}tenant-sites-oac"
   origin_access_control_origin_type = "s3"
   signing_behavior                  = "always"
@@ -230,6 +252,8 @@ resource "aws_cloudfront_origin_access_control" "sites" {
 }
 
 resource "aws_cloudfront_origin_access_control" "menu_image" {
+  count = local.tenant_sites_count
+
   name                              = "${local.prefix}tenant-sites-menu-image-oac"
   origin_access_control_origin_type = "s3"
   signing_behavior                  = "always"
@@ -237,6 +261,8 @@ resource "aws_cloudfront_origin_access_control" "menu_image" {
 }
 
 resource "aws_cloudfront_multitenant_distribution" "tenants" {
+  count = local.tenant_sites_count
+
   enabled             = true
   comment             = "${local.prefix}tenant websites (one distribution tenant per site/domain)"
   default_root_object = "index.html"
@@ -258,15 +284,15 @@ resource "aws_cloudfront_multitenant_distribution" "tenants" {
 
   origin {
     id                       = "tenant-sites"
-    domain_name              = aws_s3_bucket.sites.bucket_regional_domain_name
+    domain_name              = aws_s3_bucket.sites[0].bucket_regional_domain_name
     origin_path              = "/{{tenantId}}"
-    origin_access_control_id = aws_cloudfront_origin_access_control.sites.id
+    origin_access_control_id = aws_cloudfront_origin_access_control.sites[0].id
   }
 
   origin {
     id                       = "menu-image"
     domain_name              = var.menu_image_bucket_regional_domain_name
-    origin_access_control_id = aws_cloudfront_origin_access_control.menu_image.id
+    origin_access_control_id = aws_cloudfront_origin_access_control.menu_image[0].id
   }
 
   default_cache_behavior {
@@ -333,6 +359,8 @@ resource "aws_cloudfront_multitenant_distribution" "tenants" {
 # wildcard record below for <slug>.<domain>, and the CNAME target customers
 # set for their own domain.
 resource "aws_cloudfront_connection_group" "tenants" {
+  count = local.tenant_sites_count
+
   name         = "${local.prefix}tenant-sites"
   enabled      = true
   ipv6_enabled = true
@@ -343,11 +371,13 @@ resource "aws_cloudfront_connection_group" "tenants" {
 }
 
 resource "aws_route53_record" "tenant_wildcard" {
+  count = local.tenant_sites_count
+
   zone_id = aws_route53_zone.platform.zone_id
   name    = "*.${var.platform_domain}"
   type    = "CNAME"
   ttl     = 300
-  records = [aws_cloudfront_connection_group.tenants.routing_endpoint]
+  records = [aws_cloudfront_connection_group.tenants[0].routing_endpoint]
 }
 
 # --- Fixed hostnames for the two admin apps ---------------------------------------

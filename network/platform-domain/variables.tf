@@ -48,3 +48,10 @@ variable "subdomain_delegations" {
   sensitive   = false
   default     = {}
 }
+
+variable "tenant_sites_enabled" {
+  description = "Create the restaurant website hosting: tenant-sites bucket, multi-tenant distribution, connection group and the *.<domain> record"
+  type        = bool
+  sensitive   = false
+  default     = false
+}

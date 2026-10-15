@@ -23,6 +23,11 @@ alert_emails = [
 platform_domain         = "booqy.se"
 platform_domain_zone_id = "Z04764661GIIKO8677SYH"
 
+# The domain serves only app. (restaurant admin), ops. (Booqy Console) and
+# mail. (SES) - no restaurant websites on <slug>.<domain> or customer
+# domains (no wildcard record, no multi-tenant distribution).
+tenant_sites_enabled = false
+
 # dev.booqy.se is answered by the dev account's zone (Z0571042RSRT4D1DDZ1L).
 # The NS record was created by hand first so dev could go live before prod;
 # Terraform adopts it (allow_overwrite).
