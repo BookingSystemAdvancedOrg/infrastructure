@@ -21,7 +21,7 @@ resource "aws_cloudfront_distribution" "this" {
   default_root_object = "index.html"
   price_class         = "PriceClass_100"
 
-  # ops.<platform domain> once the platform domain is set.
+  # admin.<platform domain> once the platform domain is set.
   aliases = var.aliases
 
   origin {

@@ -11,7 +11,7 @@ variable "bucket_regional_domain_name" {
 }
 
 variable "aliases" {
-  description = "Custom hostnames (ops.<platform domain>); empty until the platform domain is set"
+  description = "Custom hostnames (admin.<platform domain>); empty until the platform domain is set"
   type        = list(string)
   sensitive   = false
   default     = []

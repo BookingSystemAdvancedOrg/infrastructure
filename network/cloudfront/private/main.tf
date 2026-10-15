@@ -30,7 +30,7 @@ resource "aws_cloudfront_distribution" "this" {
   comment             = local.distribution_comment
   default_root_object = "index.html"
 
-  # app.<platform domain> once the platform domain is set - one shared admin
+  # restaurant.<platform domain> once the platform domain is set - one shared admin
   # app for every tenant (who you are comes from your login, not the URL).
   aliases = var.aliases
 
@@ -98,7 +98,7 @@ resource "aws_cloudfront_distribution" "this" {
 
   # Default *.cloudfront.net certificate until the platform domain is set;
   # then the platform's wildcard certificate (network/platform-domain) for
-  # app.<domain>.
+  # restaurant.<domain>.
   viewer_certificate {
     cloudfront_default_certificate = var.acm_certificate_arn == ""
     acm_certificate_arn            = var.acm_certificate_arn == "" ? null : var.acm_certificate_arn

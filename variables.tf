@@ -61,7 +61,7 @@ variable "platform_operator_emails" {
 }
 variable "platform_domain" {
   type        = string
-  description = "Domain the platform owns, e.g. bokning.example.se. Empty (default) switches off everything that needs it: tenant subdomains (<slug>.<domain>), customer custom domains (CloudFront multi-tenant distribution), app./ops. aliases and the SES sending domain. Setting it creates a Route 53 hosted zone - delegate the domain to the name servers in the platform_domain_name_servers output."
+  description = "Domain the platform owns, e.g. bokning.example.se. Empty (default) switches off everything that needs it: tenant subdomains (<slug>.<domain>), customer custom domains (CloudFront multi-tenant distribution), restaurant./admin. aliases and the SES sending domain. Setting it creates a Route 53 hosted zone - delegate the domain to the name servers in the platform_domain_name_servers output."
   sensitive   = false
   default     = ""
 

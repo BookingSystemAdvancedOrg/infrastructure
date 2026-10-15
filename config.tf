@@ -157,7 +157,7 @@ module "menu_image" {
   allowed_origins = distinct([
     "https://${module.cloudfront_public.distribution_domain_name}",
     "https://${module.cloudfront_private.distribution_domain_name}",
-    local.admin_app_url, # app.<platform domain> once set - presigned uploads come from there
+    local.admin_app_url, # restaurant.<platform domain> once set - presigned uploads come from there
   ])
 }
 module "customer_front_end_asset" {
@@ -1648,15 +1648,18 @@ locals {
   # var.platform_domain (network/platform-domain).
   platform_domain_enabled = var.platform_domain != ""
   # Restaurant websites on <slug>.<domain> and customer domains - a separate
-  # switch, so the domain can serve only app./ops./mail.
+  # switch, so the domain can serve only restaurant./admin./mail.
   tenant_sites_enabled = local.platform_domain_enabled && var.tenant_sites_enabled
 
-  admin_app_url          = local.platform_domain_enabled ? "https://app.${var.platform_domain}" : "https://${module.cloudfront_private.distribution_domain_name}"
-  platform_admin_app_url = local.platform_domain_enabled ? "https://ops.${var.platform_domain}" : "https://${module.cloudfront_platform_admin.distribution_domain_name}"
+  # restaurant.<domain> = restaurant admin app, admin.<domain> = Booqy Console.
+  admin_app_hostname      = "restaurant.${var.platform_domain}"
+  platform_admin_hostname = "admin.${var.platform_domain}"
+  admin_app_url           = local.platform_domain_enabled ? "https://${local.admin_app_hostname}" : "https://${module.cloudfront_private.distribution_domain_name}"
+  platform_admin_app_url  = local.platform_domain_enabled ? "https://${local.platform_admin_hostname}" : "https://${module.cloudfront_platform_admin.distribution_domain_name}"
   # Every origin the operator app may sign in from (OAuth callback URLs).
   platform_admin_app_urls = distinct(concat(
     ["https://${module.cloudfront_platform_admin.distribution_domain_name}"],
-    local.platform_domain_enabled ? ["https://ops.${var.platform_domain}"] : [],
+    local.platform_domain_enabled ? ["https://${local.platform_admin_hostname}"] : [],
     var.env == "prod" ? [] : ["http://localhost:5173"],
   ))
 
@@ -1734,6 +1737,8 @@ module "platform_domain" {
   tenant_sites_enabled                    = var.tenant_sites_enabled
   menu_image_bucket_regional_domain_name  = module.menu_image.bucket_regional_domain_name
   admin_distribution_domain_name          = module.cloudfront_private.distribution_domain_name
+  admin_app_hostname                      = local.admin_app_hostname
+  platform_admin_hostname                 = local.platform_admin_hostname
   platform_admin_distribution_domain_name = module.cloudfront_platform_admin.distribution_domain_name
 }
 
@@ -1789,7 +1794,7 @@ module "cloudfront_private" {
   environment                            = var.env
   admin_bucket_regional_domain_name      = module.admin_front_end_asset.bucket_regional_domain_name
   menu_image_bucket_regional_domain_name = module.menu_image.bucket_regional_domain_name
-  aliases                                = local.platform_domain_enabled ? ["app.${var.platform_domain}"] : []
+  aliases                                = local.platform_domain_enabled ? [local.admin_app_hostname] : []
   acm_certificate_arn                    = local.platform_domain_enabled ? module.platform_domain[0].certificate_arn : ""
 }
 # Operator app (platform admin) - where tenants are created and managed
@@ -1797,7 +1802,7 @@ module "cloudfront_platform_admin" {
   source                      = "./network/cloudfront/platform-admin"
   environment                 = var.env
   bucket_regional_domain_name = module.platform_admin_front_end_asset.bucket_regional_domain_name
-  aliases                     = local.platform_domain_enabled ? ["ops.${var.platform_domain}"] : []
+  aliases                     = local.platform_domain_enabled ? [local.platform_admin_hostname] : []
   acm_certificate_arn         = local.platform_domain_enabled ? module.platform_domain[0].certificate_arn : ""
 }
 

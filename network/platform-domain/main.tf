@@ -10,7 +10,8 @@
 #                                 tenantId parameter picks the S3 prefix
 #   connection group              the CNAME target customers point at
 #   *.<domain>  -> connection group   <slug>.<domain> needs no per-tenant DNS
-#   app.<domain> / ops.<domain>   restaurant admin app / operator app
+#   restaurant.<domain>          restaurant admin app (admin-front-end)
+#   admin.<domain>               operator app (Booqy Console)
 #   mail.<domain>                 SES sending domain (DKIM, MAIL FROM, DMARC)
 #
 # Per-tenant pieces (distribution tenants, customer domains, their managed
@@ -34,7 +35,7 @@ locals {
   mail_domain = "mail.${var.platform_domain}"
   # Restaurant websites on <slug>.<domain> and customer domains (bucket,
   # multi-tenant distribution, connection group, wildcard record) - off
-  # unless var.tenant_sites_enabled; app./ops./mail. never depend on them.
+  # unless var.tenant_sites_enabled; restaurant./admin./mail. never depend on them.
   tenant_sites_count = var.tenant_sites_enabled ? 1 : 0
   # CloudFront's fixed hosted zone ID for alias records
   cloudfront_zone_id = "Z2FDTNDATAQYW2"
@@ -387,7 +388,7 @@ resource "aws_route53_record" "app" {
   for_each = toset(["A", "AAAA"])
 
   zone_id = aws_route53_zone.platform.zone_id
-  name    = "app.${var.platform_domain}"
+  name    = var.admin_app_hostname
   type    = each.value
 
   alias {
@@ -401,7 +402,7 @@ resource "aws_route53_record" "ops" {
   for_each = toset(["A", "AAAA"])
 
   zone_id = aws_route53_zone.platform.zone_id
-  name    = "ops.${var.platform_domain}"
+  name    = var.platform_admin_hostname
   type    = each.value
 
   alias {

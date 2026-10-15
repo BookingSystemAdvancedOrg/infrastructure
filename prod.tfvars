@@ -16,14 +16,14 @@ alert_emails = [
 ]
 
 # Domain the platform owns. Turns on tenant subdomains (<slug>.booqy.se),
-# customer custom domains, app./ops. hostnames and the SES sending domain
+# customer custom domains, restaurant./admin. hostnames and the SES sending domain
 # mail.booqy.se (see docs/PLATFORM-SETUP.md, "Platform domain").
 # The zone is the one Route 53 created when booqy.se was registered in this
 # account - adopted, so the domain's name servers never change.
 platform_domain         = "booqy.se"
 platform_domain_zone_id = "Z04764661GIIKO8677SYH"
 
-# The domain serves only app. (restaurant admin), ops. (Booqy Console) and
+# The domain serves only restaurant. (restaurant admin), admin. (Booqy Console) and
 # mail. (SES) - no restaurant websites on <slug>.<domain> or customer
 # domains (no wildcard record, no multi-tenant distribution).
 tenant_sites_enabled = false

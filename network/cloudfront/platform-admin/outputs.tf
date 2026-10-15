@@ -9,6 +9,6 @@ output "distribution_arn" {
 }
 
 output "distribution_domain_name" {
-  description = "*.cloudfront.net domain of the platform admin app (until ops.<platform domain> exists)"
+  description = "*.cloudfront.net domain of the platform admin app (until admin.<platform domain> exists)"
   value       = aws_cloudfront_distribution.this.domain_name
 }

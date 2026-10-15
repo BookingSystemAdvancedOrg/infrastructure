@@ -18,7 +18,7 @@ alert_emails = [
 # Domain the platform owns. Dev runs on dev.booqy.se: its own hosted zone in
 # THIS account (created by hand, delegated from the booqy.se zone in prod), so
 # dev and prod DNS never touch. Turns on tenant subdomains (<slug>.dev.booqy.se),
-# customer custom domains, app./ops. hostnames and the SES sending domain
+# customer custom domains, restaurant./admin. hostnames and the SES sending domain
 # mail.dev.booqy.se (see docs/PLATFORM-SETUP.md, "Platform domain").
 # dev.booqy.se is delegated from the booqy.se zone in prod (NS record, also
 # kept by prod.tfvars platform_subdomain_delegations), so the wildcard
@@ -26,7 +26,7 @@ alert_emails = [
 platform_domain         = "dev.booqy.se"
 platform_domain_zone_id = "Z0571042RSRT4D1DDZ1L"
 
-# The domain serves only app. (restaurant admin), ops. (Booqy Console) and
+# The domain serves only restaurant. (restaurant admin), admin. (Booqy Console) and
 # mail. (SES) - no restaurant websites on <slug>.<domain> or customer
 # domains (no wildcard record, no multi-tenant distribution).
 tenant_sites_enabled = false

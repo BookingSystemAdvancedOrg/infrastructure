@@ -24,7 +24,7 @@ output "customer_site_domain" {
 }
 
 output "admin_site_domain" {
-  description = "Default *.cloudfront.net domain of the shared restaurant admin app (owners/staff of every tenant) - app.<platform domain> once that is set"
+  description = "Default *.cloudfront.net domain of the shared restaurant admin app (owners/staff of every tenant) - restaurant.<platform domain> once that is set"
   value       = module.cloudfront_private.distribution_domain_name
 }
 

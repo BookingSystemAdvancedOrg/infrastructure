@@ -17,7 +17,7 @@ variable "menu_image_bucket_regional_domain_name" {
 }
 
 variable "aliases" {
-  description = "Custom hostnames for this distribution (app.<platform domain>); empty until the platform domain is set"
+  description = "Custom hostnames for this distribution (restaurant.<platform domain>); empty until the platform domain is set"
   type        = list(string)
   sensitive   = false
   default     = []

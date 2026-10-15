@@ -17,13 +17,13 @@ variable "menu_image_bucket_regional_domain_name" {
 }
 
 variable "admin_distribution_domain_name" {
-  description = "*.cloudfront.net domain of the restaurant admin app distribution (alias target for app.<domain>)"
+  description = "*.cloudfront.net domain of the restaurant admin app distribution (alias target for admin_app_hostname)"
   type        = string
   sensitive   = false
 }
 
 variable "platform_admin_distribution_domain_name" {
-  description = "*.cloudfront.net domain of the platform admin app distribution (alias target for ops.<domain>)"
+  description = "*.cloudfront.net domain of the platform admin app distribution (alias target for platform_admin_hostname)"
   type        = string
   sensitive   = false
 }
@@ -54,4 +54,16 @@ variable "tenant_sites_enabled" {
   type        = bool
   sensitive   = false
   default     = false
+}
+
+variable "admin_app_hostname" {
+  description = "Hostname of the restaurant admin app (admin-front-end), e.g. restaurant.booqy.se"
+  type        = string
+  sensitive   = false
+}
+
+variable "platform_admin_hostname" {
+  description = "Hostname of the operator app (Booqy Console), e.g. admin.booqy.se"
+  type        = string
+  sensitive   = false
 }
