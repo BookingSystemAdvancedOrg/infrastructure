@@ -74,7 +74,7 @@ class ForgotPasswordLinkTest(unittest.TestCase):
 
     def test_operators_get_english(self):
         result = run(event(), language="en", url="https://ops.example.se/reset-password")
-        self.assertEqual(result["response"]["emailSubject"], "Choose a new SBS Admin password")
+        self.assertEqual(result["response"]["emailSubject"], "Choose a new Booqy Console password")
         self.assertIn('href="https://ops.example.se/reset-password#code={####}', result["response"]["emailMessage"])
         self.assertIn("authenticator code", result["response"]["emailMessage"])
 
@@ -106,7 +106,7 @@ class ForgotPasswordLinkTest(unittest.TestCase):
 
     def test_an_unknown_language_falls_back_to_english(self):
         result = run(event(), language="de")
-        self.assertEqual(result["response"]["emailSubject"], "Choose a new SBS Admin password")
+        self.assertEqual(result["response"]["emailSubject"], "Choose a new Booqy Console password")
 
 
 if __name__ == "__main__":

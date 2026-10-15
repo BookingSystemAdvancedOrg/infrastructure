@@ -60,7 +60,7 @@ cross-tenant tests.
 | Platform API | `/platform/*`, `/tenant`, `/site-config` | `network/api-gateway` |
 | Stripe | platform key (`stripe/api-key`), Connect webhook endpoints | `security/secrets/platform`, `payments/stripe` |
 | Domains, tenant sites, email domain | zone, wildcard cert, multi-tenant distribution, connection group, tenant-sites bucket, SES `mail.<domain>` | `network/platform-domain` (count = platform domain set) |
-| Operator app hosting (code: `sbs-admin` repo) | bucket + distribution + deploy role (web + platform-tenants Lambda) | `storage/s3/platform-admin-front-end-asset`, `network/cloudfront/platform-admin`, `security/iam/oidc/platform-admin-front-end-role` |
+| Operator app hosting (code: Booqy Console repo) | bucket + distribution + deploy role (web + platform-tenants Lambda) | `storage/s3/platform-admin-front-end-asset`, `network/cloudfront/platform-admin`, `security/iam/oidc/platform-admin-front-end-role` |
 
 ## Tenant table (control plane)
 

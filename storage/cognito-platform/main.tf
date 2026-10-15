@@ -65,10 +65,10 @@ resource "aws_cognito_user_pool" "this" {
     }
   }
 
-  # "Forgot password" emails a link to SBS Admin's /reset-password page
+  # "Forgot password" emails a link to Booqy Console's /reset-password page
   # (compute/lambda/cognito-custom-message) - only with SES, as Cognito
   # refuses a custom email from a trigger when it sends itself. Without SES
-  # the email shows the plain code, which SBS Admin also takes.
+  # the email shows the plain code, which Booqy Console also takes.
   dynamic "lambda_config" {
     for_each = var.invites_via_ses ? [1] : []
     content {

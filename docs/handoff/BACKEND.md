@@ -319,7 +319,7 @@ you need more, ask for an infra change rather than working around it.
 ### 6.1 platform-tenants - `/platform/*` (operator token, `platform/admin` scope)
 
 > **Already implemented - not yours to build.** The code lives in the
-> `sbs-admin` repo (`api/`, Python, with tests) and is deployed by that
+> Booqy Console repo (`api/`, Python, with tests) and is deployed by that
 > repo's pipeline; the backend deploy role is explicitly denied on this
 > function. The table below is the contract it implements, kept here
 > because the other Lambdas depend on the rows it writes. Additional

@@ -1,7 +1,7 @@
 # Cognito custom message trigger: the "forgot password" email as a link to
 # the app's reset page (see src/handler.py). One instance per user pool
 # (config.tf) - the tenant pool's links go to the restaurant admin app in
-# Swedish, the operator pool's to SBS Admin in English.
+# Swedish, the operator pool's to Booqy Console in English.
 #
 # Deployed as a zip straight from this repo, like pre-token-generation: the
 # trigger runs inside Cognito's ForgotPassword call, so a placeholder image

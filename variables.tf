@@ -98,7 +98,7 @@ variable "plans" {
     max_locations = number
     features      = map(bool)
   }))
-  description = "Plan catalog (packages you sell). A tenant's limits are copied from its plan when the plan is assigned and can be overridden per tenant from the platform dashboard - no deploy either way. Feature keys: reservations, ordering, catering, terminal (card readers for in-person payments, managed from sbs-admin)."
+  description = "Plan catalog (packages you sell). A tenant's limits are copied from its plan when the plan is assigned and can be overridden per tenant from the platform dashboard - no deploy either way. Feature keys: reservations, ordering, catering, terminal (card readers for in-person payments, managed from Booqy Console)."
   sensitive   = false
   default = {
     starter = {
@@ -131,7 +131,7 @@ variable "cognito_invites_via_ses" {
 }
 variable "mail_outbox" {
   type        = bool
-  description = "Dev only: save every platform email to a private S3 outbox (read in sbs-admin, \"Mail outbox\") instead of sending it through SES - for while the sending domain isn't verified. Must stay false in prod."
+  description = "Dev only: save every platform email to a private S3 outbox (read in Booqy Console, \"Mail outbox\") instead of sending it through SES - for while the sending domain isn't verified. Must stay false in prod."
   sensitive   = false
   default     = false
 

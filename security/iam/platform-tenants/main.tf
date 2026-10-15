@@ -1,5 +1,5 @@
 # Execution role for the PlatformTenantsFn Lambda - the /platform/* API the
-# operator console (sbs-admin repo, which also holds this Lambda's code) calls (operator pool token + platform/admin scope,
+# operator console (Booqy Console repo, which also holds this Lambda's code) calls (operator pool token + platform/admin scope,
 # enforced by API Gateway before this Lambda runs).
 #
 # Owns the tenant table (create/update tenants, plans, domains rows) and
@@ -66,7 +66,7 @@ resource "aws_iam_role_policy" "tenant_table" {
   })
 }
 
-# Operators manage a tenant's locations from sbs-admin (a customer opening
+# Operators manage a tenant's locations from Booqy Console (a customer opening
 # another restaurant): item-level writes only, always under TENANT#<id> keys.
 resource "aws_iam_role_policy" "location_table" {
   name = "location-table"
@@ -158,7 +158,7 @@ resource "aws_iam_role_policy" "cognito" {
         Resource = "${var.tenant_user_pool_arn}"
       },
       {
-        # Operators manage each other from sbs-admin (Operators page).
+        # Operators manage each other from Booqy Console (Operators page).
         Sid    = "ManageOperators"
         Effect = "Allow"
         Action = [
@@ -245,7 +245,7 @@ resource "aws_iam_role_policy" "stripe_secret" {
   })
 }
 
-# Dev mail outbox (sbs-admin "Mail outbox"): read-only, only when the
+# Dev mail outbox (Booqy Console "Mail outbox"): read-only, only when the
 # outbox exists (var.mail_outbox, never prod).
 resource "aws_iam_role_policy" "mail_outbox" {
   count = var.mail_outbox_enabled ? 1 : 0

@@ -5,9 +5,9 @@ Stripe readers. The money goes to the **restaurant's** Stripe account (the
 readers and every payment live on its connected account), exactly like
 online payments.
 
-## What already exists (operator side - sbs-admin)
+## What already exists (operator side - Booqy Console)
 
-Per restaurant location, an operator (sbs-admin -> customer -> Locations ->
+Per restaurant location, an operator (Booqy Console -> customer -> Locations ->
 Card terminals -> Manage):
 
 1. **Enables terminals**: creates a Stripe *Terminal Location* (Swedish
@@ -57,7 +57,7 @@ Tenant check as everywhere: the `locationId` must belong to the caller's
 tenant; read `terminal.accountId` from the location row - never from the
 request.
 
-Testing without hardware (test mode): register `simulated-wpe` in sbs-admin,
+Testing without hardware (test mode): register `simulated-wpe` in Booqy Console,
 then after step 3 call
 `POST /v1/test_helpers/terminal/readers/<readerId>/present_payment_method`.
 
@@ -82,4 +82,4 @@ error contract.
   permissions.
 - Readers: the restaurant orders them in its own Stripe Dashboard
   (Terminal -> Hardware shop) - or the platform orders on its behalf - then
-  pairs them via sbs-admin.
+  pairs them via Booqy Console.

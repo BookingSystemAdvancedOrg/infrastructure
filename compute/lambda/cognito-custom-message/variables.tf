@@ -28,7 +28,7 @@ variable "reset_url" {
 }
 
 variable "language" {
-  description = "Language of the email: sv (restaurant admin app) or en (SBS Admin)"
+  description = "Language of the email: sv (restaurant admin app) or en (Booqy Console)"
   type        = string
   sensitive   = false
 

@@ -1,7 +1,7 @@
 # Dev mail outbox: while the platform's sending domain isn't verified in SES
 # (booqy.se), the notification Lambda saves every email it would have sent
 # here instead - as JSON (to, from, reply-to, subject, text, html) - and the
-# operator console (sbs-admin, "Mail outbox") lists and shows them. That way
+# operator console (Booqy Console, "Mail outbox") lists and shows them. That way
 # receipts, offers, confirmations and their links can be checked in dev
 # without SES.
 #

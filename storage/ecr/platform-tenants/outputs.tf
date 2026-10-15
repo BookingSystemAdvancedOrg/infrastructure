@@ -5,7 +5,7 @@ output "platform_tenants_ecr_repository_url" {
 }
 
 output "platform_tenants_ecr_repository_arn" {
-  description = "ARN of the platform-tenants ECR repository - the sbs-admin pipeline pushes the image here"
+  description = "ARN of the platform-tenants ECR repository - the Booqy Console pipeline pushes the image here"
   value       = aws_ecr_repository.platform_tenants.arn
 }
 

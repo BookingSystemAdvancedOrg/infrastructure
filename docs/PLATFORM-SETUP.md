@@ -115,7 +115,7 @@ workflow. You never handle a restaurant's keys.
       `mail_outbox = true` in dev.tfvars the notification Lambda saves
       every email to a private S3 bucket (`dev-mail-outbox-<account>`)
       instead of sending it, and copies every SMS there too (the SMS is
-      still sent). Read them in sbs-admin → **Mail outbox** (HTML, text and
+      still sent). Read them in Booqy Console → **Mail outbox** (HTML, text and
       every link in the message). Kept 30 days; can't be turned on in prod
       (variable validation). Set it to `false` once
       `mail.dev.booqy.se` is verified to send for real.
@@ -194,10 +194,10 @@ apps run on `*.cloudfront.net` and restaurants have no website URL yet.
 
 ## 6. Repos and pipelines
 
-- [ ] Push the `sbs-admin` repo (operator console: web app + the
+- [ ] Push the Booqy Console repo (operator console: web app + the
       platform-tenants Lambda) to the GitHub org under exactly that name
       (the deploy role trusts it) and set its GitHub environment variables
-      (sbs-admin README).
+      (Booqy Console README).
 - [ ] Create the website template repo (e.g. `site-template`, marked as a
       GitHub template). Site repos must match `tenant_site_repo_pattern`
       (`site-*`).

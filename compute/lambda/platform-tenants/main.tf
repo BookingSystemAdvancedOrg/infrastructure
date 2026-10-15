@@ -1,6 +1,6 @@
 # Operator-facing platform API (/platform/* - operator user pool JWT with
 # the platform/admin scope, see network/api-gateway). The code lives in the
-# sbs-admin repo (api/), whose pipeline pushes the image and updates this
+# Booqy Console repo (api/), whose pipeline pushes the image and updates this
 # function - not in the backend application repo.
 #
 # Creating a tenant = one TransactWriteItems (PROFILE + SLUG# uniqueness row,

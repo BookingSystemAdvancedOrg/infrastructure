@@ -1410,10 +1410,10 @@ resource "aws_apigatewayv2_integration" "platform_tenants" {
   payload_format_version = "2.0"
 }
 
-# No authorization_scopes: sbs-admin signs operators in inside the app
+# No authorization_scopes: Booqy Console signs operators in inside the app
 # (Cognito SRP via Amplify), and Cognito only puts custom scopes such as
 # platform/admin into tokens issued by its hosted OAuth flow. The authorizer
-# still only accepts access tokens from the OPERATOR pool for the sbs-admin
+# still only accepts access tokens from the OPERATOR pool for the Booqy Console
 # app client (issuer + client id), and the Lambda rejects any caller not in
 # the platform_admin group.
 resource "aws_apigatewayv2_route" "platform_tenants" {

@@ -8,7 +8,7 @@ are affected:
 | App | Repo | Who uses it | URL |
 |---|---|---|---|
 | Restaurant admin (existing) | `admin-front-end` | owners + staff of **every** restaurant | `admin_app_url` output - `https://app.<platform domain>` once set |
-| Platform admin (**new**, built - `sbs-admin` repo) | `sbs-admin` | you (operators) - create and manage tenants | `platform_admin_app_url` output - `https://ops.<platform domain>` once set |
+| Platform admin (**new**, built - Booqy Console repo) | `sbs-admin` | you (operators) - create and manage tenants | `platform_admin_app_url` output - `https://ops.<platform domain>` once set |
 | Restaurant websites | `site-<slug>` per restaurant (from a template) | the restaurants' guests | `https://<slug>.<platform domain>` + the restaurant's own domain |
 
 Ground rules:
@@ -114,10 +114,10 @@ expired).
 
 ---
 
-## 2. Platform admin app (repo `sbs-admin`) - already built
+## 2. Platform admin app (Booqy Console repo) - already built
 
 The operator console. Separate Cognito pool with MFA; calls only `/platform/*`.
-**Implemented** in the `sbs-admin` repo (`web/` = this app, `api/` = the
+**Implemented** in the Booqy Console repo (`web/` = this app, `api/` = the
 platform-tenants Lambda behind it) - see its README. The rest of this
 section documents what it does, for maintenance.
 
@@ -125,7 +125,7 @@ section documents what it does, for maintenance.
 
 - The repo name must be exactly `sbs-admin` (the deploy role trusts that
   name; `PLATFORM_ADMIN_FRONTEND_REPO` in `.github/config/project.env`).
-- Its pipeline (`.github/workflows/deploy.yml` in sbs-admin) uses role
+- Its pipeline (`.github/workflows/deploy.yml` in Booqy Console) uses role
   `platform-admin-front-end-deploy-role` (prod) /
   `dev-platform-admin-front-end-deploy-role` (dev), which can deploy exactly:
   - the web app: bucket `platform_admin_front_end_bucket_name`, invalidate

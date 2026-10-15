@@ -4,7 +4,7 @@ One function per user pool (config.tf):
 
     tenant pool    Swedish, a link to the restaurant admin app's
                    /aterstall-losenord page
-    operator pool  English, a link to SBS Admin's /reset-password page
+    operator pool  English, a link to Booqy Console's /reset-password page
 
 For ForgotPassword Cognito emails a 6-digit code. This trigger turns the
 email into a link that carries the code and the address in the URL
@@ -50,10 +50,10 @@ TEXTS = {
     },
     "en": {
         "account": "your account",
-        "subject": "Choose a new SBS Admin password",
+        "subject": "Choose a new Booqy Console password",
         "body": (
             "Hi,<br><br>"
-            "We received a request for a new password for {email} in SBS Admin.<br><br>"
+            "We received a request for a new password for {email} in Booqy Console.<br><br>"
             '<a href="{link}"><b>Choose a new password</b></a><br><br>'
             "The link works once and for one hour. You still sign in with your "
             "authenticator code afterwards. If you didn't ask for a new password, "

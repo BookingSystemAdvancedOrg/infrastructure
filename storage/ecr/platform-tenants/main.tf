@@ -7,7 +7,7 @@ resource "aws_ecr_repository" "platform_tenants" {
   }
 }
 
-# The sbs-admin pipeline pushes an image per commit (tagged with the commit
+# The Booqy Console pipeline pushes an image per commit (tagged with the commit
 # SHA + latest). Keep the last 30 so a rollback is a one-line
 # update-function-code, without paying for every image forever.
 resource "aws_ecr_lifecycle_policy" "platform_tenants" {

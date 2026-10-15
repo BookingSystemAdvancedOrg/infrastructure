@@ -175,11 +175,11 @@ output "platform_admin_cloudfront_distribution_id" {
   value       = module.cloudfront_platform_admin.distribution_id
 }
 
-# Everything the sbs-admin repo's GitHub environments (dev / prod) need as
-# variables - see the sbs-admin README, "Deploy". None of it is secret.
-#   tofu output -json sbs_admin_deploy
-output "sbs_admin_deploy" {
-  description = "GitHub environment variables for the sbs-admin repo (operator console web app + platform-tenants Lambda)"
+# Everything the Booqy Console repo's GitHub environments (dev / prod) need as
+# variables - see the Booqy Console README, "Deploy". None of it is secret.
+#   tofu output -json booqy_console_deploy
+output "booqy_console_deploy" {
+  description = "GitHub environment variables for the Booqy Console repo (operator console web app + platform-tenants Lambda)"
   value = {
     AWS_REGION                 = var.aws_region
     AWS_ROLE_ARN               = nonsensitive(module.platform_admin_front_end_role.role_arn)
