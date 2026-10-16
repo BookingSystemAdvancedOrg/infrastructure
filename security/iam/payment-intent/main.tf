@@ -1,10 +1,11 @@
 # Execution role for the payment-intent Lambda.
 #
-# Full access on the order table - this Lambda creates the order record
-# and the Stripe PaymentIntent together, and needs to write/update order
-# status as the payment lifecycle progresses (PENDING_PAYMENT -> PAID/
-# FAILED), same reasoning as cancel-reservation's dynamodb:* grant on
-# the tables it actually mutates.
+# POST /order: writes the order + its pointer (one transaction - Put per
+# item), stores the Checkout Session id / marks a rejected checkout failed
+# (UpdateItem), reads the order back (GetItem). Prices come from the menu
+# table (BatchGetItem, read only). Tenant/location reads come from the
+# shared tenant-context policy; the link signing key from
+# security/secrets/reservations.
 
 data "aws_caller_identity" "current" {}
 
@@ -39,10 +40,78 @@ resource "aws_iam_role_policy" "dynamodb_full" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid      = "FullAccessOrderTable"
-        Effect   = "Allow"
-        Action   = "dynamodb:*"
+        Sid    = "ItemAccessOrderTable"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:UpdateItem",
+        ]
         Resource = "${var.order_table_arn}"
+      }
+    ]
+  })
+}
+
+# The platform Stripe key lives in Secrets Manager, not in this function's
+# environment - an env var is readable by anyone with
+# lambda:GetFunctionConfiguration, and with Stripe Connect this key can act
+# on every restaurant's connected account.
+resource "aws_iam_role_policy" "stripe_secret" {
+  name = "platform-stripe-secret"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "ReadPlatformStripeKey"
+        Effect   = "Allow"
+        Action   = "secretsmanager:GetSecretValue"
+        Resource = "${var.stripe_secret_arn}"
+      }
+    ]
+  })
+}
+
+# Prices are read from the menu - never trusted from the request.
+resource "aws_iam_role_policy" "menu_read" {
+  name = "menu-table-read"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "ReadMenuPrices"
+        Effect   = "Allow"
+        Action   = "dynamodb:BatchGetItem"
+        Resource = var.menu_table_arn
+      }
+    ]
+  })
+}
+
+# Public order form: the Turnstile secret (bot check) and the attempt
+# counters - item updates only, on that one table.
+resource "aws_iam_role_policy" "order_protection" {
+  name = "online-order-protection"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "ReadTurnstileSecret"
+        Effect   = "Allow"
+        Action   = "secretsmanager:GetSecretValue"
+        Resource = var.turnstile_secret_arn
+      },
+      {
+        Sid      = "CountOrderAttempts"
+        Effect   = "Allow"
+        Action   = "dynamodb:UpdateItem"
+        Resource = var.request_guard_table_arn
       }
     ]
   })

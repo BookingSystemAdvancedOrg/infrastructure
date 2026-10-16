@@ -27,9 +27,14 @@ resource "aws_iam_role_policy" "dynamodb" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid      = "CateringDiscountTiersTableFullAccess"
-        Effect   = "Allow"
-        Action   = "dynamodb:*"
+        Sid    = "CateringDiscountTiersItemAccess"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:DeleteItem",
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:Query",
+        ]
         Resource = "${var.catering_discount_tiers_table_arn}"
       }
     ]

@@ -33,10 +33,13 @@ resource "aws_iam_role_policy" "invoke_expire_layout_version" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid      = "InvokeExpireLayoutVersionFunction"
-        Effect   = "Allow"
-        Action   = "lambda:InvokeFunction"
-        Resource = "${var.expire_layout_version_lambda_arn}"
+        Sid    = "InvokeExpireLayoutVersionFunction"
+        Effect = "Allow"
+        Action = "lambda:InvokeFunction"
+        Resource = [
+          "${var.expire_layout_version_lambda_arn}",
+          "${var.expire_layout_version_lambda_arn}:*", # its versions and the "live" alias callers invoke
+        ]
       }
     ]
   })

@@ -11,7 +11,7 @@ variable "user_table_arn" {
 }
 
 variable "user_pool_arn" {
-  description = "ARN of the staff/owner/super-user Cognito User Pool — scoped Admin* user-management access"
+  description = "ARN of the tenant (owner/staff) Cognito User Pool — scoped Admin* user-management access"
   type        = string
   sensitive   = false
 }

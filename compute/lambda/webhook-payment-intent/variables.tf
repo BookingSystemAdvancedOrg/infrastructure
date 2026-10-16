@@ -22,14 +22,32 @@ variable "order_table_name" {
   sensitive   = false
 }
 
-variable "order_stripe_webhook_secret" {
-  description = "Signing secret (whsec_...) for this endpoint - the handler verifies the Stripe-Signature header against this value, which is what actually authenticates incoming requests since authorization_type is NONE"
+variable "order_stripe_webhook_secret_arn" {
+  description = "ARN of the Secrets Manager secret holding this endpoint's Stripe signing secret (whsec_...) - created and filled by payments/stripe; the handler verifies the Stripe-Signature header against it"
   type        = string
-  sensitive   = true
+  sensitive   = false
 }
 
 variable "region" {
   description = "AWS region this Lambda's log group, ECR repository, and image push target live in"
+  type        = string
+  sensitive   = false
+}
+
+variable "tenant_table_name" {
+  description = "Name of the tenant DynamoDB table - read by the shared tenant-context check (tenant status, plan features, Stripe account, sender)"
+  type        = string
+  sensitive   = false
+}
+
+variable "location_table_name" {
+  description = "Name of the location DynamoDB table, passed as an environment variable"
+  type        = string
+  sensitive   = false
+}
+
+variable "location_id_index_name" {
+  description = "Name of the location table's locationId GSI - resolves a {locationId} from the URL to its tenant"
   type        = string
   sensitive   = false
 }

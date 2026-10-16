@@ -33,10 +33,13 @@ resource "aws_iam_role_policy" "invoke_reactivate_menu_item" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid      = "InvokeReactivateMenuItemFunction"
-        Effect   = "Allow"
-        Action   = "lambda:InvokeFunction"
-        Resource = "${var.reactivate_menu_item_lambda_arn}"
+        Sid    = "InvokeReactivateMenuItemFunction"
+        Effect = "Allow"
+        Action = "lambda:InvokeFunction"
+        Resource = [
+          "${var.reactivate_menu_item_lambda_arn}",
+          "${var.reactivate_menu_item_lambda_arn}:*", # its versions and the "live" alias callers invoke
+        ]
       }
     ]
   })

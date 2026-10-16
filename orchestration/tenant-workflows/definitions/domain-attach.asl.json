@@ -1,0 +1,445 @@
+{
+  "Comment": "Attach a customer's own domain (e.g. www.restaurang.se) to their tenant. Reserves the hostname for exactly one tenant, creates a CloudFront distribution tenant with a CloudFront-managed certificate (HTTP validation, so the customer only adds ONE CNAME), then polls until the certificate is issued. Started by platform-tenants (POST /platform/tenants/{tenantId}/domains). Re-running it for the same domain resumes where it left off.",
+  "QueryLanguage": "JSONata",
+  "TimeoutSeconds": 345600,
+  "StartAt": "Init",
+  "States": {
+    "Init": {
+      "Type": "Pass",
+      "Assign": {
+        "tenantId": "{% $states.input.tenantId %}",
+        "domain": "{% $lowercase($states.input.domain) %}",
+        "makePrimary": "{% $exists($states.input.makePrimary) ? $states.input.makePrimary = true : false %}",
+        "requestedBy": "{% $exists($states.input.requestedBy) ? $states.input.requestedBy : 'unknown' %}",
+        "distributionTenantName": "{% 'domain-' & $substring($hash($lowercase($states.input.domain), 'SHA-256'), 0, 32) %}",
+        "distributionTenantId": "{% '' %}",
+        "certificateChecks": 0,
+        "certificateStatus": "{% '' %}",
+        "failure": {},
+        "failedState": "{% '' %}"
+      },
+      "Next": "PlatformDomainConfigured"
+    },
+    "PlatformDomainConfigured": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Condition": "{% ${platform_domain_enabled} %}",
+          "Next": "ReserveDomain"
+        }
+      ],
+      "Default": "PlatformDomainNotConfigured"
+    },
+    "PlatformDomainNotConfigured": {
+      "Type": "Fail",
+      "Error": "PlatformDomainNotConfigured",
+      "Cause": "Custom domains need the multi-tenant distribution, which only exists once var.platform_domain is set."
+    },
+    "ReserveDomain": {
+      "Type": "Task",
+      "Comment": "DOMAIN#<host> is the global claim on a hostname - it can only ever belong to one tenant.",
+      "Resource": "arn:aws:states:::aws-sdk:dynamodb:transactWriteItems",
+      "Arguments": {
+        "TransactItems": [
+          {
+            "Put": {
+              "TableName": "${tenant_table}",
+              "Item": {
+                "PK": { "S": "{% 'DOMAIN#' & $domain %}" },
+                "SK": { "S": "TENANT" },
+                "tenantId": { "S": "{% $tenantId %}" }
+              },
+              "ConditionExpression": "attribute_not_exists(PK)"
+            }
+          },
+          {
+            "Put": {
+              "TableName": "${tenant_table}",
+              "Item": {
+                "PK": { "S": "{% 'TENANT#' & $tenantId %}" },
+                "SK": { "S": "{% 'DOMAIN#' & $domain %}" },
+                "domain": { "S": "{% $domain %}" },
+                "kind": { "S": "custom" },
+                "status": { "S": "pending_dns" },
+                "cnameTarget": { "S": "${cname_target}" },
+                "requestedBy": { "S": "{% $requestedBy %}" },
+                "requestedAt": { "S": "{% $now() %}" }
+              },
+              "ConditionExpression": "attribute_not_exists(PK)"
+            }
+          }
+        ]
+      },
+      "Catch": [
+        {
+          "ErrorEquals": ["DynamoDb.TransactionCanceledException"],
+          "Next": "GetDomainOwner"
+        },
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Assign": { "failure": "{% $states.errorOutput %}", "failedState": "{% $states.context.State.Name %}" },
+          "Next": "MarkFailed"
+        }
+      ],
+      "Next": "CreateDistributionTenant"
+    },
+    "GetDomainOwner": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:getItem",
+      "Arguments": {
+        "TableName": "${tenant_table}",
+        "Key": {
+          "PK": { "S": "{% 'DOMAIN#' & $domain %}" },
+          "SK": { "S": "TENANT" }
+        },
+        "ConsistentRead": true
+      },
+      "Assign": {
+        "domainOwner": "{% ($o := $states.result.Item.tenantId.S; $o ? $o : '') %}"
+      },
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Assign": { "failure": "{% $states.errorOutput %}", "failedState": "{% $states.context.State.Name %}" },
+          "Next": "MarkFailed"
+        }
+      ],
+      "Next": "DomainOwnedByTenant"
+    },
+    "DomainOwnedByTenant": {
+      "Type": "Choice",
+      "Comment": "Re-attaching our own domain resumes; a domain another tenant holds stops here without touching that tenant's rows.",
+      "Choices": [
+        {
+          "Condition": "{% $domainOwner = $tenantId %}",
+          "Next": "CreateDistributionTenant"
+        }
+      ],
+      "Default": "DomainInUse"
+    },
+    "DomainInUse": {
+      "Type": "Fail",
+      "Error": "DomainInUse",
+      "Cause": "This hostname is already attached to another tenant."
+    },
+    "CreateDistributionTenant": {
+      "Type": "Task",
+      "Comment": "ValidationTokenHost cloudfront: once the customer's CNAME points at the connection group, CloudFront serves ACM's HTTP validation token itself - the customer adds no validation records.",
+      "Resource": "arn:aws:states:::aws-sdk:cloudfront:createDistributionTenant",
+      "Arguments": {
+        "DistributionId": "${distribution_id}",
+        "Name": "{% $distributionTenantName %}",
+        "Domains": [
+          { "Domain": "{% $domain %}" }
+        ],
+        "Parameters": [
+          { "Name": "tenantId", "Value": "{% $tenantId %}" }
+        ],
+        "ConnectionGroupId": "${connection_group_id}",
+        "ManagedCertificateRequest": {
+          "ValidationTokenHost": "cloudfront",
+          "PrimaryDomainName": "{% $domain %}",
+          "CertificateTransparencyLoggingPreference": "enabled"
+        },
+        "Enabled": true
+      },
+      "Assign": {
+        "distributionTenantId": "{% $states.result.DistributionTenant.Id %}"
+      },
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Assign": { "createError": "{% $states.errorOutput %}" },
+          "Next": "FindDistributionTenant"
+        }
+      ],
+      "Next": "RecordDistributionTenant"
+    },
+    "FindDistributionTenant": {
+      "Type": "Task",
+      "Comment": "A resumed run finds the distribution tenant created earlier (deterministic name). It must carry OUR tenantId parameter.",
+      "Resource": "arn:aws:states:::aws-sdk:cloudfront:getDistributionTenant",
+      "Arguments": {
+        "Identifier": "{% $distributionTenantName %}"
+      },
+      "Assign": {
+        "distributionTenantId": "{% $states.result.DistributionTenant.Id %}",
+        "distributionTenantOwner": "{% ($p := $states.result.DistributionTenant.Parameters[Name = 'tenantId'].Value; $p ? $p : '') %}"
+      },
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Assign": { "failure": "{% $createError %}", "failedState": "CreateDistributionTenant" },
+          "Next": "MarkFailed"
+        }
+      ],
+      "Next": "DistributionTenantIsOurs"
+    },
+    "DistributionTenantIsOurs": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Condition": "{% $distributionTenantOwner = $tenantId %}",
+          "Next": "RecordDistributionTenant"
+        }
+      ],
+      "Default": "DistributionTenantConflict"
+    },
+    "DistributionTenantConflict": {
+      "Type": "Pass",
+      "Assign": {
+        "failedState": "CreateDistributionTenant",
+        "failure": {
+          "Error": "DistributionTenantConflict",
+          "Cause": "{% 'A distribution tenant named ' & $distributionTenantName & ' exists for another tenant (' & $distributionTenantOwner & ').' %}"
+        }
+      },
+      "Next": "MarkFailed"
+    },
+    "RecordDistributionTenant": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:updateItem",
+      "Arguments": {
+        "TableName": "${tenant_table}",
+        "Key": {
+          "PK": { "S": "{% 'TENANT#' & $tenantId %}" },
+          "SK": { "S": "{% 'DOMAIN#' & $domain %}" }
+        },
+        "UpdateExpression": "SET #status = :status, distributionTenantId = :dt, updatedAt = :now",
+        "ConditionExpression": "attribute_exists(PK) AND #status <> :removing",
+        "ExpressionAttributeNames": { "#status": "status" },
+        "ExpressionAttributeValues": {
+          ":removing": { "S": "removing" },
+          ":status": { "S": "pending_validation" },
+          ":dt": { "S": "{% $distributionTenantId %}" },
+          ":now": { "S": "{% $now() %}" }
+        }
+      },
+      "Catch": [
+        {
+          "ErrorEquals": ["DynamoDB.ConditionalCheckFailedException"],
+          "Next": "DomainRemoved"
+        },
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Assign": { "failure": "{% $states.errorOutput %}", "failedState": "{% $states.context.State.Name %}" },
+          "Next": "MarkFailed"
+        }
+      ],
+      "Next": "WaitForCertificate"
+    },
+    "WaitForCertificate": {
+      "Type": "Wait",
+      "Seconds": ${certificate_check_interval_seconds},
+      "Next": "CheckCertificate"
+    },
+    "CheckCertificate": {
+      "Type": "Task",
+      "Comment": "Right after creation the certificate request may not be visible yet - a failed check counts as still pending.",
+      "Resource": "arn:aws:states:::aws-sdk:cloudfront:getManagedCertificateDetails",
+      "Arguments": {
+        "Identifier": "{% $distributionTenantId %}"
+      },
+      "Assign": {
+        "certificateChecks": "{% $certificateChecks + 1 %}",
+        "certificateStatus": "{% $states.result.ManagedCertificateDetails.CertificateStatus %}"
+      },
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Assign": {
+            "certificateChecks": "{% $certificateChecks + 1 %}",
+            "certificateStatus": "pending-validation"
+          },
+          "Next": "CertificateState"
+        }
+      ],
+      "Next": "CertificateState"
+    },
+    "CertificateState": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Condition": "{% $certificateStatus = 'issued' %}",
+          "Next": "MarkActive"
+        },
+        {
+          "Condition": "{% $certificateStatus in ['failed', 'revoked', 'expired', 'inactive', 'validation-timed-out'] %}",
+          "Next": "CertificateFailed"
+        },
+        {
+          "Condition": "{% $certificateChecks >= ${max_certificate_checks} %}",
+          "Next": "MarkValidationTimedOut"
+        }
+      ],
+      "Default": "WaitForCertificate"
+    },
+    "CertificateFailed": {
+      "Type": "Pass",
+      "Assign": {
+        "failedState": "CheckCertificate",
+        "failure": {
+          "Error": "CertificateNotIssued",
+          "Cause": "{% 'CloudFront-managed certificate for ' & $domain & ' ended in status ' & $certificateStatus & '. Check that the CNAME points at ${cname_target}, then attach the domain again.' %}"
+        }
+      },
+      "Next": "MarkFailed"
+    },
+    "MarkValidationTimedOut": {
+      "Type": "Task",
+      "Comment": "The usual cause is a CNAME that was never added. Not an incident: the dashboard shows the status; adding the domain again (same tenant) resumes.",
+      "Resource": "arn:aws:states:::dynamodb:updateItem",
+      "Arguments": {
+        "TableName": "${tenant_table}",
+        "Key": {
+          "PK": { "S": "{% 'TENANT#' & $tenantId %}" },
+          "SK": { "S": "{% 'DOMAIN#' & $domain %}" }
+        },
+        "UpdateExpression": "SET #status = :status, lastError = :error, updatedAt = :now",
+        "ConditionExpression": "attribute_exists(PK) AND #status <> :removing",
+        "ExpressionAttributeNames": { "#status": "status" },
+        "ExpressionAttributeValues": {
+          ":removing": { "S": "removing" },
+          ":status": { "S": "validation_timeout" },
+          ":error": { "S": "{% 'No valid DNS after ' & $string($certificateChecks) & ' checks - add CNAME ' & $domain & ' -> ${cname_target}, then add the domain again.' %}" },
+          ":now": { "S": "{% $now() %}" }
+        }
+      },
+      "Catch": [
+        {
+          "ErrorEquals": ["DynamoDB.ConditionalCheckFailedException"],
+          "Next": "DomainRemoved"
+        },
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Assign": { "failure": "{% $states.errorOutput %}", "failedState": "{% $states.context.State.Name %}" },
+          "Next": "MarkFailed"
+        }
+      ],
+      "Next": "WaitingForDnsEnded"
+    },
+    "WaitingForDnsEnded": {
+      "Type": "Succeed"
+    },
+    "MarkActive": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:updateItem",
+      "Arguments": {
+        "TableName": "${tenant_table}",
+        "Key": {
+          "PK": { "S": "{% 'TENANT#' & $tenantId %}" },
+          "SK": { "S": "{% 'DOMAIN#' & $domain %}" }
+        },
+        "UpdateExpression": "SET #status = :status, activatedAt = :now, updatedAt = :now REMOVE lastError",
+        "ConditionExpression": "attribute_exists(PK) AND #status <> :removing",
+        "ExpressionAttributeNames": { "#status": "status" },
+        "ExpressionAttributeValues": {
+          ":removing": { "S": "removing" },
+          ":status": { "S": "active" },
+          ":now": { "S": "{% $now() %}" }
+        }
+      },
+      "Catch": [
+        {
+          "ErrorEquals": ["DynamoDB.ConditionalCheckFailedException"],
+          "Next": "DomainRemoved"
+        },
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Assign": { "failure": "{% $states.errorOutput %}", "failedState": "{% $states.context.State.Name %}" },
+          "Next": "MarkFailed"
+        }
+      ],
+      "Next": "MakePrimary"
+    },
+    "MakePrimary": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Condition": "{% $makePrimary %}",
+          "Next": "SetPrimaryDomain"
+        }
+      ],
+      "Default": "Attached"
+    },
+    "SetPrimaryDomain": {
+      "Type": "Task",
+      "Comment": "primaryDomain is the base URL of every link the platform sends for this tenant (catering magic links, Checkout return URLs).",
+      "Resource": "arn:aws:states:::dynamodb:updateItem",
+      "Arguments": {
+        "TableName": "${tenant_table}",
+        "Key": {
+          "PK": { "S": "{% 'TENANT#' & $tenantId %}" },
+          "SK": { "S": "PROFILE" }
+        },
+        "UpdateExpression": "SET primaryDomain = :d, updatedAt = :now",
+        "ExpressionAttributeValues": {
+          ":d": { "S": "{% $domain %}" },
+          ":now": { "S": "{% $now() %}" }
+        }
+      },
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Assign": { "failure": "{% $states.errorOutput %}", "failedState": "{% $states.context.State.Name %}" },
+          "Next": "MarkFailed"
+        }
+      ],
+      "Next": "Attached"
+    },
+    "Attached": {
+      "Type": "Succeed"
+    },
+    "DomainRemoved": {
+      "Type": "Succeed",
+      "Comment": "The domain was detached while this attach was still running - nothing to record."
+    },
+    "MarkFailed": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:updateItem",
+      "Arguments": {
+        "TableName": "${tenant_table}",
+        "Key": {
+          "PK": { "S": "{% 'TENANT#' & $tenantId %}" },
+          "SK": { "S": "{% 'DOMAIN#' & $domain %}" }
+        },
+        "UpdateExpression": "SET #status = :status, lastError = :error, updatedAt = :now",
+        "ConditionExpression": "attribute_exists(PK)",
+        "ExpressionAttributeNames": { "#status": "status" },
+        "ExpressionAttributeValues": {
+          ":status": { "S": "failed" },
+          ":error": { "S": "{% $substring($string($failure.Error) & ': ' & $string($failure.Cause), 0, 1000) %}" },
+          ":now": { "S": "{% $now() %}" }
+        }
+      },
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "NotifyFailure"
+        }
+      ],
+      "Next": "NotifyFailure"
+    },
+    "NotifyFailure": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::sns:publish",
+      "Arguments": {
+        "TopicArn": "${alert_topic_arn}",
+        "Subject": "${environment}: custom domain attach failed",
+        "Message": "{% 'Attaching ' & $domain & ' to tenant ' & $tenantId & ' failed at ' & $failedState & '.\\n\\n' & $string($failure) & '\\n\\nExecution: ' & $states.context.Execution.Id %}"
+      },
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "AttachFailed"
+        }
+      ],
+      "Next": "AttachFailed"
+    },
+    "AttachFailed": {
+      "Type": "Fail",
+      "Error": "DomainAttachFailed",
+      "Cause": "See the domain row's lastError and the alert email."
+    }
+  }
+}

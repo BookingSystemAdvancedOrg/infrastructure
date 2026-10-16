@@ -1,11 +1,13 @@
 # Execution role for the manage-user Lambda.
 #
-# Per explicit request: full dynamodb:* on the user table, rather than the
-# scoped Scan/PutItem/UpdateItem/DeleteItem set that was recommended.
+# User table: only the item-level actions the function's code calls (application repo:
+# functions/<name>/app.py and the shared modules it imports) - no table-
+# level actions (DeleteTable, UpdateTable, backups, TTL...). Add an action
+# here when the code starts calling a new one.
 #
 # Cognito access is scoped to the specific Admin* actions "manage-user"
 # actually needs to run the full staff lifecycle - inviting (AdminCreateUser
-# + AdminAddUserToGroup to assign staff/owner_user/super_user), updating,
+# + AdminAddUserToGroup to assign staff_user/owner_user within the caller's own tenant - new users get custom:tenant_id = the caller's tenant_id claim), updating,
 # deactivating/reactivating, and removing someone - rather than a blanket
 # cognito-idp:* wildcard, which would also grant things like deleting the
 # user pool itself.
@@ -43,10 +45,22 @@ resource "aws_iam_role_policy" "dynamodb_full" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid      = "FullAccessUserTable"
-        Effect   = "Allow"
-        Action   = "dynamodb:*"
+        Sid    = "ItemAccessUserTable"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:DeleteItem",
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:Query",
+        ]
         Resource = "${var.user_table_arn}"
+      },
+      {
+        # List a tenant's users (Query byTenant) - never a Scan.
+        Sid      = "ListUsersByTenant"
+        Effect   = "Allow"
+        Action   = "dynamodb:Query"
+        Resource = "${var.user_table_arn}/index/byTenant"
       }
     ]
   })

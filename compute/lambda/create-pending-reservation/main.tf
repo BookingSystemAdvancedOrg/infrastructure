@@ -14,6 +14,11 @@ resource "aws_cloudwatch_log_group" "this" {
 }
 
 resource "aws_lambda_function" "this" {
+  # Every code/config change Terraform makes is published as a new version.
+  # Callers never invoke the function directly - they invoke the "live"
+  # alias (alias.tf).
+  publish = true
+
   function_name = local.function_name
   role          = var.role_arn
   package_type  = "Image"
@@ -25,13 +30,21 @@ resource "aws_lambda_function" "this" {
 
   environment {
     variables = {
+      TENANT_TABLE_NAME                    = var.tenant_table_name
+      LOCATION_ID_INDEX_NAME               = var.location_id_index_name
       ENVIRONMENT                          = var.environment
       LOCATION_TABLE_NAME                  = var.location_table_name
       PUBLISHED_LAYOUT_SNAPSHOT_TABLE_NAME = var.published_layout_snapshot_table_name
       SLOT_OCCUPANCY_TABLE_NAME            = var.slot_occupancy_table_name
       RESERVATION_TABLE_NAME               = var.reservation_table_name
+      USER_TABLE_NAME                      = var.user_table_name
       PAYMENT_DELINQUENCY_TABLE_NAME       = var.payment_delinquency_table_name
-      STRIPE_SECRET_KEY                    = var.stripe_secret_key # to create a SetupIntent (card-on-file, no charge yet) so the front-end can collect card details
+      RESERVATION_LINK_KEY_SECRET_ARN      = var.reservation_link_key_secret_arn # signs the manage token returned to the guest
+      STRIPE_SECRET_ARN                    = var.stripe_secret_arn               # platform Stripe key secret (Connect) - to create a SetupIntent (card-on-file, no charge yet) on the tenant's connected account
+      STRIPE_API_VERSION                   = var.stripe_api_version
+      TURNSTILE_REQUIRED                   = var.turnstile_required ? "true" : "false" # bot check on online bookings (the sites show the widget)
+      TURNSTILE_SECRET_ARN                 = var.turnstile_secret_arn                  # platform Turnstile secret key {"secretKey": "..."}
+      REQUEST_GUARD_TABLE_NAME             = var.request_guard_table_name              # attempt limits per IP / phone / e-mail
     }
   }
 

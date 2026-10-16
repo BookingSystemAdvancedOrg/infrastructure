@@ -1,7 +1,7 @@
 
 # S3 bucket names are globally unique across every AWS account, not just
 # this one - the account ID suffix guarantees no collision without needing
-# a manually-chosen unique name per fork/customer.
+# a manually-chosen unique name per account.
 data "aws_caller_identity" "current" {}
 
 resource "aws_s3_bucket" "menu_image" {
@@ -32,17 +32,20 @@ resource "aws_s3_bucket_policy" "menu_image" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid       = "AllowBothCloudFrontDistributionsReadOnly"
+        Sid       = "AllowOwnCloudFrontDistributionsReadOnly"
         Effect    = "Allow"
         Principal = { Service = "cloudfront.amazonaws.com" }
         Action    = "s3:GetObject"
         Resource  = "${aws_s3_bucket.menu_image.arn}/*"
         Condition = {
           StringEquals = {
-            "AWS:SourceArn" = [
-              "${var.public_cloudfront_distribution_arn}",
-              "${var.private_cloudfront_distribution_arn}",
-            ]
+            # Public + private distributions, plus the tenant-sites
+            # multi-tenant distribution once the platform domain is set
+            # (tenant websites serve /menu-images/* same-origin).
+            "AWS:SourceArn" = concat([
+              var.public_cloudfront_distribution_arn,
+              var.private_cloudfront_distribution_arn,
+            ], var.additional_cloudfront_distribution_arns)
           }
         }
       }

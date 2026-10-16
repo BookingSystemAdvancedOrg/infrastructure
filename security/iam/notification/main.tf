@@ -109,6 +109,46 @@ resource "aws_iam_role_policy" "catering_requests_stream_read" {
   })
 }
 
+# All three stream mappings (reservation, order, catering-requests) send
+# batches they gave up on to the notification-stream DLQ - Lambda writes the
+# failure record with this role, so it needs SendMessage on exactly that queue.
+resource "aws_iam_role_policy" "stream_dlq" {
+  name = "notification-stream-dlq-send"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "SendFailedStreamBatchesToDlq"
+        Effect   = "Allow"
+        Action   = "sqs:SendMessage"
+        Resource = "${var.notification_dlq_arn}"
+      }
+    ]
+  })
+}
+
+# Catering emails to customers carry their magic link, which is an HMAC
+# over the request id - NotificationFn rebuilds it from the stream record
+# with this key instead of the raw link ever being stored.
+resource "aws_iam_role_policy" "catering_link_signing_key" {
+  name = "catering-link-signing-key-read"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "ReadCateringLinkSigningKey"
+        Effect   = "Allow"
+        Action   = "secretsmanager:GetSecretValue"
+        Resource = "${var.catering_link_signing_key_secret_arn}"
+      }
+    ]
+  })
+}
+
 # SNS phone-number publishing (SMS) has no per-number ARN to scope to -
 # AWS requires Resource = "*" for direct-to-phone-number sns:Publish calls,
 # since an arbitrary customer phone number isn't a resource that exists in
@@ -142,6 +182,42 @@ resource "aws_iam_role_policy" "ses_send_email" {
         Effect   = "Allow"
         Action   = "ses:SendEmail"
         Resource = "${var.ses_identity_arn}"
+      },
+      {
+        # SES also authorizes against the RECIPIENT's identity when the
+        # recipient is itself a verified identity (always the case in the SES
+        # sandbox, where only verified addresses can receive). Any identity in
+        # this account, but only for mail sent FROM the no-reply address.
+        Sid      = "SendToVerifiedRecipientIdentities"
+        Effect   = "Allow"
+        Action   = "ses:SendEmail"
+        Resource = "arn:aws:ses:${var.region}:${data.aws_caller_identity.current.account_id}:identity/*"
+        Condition = {
+          StringLike = {
+            "ses:FromAddress" = [var.from_address, "*<${var.from_address}>"]
+          }
+        }
+      }
+    ]
+  })
+}
+
+# Dev mail outbox: write-only, and only when the outbox exists
+# (var.mail_outbox, never prod). The ses_send_email policy stays - the
+# Lambda just doesn't call SES while the outbox is on.
+resource "aws_iam_role_policy" "mail_outbox" {
+  count = var.mail_outbox_enabled ? 1 : 0
+  name  = "mail-outbox-write"
+  role  = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "WriteDevMailOutbox"
+        Effect   = "Allow"
+        Action   = "s3:PutObject"
+        Resource = "${var.mail_outbox_bucket_arn}/outbox/*"
       }
     ]
   })

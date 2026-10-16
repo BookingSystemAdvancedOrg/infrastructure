@@ -1,7 +1,11 @@
 # Execution role for the ExpireLayoutVersionFn Lambda.
 #
-# Per explicit request: full dynamodb:* on the published layout snapshot
-# table. This is the Lambda targeted by the one-time EventBridge Schedule
+# DynamoDB: only the item-level actions the function's code calls (application repo:
+# functions/<name>/app.py and the shared modules it imports) - no table-
+# level actions (DeleteTable, UpdateTable, backups, TTL...). Add an action
+# here when the code starts calling a new one.
+#
+# This is the Lambda targeted by the one-time EventBridge Schedule
 # created at publish time — it fires at cutover and conditionally flips
 # isCurrent = false on the superseded version.
 
@@ -38,9 +42,12 @@ resource "aws_iam_role_policy" "dynamodb_full" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid      = "FullAccessPublishedLayoutSnapshotTable"
-        Effect   = "Allow"
-        Action   = "dynamodb:*"
+        Sid    = "ItemAccessPublishedLayoutSnapshotTable"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:GetItem",
+          "dynamodb:UpdateItem",
+        ]
         Resource = "${var.published_layout_snapshot_table_arn}"
       }
     ]
@@ -69,6 +76,26 @@ resource "aws_iam_role_policy" "logs" {
           "logs:PutLogEvents",
         ]
         Resource = "arn:aws:logs:${var.region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${local.function_name}:*"
+      }
+    ]
+  })
+}
+
+# Lambda delivers this function's failed asynchronous (scheduled) invocations
+# to the scheduled-invocation DLQ using THIS role, so it needs SendMessage on
+# exactly that queue (compute/lambda/<name>: aws_lambda_function_event_invoke_config).
+resource "aws_iam_role_policy" "scheduled_invocation_dlq" {
+  name = "scheduled-invocation-dlq-send"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "SendFailedScheduledInvocationsToDlq"
+        Effect   = "Allow"
+        Action   = "sqs:SendMessage"
+        Resource = "${var.scheduled_invocation_dlq_arn}"
       }
     ]
   })

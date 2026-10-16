@@ -21,3 +21,15 @@ variable "region" {
   type        = string
   sensitive   = false
 }
+
+variable "codedeploy_app_name" {
+  description = "CodeDeploy application releases run in (orchestration/lambda-releases)"
+  type        = string
+  sensitive   = false
+}
+
+variable "alert_topic_arn" {
+  description = "Platform alerts SNS topic - release results are emailed through it"
+  type        = string
+  sensitive   = false
+}

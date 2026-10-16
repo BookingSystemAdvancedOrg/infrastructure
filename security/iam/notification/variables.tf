@@ -16,6 +16,12 @@ variable "ses_identity_arn" {
   sensitive   = false
 }
 
+variable "from_address" {
+  description = "The no-reply address mail is sent from - the only From the recipient-identity grant allows"
+  type        = string
+  sensitive   = false
+}
+
 variable "region" {
   description = "AWS region this Lambda's log group lives in"
   type        = string
@@ -29,7 +35,33 @@ variable "order_stream_arn" {
 }
 
 variable "catering_requests_stream_arn" {
-  description = "ARN of the catering-requests DynamoDB table's Stream — read-only, for the new-request owner-notification email"
+  description = "ARN of the catering-requests DynamoDB table's Stream — read-only, for the new-request owner email and customer-facing status emails"
   type        = string
   sensitive   = false
+}
+
+variable "notification_dlq_arn" {
+  description = "ARN of the notification-stream DLQ - all three stream mappings (reservation, order, catering-requests) send failed batches there"
+  type        = string
+  sensitive   = false
+}
+
+variable "catering_link_signing_key_secret_arn" {
+  description = "ARN of the catering magic-link HMAC key secret — read to build customer links in catering emails"
+  type        = string
+  sensitive   = false
+}
+
+variable "mail_outbox_bucket_arn" {
+  description = "ARN of the dev mail outbox bucket (empty = no outbox, always in prod) - write access to outbox/*"
+  type        = string
+  sensitive   = false
+  default     = ""
+}
+
+variable "mail_outbox_enabled" {
+  description = "Whether the dev mail outbox exists (plain bool so the policy count is known at plan time, unlike the bucket ARN)"
+  type        = bool
+  sensitive   = false
+  default     = false
 }

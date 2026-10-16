@@ -44,9 +44,14 @@ resource "aws_iam_role_policy" "dynamodb" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid      = "AllPublishedLayoutSnapshotActions"
-        Effect   = "Allow"
-        Action   = "dynamodb:*"
+        Sid    = "AllPublishedLayoutSnapshotActions"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:ConditionCheckItem",
+          "dynamodb:GetItem",
+          "dynamodb:Query",
+          "dynamodb:UpdateItem",
+        ]
         Resource = "${var.published_layout_snapshot_table_arn}"
       },
       {

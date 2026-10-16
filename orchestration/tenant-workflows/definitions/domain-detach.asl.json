@@ -1,0 +1,394 @@
+{
+  "Comment": "Detach a domain from a tenant: disable its CloudFront distribution tenant, wait until that change is deployed, delete it, then release the DOMAIN#<host> claim. Started by platform-tenants (DELETE /platform/tenants/{tenantId}/domains/{domain}) and by the offboarding workflow for every domain of the tenant.",
+  "QueryLanguage": "JSONata",
+  "TimeoutSeconds": 7200,
+  "StartAt": "Init",
+  "States": {
+    "Init": {
+      "Type": "Pass",
+      "Assign": {
+        "tenantId": "{% $states.input.tenantId %}",
+        "domain": "{% $lowercase($states.input.domain) %}",
+        "distributionTenantId": "{% '' %}",
+        "etag": "{% '' %}",
+        "deployChecks": 0,
+        "failure": {},
+        "failedState": "{% '' %}"
+      },
+      "Next": "GetDomainRow"
+    },
+    "GetDomainRow": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:getItem",
+      "Arguments": {
+        "TableName": "${tenant_table}",
+        "Key": {
+          "PK": { "S": "{% 'TENANT#' & $tenantId %}" },
+          "SK": { "S": "{% 'DOMAIN#' & $domain %}" }
+        },
+        "ConsistentRead": true
+      },
+      "Assign": {
+        "distributionTenantId": "{% ($d := $states.result.Item.distributionTenantId.S; $d ? $d : '') %}"
+      },
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Assign": { "failure": "{% $states.errorOutput %}", "failedState": "{% $states.context.State.Name %}" },
+          "Next": "NotifyFailure"
+        }
+      ],
+      "Next": "HasDistributionTenant"
+    },
+    "HasDistributionTenant": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Condition": "{% $distributionTenantId != '' %}",
+          "Next": "MarkRemoving"
+        }
+      ],
+      "Default": "ReleaseDomain"
+    },
+    "MarkRemoving": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:updateItem",
+      "Arguments": {
+        "TableName": "${tenant_table}",
+        "Key": {
+          "PK": { "S": "{% 'TENANT#' & $tenantId %}" },
+          "SK": { "S": "{% 'DOMAIN#' & $domain %}" }
+        },
+        "UpdateExpression": "SET #status = :status, updatedAt = :now",
+        "ExpressionAttributeNames": { "#status": "status" },
+        "ExpressionAttributeValues": {
+          ":status": { "S": "removing" },
+          ":now": { "S": "{% $now() %}" }
+        }
+      },
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Assign": { "failure": "{% $states.errorOutput %}", "failedState": "{% $states.context.State.Name %}" },
+          "Next": "NotifyFailure"
+        }
+      ],
+      "Next": "GetDistributionTenant"
+    },
+    "GetDistributionTenant": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:cloudfront:getDistributionTenant",
+      "Arguments": {
+        "Identifier": "{% $distributionTenantId %}"
+      },
+      "Assign": {
+        "etag": "{% $states.result.ETag %}",
+        "enabled": "{% $states.result.DistributionTenant.Enabled %}",
+        "deployStatus": "{% $states.result.DistributionTenant.Status %}"
+      },
+      "Catch": [
+        {
+          "ErrorEquals": ["CloudFront.EntityNotFoundException", "CloudFront.EntityNotFound"],
+          "Next": "ReleaseDomain"
+        },
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Assign": { "failure": "{% $states.errorOutput %}", "failedState": "{% $states.context.State.Name %}" },
+          "Next": "NotifyFailure"
+        }
+      ],
+      "Next": "IsEnabled"
+    },
+    "IsEnabled": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Condition": "{% $enabled %}",
+          "Next": "DisableDistributionTenant"
+        },
+        {
+          "Condition": "{% $deployStatus = 'Deployed' %}",
+          "Next": "DeleteDistributionTenant"
+        }
+      ],
+      "Default": "WaitForDeployment"
+    },
+    "DisableDistributionTenant": {
+      "Type": "Task",
+      "Comment": "CloudFront only deletes a distribution tenant that is disabled.",
+      "Resource": "arn:aws:states:::aws-sdk:cloudfront:updateDistributionTenant",
+      "Arguments": {
+        "Id": "{% $distributionTenantId %}",
+        "IfMatch": "{% $etag %}",
+        "Enabled": false
+      },
+      "Retry": [
+        {
+          "ErrorEquals": ["CloudFront.TooManyRequestsException", "CloudFront.ThrottlingException"],
+          "IntervalSeconds": 5,
+          "MaxAttempts": 5,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["CloudFront.PreconditionFailedException", "CloudFront.InvalidIfMatchVersionException"],
+          "Next": "GetDistributionTenant"
+        },
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Assign": { "failure": "{% $states.errorOutput %}", "failedState": "{% $states.context.State.Name %}" },
+          "Next": "NotifyFailure"
+        }
+      ],
+      "Next": "WaitForDeployment"
+    },
+    "WaitForDeployment": {
+      "Type": "Wait",
+      "Seconds": 60,
+      "Next": "CheckDeployment"
+    },
+    "CheckDeployment": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:cloudfront:getDistributionTenant",
+      "Arguments": {
+        "Identifier": "{% $distributionTenantId %}"
+      },
+      "Assign": {
+        "etag": "{% $states.result.ETag %}",
+        "enabled": "{% $states.result.DistributionTenant.Enabled %}",
+        "deployStatus": "{% $states.result.DistributionTenant.Status %}",
+        "deployChecks": "{% $deployChecks + 1 %}"
+      },
+      "Catch": [
+        {
+          "ErrorEquals": ["CloudFront.EntityNotFoundException", "CloudFront.EntityNotFound"],
+          "Next": "ReleaseDomain"
+        },
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Assign": { "failure": "{% $states.errorOutput %}", "failedState": "{% $states.context.State.Name %}" },
+          "Next": "NotifyFailure"
+        }
+      ],
+      "Next": "Deployed"
+    },
+    "Deployed": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Condition": "{% $enabled %}",
+          "Next": "DisableDistributionTenant"
+        },
+        {
+          "Condition": "{% $deployStatus = 'Deployed' %}",
+          "Next": "DeleteDistributionTenant"
+        },
+        {
+          "Condition": "{% $deployChecks >= 60 %}",
+          "Next": "DeploymentTimedOut"
+        }
+      ],
+      "Default": "WaitForDeployment"
+    },
+    "DeploymentTimedOut": {
+      "Type": "Pass",
+      "Assign": {
+        "failedState": "CheckDeployment",
+        "failure": {
+          "Error": "DeploymentTimedOut",
+          "Cause": "{% 'Distribution tenant ' & $distributionTenantId & ' was not Deployed after ' & $string($deployChecks) & ' minutes (status ' & $deployStatus & ').' %}"
+        }
+      },
+      "Next": "NotifyFailure"
+    },
+    "DeleteDistributionTenant": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:cloudfront:deleteDistributionTenant",
+      "Arguments": {
+        "Id": "{% $distributionTenantId %}",
+        "IfMatch": "{% $etag %}"
+      },
+      "Catch": [
+        {
+          "ErrorEquals": ["CloudFront.PreconditionFailedException", "CloudFront.InvalidIfMatchVersionException", "CloudFront.ResourceNotDisabledException", "CloudFront.ResourceNotDisabled"],
+          "Next": "WaitForDeployment"
+        },
+        {
+          "ErrorEquals": ["CloudFront.EntityNotFoundException", "CloudFront.EntityNotFound"],
+          "Next": "ReleaseDomain"
+        },
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Assign": { "failure": "{% $states.errorOutput %}", "failedState": "{% $states.context.State.Name %}" },
+          "Next": "NotifyFailure"
+        }
+      ],
+      "Next": "ReleaseDomain"
+    },
+    "ReleaseDomain": {
+      "Type": "Task",
+      "Comment": "Frees the hostname for reuse. The DOMAIN# claim is only deleted if it is still ours.",
+      "Resource": "arn:aws:states:::aws-sdk:dynamodb:transactWriteItems",
+      "Arguments": {
+        "TransactItems": [
+          {
+            "Delete": {
+              "TableName": "${tenant_table}",
+              "Key": {
+                "PK": { "S": "{% 'DOMAIN#' & $domain %}" },
+                "SK": { "S": "TENANT" }
+              },
+              "ConditionExpression": "attribute_not_exists(PK) OR tenantId = :t",
+              "ExpressionAttributeValues": {
+                ":t": { "S": "{% $tenantId %}" }
+              }
+            }
+          },
+          {
+            "Delete": {
+              "TableName": "${tenant_table}",
+              "Key": {
+                "PK": { "S": "{% 'TENANT#' & $tenantId %}" },
+                "SK": { "S": "{% 'DOMAIN#' & $domain %}" }
+              }
+            }
+          }
+        ]
+      },
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Assign": { "failure": "{% $states.errorOutput %}", "failedState": "{% $states.context.State.Name %}" },
+          "Next": "NotifyFailure"
+        }
+      ],
+      "Next": "GetProfile"
+    },
+    "GetProfile": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:getItem",
+      "Arguments": {
+        "TableName": "${tenant_table}",
+        "Key": {
+          "PK": { "S": "{% 'TENANT#' & $tenantId %}" },
+          "SK": { "S": "PROFILE" }
+        },
+        "ProjectionExpression": "slug, primaryDomain, #status",
+        "ExpressionAttributeNames": { "#status": "status" },
+        "ConsistentRead": true
+      },
+      "Assign": {
+        "wasPrimary": "{% $states.result.Item.primaryDomain.S = $domain %}",
+        "fallbackDomain": "{% ($slug := $states.result.Item.slug.S; ${platform_domain_enabled} and $slug and $states.result.Item.status.S != 'offboarding' ? $slug & '.${platform_domain}' : '') %}"
+      },
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Assign": { "failure": "{% $states.errorOutput %}", "failedState": "{% $states.context.State.Name %}" },
+          "Next": "NotifyFailure"
+        }
+      ],
+      "Next": "WasPrimary"
+    },
+    "WasPrimary": {
+      "Type": "Choice",
+      "Comment": "Links (magic links, Checkout return URLs) use primaryDomain - when the primary goes, fall back to the tenant's platform subdomain rather than to nothing.",
+      "Choices": [
+        {
+          "Condition": "{% $wasPrimary and $fallbackDomain != '' and $fallbackDomain != $domain %}",
+          "Next": "FallBackToSubdomain"
+        },
+        {
+          "Condition": "{% $wasPrimary %}",
+          "Next": "ClearPrimaryDomain"
+        }
+      ],
+      "Default": "Detached"
+    },
+    "FallBackToSubdomain": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:updateItem",
+      "Arguments": {
+        "TableName": "${tenant_table}",
+        "Key": {
+          "PK": { "S": "{% 'TENANT#' & $tenantId %}" },
+          "SK": { "S": "PROFILE" }
+        },
+        "UpdateExpression": "SET primaryDomain = :f, updatedAt = :now",
+        "ConditionExpression": "primaryDomain = :d",
+        "ExpressionAttributeValues": {
+          ":d": { "S": "{% $domain %}" },
+          ":f": { "S": "{% $fallbackDomain %}" },
+          ":now": { "S": "{% $now() %}" }
+        }
+      },
+      "Catch": [
+        {
+          "ErrorEquals": ["DynamoDB.ConditionalCheckFailedException"],
+          "Next": "Detached"
+        },
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Assign": { "failure": "{% $states.errorOutput %}", "failedState": "{% $states.context.State.Name %}" },
+          "Next": "NotifyFailure"
+        }
+      ],
+      "Next": "Detached"
+    },
+    "ClearPrimaryDomain": {
+      "Type": "Task",
+      "Comment": "No platform subdomain to fall back to (platform domain off, or the tenant is being offboarded) - the backend then uses CUSTOMER_SITE_URL.",
+      "Resource": "arn:aws:states:::dynamodb:updateItem",
+      "Arguments": {
+        "TableName": "${tenant_table}",
+        "Key": {
+          "PK": { "S": "{% 'TENANT#' & $tenantId %}" },
+          "SK": { "S": "PROFILE" }
+        },
+        "UpdateExpression": "REMOVE primaryDomain SET updatedAt = :now",
+        "ConditionExpression": "primaryDomain = :d",
+        "ExpressionAttributeValues": {
+          ":d": { "S": "{% $domain %}" },
+          ":now": { "S": "{% $now() %}" }
+        }
+      },
+      "Catch": [
+        {
+          "ErrorEquals": ["DynamoDB.ConditionalCheckFailedException"],
+          "Next": "Detached"
+        },
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Assign": { "failure": "{% $states.errorOutput %}", "failedState": "{% $states.context.State.Name %}" },
+          "Next": "NotifyFailure"
+        }
+      ],
+      "Next": "Detached"
+    },
+    "Detached": {
+      "Type": "Succeed"
+    },
+    "NotifyFailure": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::sns:publish",
+      "Arguments": {
+        "TopicArn": "${alert_topic_arn}",
+        "Subject": "${environment}: custom domain detach failed",
+        "Message": "{% 'Detaching ' & $domain & ' from tenant ' & $tenantId & ' failed at ' & $failedState & '.\\n\\n' & $string($failure) & '\\n\\nThe domain row is left in status removing; start the detach again once the cause is fixed. Execution: ' & $states.context.Execution.Id %}"
+      },
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "DetachFailed"
+        }
+      ],
+      "Next": "DetachFailed"
+    },
+    "DetachFailed": {
+      "Type": "Fail",
+      "Error": "DomainDetachFailed",
+      "Cause": "See the alert email."
+    }
+  }
+}

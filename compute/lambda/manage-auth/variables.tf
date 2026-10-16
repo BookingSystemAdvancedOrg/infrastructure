@@ -39,3 +39,9 @@ variable "region" {
   type        = string
   sensitive   = false
 }
+
+variable "request_guard_table_name" {
+  description = "Name of the request-guard table - per-IP limits on the forgot/reset password routes"
+  type        = string
+  sensitive   = false
+}

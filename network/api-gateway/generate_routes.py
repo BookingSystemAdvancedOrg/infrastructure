@@ -29,6 +29,14 @@ ROUTE_KEY_RE = re.compile(r'route_key\s*=\s*"([A-Z]+) (\S+)"')
 FOREACH_ROUTE_KEY_RE = re.compile(r'route_key\s*=\s*"\$\{each\.value\}\s+(\S+)"')
 METHODS_LIST_RE = re.compile(r'_methods\s*=\s*\[(?P<items>[^\]]*)\]')
 AUTH_RE = re.compile(r'authorization_type\s*=\s*"(\w+)"')
+# A for_each route over a list of full route keys, e.g.
+#   locals { platform_tenants_routes = ["GET /platform/tenants", ...] }
+#   route_key = each.value
+EACH_VALUE_ROUTE_KEY_RE = re.compile(r'route_key\s*=\s*each\.value\b')
+ROUTES_LIST_RE = re.compile(r'_routes\s*=\s*\[(?P<items>[^\]]*)\]')
+# Routes behind the operator-pool authorizer (/platform/*) are labelled
+# differently from tenant-pool JWT routes.
+PLATFORM_AUTHORIZER_RE = re.compile(r'authorizer_id\s*=\s*aws_apigatewayv2_authorizer\.platform\.id')
 
 
 def parse_routes():
@@ -42,6 +50,8 @@ def parse_routes():
         if not auth_match:
             continue  # not a route section (e.g. trailing content) - skip
         auth = auth_match.group(1)
+        if auth == "JWT" and PLATFORM_AUTHORIZER_RE.search(body):
+            auth = "JWT (operator)"
 
         route_key_match = ROUTE_KEY_RE.search(body)
         if route_key_match:
@@ -59,7 +69,14 @@ def parse_routes():
                 routes.append({"lambda": name, "method": method, "path": path, "auth": auth})
             continue
 
-        # Neither shape matched - not a route section, skip.
+        # for_each route over a list of complete "METHOD /path" keys.
+        routes_list_match = ROUTES_LIST_RE.search(body)
+        if EACH_VALUE_ROUTE_KEY_RE.search(body) and routes_list_match:
+            for method, path in re.findall(r'"([A-Z]+) (\S+)"', routes_list_match.group("items")):
+                routes.append({"lambda": name, "method": method, "path": path, "auth": auth})
+            continue
+
+        # No shape matched - not a route section, skip.
     return routes
 
 
@@ -70,9 +87,12 @@ def render_markdown(routes):
         "",
         "# HTTP API routes",
         "",
-        "One row per route defined in `main.tf`. `Auth` is `NONE` (no token required)",
-        "or `JWT` (must present a valid Cognito access token in the `Authorization`",
-        "header, validated by the `cognito` authorizer).",
+        "One row per route defined in `main.tf`. `Auth` is `NONE` (no token required),",
+        "`JWT` (a valid access token from the TENANT user pool in the `Authorization`",
+        "header, validated by the `cognito` authorizer; the Lambda then checks the",
+        "token's tenant_id against the resource) or `JWT (operator)` (an access token",
+        "from the OPERATOR user pool with the `platform/admin` scope, validated by the",
+        "`platform` authorizer).",
         "",
         "| Method | Path | Auth | Lambda |",
         "|---|---|---|---|",

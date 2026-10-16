@@ -14,6 +14,11 @@ resource "aws_cloudwatch_log_group" "this" {
 }
 
 resource "aws_lambda_function" "this" {
+  # Every code/config change Terraform makes is published as a new version.
+  # Callers never invoke the function directly - they invoke the "live"
+  # alias (alias.tf).
+  publish = true
+
   function_name = local.function_name
   role          = var.role_arn
   package_type  = "Image"
@@ -25,8 +30,16 @@ resource "aws_lambda_function" "this" {
 
   environment {
     variables = {
-      ENVIRONMENT            = var.environment
-      RESERVATION_TABLE_NAME = var.reservation_table_name
+      TENANT_TABLE_NAME                    = var.tenant_table_name
+      LOCATION_TABLE_NAME                  = var.location_table_name
+      STRIPE_SECRET_ARN                    = var.stripe_secret_arn # card-guarantee fees and refunds
+      STRIPE_API_VERSION                   = var.stripe_api_version
+      LOCATION_ID_INDEX_NAME               = var.location_id_index_name
+      ENVIRONMENT                          = var.environment
+      RESERVATION_TABLE_NAME               = var.reservation_table_name
+      SLOT_OCCUPANCY_TABLE_NAME            = var.slot_occupancy_table_name
+      PUBLISHED_LAYOUT_SNAPSHOT_TABLE_NAME = var.published_layout_snapshot_table_name
+      USER_TABLE_NAME                      = var.user_table_name
     }
   }
 

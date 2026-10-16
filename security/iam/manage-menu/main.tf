@@ -39,9 +39,14 @@ resource "aws_iam_role_policy" "dynamodb_crud" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid      = "CRUDMenuTable"
-        Effect   = "Allow"
-        Action   = "dynamodb:*"
+        Sid    = "CRUDMenuTable"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:DeleteItem",
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:Query",
+        ]
         Resource = "${var.menu_table_arn}"
       }
     ]

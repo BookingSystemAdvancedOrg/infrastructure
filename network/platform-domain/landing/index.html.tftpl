@@ -1,0 +1,82 @@
+    <div class="wrap">
+      <section class="hero">
+        <p class="eyebrow">Booqy för restauranger</p>
+        <h1>Bordsbokning, beställningar och catering på ett ställe.</h1>
+        <p class="lead">
+          Booqy är ett bokningssystem för svenska restauranger. Gästerna bokar bord, beställer mat
+          och skickar cateringförfrågningar på restaurangens egen webbplats – restaurangen sköter
+          allt i en enkel admin.
+        </p>
+        <div class="actions">
+          <a class="btn btn-primary" href="mailto:${contact_email}?subject=Booqy%20f%C3%B6r%20min%20restaurang">Kontakta oss</a>
+          <a class="btn btn-secondary" href="https://${admin_host}">Logga in för restauranger</a>
+        </div>
+      </section>
+
+      <section aria-labelledby="features">
+        <h2 id="features">Vad Booqy gör</h2>
+        <p class="section-intro">Allt en restaurang behöver för att ta emot gäster online.</p>
+        <div class="grid">
+          <article class="card">
+            <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></span>
+            <h3>Bordsbokning</h3>
+            <p>Gästen väljer dag, tid och bord på restaurangens planritning och får en bekräftelse direkt. Kortgaranti för större sällskap.</p>
+          </article>
+          <article class="card">
+            <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 7h12l-1 13H7L6 7Z"/><path d="M9 7a3 3 0 0 1 6 0"/></svg></span>
+            <h3>Beställ och hämta</h3>
+            <p>Avhämtning och beställning vid bordet via QR-kod. Gästen betalar i förväg och får besked när maten är klar.</p>
+          </article>
+          <article class="card">
+            <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h4"/></svg></span>
+            <h3>Catering</h3>
+            <p>Förfrågan, offert, signering med BankID och betalning – i ett flöde som restaurangen styr.</p>
+          </article>
+          <article class="card">
+            <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2.5"/><path d="M8 21h8M12 18v3M7 9h4M7 13h7"/></svg></span>
+            <h3>Admin för personalen</h3>
+            <p>Dagens bokningar, beställningar från ny till klar, meny, öppettider och personal – för ägare och medarbetare.</p>
+          </article>
+        </div>
+      </section>
+
+      <section aria-labelledby="messages">
+        <div class="note">
+          <h2 id="messages">Mejl och sms från Booqy</h2>
+          <p class="section-intro" style="margin-bottom:0">Vi skickar bara meddelanden som hör till något gästen själv har gjort. Aldrig reklam eller nyhetsbrev.</p>
+          <ul>
+            <li>Bekräftelse, ändring, påminnelse och avbokning av en bordsbokning.</li>
+            <li>Kvitto när en matbeställning är betald, och besked när den är klar.</li>
+            <li>Offert och bekräftelse för en cateringbeställning.</li>
+            <li>Inbjudan och lösenordsåterställning för restaurangens personal.</li>
+          </ul>
+          <p class="section-intro" style="margin:16px 0 0">Mejlen skickas från <strong>noreply@mail.${domain}</strong> med restaurangens namn som avsändare; svar går direkt till restaurangen.</p>
+        </div>
+      </section>
+
+      <section aria-labelledby="contact">
+        <h2 id="contact">Kontakt</h2>
+        <p class="section-intro">Frågor om Booqy, din bokning eller dina personuppgifter? Hör av dig.</p>
+        <dl class="contact card">
+          <div>
+            <dt>E-post</dt>
+            <dd><a href="mailto:${contact_email}">${contact_email}</a></dd>
+          </div>
+          <div>
+            <dt>Företag</dt>
+            <dd>${company}, Sverige</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="lang" lang="en" aria-labelledby="english">
+        <h2 id="english">In English</h2>
+        <p>
+          Booqy is a table booking, food ordering and catering platform for Swedish restaurants, operated by ${company}.
+          Guests book, order and request catering on the restaurant's own website; restaurant staff manage everything in the Booqy admin.
+          We only send transactional email and SMS that a guest or restaurant employee triggered themselves – booking confirmations
+          and reminders, order receipts, catering offers, staff invitations and password resets. We never send marketing or bulk email.
+          Contact: <a href="mailto:${contact_email}">${contact_email}</a>.
+        </p>
+      </section>
+    </div>

@@ -61,9 +61,11 @@ resource "aws_iam_role_policy" "dynamodb_full" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "FullAccessSlotOccupancyAndReservationTables"
+        Sid    = "ItemAccessSlotOccupancyAndReservationTables"
         Effect = "Allow"
-        Action = "dynamodb:*"
+        Action = [
+          "dynamodb:GetItem",
+        ]
         Resource = [
           "${var.slot_occupancy_table_arn}",
           "${var.reservation_table_arn}",
@@ -81,9 +83,11 @@ resource "aws_iam_role_policy" "payment_delinquency_full" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid      = "FullAccessPaymentDelinquencyTable"
-        Effect   = "Allow"
-        Action   = "dynamodb:*"
+        Sid    = "ItemAccessPaymentDelinquencyTable"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:GetItem",
+        ]
         Resource = "${var.payment_delinquency_table_arn}"
       }
     ]
@@ -114,6 +118,26 @@ resource "aws_iam_role_policy" "logs" {
           "logs:PutLogEvents",
         ]
         Resource = "arn:aws:logs:${var.region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${local.function_name}:*"
+      }
+    ]
+  })
+}
+
+# Lambda delivers this function's failed asynchronous (scheduled) invocations
+# to the scheduled-invocation DLQ using THIS role, so it needs SendMessage on
+# exactly that queue (compute/lambda/<name>: aws_lambda_function_event_invoke_config).
+resource "aws_iam_role_policy" "scheduled_invocation_dlq" {
+  name = "scheduled-invocation-dlq-send"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "SendFailedScheduledInvocationsToDlq"
+        Effect   = "Allow"
+        Action   = "sqs:SendMessage"
+        Resource = "${var.scheduled_invocation_dlq_arn}"
       }
     ]
   })

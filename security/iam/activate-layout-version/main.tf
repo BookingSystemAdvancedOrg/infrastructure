@@ -1,7 +1,9 @@
 # Execution role for the ActivateLayoutVersionFn Lambda.
 #
-# Per explicit request: full dynamodb:* on the published layout snapshot
-# table.
+# Published layout snapshot table: only the item-level actions the function's code calls (application repo:
+# functions/<name>/app.py and the shared modules it imports) - no table-
+# level actions (DeleteTable, UpdateTable, backups, TTL...). Add an action
+# here when the code starts calling a new one.
 
 data "aws_caller_identity" "current" {}
 
@@ -36,9 +38,15 @@ resource "aws_iam_role_policy" "dynamodb_full" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid      = "FullAccessPublishedLayoutSnapshotTable"
-        Effect   = "Allow"
-        Action   = "dynamodb:*"
+        Sid    = "ItemAccessPublishedLayoutSnapshotTable"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:ConditionCheckItem",
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:Query",
+          "dynamodb:UpdateItem",
+        ]
         Resource = "${var.published_layout_snapshot_table_arn}"
       }
     ]
@@ -66,9 +74,13 @@ resource "aws_iam_role_policy" "eventbridge_scheduler" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid      = "CreateExpireLayoutVersionSchedule"
-        Effect   = "Allow"
-        Action   = "scheduler:*"
+        Sid    = "CreateExpireLayoutVersionSchedule"
+        Effect = "Allow"
+        Action = [
+          "scheduler:CreateSchedule",
+          "scheduler:DeleteSchedule",
+          "scheduler:GetSchedule",
+        ]
         Resource = "arn:aws:scheduler:${var.region}:${data.aws_caller_identity.current.account_id}:schedule/default/expire-layout-version-*"
       },
       {

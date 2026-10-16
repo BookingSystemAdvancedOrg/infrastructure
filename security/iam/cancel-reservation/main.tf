@@ -58,13 +58,41 @@ resource "aws_iam_role_policy" "dynamodb_full" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "FullAccessSlotOccupancyAndReservationTables"
+        Sid    = "ItemAccessSlotOccupancyAndReservationTables"
         Effect = "Allow"
-        Action = "dynamodb:*"
+        Action = [
+          "dynamodb:BatchGetItem",
+          "dynamodb:DeleteItem",
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:Query",
+          "dynamodb:UpdateItem",
+        ]
         Resource = [
           "${var.slot_occupancy_table_arn}",
           "${var.reservation_table_arn}",
         ]
+      }
+    ]
+  })
+}
+
+# The platform Stripe key lives in Secrets Manager, not in this function's
+# environment - an env var is readable by anyone with
+# lambda:GetFunctionConfiguration, and with Stripe Connect this key can act
+# on every restaurant's connected account.
+resource "aws_iam_role_policy" "stripe_secret" {
+  name = "platform-stripe-secret"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "ReadPlatformStripeKey"
+        Effect   = "Allow"
+        Action   = "secretsmanager:GetSecretValue"
+        Resource = "${var.stripe_secret_arn}"
       }
     ]
   })

@@ -1,7 +1,7 @@
 
 # S3 bucket names are globally unique across every AWS account, not just
 # this one - the account ID suffix guarantees no collision without needing
-# a manually-chosen unique name per fork/customer.
+# a manually-chosen unique name per account.
 data "aws_caller_identity" "current" {}
 
 resource "aws_s3_bucket" "customer_front_end_asset" {

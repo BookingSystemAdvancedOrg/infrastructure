@@ -14,6 +14,11 @@ resource "aws_cloudwatch_log_group" "this" {
 }
 
 resource "aws_lambda_function" "this" {
+  # Every code/config change Terraform makes is published as a new version.
+  # Callers never invoke the function directly - they invoke the "live"
+  # alias (alias.tf).
+  publish = true
+
   function_name = local.function_name
   role          = var.role_arn
   package_type  = "Image"
@@ -29,6 +34,8 @@ resource "aws_lambda_function" "this" {
       COGNITO_USER_POOL_ID  = var.cognito_user_pool_id
       COGNITO_CLIENT_ID     = var.cognito_client_id
       COGNITO_CLIENT_SECRET = var.cognito_client_secret
+      # per-IP limits on forgot/reset password (shared/request_guard.py)
+      REQUEST_GUARD_TABLE_NAME = var.request_guard_table_name
     }
   }
 

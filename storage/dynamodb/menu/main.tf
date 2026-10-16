@@ -14,7 +14,7 @@ resource "aws_dynamodb_table" "menu" {
   }
 
   # SK: MENU#<menuItemId> - one dish per item within that location's menu.
-  # PK + SK together let staff/owner/super-admin get, update, or delete one
+  # PK + SK together let staff/owner get, update, or delete one
   # specific dish directly by its key.
   attribute {
     name = "SK"
@@ -28,6 +28,11 @@ resource "aws_dynamodb_table" "menu" {
   server_side_encryption {
     enabled = true
   }
+
+  # Prod: a plan that deletes or replaces this table fails instead of
+  # wiping data (set false in an apply first if that is really intended).
+  # Dev stays off so the environment can still be torn down.
+  deletion_protection_enabled = var.environment == "prod"
 
   tags = {
     Environment = var.environment

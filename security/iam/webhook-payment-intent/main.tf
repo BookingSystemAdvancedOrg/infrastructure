@@ -1,7 +1,8 @@
 # Execution role for the webhook-payment-intent Lambda.
 #
-# Full access on order only - this Lambda reacts to Stripe payment events
-# and updates the matching order's status/payment reference. No location
+# Order table only, GetItem + UpdateItem - this Lambda reads the order a
+# Stripe event names (pointer + order) and settles it (status, payment
+# reference, the day's number counter). No location
 # access: unlike stripe-webhook (which reads location config to schedule
 # the no-show-check trigger), this function has no equivalent need - it
 # doesn't touch reservations or scheduling at all.
@@ -39,10 +40,32 @@ resource "aws_iam_role_policy" "dynamodb_full" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid      = "FullAccessOrderTable"
-        Effect   = "Allow"
-        Action   = "dynamodb:*"
+        Sid    = "ItemAccessOrderTable"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:GetItem",
+          "dynamodb:UpdateItem",
+        ]
         Resource = "${var.order_table_arn}"
+      }
+    ]
+  })
+}
+
+# Reads this endpoint's Stripe signing secret from Secrets Manager (written
+# there by payments/stripe) - only this one secret.
+resource "aws_iam_role_policy" "webhook_secret" {
+  name = "stripe-webhook-secret-read"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "ReadStripeWebhookSigningSecret"
+        Effect   = "Allow"
+        Action   = "secretsmanager:GetSecretValue"
+        Resource = "${var.webhook_secret_arn}"
       }
     ]
   })

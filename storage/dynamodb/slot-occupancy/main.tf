@@ -41,6 +41,11 @@ resource "aws_dynamodb_table" "slot_occupancy" {
     enabled = true
   }
 
+  # Prod: a plan that deletes or replaces this table fails instead of
+  # wiping data (set false in an apply first if that is really intended).
+  # Dev stays off so the environment can still be torn down.
+  deletion_protection_enabled = var.environment == "prod"
+
   tags = {
     Environment = var.environment
   }

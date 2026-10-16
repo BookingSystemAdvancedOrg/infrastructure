@@ -1,7 +1,9 @@
 # Execution role for the mark-arrived Lambda.
 #
-# Per explicit request: full dynamodb:* on the reservation table, rather
-# than a scoped action set.
+# DynamoDB: only the item-level actions the function's code calls (application repo:
+# functions/<name>/app.py and the shared modules it imports) - no table-
+# level actions (DeleteTable, UpdateTable, backups, TTL...). Add an action
+# here when the code starts calling a new one.
 
 data "aws_caller_identity" "current" {}
 
@@ -28,6 +30,43 @@ resource "aws_iam_role" "this" {
   }
 }
 
+# Releasing / moving a booking's table holds: the hold rows and the per
+# table and date lock counters live in Slot Occupancy (written in one
+# transaction with the reservation row).
+resource "aws_iam_role_policy" "slot_occupancy" {
+  name = "slot-occupancy-holds"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "TableHoldsAndLocks"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:GetItem",
+          "dynamodb:BatchGetItem",
+          "dynamodb:Query",
+          "dynamodb:PutItem",
+          "dynamodb:UpdateItem",
+          "dynamodb:DeleteItem",
+          "dynamodb:ConditionCheckItem",
+        ]
+        Resource = "${var.slot_occupancy_table_arn}"
+      },
+      {
+        Sid    = "ReadPublishedLayouts"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:GetItem",
+          "dynamodb:Query",
+        ]
+        Resource = "${var.published_layout_snapshot_table_arn}"
+      }
+    ]
+  })
+}
+
 resource "aws_iam_role_policy" "dynamodb_full" {
   name = "reservation-table-full-access"
   role = aws_iam_role.this.id
@@ -36,9 +75,16 @@ resource "aws_iam_role_policy" "dynamodb_full" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid      = "FullAccessReservationTable"
-        Effect   = "Allow"
-        Action   = "dynamodb:*"
+        Sid    = "ItemAccessReservationTable"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:BatchGetItem",
+          "dynamodb:DeleteItem",
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:Query",
+          "dynamodb:UpdateItem",
+        ]
         Resource = "${var.reservation_table_arn}"
       }
     ]
@@ -69,6 +115,25 @@ resource "aws_iam_role_policy" "logs" {
           "logs:PutLogEvents",
         ]
         Resource = "arn:aws:logs:${var.region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${local.function_name}:*"
+      }
+    ]
+  })
+}
+
+# Card-guarantee fees: no-show charges, retries and refunds on the
+# restaurant's connected account, with the platform key.
+resource "aws_iam_role_policy" "stripe_secret" {
+  name = "stripe-secret-read"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "ReadPlatformStripeKey"
+        Effect   = "Allow"
+        Action   = "secretsmanager:GetSecretValue"
+        Resource = var.stripe_secret_arn
       }
     ]
   })

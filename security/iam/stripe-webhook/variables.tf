@@ -33,3 +33,9 @@ variable "region" {
   type        = string
   sensitive   = false
 }
+
+variable "webhook_secret_arn" {
+  description = "ARN of the Secrets Manager secret holding this function's Stripe webhook signing secret"
+  type        = string
+  sensitive   = false
+}

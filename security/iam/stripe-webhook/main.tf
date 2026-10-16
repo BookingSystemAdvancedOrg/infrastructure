@@ -62,9 +62,16 @@ resource "aws_iam_role_policy" "dynamodb_full" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid      = "FullAccessReservationTable"
-        Effect   = "Allow"
-        Action   = "dynamodb:*"
+        Sid    = "ItemAccessReservationTable"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:BatchGetItem",
+          "dynamodb:DeleteItem",
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:Query",
+          "dynamodb:UpdateItem",
+        ]
         Resource = "${var.reservation_table_arn}"
       }
     ]
@@ -79,9 +86,16 @@ resource "aws_iam_role_policy" "payment_delinquency_full" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid      = "FullAccessPaymentDelinquencyTable"
-        Effect   = "Allow"
-        Action   = "dynamodb:*"
+        Sid    = "ItemAccessPaymentDelinquencyTable"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:BatchGetItem",
+          "dynamodb:DeleteItem",
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:Query",
+          "dynamodb:UpdateItem",
+        ]
         Resource = "${var.payment_delinquency_table_arn}"
       }
     ]
@@ -102,9 +116,13 @@ resource "aws_iam_role_policy" "eventbridge_scheduler" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid      = "CreateNoShowCheckSchedule"
-        Effect   = "Allow"
-        Action   = "scheduler:*"
+        Sid    = "CreateNoShowCheckSchedule"
+        Effect = "Allow"
+        Action = [
+          "scheduler:CreateSchedule",
+          "scheduler:DeleteSchedule",
+          "scheduler:GetSchedule",
+        ]
         Resource = "arn:aws:scheduler:${var.region}:${data.aws_caller_identity.current.account_id}:schedule/default/no-show-check-*"
       },
       {
@@ -117,6 +135,25 @@ resource "aws_iam_role_policy" "eventbridge_scheduler" {
             "iam:PassedToService" = "scheduler.amazonaws.com"
           }
         }
+      }
+    ]
+  })
+}
+
+# Reads this endpoint's Stripe signing secret from Secrets Manager (written
+# there by payments/stripe) - only this one secret.
+resource "aws_iam_role_policy" "webhook_secret" {
+  name = "stripe-webhook-secret-read"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "ReadStripeWebhookSigningSecret"
+        Effect   = "Allow"
+        Action   = "secretsmanager:GetSecretValue"
+        Resource = "${var.webhook_secret_arn}"
       }
     ]
   })

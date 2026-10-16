@@ -59,9 +59,13 @@ resource "aws_iam_role_policy" "published_layout_snapshot_full" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid      = "FullAccessPublishedLayoutSnapshotTable"
-        Effect   = "Allow"
-        Action   = "dynamodb:*"
+        Sid    = "ItemAccessPublishedLayoutSnapshotTable"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:Query",
+        ]
         Resource = "${var.published_layout_snapshot_table_arn}"
       }
     ]
