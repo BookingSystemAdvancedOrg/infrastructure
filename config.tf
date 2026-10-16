@@ -1739,6 +1739,9 @@ module "platform_domain" {
   admin_distribution_domain_name          = module.cloudfront_private.distribution_domain_name
   admin_app_hostname                      = local.admin_app_hostname
   platform_admin_hostname                 = local.platform_admin_hostname
+  landing_contact_email                   = var.landing_contact_email
+  landing_company                         = var.landing_company
+  landing_updated                         = var.landing_updated
   platform_admin_distribution_domain_name = module.cloudfront_platform_admin.distribution_domain_name
 }
 

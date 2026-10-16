@@ -92,6 +92,27 @@ variable "platform_subdomain_delegations" {
   }
 }
 
+variable "landing_contact_email" {
+  type        = string
+  description = "Contact address on the public page on <platform_domain> - AWS checks this page before granting SES production access"
+  sensitive   = false
+  default     = "support@ithjalparna.se"
+}
+
+variable "landing_company" {
+  type        = string
+  description = "Company named as the operator of Booqy on the public page"
+  sensitive   = false
+  default     = "IT-hjälparna"
+}
+
+variable "landing_updated" {
+  type        = string
+  description = "'Senast uppdaterad' date on the public privacy policy and terms (Swedish, e.g. 16 oktober 2026) - change it whenever their text changes"
+  sensitive   = false
+  default     = "16 oktober 2026"
+}
+
 variable "tenant_sites_enabled" {
   type        = bool
   description = "Host restaurant websites on the platform domain: <slug>.<platform_domain> subdomains and customer custom domains (tenant-sites bucket, CloudFront multi-tenant distribution, *.<domain> record, site deploy role). Off = the domain is used only for app. (restaurant admin), ops. (Booqy Console) and mail. (SES); customer links keep using the customer site's own URL."

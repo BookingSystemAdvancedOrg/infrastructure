@@ -67,3 +67,21 @@ variable "platform_admin_hostname" {
   type        = string
   sensitive   = false
 }
+
+variable "landing_contact_email" {
+  description = "Contact address shown on the public page on <domain> (also for privacy questions)"
+  type        = string
+  sensitive   = false
+}
+
+variable "landing_company" {
+  description = "Company named as the operator of Booqy on the public page"
+  type        = string
+  sensitive   = false
+}
+
+variable "landing_updated" {
+  description = "'Senast uppdaterad' date on the privacy policy and terms, e.g. 16 oktober 2026 (its last four characters are the footer year)"
+  type        = string
+  sensitive   = false
+}
