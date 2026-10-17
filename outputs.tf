@@ -215,3 +215,17 @@ output "ses_dkim_records" {
   description = "DKIM CNAME records for the SES sender domain"
   value       = local.platform_domain_enabled ? [] : module.ses.dkim_records
 }
+
+# booqy-website repo: .github/config/project.env values for this environment.
+#   terraform output -json booqy_website_deploy
+output "booqy_website_deploy" {
+  description = "Values for the booqy-website repo (public page on the platform domain). Empty while platform_domain is unset."
+  value = local.platform_domain_enabled ? {
+    AWS_REGION                 = var.aws_region
+    OIDC_ROLE_ARN              = module.website_deploy_role[0].role_arn
+    S3_BUCKET                  = module.platform_domain[0].landing_bucket_name
+    CLOUDFRONT_DISTRIBUTION_ID = module.platform_domain[0].landing_distribution_id
+    SITE_DOMAIN                = var.platform_domain
+    ADMIN_HOST                 = local.admin_app_hostname
+  } : null
+}

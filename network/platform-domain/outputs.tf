@@ -57,3 +57,23 @@ output "no_reply_address" {
   description = "Sender address every tenant's emails go out from"
   value       = "noreply@${local.mail_domain}"
 }
+
+output "landing_bucket_name" {
+  description = "Bucket the public page on <domain> is served from (booqy-website deploys here)"
+  value       = aws_s3_bucket.landing.id
+}
+
+output "landing_bucket_arn" {
+  description = "ARN of the public page bucket"
+  value       = aws_s3_bucket.landing.arn
+}
+
+output "landing_distribution_id" {
+  description = "CloudFront distribution serving <domain> and www.<domain> (booqy-website invalidates it after deploying)"
+  value       = aws_cloudfront_distribution.landing.id
+}
+
+output "landing_distribution_arn" {
+  description = "ARN of the public page distribution"
+  value       = aws_cloudfront_distribution.landing.arn
+}

@@ -1,42 +1,34 @@
 # Public page on the bare domain (<domain> and www.<domain>): what Booqy is,
 # contact, privacy policy and terms. A static site in a private bucket behind
 # its own CloudFront distribution, served with the wildcard certificate (its
-# SANs cover <domain>). The pages live in ./landing and are rendered here -
-# a change to them is a normal infrastructure change, no separate pipeline.
+# SANs cover <domain>). Terraform owns the hosting only; the pages live in
+# the booqy-website repo, which deploys them through its own OIDC role
+# (security/iam/oidc/website-deploy-role): sync to this bucket, invalidate
+# this distribution.
 #
 # AWS reviews this page before granting SES production access (emailing any
 # customer), so it must stay public and describe the service and contact.
 
-locals {
-  landing_pages = {
-    "index.html"      = { template = "index.html.tftpl", title = "Booqy – bordsbokning, beställningar och catering för restauranger", path = "/" }
-    "integritet.html" = { template = "integritet.html.tftpl", title = "Integritetspolicy – Booqy", path = "/integritet.html" }
-    "villkor.html"    = { template = "villkor.html.tftpl", title = "Villkor – Booqy", path = "/villkor.html" }
-    "404.html"        = { template = "404.html.tftpl", title = "Sidan finns inte – Booqy", path = "/404.html" }
+# The pages used to be rendered and uploaded here. Forget those objects
+# without deleting them, so the site stays up until booqy-website's first
+# deploy replaces them.
+removed {
+  from = aws_s3_object.landing_page
+  lifecycle {
+    destroy = false
   }
-  landing_vars = {
-    domain        = var.platform_domain
-    admin_host    = var.admin_app_hostname
-    contact_email = var.landing_contact_email
-    company       = var.landing_company
-    updated       = var.landing_updated
+}
+
+removed {
+  from = aws_s3_object.landing_asset
+  lifecycle {
+    destroy = false
   }
-  landing_html = {
-    for key, page in local.landing_pages : key => templatefile("${path.module}/landing/layout.html.tftpl", merge(local.landing_vars, {
-      title       = page.title
-      description = "Booqy är ett bokningssystem för svenska restauranger: bordsbokning, matbeställning och catering på restaurangens egen webbplats."
-      path        = page.path
-      year        = substr(var.landing_updated, -4, 4)
-      body        = templatefile("${path.module}/landing/${page.template}", local.landing_vars)
-    }))
-  }
-  # Short cache so a text change is live within minutes without invalidations.
-  landing_cache_control = "public, max-age=300"
 }
 
 resource "aws_s3_bucket" "landing" {
   bucket        = "${local.prefix}landing-${data.aws_caller_identity.current.account_id}"
-  force_destroy = true # only rendered copies of ./landing live here
+  force_destroy = true # only build output of booqy-website lives here (redeployable)
 
   tags = {
     Environment = var.environment
@@ -102,31 +94,6 @@ resource "aws_s3_bucket_policy" "landing" {
   })
 
   depends_on = [aws_s3_bucket_public_access_block.landing]
-}
-
-resource "aws_s3_object" "landing_page" {
-  for_each = local.landing_html
-
-  bucket        = aws_s3_bucket.landing.id
-  key           = each.key
-  content       = each.value
-  content_type  = "text/html; charset=utf-8"
-  cache_control = local.landing_cache_control
-  etag          = md5(each.value)
-}
-
-resource "aws_s3_object" "landing_asset" {
-  for_each = {
-    "site.css"    = "text/css; charset=utf-8"
-    "favicon.svg" = "image/svg+xml"
-  }
-
-  bucket        = aws_s3_bucket.landing.id
-  key           = each.key
-  source        = "${path.module}/landing/${each.key}"
-  content_type  = each.value
-  cache_control = local.landing_cache_control
-  etag          = filemd5("${path.module}/landing/${each.key}")
 }
 
 resource "aws_cloudfront_origin_access_control" "landing" {

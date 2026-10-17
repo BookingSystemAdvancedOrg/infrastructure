@@ -49,6 +49,12 @@ variable "platform_admin_frontend_repo" {
   description = "Operator console repo name (no org prefix), e.g. sbs-admin - holds the operator web app AND the platform-tenants Lambda; trusted by security/iam/oidc/platform-admin-front-end-role to deploy both"
   sensitive   = false
 }
+variable "website_repo" {
+  type        = string
+  description = "Repo name (no org prefix) of the public page on <platform_domain> - trusted by security/iam/oidc/website-deploy-role to deploy it"
+  sensitive   = false
+  default     = "booqy-website"
+}
 variable "platform_operator_emails" {
   type        = list(string)
   description = "Platform operators (you) - bootstrapped into the separate operator user pool (MFA required) that alone can call /platform/* to create and manage tenants. Removing an address deletes that operator's account on the next apply."
@@ -90,27 +96,6 @@ variable "platform_subdomain_delegations" {
     ])
     error_message = "platform_subdomain_delegations: lowercase labels (e.g. dev), each with at least 2 name servers."
   }
-}
-
-variable "landing_contact_email" {
-  type        = string
-  description = "Contact address on the public page on <platform_domain> - AWS checks this page before granting SES production access"
-  sensitive   = false
-  default     = "support@ithjalparna.se"
-}
-
-variable "landing_company" {
-  type        = string
-  description = "Company named as the operator of Booqy on the public page"
-  sensitive   = false
-  default     = "IT-hjälparna"
-}
-
-variable "landing_updated" {
-  type        = string
-  description = "'Senast uppdaterad' date on the public privacy policy and terms (Swedish, e.g. 16 oktober 2026) - change it whenever their text changes"
-  sensitive   = false
-  default     = "16 oktober 2026"
 }
 
 variable "tenant_sites_enabled" {

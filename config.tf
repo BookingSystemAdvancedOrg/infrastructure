@@ -1739,9 +1739,6 @@ module "platform_domain" {
   admin_distribution_domain_name          = module.cloudfront_private.distribution_domain_name
   admin_app_hostname                      = local.admin_app_hostname
   platform_admin_hostname                 = local.platform_admin_hostname
-  landing_contact_email                   = var.landing_contact_email
-  landing_company                         = var.landing_company
-  landing_updated                         = var.landing_updated
   platform_admin_distribution_domain_name = module.cloudfront_platform_admin.distribution_domain_name
 }
 
@@ -1842,6 +1839,17 @@ module "platform_admin_front_end_role" {
   codedeploy_app_arn              = module.lambda_releases.app_arn
   codedeploy_deployment_group_arn = module.lambda_releases.deployment_group_arns[module.platform_tenants_fn.function_name]
   alert_topic_arn                 = module.alerts.topic_arn
+}
+# The public page on <platform_domain> (booqy-website repo) - its own bucket
+# and distribution, nothing else.
+module "website_deploy_role" {
+  count                       = local.platform_domain_enabled ? 1 : 0
+  source                      = "./security/iam/oidc/website-deploy-role"
+  environment                 = var.env
+  oidc_provider_arn           = module.github_oidc_provider.provider_arn
+  github_repo                 = "${var.github_org}@*/${var.website_repo}"
+  website_bucket_arn          = module.platform_domain[0].landing_bucket_arn
+  cloudfront_distribution_arn = module.platform_domain[0].landing_distribution_arn
 }
 # Tenant website repos (site-*) publish to the tenant-sites bucket
 module "tenant_sites_deploy_role" {
