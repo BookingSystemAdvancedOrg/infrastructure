@@ -1756,6 +1756,7 @@ module "platform_domain" {
   admin_app_hostname                      = local.admin_app_hostname
   platform_admin_hostname                 = local.platform_admin_hostname
   platform_admin_distribution_domain_name = module.cloudfront_platform_admin.distribution_domain_name
+  demo_request_origin_domain              = module.demo_request_fn[0].function_url_domain
 }
 
 # Adopt an existing hosted zone for the platform domain (var.platform_domain_zone_id)
@@ -1860,6 +1861,46 @@ module "platform_admin_front_end_role" {
   codedeploy_deployment_group_arn = module.lambda_releases.deployment_group_arns[module.platform_tenants_fn.function_name]
   alert_topic_arn                 = module.alerts.topic_arn
 }
+# "Boka en demo" form on the public page: <platform_domain>/api/demo-request
+# -> demo-request Lambda (zip from this repo) -> email to var.demo_request_recipient.
+module "demo_request_role" {
+  count            = local.platform_domain_enabled ? 1 : 0
+  source           = "./security/iam/demo-request"
+  environment      = var.env
+  region           = var.aws_region
+  ses_identity_arn = local.ses_identity_arn
+  from_address     = local.no_reply_email
+}
+module "demo_request_fn" {
+  count        = local.platform_domain_enabled ? 1 : 0
+  source       = "./compute/lambda/demo-request"
+  environment  = var.env
+  role_arn     = module.demo_request_role[0].role_arn
+  recipient    = var.demo_request_recipient
+  from_address = local.no_reply_email
+}
+# Only the landing distribution may call the function URL (AWS_IAM + OAC).
+# Function URLs need both permissions for the CloudFront service principal.
+resource "aws_lambda_permission" "demo_request_url" {
+  count                  = local.platform_domain_enabled ? 1 : 0
+  statement_id           = "AllowLandingCloudFrontInvokeUrl"
+  action                 = "lambda:InvokeFunctionUrl"
+  function_name          = module.demo_request_fn[0].function_name
+  qualifier              = module.demo_request_fn[0].alias_name
+  principal              = "cloudfront.amazonaws.com"
+  source_arn             = module.platform_domain[0].landing_distribution_arn
+  function_url_auth_type = "AWS_IAM"
+}
+resource "aws_lambda_permission" "demo_request_invoke" {
+  count         = local.platform_domain_enabled ? 1 : 0
+  statement_id  = "AllowLandingCloudFrontInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = module.demo_request_fn[0].function_name
+  qualifier     = module.demo_request_fn[0].alias_name
+  principal     = "cloudfront.amazonaws.com"
+  source_arn    = module.platform_domain[0].landing_distribution_arn
+}
+
 # The public page on <platform_domain> (booqy-website repo) - its own bucket
 # and distribution, nothing else.
 module "website_deploy_role" {

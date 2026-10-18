@@ -49,6 +49,13 @@ variable "platform_admin_frontend_repo" {
   description = "Operator console repo name (no org prefix), e.g. sbs-admin - holds the operator web app AND the platform-tenants Lambda; trusted by security/iam/oidc/platform-admin-front-end-role to deploy both"
   sensitive   = false
 }
+variable "demo_request_recipient" {
+  description = "Where the public page's \"Boka en demo\" requests are emailed. In the SES sandbox it must be a verified identity (or on a verified domain)."
+  type        = string
+  sensitive   = false
+  default     = "support@ithjalparna.se"
+}
+
 variable "website_repo" {
   type        = string
   description = "Repo name (no org prefix) of the public page on <platform_domain> - trusted by security/iam/oidc/website-deploy-role to deploy it"

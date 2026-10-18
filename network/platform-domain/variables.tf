@@ -73,3 +73,9 @@ variable "platform_admin_hostname" {
   type        = string
   sensitive   = false
 }
+
+variable "demo_request_origin_domain" {
+  description = "Host name of the demo-request Lambda's function URL - served at <domain>/api/* on the landing distribution. Empty: no /api route."
+  type        = string
+  default     = ""
+}
