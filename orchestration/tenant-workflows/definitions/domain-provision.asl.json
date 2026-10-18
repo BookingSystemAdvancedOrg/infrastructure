@@ -1,5 +1,5 @@
 {
-  "Comment": "A domain the platform runs DNS for, from order to live site. Started by platform-tenants after it has bought the domain (mode register: waits for Route 53 Domains - for .se the registry's identity check) or created its hosted zone (mode connect: waits until the restaurant has switched the name servers at its registrar). Then points <domain> and www.<domain> at the restaurant-site distribution and runs domain-attach for both. The waiting and DNS steps are tasks in the platform-tenants Lambda (Route 53 Domains only exists in us-east-1; the name server check needs a public DNS lookup).",
+  "Comment": "A domain the platform runs DNS for, from order to live site. Started by platform-tenants after it has bought the domain (mode register: waits for Route 53 Domains - for .se the registry's identity check) or created its hosted zone (mode connect: waits until the restaurant has switched the name servers at its registrar). Then points <domain> and www.<domain> at the restaurant-site distribution and runs domain-attach for both. Mode transfer (a connected, live domain whose registration moves into Route 53, name servers unchanged) only waits for the transfer - the site is live throughout. The waiting and DNS steps are tasks in the platform-tenants Lambda (Route 53 Domains only exists in us-east-1; the name server check needs a public DNS lookup).",
   "QueryLanguage": "JSONata",
   "TimeoutSeconds": ${timeout_seconds},
   "StartAt": "Init",
@@ -23,7 +23,8 @@
       "Type": "Choice",
       "Choices": [
         { "Condition": "{% $mode = 'register' %}", "Next": "CheckRegistration" },
-        { "Condition": "{% $mode = 'connect' %}", "Next": "WaitForNameServers" }
+        { "Condition": "{% $mode = 'connect' %}", "Next": "WaitForNameServers" },
+        { "Condition": "{% $mode = 'transfer' %}", "Next": "CheckTransfer" }
       ],
       "Default": "UnknownMode"
     },
@@ -150,6 +151,72 @@
       },
       "Next": "MarkTimedOut"
     },
+    "WaitForTransfer": {
+      "Type": "Wait",
+      "Seconds": ${registration_check_seconds},
+      "Next": "CheckTransfer"
+    },
+    "CheckTransfer": {
+      "Type": "Task",
+      "Comment": "Reads the TransferDomain operation and records its state (the old registrar releasing it, the .se registry's identity check). The site keeps running on our name servers the whole time.",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Arguments": {
+        "FunctionName": "${function_arn}",
+        "Payload": {
+          "workflowTask": "transfer_status",
+          "tenantId": "{% $tenantId %}",
+          "domain": "{% $domain %}"
+        }
+      },
+      "Assign": {
+        "checks": "{% $checks + 1 %}",
+        "taskStatus": "{% $states.result.Payload.status %}"
+      },
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException", "Lambda.TooManyRequestsException", "States.TaskFailed"],
+          "IntervalSeconds": 30,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Assign": { "failure": "{% $states.errorOutput %}", "failedState": "{% $states.context.State.Name %}" },
+          "Next": "MarkFailed"
+        }
+      ],
+      "Next": "TransferState"
+    },
+    "TransferState": {
+      "Type": "Choice",
+      "Choices": [
+        { "Condition": "{% $taskStatus = 'done' %}", "Next": "Transferred" },
+        { "Condition": "{% $taskStatus = 'failed' %}", "Next": "TransferFailed" },
+        { "Condition": "{% $checks >= ${max_registration_checks} %}", "Next": "TransferTimedOut" }
+      ],
+      "Default": "WaitForTransfer"
+    },
+    "Transferred": {
+      "Type": "Succeed",
+      "Comment": "Registered in Route 53 now (auto-renews); DNS and site unchanged."
+    },
+    "TransferFailed": {
+      "Type": "Pass",
+      "Assign": {
+        "failedState": "CheckTransfer",
+        "failure": { "Error": "TransferFailed", "Cause": "Route 53 Domains reported the transfer as failed - see the transfer error in Booqy Console. The domain stays at its registrar and the site stays live." }
+      },
+      "Next": "MarkFailed"
+    },
+    "TransferTimedOut": {
+      "Type": "Pass",
+      "Assign": {
+        "timeoutMessage": "{% 'The transfer did not finish within ' & $string($checks) & ' checks. Check the operation in the Route 53 console (for .se: was the registreringsbevis sent to AWS Support?), then start the transfer again.' %}"
+      },
+      "Next": "MarkTimedOut"
+    },
     "PrepareDns": {
       "Type": "Task",
       "Comment": "Apex alias + www CNAME to the restaurant-site distribution, _cf-challenge ownership records, and both hosts reserved for this tenant.",
@@ -241,6 +308,7 @@
         "FunctionName": "${function_arn}",
         "Payload": {
           "workflowTask": "mark",
+          "mode": "{% $mode %}",
           "tenantId": "{% $tenantId %}",
           "domain": "{% $domain %}",
           "status": "live"
@@ -266,6 +334,7 @@
         "FunctionName": "${function_arn}",
         "Payload": {
           "workflowTask": "mark",
+          "mode": "{% $mode %}",
           "tenantId": "{% $tenantId %}",
           "domain": "{% $domain %}",
           "status": "timed_out",
@@ -299,6 +368,7 @@
         "FunctionName": "${function_arn}",
         "Payload": {
           "workflowTask": "mark",
+          "mode": "{% $mode %}",
           "tenantId": "{% $tenantId %}",
           "domain": "{% $domain %}",
           "status": "failed",
@@ -327,7 +397,7 @@
       "Arguments": {
         "TopicArn": "${alert_topic_arn}",
         "Subject": "${environment}: domain setup failed",
-        "Message": "{% 'Setting up ' & $domain & ' (' & $mode & ') for tenant ' & $tenantId & ' failed at ' & $failedState & '.\\n\\n' & $string($failure) & '\\n\\nExecution: ' & $states.context.Execution.Id %}"
+        "Message": "{% ($mode = 'transfer' ? 'Transferring the registration of ' : 'Setting up ') & $domain & ' (' & $mode & ') for tenant ' & $tenantId & ' failed at ' & $failedState & '.\\n\\n' & $string($failure) & '\\n\\nExecution: ' & $states.context.Execution.Id %}"
       },
       "Catch": [
         {

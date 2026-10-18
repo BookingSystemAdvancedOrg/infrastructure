@@ -124,8 +124,25 @@ For every domain:
       Cloudflare (table booking and catering request forms). Without it
       guests on that domain can't book online.
 
-Transferring the registration itself into Route 53 is phase 2 (it will
-ask for the registreringsbevis too, for .se).
+**Move a connected domain's registration into Route 53** (optional, once
+it's `live` - one bill, renewals handled by us; .se/.com/.eu/.net only):
+
+- [ ] Ask the restaurant for the domain's **authorization code** (one.com:
+      *Domain → Transfer / EPP code*; also called auktoriseringskod) and to
+      unlock the domain if their registrar locks it. Not possible within 60
+      days of registering or a previous transfer.
+- [ ] Domains → the domain → **Transfer to Route 53** → check (shows if it
+      can move and the price - it includes one more year), registrant (the
+      AB), **registreringsbevis for .se** (required), the code, confirm.
+- [ ] Status shows under the domain: `transferring` (the old registrar
+      releases it - usually up to 5-7 days; approving the email from one.com
+      speeds it up) / `awaiting_verification` (.se: send the AWS Support
+      case, same as buying) → `transferred`. Name servers are kept, so the
+      site and email never notice; a failed transfer just leaves the domain
+      where it was.
+- [ ] Once transferred, the restaurant can drop the *domain* from its
+      one.com plan - but must keep any *email* subscription there if their
+      MX records still point at one.com.
 
 ## 6. Upgrade / downgrade
 

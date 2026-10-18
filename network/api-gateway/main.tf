@@ -1389,6 +1389,8 @@ locals {
     "POST /platform/tenants/{tenantId}/domains/registrations",
     "POST /platform/tenants/{tenantId}/domains/connections",
     "GET /platform/tenants/{tenantId}/zones/{domain}/document",
+    "GET /platform/tenants/{tenantId}/zones/{domain}/transfer",
+    "POST /platform/tenants/{tenantId}/zones/{domain}/transfer",
     "POST /platform/tenants/{tenantId}/stripe/account-link",
     "POST /platform/tenants/{tenantId}/stripe/sync",
     # Card terminals (Stripe Terminal) per restaurant location

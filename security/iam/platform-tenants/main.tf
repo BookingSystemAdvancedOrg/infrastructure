@@ -276,7 +276,8 @@ resource "aws_iam_role_policy" "mail_outbox" {
 }
 
 # Domains the platform runs DNS for (Booqy Console "Add domain": buy a new
-# domain, or connect one by switching its name servers). Only with restaurant
+# domain, or connect one by switching its name servers - and later move a
+# connected domain's registration into Route 53). Only with restaurant
 # domains on. Route 53 Domains has no resource-level permissions - who may
 # buy is decided by the operator pool + platform_admin group in front of
 # this Lambda. Record changes are allowed in any hosted zone EXCEPT the
@@ -290,13 +291,15 @@ resource "aws_iam_role_policy" "domains" {
     Version = "2012-10-17"
     Statement = concat([
       {
-        Sid    = "SearchAndRegisterDomains"
+        Sid    = "SearchRegisterAndTransferDomains"
         Effect = "Allow"
         Action = [
           "route53domains:CheckDomainAvailability",
           "route53domains:GetDomainSuggestions",
           "route53domains:ListPrices",
           "route53domains:RegisterDomain",
+          "route53domains:CheckDomainTransferability",
+          "route53domains:TransferDomain",
           "route53domains:GetOperationDetail",
         ]
         Resource = "*"
