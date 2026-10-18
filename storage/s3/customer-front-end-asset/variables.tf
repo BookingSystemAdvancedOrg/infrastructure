@@ -9,3 +9,10 @@ variable "cloudfront_distribution_arn" {
   type        = string
   sensitive   = false
 }
+
+variable "additional_cloudfront_distribution_arns" {
+  description = "Further CloudFront distributions allowed to read the site through OAC (the restaurant-domain multi-tenant distribution when tenant sites are on)"
+  type        = list(string)
+  sensitive   = false
+  default     = []
+}

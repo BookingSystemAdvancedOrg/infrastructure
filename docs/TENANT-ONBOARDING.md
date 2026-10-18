@@ -12,16 +12,17 @@ serves every restaurant.)
 
 ## 1. Create the tenant (2 minutes)
 
-Operator app → **New tenant**: restaurant name, slug (becomes
-`<slug>.<platform domain>`), owner's email + name, plan, optionally legal
-name / org number / contact email.
+Operator app → **New tenant**: restaurant name, slug (an internal id;
+`<slug>.<platform domain>` only if `tenant_subdomains_enabled`), owner's
+email + name, plan, legal name / org number / contact email (the org
+number and address are needed later to buy a .se domain).
 
 The onboarding workflow then, in about a minute:
 
 - invites the owner (email with a temporary password, linking to the admin app);
 - creates the restaurant's Stripe connected account and its VAT rates;
-- gives it `<slug>.<platform domain>` with a "coming soon" page
-  (once a platform domain is set);
+- gives it `<slug>.<platform domain>` (only with `tenant_subdomains_enabled`
+  - off: restaurants are reached on their own domain, step 5);
 - sets the tenant `active`.
 
 `provisioning_failed` → the tenant page shows the error, and an alert
@@ -65,31 +66,66 @@ is theirs, not routed through you.
 
 ## 4. Website
 
-- [ ] GitHub: **Use this template** on `site-template` → new repo
-      `site-<slug>` (the name must match `site-*`).
-- [ ] Set `TENANT_ID` (from the tenant page) in its pipeline, build the
-      site, push - it publishes to `<slug>.<platform domain>`, replacing
-      the placeholder. Details: `docs/handoff/FRONTEND.md` §3.
+Nothing to build: every restaurant is served by the same customer site
+(customer-front-end), which looks up the restaurant from the domain it is
+opened on (`GET /site-config?host=`). It goes live with step 5.
 
-## 5. Custom domain (optional)
+## 5. Domain
 
-- [ ] Operator app → tenant → Domains → **Add domain**
-      (e.g. `www.restaurang.se`, tick "primary" to use it in links/emails).
-- [ ] Send the restaurant the DNS record shown:
-      `www.restaurang.se CNAME <tenant_domain_cname_target>`.
-      Bare `restaurang.se`: most DNS hosts can't CNAME the apex - redirect
-      it to `www.` at the registrar, or use a DNS host with ALIAS/ANAME.
-- [ ] Status goes `pending_dns` → `pending_validation` → `active`
-      (certificate issued and renewed by CloudFront, nothing to import).
-      The workflow waits up to ~3 days for the CNAME (`validation_timeout`
-      after that - fix the DNS and **Add domain** again; it resumes).
-- [ ] Add the domain to the platform's Turnstile widget hostnames in
-      Cloudflare (table booking and catering request forms) - the one
-      manual step. Without it guests on that domain can't book online.
-      Subdomains of the platform domain are covered already.
+Operator app → tenant → **Domains** → **Add domain**. Three ways:
 
-No Route 53 import: the restaurant keeps its domain wherever it is
-registered; only the one CNAME points at the platform.
+**Buy a new domain** (.se, .com, .eu, .net - Route 53 Domains, billed to
+the platform's AWS account, auto-renews yearly):
+
+- [ ] Search the name - availability, first-year and renewal price (USD).
+- [ ] Check the registrant: the restaurant's AB (legal name, org number,
+      address, contact person, email, phone - prefilled from the profile).
+      The restaurant owns the domain; we hold it in our account.
+- [ ] **.se only:** upload the company's **registreringsbevis** (PDF from
+      Bolagsverket, max 10 MB). Required - the .se registry verifies the
+      owner (NIS2) before the domain goes live.
+- [ ] Confirm the price → **Buy**. Non-refundable.
+- [ ] **.se only:** status `awaiting_verification`. Open an AWS Support case
+      (Route 53 Domains → Domain registration) with the text the Console
+      shows and attach the registreringsbevis (download link on the domain
+      row). The workflow checks every hour for up to 30 days and carries on
+      by itself once the registry approves; the file is deleted then
+      (and in any case after 30 days).
+- [ ] Then automatically: `registered` → `attaching` (certificates for
+      `restaurang.se` and `www.restaurang.se`) → `live`.
+
+**Connect a domain the restaurant already has** (stays at one.com etc.;
+we take over its DNS - the bare domain works too):
+
+- [ ] Enter the domain → **Scan DNS**: the records it uses today (mail,
+      SPF/DKIM/DMARC, Microsoft 365/Google…). Check the list with the
+      restaurant - anything missing (other DKIM selectors, custom
+      subdomains) add by hand. A record left out stops working when the
+      name servers change; email is the usual casualty.
+- [ ] **Connect** → creates the Route 53 zone with those records and shows
+      four name servers.
+- [ ] The restaurant replaces the name servers at its registrar with
+      those four (and turns DNSSEC off there first, if it's on). Status
+      `awaiting_nameservers`; checked every 10 minutes for 72 h.
+- [ ] Then automatically: `attaching` → `live`. No registreringsbevis -
+      nothing changes at the registry.
+
+**Just a CNAME** (advanced - the restaurant keeps its DNS):
+
+- [ ] Add e.g. `www.restaurang.se`, send them
+      `www.restaurang.se CNAME <tenant_domain_cname_target>`. The bare
+      domain can't be a CNAME - redirect it to `www.` at the registrar.
+      `pending_dns` → `pending_validation` → `active`; waits up to ~3 days
+      (`validation_timeout` after that - fix the DNS and add it again).
+
+For every domain:
+
+- [ ] Add it (and `www.`) to the platform's Turnstile widget hostnames in
+      Cloudflare (table booking and catering request forms). Without it
+      guests on that domain can't book online.
+
+Transferring the registration itself into Route 53 is phase 2 (it will
+ask for the registreringsbevis too, for .se).
 
 ## 6. Upgrade / downgrade
 

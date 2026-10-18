@@ -1381,6 +1381,14 @@ locals {
     "DELETE /platform/tenants/{tenantId}/locations/{locationId}",
     "POST /platform/tenants/{tenantId}/domains",
     "DELETE /platform/tenants/{tenantId}/domains/{domain}",
+    # Domains we run DNS for: search + buy (registreringsbevis for .se), or
+    # connect an existing domain by moving its DNS to Route 53
+    "GET /platform/domains/search",
+    "GET /platform/domains/dns-scan",
+    "POST /platform/tenants/{tenantId}/domains/documents",
+    "POST /platform/tenants/{tenantId}/domains/registrations",
+    "POST /platform/tenants/{tenantId}/domains/connections",
+    "GET /platform/tenants/{tenantId}/zones/{domain}/document",
     "POST /platform/tenants/{tenantId}/stripe/account-link",
     "POST /platform/tenants/{tenantId}/stripe/sync",
     # Card terminals (Stripe Terminal) per restaurant location

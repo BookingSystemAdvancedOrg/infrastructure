@@ -21,9 +21,9 @@ resource "aws_s3_bucket_public_access_block" "customer_front_end_asset" {
   restrict_public_buckets = true
 }
 
-# Only the public CloudFront distribution's OAC is allowed to read this
-# bucket - scoped via AWS:SourceArn to that one distribution's ARN, not to
-# every distribution in the account. Public access is fully blocked above,
+# Only the public CloudFront distribution's OAC (plus the restaurant-domain
+# distribution, when on) may read this bucket - scoped via AWS:SourceArn to
+# those distributions' ARNs, not to every distribution in the account. Public access is fully blocked above,
 # so this policy is the only way anything can ever read these objects.
 resource "aws_s3_bucket_policy" "customer_front_end_asset" {
   bucket = aws_s3_bucket.customer_front_end_asset.id
@@ -39,7 +39,7 @@ resource "aws_s3_bucket_policy" "customer_front_end_asset" {
         Resource  = "${aws_s3_bucket.customer_front_end_asset.arn}/*"
         Condition = {
           StringEquals = {
-            "AWS:SourceArn" = "${var.cloudfront_distribution_arn}"
+            "AWS:SourceArn" = concat([var.cloudfront_distribution_arn], var.additional_cloudfront_distribution_arns)
           }
         }
       }

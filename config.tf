@@ -161,9 +161,15 @@ module "menu_image" {
   ])
 }
 module "customer_front_end_asset" {
-  source                      = "./storage/s3/customer-front-end-asset"
-  environment                 = var.env
-  cloudfront_distribution_arn = module.cloudfront_public.distribution_arn
+  source                                  = "./storage/s3/customer-front-end-asset"
+  environment                             = var.env
+  cloudfront_distribution_arn             = module.cloudfront_public.distribution_arn
+  additional_cloudfront_distribution_arns = local.tenant_sites_enabled ? [module.platform_domain[0].multitenant_distribution_arn] : []
+}
+module "domain_documents" {
+  source          = "./storage/s3/domain-documents"
+  environment     = var.env
+  allowed_origins = local.platform_admin_app_urls
 }
 module "catering_documents" {
   source      = "./storage/s3/catering-documents"
@@ -590,21 +596,25 @@ module "scheduler_invoke_catering_lifecycle_role" {
 
 # --- Platform / tenant control plane Lambdas -----------------------------------
 module "platform_tenants_role" {
-  source                          = "./security/iam/platform-tenants"
-  environment                     = var.env
-  tenant_table_arn                = module.tenant.table_arn
-  location_table_arn              = module.location.table_arn
-  user_table_arn                  = module.user.table_arn
-  tenant_user_pool_arn            = module.cognito.user_pool_arn
-  onboarding_state_machine_arn    = module.tenant_workflows.onboarding_state_machine_arn
-  domain_attach_state_machine_arn = module.tenant_workflows.domain_attach_state_machine_arn
-  domain_detach_state_machine_arn = module.tenant_workflows.domain_detach_state_machine_arn
-  offboarding_state_machine_arn   = module.tenant_workflows.offboarding_state_machine_arn
-  stripe_secret_arn               = module.platform_secrets.stripe_secret_arn
-  region                          = var.aws_region
-  operator_user_pool_arn          = module.cognito_platform.user_pool_arn
-  mail_outbox_enabled             = local.mail_outbox_enabled
-  mail_outbox_bucket_arn          = local.mail_outbox_arn
+  source                             = "./security/iam/platform-tenants"
+  environment                        = var.env
+  tenant_table_arn                   = module.tenant.table_arn
+  location_table_arn                 = module.location.table_arn
+  user_table_arn                     = module.user.table_arn
+  tenant_user_pool_arn               = module.cognito.user_pool_arn
+  onboarding_state_machine_arn       = module.tenant_workflows.onboarding_state_machine_arn
+  domain_attach_state_machine_arn    = module.tenant_workflows.domain_attach_state_machine_arn
+  domain_detach_state_machine_arn    = module.tenant_workflows.domain_detach_state_machine_arn
+  offboarding_state_machine_arn      = module.tenant_workflows.offboarding_state_machine_arn
+  stripe_secret_arn                  = module.platform_secrets.stripe_secret_arn
+  region                             = var.aws_region
+  operator_user_pool_arn             = module.cognito_platform.user_pool_arn
+  domains_enabled                    = local.tenant_sites_enabled
+  domain_provision_state_machine_arn = module.tenant_workflows.domain_provision_state_machine_arn
+  domain_documents_bucket_arn        = module.domain_documents.bucket_arn
+  platform_zone_id                   = local.platform_domain_enabled ? module.platform_domain[0].zone_id : ""
+  mail_outbox_enabled                = local.mail_outbox_enabled
+  mail_outbox_bucket_arn             = local.mail_outbox_arn
 }
 module "tenant_account_role" {
   source             = "./security/iam/tenant-account"
@@ -1393,31 +1403,33 @@ module "dlq_replay_fn" {
 
 # --- Platform / tenant control plane Lambdas -----------------------------------
 module "platform_tenants_fn" {
-  source                          = "./compute/lambda/platform-tenants"
-  environment                     = var.env
-  role_arn                        = module.platform_tenants_role.role_arn
-  ecr_repository_url              = module.platform_tenants_ecr.platform_tenants_ecr_repository_url
-  tenant_table_name               = module.tenant.table_name
-  location_table_name             = module.location.table_name
-  location_id_index_name          = module.location.location_id_index_name
-  user_table_name                 = module.user.table_name
-  user_tenant_index_name          = module.user.tenant_index_name
-  tenant_user_pool_id             = module.cognito.user_pool_id
-  owner_group_name                = module.cognito.owner_group_name
-  onboarding_state_machine_arn    = module.tenant_workflows.onboarding_state_machine_arn
-  domain_attach_state_machine_arn = module.tenant_workflows.domain_attach_state_machine_arn
-  domain_detach_state_machine_arn = module.tenant_workflows.domain_detach_state_machine_arn
-  offboarding_state_machine_arn   = module.tenant_workflows.offboarding_state_machine_arn
-  stripe_secret_arn               = module.platform_secrets.stripe_secret_arn
-  stripe_api_version              = var.stripe_api_version
-  platform_domain                 = local.tenant_sites_enabled ? var.platform_domain : "" # "" = custom domains refused (409)
-  tenant_domain_cname_target      = local.tenant_domain_cname_target
-  admin_app_url                   = local.admin_app_url
-  platform_admin_app_url          = local.platform_admin_app_url
-  region                          = var.aws_region
-  operator_user_pool_id           = module.cognito_platform.user_pool_id
-  operator_group_name             = module.cognito_platform.admin_group_name
-  mail_outbox_bucket_name         = local.mail_outbox_bucket
+  source                             = "./compute/lambda/platform-tenants"
+  environment                        = var.env
+  role_arn                           = module.platform_tenants_role.role_arn
+  ecr_repository_url                 = module.platform_tenants_ecr.platform_tenants_ecr_repository_url
+  tenant_table_name                  = module.tenant.table_name
+  location_table_name                = module.location.table_name
+  location_id_index_name             = module.location.location_id_index_name
+  user_table_name                    = module.user.table_name
+  user_tenant_index_name             = module.user.tenant_index_name
+  tenant_user_pool_id                = module.cognito.user_pool_id
+  owner_group_name                   = module.cognito.owner_group_name
+  onboarding_state_machine_arn       = module.tenant_workflows.onboarding_state_machine_arn
+  domain_attach_state_machine_arn    = module.tenant_workflows.domain_attach_state_machine_arn
+  domain_detach_state_machine_arn    = module.tenant_workflows.domain_detach_state_machine_arn
+  offboarding_state_machine_arn      = module.tenant_workflows.offboarding_state_machine_arn
+  stripe_secret_arn                  = module.platform_secrets.stripe_secret_arn
+  stripe_api_version                 = var.stripe_api_version
+  platform_domain                    = local.tenant_sites_enabled ? var.platform_domain : "" # "" = custom domains refused (409)
+  tenant_domain_cname_target         = local.tenant_domain_cname_target
+  admin_app_url                      = local.admin_app_url
+  platform_admin_app_url             = local.platform_admin_app_url
+  region                             = var.aws_region
+  operator_user_pool_id              = module.cognito_platform.user_pool_id
+  operator_group_name                = module.cognito_platform.admin_group_name
+  mail_outbox_bucket_name            = local.mail_outbox_bucket
+  domain_provision_state_machine_arn = module.tenant_workflows.domain_provision_state_machine_arn
+  domain_documents_bucket_name       = module.domain_documents.bucket_name
 }
 module "tenant_account_fn" {
   source                 = "./compute/lambda/tenant-account"
@@ -1647,9 +1659,11 @@ locals {
   # Everything that needs a domain the platform owns switches on with
   # var.platform_domain (network/platform-domain).
   platform_domain_enabled = var.platform_domain != ""
-  # Restaurant websites on <slug>.<domain> and customer domains - a separate
-  # switch, so the domain can serve only restaurant./admin./mail.
-  tenant_sites_enabled = local.platform_domain_enabled && var.tenant_sites_enabled
+  # Restaurant websites on their own domains - a separate switch, so the
+  # domain can serve only restaurant./admin./mail. <slug>.<domain> on top of
+  # that is var.tenant_subdomains_enabled.
+  tenant_sites_enabled      = local.platform_domain_enabled && var.tenant_sites_enabled
+  tenant_subdomains_enabled = local.tenant_sites_enabled && var.tenant_subdomains_enabled
 
   # restaurant.<domain> = restaurant admin app, admin.<domain> = Booqy Console.
   admin_app_hostname      = "restaurant.${var.platform_domain}"
@@ -1735,6 +1749,8 @@ module "platform_domain" {
   platform_domain                         = var.platform_domain
   subdomain_delegations                   = var.platform_subdomain_delegations
   tenant_sites_enabled                    = var.tenant_sites_enabled
+  tenant_subdomains_enabled               = var.tenant_subdomains_enabled
+  customer_bucket_regional_domain_name    = module.customer_front_end_asset.bucket_regional_domain_name
   menu_image_bucket_regional_domain_name  = module.menu_image.bucket_regional_domain_name
   admin_distribution_domain_name          = module.cloudfront_private.distribution_domain_name
   admin_app_hostname                      = local.admin_app_hostname
@@ -1753,33 +1769,37 @@ import {
 }
 
 # --- Control plane workflows --------------------------------------------------------
+data "aws_caller_identity" "current" {}
+
 module "tenant_workflows" {
   source = "./orchestration/tenant-workflows"
 
-  environment             = var.env
-  region                  = var.aws_region
-  tenant_table_name       = module.tenant.table_name
-  tenant_table_arn        = module.tenant.table_arn
-  user_table_name         = module.user.table_name
-  user_table_arn          = module.user.table_arn
-  user_tenant_index_name  = module.user.tenant_index_name
-  tenant_user_pool_id     = module.cognito.user_pool_id
-  tenant_user_pool_arn    = module.cognito.user_pool_arn
-  owner_group_name        = module.cognito.owner_group_name
-  stripe_secret_key       = var.stripe_secret_key
-  stripe_api_version      = var.stripe_api_version
-  default_tax_rates       = var.default_tax_rates
-  alert_topic_arn         = module.alerts.topic_arn
-  platform_domain_enabled = local.tenant_sites_enabled
-  platform_domain         = local.tenant_sites_enabled ? var.platform_domain : ""
+  environment               = var.env
+  region                    = var.aws_region
+  tenant_table_name         = module.tenant.table_name
+  tenant_table_arn          = module.tenant.table_arn
+  user_table_name           = module.user.table_name
+  user_table_arn            = module.user.table_arn
+  user_tenant_index_name    = module.user.tenant_index_name
+  tenant_user_pool_id       = module.cognito.user_pool_id
+  tenant_user_pool_arn      = module.cognito.user_pool_arn
+  owner_group_name          = module.cognito.owner_group_name
+  stripe_secret_key         = var.stripe_secret_key
+  stripe_api_version        = var.stripe_api_version
+  default_tax_rates         = var.default_tax_rates
+  alert_topic_arn           = module.alerts.topic_arn
+  platform_domain_enabled   = local.tenant_sites_enabled
+  tenant_subdomains_enabled = local.tenant_subdomains_enabled
+  platform_domain           = local.tenant_sites_enabled ? var.platform_domain : ""
 
   multitenant_distribution_id  = local.tenant_sites_enabled ? module.platform_domain[0].multitenant_distribution_id : ""
   multitenant_distribution_arn = local.tenant_sites_enabled ? module.platform_domain[0].multitenant_distribution_arn : ""
   connection_group_id          = local.tenant_sites_enabled ? module.platform_domain[0].connection_group_id : ""
   connection_group_arn         = local.tenant_sites_enabled ? module.platform_domain[0].connection_group_arn : ""
   cname_target                 = local.tenant_domain_cname_target
-  sites_bucket_name            = local.tenant_sites_enabled ? module.platform_domain[0].sites_bucket_name : ""
-  sites_bucket_arn             = local.tenant_sites_enabled ? module.platform_domain[0].sites_bucket_arn : ""
+  # The function's live alias, by name: the function's environment holds
+  # this module's state machine ARNs, so referencing it would be a cycle.
+  platform_tenants_function_arn = "arn:aws:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:${var.env == "prod" ? "platform-tenants" : "${var.env}-platform-tenants"}:live"
 }
 
 #CloudFront
@@ -1850,16 +1870,6 @@ module "website_deploy_role" {
   github_repo                 = "${var.github_org}@*/${var.website_repo}"
   website_bucket_arn          = module.platform_domain[0].landing_bucket_arn
   cloudfront_distribution_arn = module.platform_domain[0].landing_distribution_arn
-}
-# Tenant website repos (site-*) publish to the tenant-sites bucket
-module "tenant_sites_deploy_role" {
-  count             = local.tenant_sites_enabled ? 1 : 0
-  source            = "./security/iam/oidc/tenant-sites-deploy-role"
-  environment       = var.env
-  oidc_provider_arn = module.github_oidc_provider.provider_arn
-  github_org        = var.github_org
-  site_repo_pattern = var.tenant_site_repo_pattern
-  sites_bucket_arn  = module.platform_domain[0].sites_bucket_arn
 }
 module "back_end_role" {
   source              = "./security/iam/oidc/back-end-role"

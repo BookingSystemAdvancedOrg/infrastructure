@@ -38,16 +38,6 @@ output "cname_target" {
   value       = one(aws_cloudfront_connection_group.tenant_sites[*].routing_endpoint)
 }
 
-output "sites_bucket_name" {
-  description = "Name of the tenant-sites bucket"
-  value       = one(aws_s3_bucket.tenant_sites[*].id)
-}
-
-output "sites_bucket_arn" {
-  description = "ARN of the tenant-sites bucket"
-  value       = one(aws_s3_bucket.tenant_sites[*].arn)
-}
-
 output "ses_identity_arn" {
   description = "ARN of the mail.<domain> SES identity"
   value       = aws_sesv2_email_identity.mail.arn

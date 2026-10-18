@@ -196,6 +196,7 @@ resource "aws_iam_role_policy" "start_workflows" {
           "${var.domain_attach_state_machine_arn}",
           "${var.domain_detach_state_machine_arn}",
           "${var.offboarding_state_machine_arn}",
+          "${var.domain_provision_state_machine_arn}",
         ]
       }
     ]
@@ -271,6 +272,81 @@ resource "aws_iam_role_policy" "mail_outbox" {
         Resource = "${var.mail_outbox_bucket_arn}/outbox/*"
       }
     ]
+  })
+}
+
+# Domains the platform runs DNS for (Booqy Console "Add domain": buy a new
+# domain, or connect one by switching its name servers). Only with restaurant
+# domains on. Route 53 Domains has no resource-level permissions - who may
+# buy is decided by the operator pool + platform_admin group in front of
+# this Lambda. Record changes are allowed in any hosted zone EXCEPT the
+# platform's own (booqy.se / dev.booqy.se), which only Terraform changes.
+resource "aws_iam_role_policy" "domains" {
+  count = var.domains_enabled ? 1 : 0
+  name  = "restaurant-domains"
+  role  = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = concat([
+      {
+        Sid    = "SearchAndRegisterDomains"
+        Effect = "Allow"
+        Action = [
+          "route53domains:CheckDomainAvailability",
+          "route53domains:GetDomainSuggestions",
+          "route53domains:ListPrices",
+          "route53domains:RegisterDomain",
+          "route53domains:GetOperationDetail",
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "CreateAndFindZones"
+        Effect = "Allow"
+        Action = [
+          "route53:CreateHostedZone",
+          "route53:ListHostedZonesByName",
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "ManageRestaurantZones"
+        Effect = "Allow"
+        Action = [
+          "route53:GetHostedZone",
+          "route53:ListResourceRecordSets",
+          "route53:ChangeResourceRecordSets",
+          "route53:ChangeTagsForResource",
+          "route53:GetChange",
+        ]
+        Resource = [
+          "arn:aws:route53:::hostedzone/*",
+          "arn:aws:route53:::change/*",
+        ]
+      },
+      {
+        Sid    = "RegistreringsbevisUploads"
+        Effect = "Allow"
+        Action = [
+          "s3:PutObject",
+          "s3:GetObject",
+          "s3:DeleteObject",
+        ]
+        Resource = "${var.domain_documents_bucket_arn}/tenants/*"
+      }
+      ], var.platform_zone_id == "" ? [] : [
+      {
+        Sid    = "NeverThePlatformZone"
+        Effect = "Deny"
+        Action = [
+          "route53:ChangeResourceRecordSets",
+          "route53:ChangeTagsForResource",
+          "route53:DeleteHostedZone",
+        ]
+        Resource = "arn:aws:route53:::hostedzone/${var.platform_zone_id}"
+      }
+    ])
   })
 }
 

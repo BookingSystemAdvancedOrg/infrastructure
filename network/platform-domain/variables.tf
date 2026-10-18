@@ -28,11 +28,10 @@ variable "platform_admin_distribution_domain_name" {
   sensitive   = false
 }
 
-variable "site_placeholder_key" {
-  description = "Key of the 'coming soon' page in the tenant-sites bucket"
+variable "customer_bucket_regional_domain_name" {
+  description = "Regional domain name of the customer-front-end bucket - the shared restaurant site served on every restaurant domain"
   type        = string
   sensitive   = false
-  default     = "_placeholder/index.html"
 }
 
 variable "web_acl_arn" {
@@ -50,7 +49,14 @@ variable "subdomain_delegations" {
 }
 
 variable "tenant_sites_enabled" {
-  description = "Create the restaurant website hosting: tenant-sites bucket, multi-tenant distribution, connection group and the *.<domain> record"
+  description = "Serve restaurant websites on the restaurants' own domains: multi-tenant distribution and connection group"
+  type        = bool
+  sensitive   = false
+  default     = false
+}
+
+variable "tenant_subdomains_enabled" {
+  description = "Also serve them on <slug>.<domain> (the *.<domain> record). Needs tenant_sites_enabled"
   type        = bool
   sensitive   = false
   default     = false

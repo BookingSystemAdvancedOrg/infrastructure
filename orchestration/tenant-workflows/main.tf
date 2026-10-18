@@ -10,10 +10,17 @@
 #                         until issued
 #   tenant-domain-detach  disable -> wait for deploy -> delete -> release
 #   tenant-offboarding    block, disable + sign out users, detach domains
+#   tenant-domain-provision  a domain we run DNS for (bought through Route 53
+#                         Domains, or connected by switching name servers):
+#                         wait for the registry / the name servers -> apex +
+#                         www records -> domain-attach for both
 #
-# No Lambda code: every step is a direct AWS SDK integration (DynamoDB,
-# Cognito, CloudFront, S3, SNS) or an HTTP task to the Stripe API through an
-# EventBridge connection that holds the platform key. The definitions are
+# No Lambda code of their own: every step is a direct AWS SDK integration
+# (DynamoDB, Cognito, CloudFront, S3, SNS) or an HTTP task to the Stripe API
+# through an EventBridge connection that holds the platform key - except
+# domain-provision, whose waiting/DNS steps are tasks in the platform-tenants
+# Lambda (Route 53 Domains only exists in us-east-1, and the name server
+# check is a public DNS lookup). The definitions are
 # JSONata ASL files in definitions/ - open them in Workflow Studio to see the
 # graphs. Each workflow has its own role scoped to exactly its steps.
 
@@ -28,6 +35,9 @@ locals {
     domain_attach = "${local.prefix}tenant-domain-attach"
     domain_detach = "${local.prefix}tenant-domain-detach"
     offboarding   = "${local.prefix}tenant-offboarding"
+    # Created everywhere (cheap, idle); only started when restaurant domains
+    # are on, since platform-tenants refuses domain orders otherwise.
+    domain_provision = "${local.prefix}tenant-domain-provision"
   }
   state_machine_arns = { for k, n in local.names : k => "arn:aws:states:${var.region}:${local.account_id}:stateMachine:${n}" }
 
@@ -44,6 +54,7 @@ locals {
     tenant_table            = var.tenant_table_name
     alert_topic_arn         = var.alert_topic_arn
     platform_domain_enabled = var.platform_domain_enabled ? "true" : "false"
+    subdomains_enabled      = var.platform_domain_enabled && var.tenant_subdomains_enabled ? "true" : "false"
     platform_domain         = var.platform_domain
     distribution_id         = var.multitenant_distribution_id
     connection_group_id     = var.connection_group_id
@@ -122,7 +133,7 @@ resource "aws_iam_role" "this" {
 }
 
 # Step Functions log delivery - these actions have no resource-level
-# permissions, so "*" is the documented requirement. Shared by all four.
+# permissions, so "*" is the documented requirement. Shared by all of them.
 data "aws_iam_policy_document" "common" {
   statement {
     sid = "VendedLogDelivery"
@@ -203,31 +214,11 @@ data "aws_iam_policy_document" "onboarding" {
   }
 
   dynamic "statement" {
-    for_each = var.platform_domain_enabled ? [1] : []
+    for_each = var.platform_domain_enabled && var.tenant_subdomains_enabled ? [1] : []
     content {
       sid       = "CreateSubdomainTenant"
       actions   = ["cloudfront:CreateDistributionTenant", "cloudfront:GetDistributionTenant"]
       resources = local.cloudfront_tenant_resources
-    }
-  }
-
-  dynamic "statement" {
-    for_each = var.platform_domain_enabled ? [1] : []
-    content {
-      sid       = "SeedSitePlaceholder"
-      actions   = ["s3:GetObject", "s3:PutObject"]
-      resources = ["${var.sites_bucket_arn}/*"]
-    }
-  }
-
-  # Without ListBucket, S3 answers a missing key with 403 instead of 404 -
-  # the "is a site deployed yet?" check relies on telling the two apart.
-  dynamic "statement" {
-    for_each = var.platform_domain_enabled ? [1] : []
-    content {
-      sid       = "TellMissingFromForbidden"
-      actions   = ["s3:ListBucket"]
-      resources = [var.sites_bucket_arn]
     }
   }
 }
@@ -322,6 +313,41 @@ data "aws_iam_policy_document" "offboarding" {
   }
 }
 
+data "aws_iam_policy_document" "domain_provision" {
+  source_policy_documents = [data.aws_iam_policy_document.common.json]
+
+  statement {
+    sid       = "RunDomainTasks"
+    actions   = ["lambda:InvokeFunction"]
+    resources = [var.platform_tenants_function_arn]
+  }
+
+  statement {
+    sid       = "RunDomainAttach"
+    actions   = ["states:StartExecution"]
+    resources = [local.state_machine_arns.domain_attach]
+  }
+
+  statement {
+    sid       = "WaitForDomainAttach"
+    actions   = ["states:DescribeExecution", "states:StopExecution"]
+    resources = ["arn:aws:states:${var.region}:${local.account_id}:execution:${local.names.domain_attach}:*"]
+  }
+
+  # .sync:2 completion is delivered through this Step Functions-managed rule.
+  statement {
+    sid       = "SyncExecutionEvents"
+    actions   = ["events:PutTargets", "events:PutRule", "events:DescribeRule"]
+    resources = ["arn:aws:events:${var.region}:${local.account_id}:rule/StepFunctionsGetEventsForStepFunctionsExecutionRule"]
+  }
+}
+
+resource "aws_iam_role_policy" "domain_provision" {
+  name   = "tenant-domain-provision"
+  role   = aws_iam_role.this["domain_provision"].id
+  policy = data.aws_iam_policy_document.domain_provision.json
+}
+
 resource "aws_iam_role_policy" "onboarding" {
   name   = "tenant-onboarding"
   role   = aws_iam_role.this["onboarding"].id
@@ -358,8 +384,6 @@ resource "aws_sfn_state_machine" "onboarding" {
     stripe_connection_arn = aws_cloudwatch_event_connection.stripe.arn
     stripe_api_version    = var.stripe_api_version
     tax_rates_json        = jsonencode(local.tax_rates)
-    sites_bucket          = var.sites_bucket_name
-    placeholder_key       = var.site_placeholder_key
   }))
 
   logging_configuration {
@@ -394,6 +418,38 @@ resource "aws_sfn_state_machine" "domain_attach" {
   }
 
   depends_on = [aws_iam_role_policy.domain_attach]
+}
+
+resource "aws_sfn_state_machine" "domain_provision" {
+  name     = local.names.domain_provision
+  role_arn = aws_iam_role.this["domain_provision"].arn
+  definition = templatefile("${path.module}/definitions/domain-provision.asl.json", {
+    environment                     = var.environment
+    alert_topic_arn                 = var.alert_topic_arn
+    function_arn                    = var.platform_tenants_function_arn
+    domain_attach_state_machine_arn = aws_sfn_state_machine.domain_attach.arn
+    registration_check_seconds      = var.registration_check_interval_seconds
+    max_registration_checks         = var.max_registration_checks
+    nameserver_check_seconds        = var.nameserver_check_interval_seconds
+    max_nameserver_checks           = var.max_nameserver_checks
+    # longest wait + domain-attach's own certificate window + a day
+    timeout_seconds = max(
+      var.registration_check_interval_seconds * var.max_registration_checks,
+      var.nameserver_check_interval_seconds * var.max_nameserver_checks,
+    ) + var.certificate_check_interval_seconds * var.max_certificate_checks + 86400
+  })
+
+  logging_configuration {
+    log_destination        = "${aws_cloudwatch_log_group.this["domain_provision"].arn}:*"
+    include_execution_data = false
+    level                  = "ERROR"
+  }
+
+  tags = {
+    Environment = var.environment
+  }
+
+  depends_on = [aws_iam_role_policy.domain_provision]
 }
 
 resource "aws_sfn_state_machine" "domain_detach" {

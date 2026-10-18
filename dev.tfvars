@@ -17,19 +17,20 @@ alert_emails = [
 
 # Domain the platform owns. Dev runs on dev.booqy.se: its own hosted zone in
 # THIS account (created by hand, delegated from the booqy.se zone in prod), so
-# dev and prod DNS never touch. Turns on tenant subdomains (<slug>.dev.booqy.se),
-# customer custom domains, restaurant./admin. hostnames and the SES sending domain
-# mail.dev.booqy.se (see docs/PLATFORM-SETUP.md, "Platform domain").
+# dev and prod DNS never touch. Turns on the restaurant./admin. hostnames,
+# the SES sending domain mail.dev.booqy.se and (tenant_sites_enabled below)
+# restaurant custom domains (see docs/PLATFORM-SETUP.md, "Platform domain").
 # dev.booqy.se is delegated from the booqy.se zone in prod (NS record, also
 # kept by prod.tfvars platform_subdomain_delegations), so the wildcard
 # certificate validates here.
 platform_domain         = "dev.booqy.se"
 platform_domain_zone_id = "Z0571042RSRT4D1DDZ1L"
 
-# The domain serves only restaurant. (restaurant admin), admin. (Booqy Console) and
-# mail. (SES) - no restaurant websites on <slug>.<domain> or customer
-# domains (no wildcard record, no multi-tenant distribution).
-tenant_sites_enabled = false
+# Restaurant websites on each restaurant's own domain (e.g. www.arya.se),
+# attached from Booqy Console: the restaurant adds one CNAME, CloudFront
+# issues the certificate. No <slug>.<domain> sites - booqy.se itself never
+# hosts a restaurant site (tenant_subdomains_enabled stays false).
+tenant_sites_enabled = true
 
 # Public keys handed to restaurant websites by GET /site-config - not
 # secrets (see docs/PLATFORM-SETUP.md).
