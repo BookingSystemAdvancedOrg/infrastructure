@@ -109,7 +109,7 @@ resource "aws_cloudfront_origin_access_control" "landing" {
 # distribution. Lambda URLs need the body hash on POST - the page sends it as
 # x-amz-content-sha256.
 resource "aws_cloudfront_origin_access_control" "demo_request" {
-  count                             = var.demo_request_origin_domain != "" ? 1 : 0
+  count                             = var.demo_request_enabled ? 1 : 0
   name                              = "${local.prefix}landing-demo-request-oac"
   origin_access_control_origin_type = "lambda"
   signing_behavior                  = "always"
@@ -132,7 +132,7 @@ resource "aws_cloudfront_distribution" "landing" {
   }
 
   dynamic "origin" {
-    for_each = var.demo_request_origin_domain != "" ? [1] : []
+    for_each = var.demo_request_enabled ? [1] : []
     content {
       origin_id                = "demo-request"
       domain_name              = var.demo_request_origin_domain
@@ -148,7 +148,7 @@ resource "aws_cloudfront_distribution" "landing" {
   }
 
   dynamic "ordered_cache_behavior" {
-    for_each = var.demo_request_origin_domain != "" ? [1] : []
+    for_each = var.demo_request_enabled ? [1] : []
     content {
       path_pattern           = "/api/*"
       target_origin_id       = "demo-request"

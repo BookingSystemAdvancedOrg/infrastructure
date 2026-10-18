@@ -74,8 +74,14 @@ variable "platform_admin_hostname" {
   sensitive   = false
 }
 
+variable "demo_request_enabled" {
+  description = "Serve <domain>/api/* on the landing distribution from the demo-request Lambda. A plain bool (known at plan time) - the origin domain itself is only known after the function URL exists, so it can't drive count."
+  type        = bool
+  default     = false
+}
+
 variable "demo_request_origin_domain" {
-  description = "Host name of the demo-request Lambda's function URL - served at <domain>/api/* on the landing distribution. Empty: no /api route."
+  description = "Host name of the demo-request Lambda's function URL (used when demo_request_enabled)"
   type        = string
   default     = ""
 }

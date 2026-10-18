@@ -1756,6 +1756,7 @@ module "platform_domain" {
   admin_app_hostname                      = local.admin_app_hostname
   platform_admin_hostname                 = local.platform_admin_hostname
   platform_admin_distribution_domain_name = module.cloudfront_platform_admin.distribution_domain_name
+  demo_request_enabled                    = true
   demo_request_origin_domain              = module.demo_request_fn[0].function_url_domain
 }
 
