@@ -15,18 +15,19 @@ alert_emails = [
   "arya.eisa@ithjalparna.se",
 ]
 
-# Domain the platform owns. Turns on tenant subdomains (<slug>.booqy.se),
-# customer custom domains, restaurant./admin. hostnames and the SES sending domain
-# mail.booqy.se (see docs/PLATFORM-SETUP.md, "Platform domain").
+# Domain the platform owns. Turns on the restaurant./admin. hostnames,
+# the SES sending domain mail.booqy.se and (tenant_sites_enabled below)
+# restaurant custom domains (see docs/PLATFORM-SETUP.md, "Platform domain").
 # The zone is the one Route 53 created when booqy.se was registered in this
 # account - adopted, so the domain's name servers never change.
 platform_domain         = "booqy.se"
 platform_domain_zone_id = "Z04764661GIIKO8677SYH"
 
-# The domain serves only restaurant. (restaurant admin), admin. (Booqy Console) and
-# mail. (SES) - no restaurant websites on <slug>.<domain> or customer
-# domains (no wildcard record, no multi-tenant distribution).
-tenant_sites_enabled = false
+# Restaurant websites on each restaurant's own domain (e.g. www.arya.se),
+# attached from Booqy Console: the restaurant adds one CNAME, CloudFront
+# issues the certificate. No <slug>.<domain> sites - booqy.se itself never
+# hosts a restaurant site (tenant_subdomains_enabled stays false).
+tenant_sites_enabled = true
 
 # dev.booqy.se is answered by the dev account's zone (Z0571042RSRT4D1DDZ1L).
 # The NS record was created by hand first so dev could go live before prod;

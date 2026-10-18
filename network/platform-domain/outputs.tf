@@ -38,16 +38,6 @@ output "cname_target" {
   value       = one(aws_cloudfront_connection_group.tenant_sites[*].routing_endpoint)
 }
 
-output "sites_bucket_name" {
-  description = "Name of the tenant-sites bucket"
-  value       = one(aws_s3_bucket.tenant_sites[*].id)
-}
-
-output "sites_bucket_arn" {
-  description = "ARN of the tenant-sites bucket"
-  value       = one(aws_s3_bucket.tenant_sites[*].arn)
-}
-
 output "ses_identity_arn" {
   description = "ARN of the mail.<domain> SES identity"
   value       = aws_sesv2_email_identity.mail.arn
@@ -56,4 +46,24 @@ output "ses_identity_arn" {
 output "no_reply_address" {
   description = "Sender address every tenant's emails go out from"
   value       = "noreply@${local.mail_domain}"
+}
+
+output "landing_bucket_name" {
+  description = "Bucket the public page on <domain> is served from (booqy-website deploys here)"
+  value       = aws_s3_bucket.landing.id
+}
+
+output "landing_bucket_arn" {
+  description = "ARN of the public page bucket"
+  value       = aws_s3_bucket.landing.arn
+}
+
+output "landing_distribution_id" {
+  description = "CloudFront distribution serving <domain> and www.<domain> (booqy-website invalidates it after deploying)"
+  value       = aws_cloudfront_distribution.landing.id
+}
+
+output "landing_distribution_arn" {
+  description = "ARN of the public page distribution"
+  value       = aws_cloudfront_distribution.landing.arn
 }

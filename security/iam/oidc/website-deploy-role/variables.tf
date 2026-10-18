@@ -10,20 +10,20 @@ variable "oidc_provider_arn" {
   sensitive   = false
 }
 
-variable "github_org" {
-  description = "GitHub organization the tenant website repos live in"
+variable "github_repo" {
+  description = "GitHub repo this role trusts, as \"org@*/repo-name\" - used in the trust policy's sub claim condition"
   type        = string
   sensitive   = false
 }
 
-variable "site_repo_pattern" {
-  description = "Repo-name pattern (IAM StringLike) of tenant website repos allowed to deploy, e.g. site-*"
+variable "website_bucket_arn" {
+  description = "ARN of the public page bucket (network/platform-domain landing) this pipeline deploys to"
   type        = string
   sensitive   = false
 }
 
-variable "sites_bucket_arn" {
-  description = "ARN of the tenant-sites bucket (network/platform-domain)"
+variable "cloudfront_distribution_arn" {
+  description = "ARN of the public page CloudFront distribution this pipeline invalidates after deploying"
   type        = string
   sensitive   = false
 }

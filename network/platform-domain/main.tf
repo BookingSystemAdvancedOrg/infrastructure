@@ -5,11 +5,12 @@
 #
 #   <domain> hosted zone          delegate the domain to its name servers
 #   *.<domain> + <domain> cert    ACM (us-east-1), DNS-validated in that zone
-#   tenant-sites bucket           every tenant website under <tenantId>/
-#   multi-tenant distribution     CloudFront SaaS Manager template: the
-#                                 tenantId parameter picks the S3 prefix
+#   multi-tenant distribution     CloudFront SaaS Manager template serving
+#                                 the shared customer site (customer-front-end
+#                                 bucket) on every restaurant's own domain
 #   connection group              the CNAME target customers point at
-#   *.<domain>  -> connection group   <slug>.<domain> needs no per-tenant DNS
+#   *.<domain>  -> connection group   only with var.tenant_subdomains_enabled
+#                                 (<slug>.<domain>); off = own domains only
 #   restaurant.<domain>          restaurant admin app (admin-front-end)
 #   admin.<domain>               operator app (Booqy Console)
 #   mail.<domain>                 SES sending domain (DKIM, MAIL FROM, DMARC)
@@ -33,10 +34,12 @@ data "aws_region" "current" {}
 locals {
   prefix      = var.environment == "prod" ? "" : "${var.environment}-"
   mail_domain = "mail.${var.platform_domain}"
-  # Restaurant websites on <slug>.<domain> and customer domains (bucket,
-  # multi-tenant distribution, connection group, wildcard record) - off
-  # unless var.tenant_sites_enabled; restaurant./admin./mail. never depend on them.
-  tenant_sites_count = var.tenant_sites_enabled ? 1 : 0
+  # Restaurant websites on their own domains (multi-tenant distribution,
+  # connection group) - off unless var.tenant_sites_enabled;
+  # restaurant./admin./mail. never depend on them. <slug>.<domain> also needs
+  # var.tenant_subdomains_enabled (the *.<domain> record).
+  tenant_sites_count     = var.tenant_sites_enabled ? 1 : 0
+  tenant_subdomain_count = var.tenant_sites_enabled && var.tenant_subdomains_enabled ? 1 : 0
   # CloudFront's fixed hosted zone ID for alias records
   cloudfront_zone_id = "Z2FDTNDATAQYW2"
 }
@@ -114,139 +117,14 @@ resource "aws_acm_certificate_validation" "wildcard" {
   validation_record_fqdns = [for r in aws_route53_record.certificate_validation : r.fqdn]
 }
 
-# --- Tenant websites bucket ----------------------------------------------------
-#
-# <tenantId>/... per tenant. Only the multi-tenant distribution can read it
-# (OAC); the site deploy role (security/iam/oidc/tenant-sites-deploy-role)
-# writes to it. Versioned so a bad deploy of one tenant's site can be rolled
-# back object by object.
-
-resource "aws_s3_bucket" "tenant_sites" {
-  count = local.tenant_sites_count
-
-  bucket = "${local.prefix}tenant-sites-${data.aws_caller_identity.current.account_id}"
-
-  tags = {
-    Environment = var.environment
-  }
-}
-
-resource "aws_s3_bucket_public_access_block" "tenant_sites" {
-  count = local.tenant_sites_count
-
-  bucket = aws_s3_bucket.tenant_sites[0].id
-
-  block_public_acls       = true
-  block_public_policy     = true
-  ignore_public_acls      = true
-  restrict_public_buckets = true
-}
-
-resource "aws_s3_bucket_ownership_controls" "tenant_sites" {
-  count = local.tenant_sites_count
-
-  bucket = aws_s3_bucket.tenant_sites[0].id
-
-  rule {
-    object_ownership = "BucketOwnerEnforced"
-  }
-}
-
-resource "aws_s3_bucket_versioning" "tenant_sites" {
-  count = local.tenant_sites_count
-
-  bucket = aws_s3_bucket.tenant_sites[0].id
-
-  versioning_configuration {
-    status = "Enabled"
-  }
-}
-
-resource "aws_s3_bucket_server_side_encryption_configuration" "tenant_sites" {
-  count = local.tenant_sites_count
-
-  bucket = aws_s3_bucket.tenant_sites[0].id
-
-  rule {
-    apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256"
-    }
-  }
-}
-
-resource "aws_s3_bucket_lifecycle_configuration" "tenant_sites" {
-  count = local.tenant_sites_count
-
-  bucket = aws_s3_bucket.tenant_sites[0].id
-
-  rule {
-    id     = "expire-replaced-site-files"
-    status = "Enabled"
-
-    filter {}
-
-    noncurrent_version_expiration {
-      noncurrent_days = 30
-    }
-  }
-}
-
-resource "aws_s3_bucket_policy" "tenant_sites" {
-  count = local.tenant_sites_count
-
-  bucket = aws_s3_bucket.tenant_sites[0].id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Sid       = "AllowTenantDistributionReadOnly"
-        Effect    = "Allow"
-        Principal = { Service = "cloudfront.amazonaws.com" }
-        Action    = "s3:GetObject"
-        Resource  = "${aws_s3_bucket.tenant_sites[0].arn}/*"
-        Condition = {
-          StringEquals = {
-            "AWS:SourceArn" = aws_cloudfront_multitenant_distribution.tenant_sites[0].arn
-          }
-        }
-      },
-      {
-        Sid       = "DenyInsecureTransport"
-        Effect    = "Deny"
-        Principal = "*"
-        Action    = "s3:*"
-        Resource  = [aws_s3_bucket.tenant_sites[0].arn, "${aws_s3_bucket.tenant_sites[0].arn}/*"]
-        Condition = {
-          Bool = { "aws:SecureTransport" = "false" }
-        }
-      }
-    ]
-  })
-
-  depends_on = [aws_s3_bucket_public_access_block.tenant_sites]
-}
-
-# The page onboarding copies to <tenantId>/index.html so a new tenant's
-# subdomain shows "coming soon" instead of an error until its real site is
-# deployed. Never copied over an existing site.
-resource "aws_s3_object" "tenant_site_placeholder" {
-  count = local.tenant_sites_count
-
-  bucket        = aws_s3_bucket.tenant_sites[0].id
-  key           = var.site_placeholder_key
-  content       = file("${path.module}/files/coming-soon.html")
-  content_type  = "text/html; charset=utf-8"
-  cache_control = "no-cache"
-  etag          = filemd5("${path.module}/files/coming-soon.html")
-}
-
 # --- CloudFront: multi-tenant distribution ------------------------------------
 
+# Reads the customer-front-end bucket - the same build the public
+# distribution serves. That bucket's policy admits this distribution.
 resource "aws_cloudfront_origin_access_control" "tenant_sites" {
   count = local.tenant_sites_count
 
-  name                              = "${local.prefix}tenant-sites-oac"
+  name                              = "${local.prefix}tenant-sites-customer-site-oac"
   origin_access_control_origin_type = "s3"
   signing_behavior                  = "always"
   signing_protocol                  = "sigv4"
@@ -270,23 +148,24 @@ resource "aws_cloudfront_multitenant_distribution" "tenant_sites" {
   http_version        = "http2and3"
   web_acl_id          = var.web_acl_arn != "" ? var.web_acl_arn : null
 
-  # Each distribution tenant passes its tenantId; it becomes the S3 prefix.
+  # Each distribution tenant carries its tenantId (the workflows set it and
+  # check it on resume). The site itself is one shared build: it finds its
+  # restaurant with GET /site-config?host=<the domain it was opened on>.
   tenant_config {
     parameter_definition {
       name = "tenantId"
       definition {
         string_schema {
           required = true
-          comment  = "Tenant whose site this distribution tenant serves (S3 prefix in the tenant-sites bucket)"
+          comment  = "Tenant whose domain this distribution tenant serves"
         }
       }
     }
   }
 
   origin {
-    id                       = "tenant-sites"
-    domain_name              = aws_s3_bucket.tenant_sites[0].bucket_regional_domain_name
-    origin_path              = "/{{tenantId}}"
+    id                       = "customer-site"
+    domain_name              = var.customer_bucket_regional_domain_name
     origin_access_control_id = aws_cloudfront_origin_access_control.tenant_sites[0].id
   }
 
@@ -296,8 +175,11 @@ resource "aws_cloudfront_multitenant_distribution" "tenant_sites" {
     origin_access_control_id = aws_cloudfront_origin_access_control.tenant_sites_menu_image[0].id
   }
 
+  # CachingOptimized honours the object's Cache-Control: the customer-front-end
+  # deploy uploads index.html as no-cache and hashed assets as immutable, so a
+  # deploy is live on every restaurant domain without invalidating them.
   default_cache_behavior {
-    target_origin_id       = "tenant-sites"
+    target_origin_id       = "customer-site"
     viewer_protocol_policy = "redirect-to-https"
     cache_policy_id        = "658327ea-f89d-4fab-a63d-7e88639e58f6" # AWS managed "CachingOptimized"
     compress               = true
@@ -343,8 +225,8 @@ resource "aws_cloudfront_multitenant_distribution" "tenant_sites" {
     }
   }
 
-  # Inherited by every <slug>.<domain> distribution tenant. Customer domains
-  # replace it with their own managed certificate.
+  # Inherited by <slug>.<domain> distribution tenants (when enabled). Customer
+  # domains replace it with their own CloudFront-managed certificate.
   viewer_certificate {
     acm_certificate_arn      = aws_acm_certificate_validation.wildcard.certificate_arn
     ssl_support_method       = "sni-only"
@@ -357,8 +239,8 @@ resource "aws_cloudfront_multitenant_distribution" "tenant_sites" {
 }
 
 # The routing endpoint every distribution tenant is reached through: the
-# wildcard record below for <slug>.<domain>, and the CNAME target customers
-# set for their own domain.
+# CNAME target customers set for their own domain (and the wildcard record
+# below for <slug>.<domain> when subdomains are on).
 resource "aws_cloudfront_connection_group" "tenant_sites" {
   count = local.tenant_sites_count
 
@@ -372,7 +254,7 @@ resource "aws_cloudfront_connection_group" "tenant_sites" {
 }
 
 resource "aws_route53_record" "tenant_sites_wildcard" {
-  count = local.tenant_sites_count
+  count = local.tenant_subdomain_count
 
   zone_id = aws_route53_zone.platform.zone_id
   name    = "*.${var.platform_domain}"

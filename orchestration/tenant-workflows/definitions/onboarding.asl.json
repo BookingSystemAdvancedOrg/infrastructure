@@ -1,5 +1,5 @@
 {
-  "Comment": "Tenant onboarding. Started by platform-tenants after it has written the tenant's PROFILE row (status provisioning). Invites the first owner, creates the restaurant's Stripe connected account and VAT rates, gives the tenant its <slug> subdomain, then marks it active. Every step is idempotent, so a failed run is simply started again (POST /platform/tenants/{tenantId}/onboarding/retry).",
+  "Comment": "Tenant onboarding. Started by platform-tenants after it has written the tenant's PROFILE row (status provisioning). Invites the first owner, creates the restaurant's Stripe connected account and VAT rates, gives the tenant its <slug> subdomain (when subdomains are on), then marks it active. Every step is idempotent, so a failed run is simply started again (POST /platform/tenants/{tenantId}/onboarding/retry).",
   "QueryLanguage": "JSONata",
   "TimeoutSeconds": 3600,
   "StartAt": "Init",
@@ -464,7 +464,7 @@
       "Type": "Choice",
       "Choices": [
         {
-          "Condition": "{% ${platform_domain_enabled} %}",
+          "Condition": "{% ${subdomains_enabled} %}",
           "Next": "CreateSubdomainTenant"
         }
       ],
@@ -472,7 +472,7 @@
     },
     "CreateSubdomainTenant": {
       "Type": "Task",
-      "Comment": "<slug>.<platform domain>, served by the multi-tenant distribution with its wildcard certificate (inherited - no per-tenant certificate) and a wildcard DNS record (no per-tenant DNS). The tenantId parameter becomes the S3 origin path, so the site is whatever is deployed under <tenantId>/ in the tenant-sites bucket.",
+      "Comment": "<slug>.<platform domain>, served by the multi-tenant distribution with its wildcard certificate (inherited - no per-tenant certificate) and a wildcard DNS record (no per-tenant DNS). The site is the shared customer-front-end build, which resolves the restaurant from the hostname.",
       "Resource": "arn:aws:states:::aws-sdk:cloudfront:createDistributionTenant",
       "Arguments": {
         "DistributionId": "${distribution_id}",
@@ -571,42 +571,6 @@
           "ErrorEquals": ["States.ALL"],
           "Assign": { "failure": "{% $states.errorOutput %}", "failedState": "{% $states.context.State.Name %}" },
           "Next": "MarkFailed"
-        }
-      ],
-      "Next": "SiteAlreadyDeployed"
-    },
-    "SiteAlreadyDeployed": {
-      "Type": "Task",
-      "Comment": "Only seeds the 'coming soon' page when nothing has been deployed for this tenant yet - never overwrites a real site.",
-      "Resource": "arn:aws:states:::aws-sdk:s3:headObject",
-      "Arguments": {
-        "Bucket": "${sites_bucket}",
-        "Key": "{% $tenantId & '/index.html' %}"
-      },
-      "Catch": [
-        {
-          "ErrorEquals": ["S3.NoSuchKeyException", "S3.NotFoundException", "S3.S3Exception"],
-          "Next": "SeedSitePlaceholder"
-        },
-        {
-          "ErrorEquals": ["States.ALL"],
-          "Next": "ActivateTenant"
-        }
-      ],
-      "Next": "ActivateTenant"
-    },
-    "SeedSitePlaceholder": {
-      "Type": "Task",
-      "Resource": "arn:aws:states:::aws-sdk:s3:copyObject",
-      "Arguments": {
-        "Bucket": "${sites_bucket}",
-        "CopySource": "${sites_bucket}/${placeholder_key}",
-        "Key": "{% $tenantId & '/index.html' %}"
-      },
-      "Catch": [
-        {
-          "ErrorEquals": ["States.ALL"],
-          "Next": "ActivateTenant"
         }
       ],
       "Next": "ActivateTenant"

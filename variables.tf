@@ -49,6 +49,12 @@ variable "platform_admin_frontend_repo" {
   description = "Operator console repo name (no org prefix), e.g. sbs-admin - holds the operator web app AND the platform-tenants Lambda; trusted by security/iam/oidc/platform-admin-front-end-role to deploy both"
   sensitive   = false
 }
+variable "website_repo" {
+  type        = string
+  description = "Repo name (no org prefix) of the public page on <platform_domain> - trusted by security/iam/oidc/website-deploy-role to deploy it"
+  sensitive   = false
+  default     = "booqy-website"
+}
 variable "platform_operator_emails" {
   type        = list(string)
   description = "Platform operators (you) - bootstrapped into the separate operator user pool (MFA required) that alone can call /platform/* to create and manage tenants. Removing an address deletes that operator's account on the next apply."
@@ -92,30 +98,16 @@ variable "platform_subdomain_delegations" {
   }
 }
 
-variable "landing_contact_email" {
-  type        = string
-  description = "Contact address on the public page on <platform_domain> - AWS checks this page before granting SES production access"
-  sensitive   = false
-  default     = "support@ithjalparna.se"
-}
-
-variable "landing_company" {
-  type        = string
-  description = "Company named as the operator of Booqy on the public page"
-  sensitive   = false
-  default     = "IT-hjälparna"
-}
-
-variable "landing_updated" {
-  type        = string
-  description = "'Senast uppdaterad' date on the public privacy policy and terms (Swedish, e.g. 16 oktober 2026) - change it whenever their text changes"
-  sensitive   = false
-  default     = "16 oktober 2026"
-}
-
 variable "tenant_sites_enabled" {
   type        = bool
-  description = "Host restaurant websites on the platform domain: <slug>.<platform_domain> subdomains and customer custom domains (tenant-sites bucket, CloudFront multi-tenant distribution, *.<domain> record, site deploy role). Off = the domain is used only for app. (restaurant admin), ops. (Booqy Console) and mail. (SES); customer links keep using the customer site's own URL."
+  description = "Serve restaurant websites (the shared customer-front-end build) on each restaurant's own domain, attached from Booqy Console: CloudFront multi-tenant distribution + connection group, one CNAME per restaurant. Off = custom domains are refused and the platform domain is used only for restaurant. (admin app), admin. (Booqy Console) and mail. (SES)."
+  sensitive   = false
+  default     = false
+}
+
+variable "tenant_subdomains_enabled" {
+  type        = bool
+  description = "Also give every restaurant <slug>.<platform_domain> at onboarding (*.<domain> record). Needs tenant_sites_enabled. Off = own domains only."
   sensitive   = false
   default     = false
 }
@@ -182,12 +174,6 @@ variable "alert_emails" {
   type        = list(string)
   description = "Email addresses that receive alerts about failed background work (dead-letter queues) (SNS) - each gets a confirmation email after the first apply"
   sensitive   = false
-}
-variable "tenant_site_repo_pattern" {
-  type        = string
-  description = "Name pattern of the tenant website repos in github_org allowed to publish to the tenant-sites bucket (IAM StringLike, e.g. site-*) - one deploy role for every site"
-  sensitive   = false
-  default     = "site-*"
 }
 variable "turnstile_site_key" {
   type        = string

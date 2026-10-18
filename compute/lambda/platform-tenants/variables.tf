@@ -142,3 +142,15 @@ variable "mail_outbox_bucket_name" {
   sensitive   = false
   default     = ""
 }
+
+variable "domain_provision_state_machine_arn" {
+  description = "ARN of the domain-provision state machine, passed as an environment variable"
+  type        = string
+  sensitive   = false
+}
+
+variable "domain_documents_bucket_name" {
+  description = "Bucket for the registreringsbevis uploaded when buying a .se domain, passed as an environment variable"
+  type        = string
+  sensitive   = false
+}

@@ -280,7 +280,7 @@
       },
       "Assign": {
         "wasPrimary": "{% $states.result.Item.primaryDomain.S = $domain %}",
-        "fallbackDomain": "{% ($slug := $states.result.Item.slug.S; ${platform_domain_enabled} and $slug and $states.result.Item.status.S != 'offboarding' ? $slug & '.${platform_domain}' : '') %}"
+        "fallbackDomain": "{% ($slug := $states.result.Item.slug.S; ${subdomains_enabled} and $slug and $states.result.Item.status.S != 'offboarding' ? $slug & '.${platform_domain}' : '') %}"
       },
       "Catch": [
         {

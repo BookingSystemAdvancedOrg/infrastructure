@@ -83,3 +83,29 @@ variable "mail_outbox_enabled" {
   sensitive   = false
   default     = false
 }
+
+variable "domain_provision_state_machine_arn" {
+  description = "ARN of the domain-provision state machine (bought / connected restaurant domains)"
+  type        = string
+  sensitive   = false
+}
+
+variable "domains_enabled" {
+  description = "Restaurant domains are on (tenant_sites_enabled): grant Route 53 Domains, hosted zone and registreringsbevis access"
+  type        = bool
+  sensitive   = false
+  default     = false
+}
+
+variable "domain_documents_bucket_arn" {
+  description = "ARN of the registreringsbevis bucket (storage/s3/domain-documents)"
+  type        = string
+  sensitive   = false
+}
+
+variable "platform_zone_id" {
+  description = "Hosted zone of the platform domain - this role may never change it. Empty while no platform domain is set"
+  type        = string
+  sensitive   = false
+  default     = ""
+}
