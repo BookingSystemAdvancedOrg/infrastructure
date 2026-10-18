@@ -120,12 +120,25 @@ else
   green=$(aws lambda publish-version --function-name "$FN" \
     --description "${SOURCE:-release} $(date -u +%Y-%m-%dT%H:%MZ)" \
     --query Version --output text)
-  aws lambda wait published-version-active --function-name "$FN" --qualifier "$green" 2>/dev/null || true
 
   if [ "$green" = "$blue" ]; then
     log "nothing to release - live is already on version $green"
     exit 0
   fi
+
+  # Only a version that is still being created (Pending) is worth waiting
+  # for, and only briefly. Do NOT use "aws lambda wait
+  # published-version-active": a function nobody has invoked for a while is
+  # Inactive (Lambda drops its image cache), stays Inactive until it is
+  # invoked, and the waiter then blocks for 26 minutes per function. The
+  # alias can point at an Inactive version; the first call reactivates it.
+  for _ in $(seq 1 24); do
+    state=$(aws lambda get-function-configuration --function-name "$FN" --qualifier "$green" \
+      --query State --output text 2>/dev/null) || state="Unknown"
+    [ "$state" = "Pending" ] || break
+    sleep 5
+  done
+  log "version $green state: $state"
 fi
 log "releasing version $blue -> $green"
 
