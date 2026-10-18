@@ -8,7 +8,10 @@
 #
 #   --image   new image to release (app pipelines). Omit to release whatever
 #             is on $LATEST now (this repo's pipeline, after an apply changed
-#             a function's configuration).
+#             a function's configuration). Without --image the traffic shift
+#             is all-at-once even in prod: a configuration-only release
+#             (environment variables, memory, timeout, role) needs no canary -
+#             the gradual shift and its alarm rollback are for new code.
 #   --notify  always (default): email every result. failure: email only
 #             rollbacks/failures - for pipelines releasing many functions at
 #             once, which send one summary email themselves.
@@ -21,8 +24,9 @@
 #             back on :latest and $LATEST.
 #
 # Steps: put the image on $LATEST -> publish version N (green) -> CodeDeploy
-# shifts the "live" alias from blue to N (canary in prod, all-at-once in
-# dev), rolling back on its own if an alarm fires -> email the result.
+# shifts the "live" alias from blue to N (code releases: canary in prod,
+# all-at-once in dev; configuration releases: all-at-once everywhere),
+# rolling back on its own if an alarm fires -> email the result.
 # On failure the previous image is also put back on :latest and $LATEST, so
 # nothing that invokes the function unqualified, and no later Terraform
 # apply, picks up the broken image.
@@ -131,9 +135,18 @@ appspec=$(printf '{"version":0.0,"Resources":[{"target":{"Type":"AWS::Lambda::Fu
   "$FN" "$ALIAS" "$blue" "$green")
 revision=$(jq -nc --arg c "$appspec" '{revisionType: "AppSpecContent", appSpecContent: {content: $c}}')
 
+# Configuration-only release (no --image): skip the canary, the group's
+# deployment config (canary in prod) is only for new code.
+shift_override=()
+if [ -z "$IMAGE" ]; then
+  shift_override=(--deployment-config-name CodeDeployDefault.LambdaAllAtOnce)
+  log "configuration release - shifting all at once"
+fi
+
 status="" reason="" waited=0 console="n/a"
 if deployment=$(aws deploy create-deployment --application-name "$APP" --deployment-group-name "$FN" \
       --revision "$revision" --description "${SOURCE:-release}: v$blue -> v$green" \
+      "${shift_override[@]}" \
       --query deploymentId --output text); then
   console="https://console.aws.amazon.com/codesuite/codedeploy/deployments/$deployment?region=${AWS_REGION:-eu-north-1}"
   log "deployment $deployment - $console"
