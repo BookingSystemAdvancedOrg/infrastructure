@@ -27,6 +27,13 @@ resource "aws_lambda_function" "this" {
   role          = var.role_arn
   package_type  = "Image"
   image_uri     = "${var.ecr_repository_url}:latest"
+  # Terraform only sets the first image. The app pipelines own the code and
+  # release <repo>:<sha>; without this every apply after an app release
+  # resets image_uri to :latest, publishes a new version of every function
+  # and the release step has to roll all of them out again.
+  lifecycle {
+    ignore_changes = [image_uri]
+  }
   architectures = ["arm64"]
 
   timeout     = 28
