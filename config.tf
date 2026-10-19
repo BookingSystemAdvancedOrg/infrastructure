@@ -221,6 +221,7 @@ module "cognito_platform" {
   environment                  = var.env
   operator_emails              = var.platform_operator_emails
   app_urls                     = local.platform_admin_app_urls
+  console_url                  = local.platform_admin_app_url
   invites_via_ses              = var.cognito_invites_via_ses
   ses_identity_arn             = local.ses_identity_arn
   from_address                 = local.no_reply_from_address

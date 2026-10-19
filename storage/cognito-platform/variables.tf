@@ -16,6 +16,17 @@ variable "app_urls" {
   sensitive   = false
 }
 
+variable "console_url" {
+  description = "Booqy Console's sign-in URL (no trailing slash) - the invitation email links to it"
+  type        = string
+  sensitive   = false
+
+  validation {
+    condition     = can(regex("^https://[^/?#]+$", var.console_url))
+    error_message = "console_url must be an https origin without a path, query or fragment."
+  }
+}
+
 variable "invites_via_ses" {
   description = "Send this pool's emails (invitations, password resets) through SES (DEVELOPER) instead of Cognito's capped built-in sender - the same switch as the tenant pool"
   type        = bool
