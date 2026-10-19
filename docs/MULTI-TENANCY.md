@@ -1,8 +1,8 @@
 # Multi-tenancy (SaaS) architecture
 
-One deployment per environment (dev, prod) serves **every** restaurant
+One deployment per environment (dev, production) serves **every** restaurant
 company. A new customer, an extra location, a plan change or a custom domain
-is data plus a few API calls run by a workflow — never a Terraform change,
+is data plus a few API calls run by a workflow - never a Terraform change,
 a fork or a deploy.
 
 This replaces the earlier silo model (one fork + two AWS accounts per

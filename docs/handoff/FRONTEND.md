@@ -126,7 +126,7 @@ section documents what it does, for maintenance.
 - The repo name must be exactly `booqy-console` (the deploy role trusts that
   name; `PLATFORM_ADMIN_FRONTEND_REPO` in `.github/config/project.env`).
 - Its pipeline (`.github/workflows/deploy.yml` in Booqy Console) uses role
-  `platform-admin-front-end-deploy-role` (prod) /
+  `platform-admin-front-end-deploy-role` (production) /
   `dev-platform-admin-front-end-deploy-role` (dev), which can deploy exactly:
   - the web app: bucket `platform_admin_front_end_bucket_name`, invalidate
     `platform_admin_cloudfront_distribution_id`;
@@ -157,7 +157,7 @@ const oidc = {
   `platform/admin` scope, which only the access token carries.
 - Allowed origins (callback `/auth/callback`, logout `/`): the app's
   CloudFront domain, `https://ops.<platform domain>` once set, and
-  `http://localhost:5173` outside prod - run the dev server on port 5173.
+  `http://localhost:5173` outside production - run the dev server on port 5173.
 - MFA (authenticator app) is enforced; the hosted page handles enrolment
   on first sign-in. Sessions last 8 h (refresh token), then sign in again.
 - Operators are created by Terraform (`platform_operator_emails`) and get
@@ -254,7 +254,7 @@ const cfg = await res.json();
 // cfg.stripe { publishableKey, accountId }   cfg.turnstile { siteKey }
 ```
 
-- `slug=` works outside prod only.
+- `slug=` works outside production only.
 - Show reservations / ordering / catering only when `cfg.tenant.features`
   says so.
 - More than one location → location picker; pass `locationId` to the
@@ -355,7 +355,7 @@ jobs:
 | Stripe return - operator app | `/tenants/{tenantId}?stripe=return` and `?stripe=refresh` |
 | Operator OAuth callback / logout | `/auth/callback` / `/` |
 | Invitation email link | admin app root |
-| Site bootstrap | `GET /site-config?host=` (prod), `?slug=` (dev) |
+| Site bootstrap | `GET /site-config?host=` (production), `?slug=` (dev) |
 | Stripe account for Stripe.js | `stripeAccountId` returned with every client secret |
 
 ## 5. Order of work
