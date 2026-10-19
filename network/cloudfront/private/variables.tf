@@ -29,3 +29,15 @@ variable "acm_certificate_arn" {
   sensitive   = false
   default     = ""
 }
+
+variable "api_origin_domain" {
+  description = "Host of API Gateway's default endpoint (<api id>.execute-api.<region>.amazonaws.com), served under /api on this distribution"
+  type        = string
+  sensitive   = false
+}
+
+variable "edge_secret" {
+  description = "Value of the x-booqy-edge origin header; the API trusts the viewer IP/host headers only with it"
+  type        = string
+  sensitive   = true
+}

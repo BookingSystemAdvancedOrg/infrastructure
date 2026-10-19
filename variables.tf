@@ -201,3 +201,9 @@ variable "sms_monthly_spend_limit_usd" {
   sensitive   = false
   default     = null
 }
+
+variable "refresh_token_rotation_enabled" {
+  description = "Staff app client: rotate refresh tokens on every use. Turn on only after the manage-auth release that uses GetTokensFromRefreshToken is live (docs/COOKIES.md, step 4)."
+  type        = bool
+  default     = false
+}

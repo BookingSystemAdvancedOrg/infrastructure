@@ -23,3 +23,21 @@ variable "acm_certificate_arn" {
   sensitive   = false
   default     = ""
 }
+
+variable "api_origin" {
+  description = "https origin of the API the Console calls (CSP connect-src)"
+  type        = string
+  sensitive   = false
+}
+
+variable "region" {
+  description = "AWS region of the operator user pool (CSP connect-src to cognito-idp)"
+  type        = string
+  sensitive   = false
+}
+
+variable "upload_bucket_name" {
+  description = "S3 bucket the Console uploads to with presigned POSTs (CSP connect-src)"
+  type        = string
+  sensitive   = false
+}

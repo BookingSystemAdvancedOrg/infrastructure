@@ -36,6 +36,9 @@ resource "aws_lambda_function" "this" {
 
   environment {
     variables = {
+      # Trust the viewer IP from the admin app's CloudFront (/api/*) for the
+      # per-IP limits and signing evidence (shared/http.py source_ip).
+      CLOUDFRONT_EDGE_SECRET              = var.cloudfront_edge_secret
       TENANT_TABLE_NAME                   = var.tenant_table_name
       LOCATION_ID_INDEX_NAME              = var.location_id_index_name
       ENVIRONMENT                         = var.environment

@@ -1,3 +1,8 @@
+locals {
+  # One shift plus margin; also the lifetime of manage-auth's refresh cookie.
+  refresh_token_validity_hours = 12
+}
+
 
 # The TENANT user pool: every restaurant's owners and staff, all tenants in
 # one pool. Which tenant a user belongs to is the immutable custom:tenant_id
@@ -110,7 +115,7 @@ resource "aws_cognito_user_pool_client" "this" {
   name         = var.environment == "prod" ? "staff-app-client" : "${var.environment}-staff-app-client"
   user_pool_id = aws_cognito_user_pool.this.id
 
-  # NOTE: generate_secret was previously false — this was a public client
+  # NOTE: generate_secret was previously false - this was a public client
   # (browser app), and JS running in a browser can't keep a secret
   # confidential. It's now true because manage-auth needs a client secret.
   # If the browser (or any other consumer) still calls this same client
@@ -121,24 +126,44 @@ resource "aws_cognito_user_pool_client" "this" {
   generate_secret = true
 
   # Direct email + password login (InitiateAuth), no Hosted UI redirect.
-  explicit_auth_flows = [
+  # Refresh token rotation requires ALLOW_REFRESH_TOKEN_AUTH to be off
+  # (refresh then goes through GetTokensFromRefreshToken only).
+  explicit_auth_flows = var.refresh_token_rotation_enabled ? [
+    "ALLOW_USER_PASSWORD_AUTH",
+    ] : [
     "ALLOW_USER_PASSWORD_AUTH",
     "ALLOW_REFRESH_TOKEN_AUTH",
   ]
 
   # Access/ID tokens are short-lived - they're sent on every API request,
   # so limiting their lifetime limits how much a leaked one can be used
-  # for. The 8-hour "session" instead lives on the refresh token: the
-  # frontend silently uses it to mint new 1-hour access tokens throughout
-  # a shift, and only a real login is required once 8 hours have passed.
+  # for. The session instead lives on the refresh token: the admin app
+  # keeps it in an HttpOnly cookie (manage-auth) and silently uses it to
+  # mint new 1-hour access tokens through a shift; a real login is needed
+  # once 12 hours (one shift plus margin) have passed.
   access_token_validity  = 1
   id_token_validity      = 1
-  refresh_token_validity = 120 # 5 days
+  refresh_token_validity = local.refresh_token_validity_hours
 
   token_validity_units {
     access_token  = "hours"
     id_token      = "hours"
     refresh_token = "hours"
+  }
+
+  # Every refresh hands out a new refresh token and retires the old one, so
+  # a stolen refresh token stops working the next time the real user's app
+  # refreshes. The grace period covers two tabs refreshing at once.
+  # Requires GetTokensFromRefreshToken (manage-auth); InitiateAuth
+  # REFRESH_TOKEN_AUTH is refused while this is on. Switched on in a later
+  # apply (var.refresh_token_rotation_enabled), once the manage-auth release
+  # that uses GetTokensFromRefreshToken is live - see docs/COOKIES.md.
+  dynamic "refresh_token_rotation" {
+    for_each = var.refresh_token_rotation_enabled ? [1] : []
+    content {
+      feature                    = "ENABLED"
+      retry_grace_period_seconds = 30
+    }
   }
 
   # Avoids leaking "that email doesn't exist" vs "wrong password" on

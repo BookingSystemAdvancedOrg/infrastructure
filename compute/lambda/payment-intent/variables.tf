@@ -11,7 +11,7 @@ variable "role_arn" {
 }
 
 variable "ecr_repository_url" {
-  description = "Repository URL of the PaymentIntentFn ECR repository (storage/ecr/payment-intent) — the repo itself is owned there, not created in this module"
+  description = "Repository URL of the PaymentIntentFn ECR repository (storage/ecr/payment-intent) - the repo itself is owned there, not created in this module"
   type        = string
   sensitive   = true
 }
@@ -93,4 +93,10 @@ variable "request_guard_table_name" {
   description = "Name of the attempt-counter table"
   type        = string
   sensitive   = false
+}
+
+variable "cloudfront_edge_secret" {
+  description = "Shared secret from the admin app's CloudFront (x-booqy-edge); lets shared/http.py trust the viewer IP header"
+  type        = string
+  sensitive   = true
 }

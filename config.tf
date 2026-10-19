@@ -18,15 +18,21 @@ terraform {
       source  = "hashicorp/archive"
       version = "~> 2.7"
     }
+    # The shared secret between the admin app's CloudFront and the API
+    # (random_password.cloudfront_edge)
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.6"
+    }
   }
 }
 
-# Primary provider — all resources deploy to Stockholm (eu-north-1) for GDPR data residency
+# Primary provider - all resources deploy to Stockholm (eu-north-1) for GDPR data residency
 provider "aws" {
   region = var.aws_region
 }
 
-# ACM certificates for CloudFront MUST be in us-east-1 — AWS hard requirement
+# ACM certificates for CloudFront MUST be in us-east-1 - AWS hard requirement
 # Only the acm module uses this alias via providers = { aws = aws.us_east_1 }
 provider "aws" {
   alias  = "us_east_1"
@@ -207,6 +213,7 @@ module "cognito" {
   invites_via_ses                    = var.cognito_invites_via_ses
   ses_identity_arn                   = local.ses_identity_arn
   invite_from_address                = local.no_reply_from_address
+  refresh_token_rotation_enabled     = var.refresh_token_rotation_enabled
 }
 # Operator pool - you; the only tokens /platform/* accepts
 module "cognito_platform" {
@@ -975,6 +982,7 @@ module "create_pending_reservation_fn" {
   turnstile_required       = var.turnstile_site_key != ""
   turnstile_secret_arn     = module.catering_secrets.turnstile_secret_arn
   request_guard_table_name = module.request_guard.table_name
+  cloudfront_edge_secret   = random_password.cloudfront_edge.result
 }
 module "get_availability_fn" {
   source                               = "./compute/lambda/get-availability"
@@ -1057,6 +1065,7 @@ module "payment_intent_fn" {
   turnstile_required       = var.turnstile_site_key != ""
   turnstile_secret_arn     = module.catering_secrets.turnstile_secret_arn
   request_guard_table_name = module.request_guard.table_name
+  cloudfront_edge_secret   = random_password.cloudfront_edge.result
 }
 module "list_layout_version_fn" {
   source                               = "./compute/lambda/list-layout-version"
@@ -1080,6 +1089,12 @@ module "manage_auth_fn" {
   cognito_client_secret    = module.cognito.user_pool_client_secret
   region                   = var.aws_region
   request_guard_table_name = module.request_guard.table_name
+  cloudfront_edge_secret   = random_password.cloudfront_edge.result
+  # Refresh cookie lifetime = the app client's refresh token validity.
+  refresh_cookie_max_age = module.cognito.refresh_token_validity_hours * 3600
+  # Local dev of the admin app (vite on :7070) may use the cookie routes
+  # against the dev API. Never in prod.
+  cookie_allowed_origins = var.env == "prod" ? "" : "http://localhost:7070"
 }
 module "manage_layout_element_fn" {
   source                         = "./compute/lambda/manage-layout-element"
@@ -1277,7 +1292,8 @@ module "catering_requests_fn" {
   user_table_name                     = module.user.table_name
   request_guard_table_name            = module.request_guard.table_name
   # Bot check on the catering form only once the sites show the widget.
-  turnstile_required = var.turnstile_site_key != ""
+  turnstile_required     = var.turnstile_site_key != ""
+  cloudfront_edge_secret = random_password.cloudfront_edge.result
 }
 module "catering_offer_fn" {
   source                              = "./compute/lambda/catering-offer"
@@ -1315,6 +1331,7 @@ module "catering_customer_fn" {
   region                              = var.aws_region
   tenant_table_name                   = module.tenant.table_name
   location_id_index_name              = module.location.location_id_index_name
+  cloudfront_edge_secret              = random_password.cloudfront_edge.result
 }
 module "catering_signing_webhook_fn" {
   source                              = "./compute/lambda/catering-signing-webhook"
@@ -1758,6 +1775,7 @@ module "platform_domain" {
   platform_admin_distribution_domain_name = module.cloudfront_platform_admin.distribution_domain_name
   demo_request_enabled                    = true
   demo_request_origin_domain              = module.demo_request_fn[0].function_url_domain
+  site_response_headers_policy_id         = module.cloudfront_public.site_response_headers_policy_id
 }
 
 # Adopt an existing hosted zone for the platform domain (var.platform_domain_zone_id)
@@ -1811,6 +1829,15 @@ module "cloudfront_public" {
   customer_bucket_regional_domain_name   = module.customer_front_end_asset.bucket_regional_domain_name
   menu_image_bucket_regional_domain_name = module.menu_image.bucket_regional_domain_name
 }
+# Shared secret the admin app's CloudFront sends to the API with every /api
+# request (origin header x-booqy-edge). The API trusts the viewer IP and
+# host headers only when it matches. Not an IAM credential; rotating it is
+# a terraform apply (taint this resource).
+resource "random_password" "cloudfront_edge" {
+  length  = 48
+  special = false
+}
+
 module "cloudfront_private" {
   source                                 = "./network/cloudfront/private"
   environment                            = var.env
@@ -1818,6 +1845,10 @@ module "cloudfront_private" {
   menu_image_bucket_regional_domain_name = module.menu_image.bucket_regional_domain_name
   aliases                                = local.platform_domain_enabled ? [local.admin_app_hostname] : []
   acm_certificate_arn                    = local.platform_domain_enabled ? module.platform_domain[0].certificate_arn : ""
+  # From the API's id, not its stage URL: the stage waits for routes and
+  # their Lambdas, some of which take the admin app's URL (a cycle).
+  api_origin_domain = "${module.api_gateway.api_id}.execute-api.${var.aws_region}.amazonaws.com"
+  edge_secret       = random_password.cloudfront_edge.result
 }
 # Operator app (platform admin) - where tenants are created and managed
 module "cloudfront_platform_admin" {
@@ -1826,6 +1857,12 @@ module "cloudfront_platform_admin" {
   bucket_regional_domain_name = module.platform_admin_front_end_asset.bucket_regional_domain_name
   aliases                     = local.platform_domain_enabled ? [local.platform_admin_hostname] : []
   acm_certificate_arn         = local.platform_domain_enabled ? module.platform_domain[0].certificate_arn : ""
+  # The Console's CSP: it talks to the operator user pool (Amplify SRP) and
+  # the API directly. From the API's id (see cloudfront_private).
+  api_origin = "https://${module.api_gateway.api_id}.execute-api.${var.aws_region}.amazonaws.com"
+  region     = var.aws_region
+  # DomainWizard posts domain-transfer PDFs straight to this bucket
+  upload_bucket_name = module.domain_documents.bucket_name
 }
 
 #OIDC

@@ -85,3 +85,9 @@ variable "demo_request_origin_domain" {
   type        = string
   default     = ""
 }
+
+variable "site_response_headers_policy_id" {
+  description = "Security headers policy for the restaurant websites (network/cloudfront/public)"
+  type        = string
+  sensitive   = false
+}

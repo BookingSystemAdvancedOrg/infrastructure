@@ -79,3 +79,9 @@ variable "lambda_alias_name" {
   type        = string
   default     = "live"
 }
+
+variable "refresh_token_rotation_enabled" {
+  description = "Rotate refresh tokens on every use (and turn off ALLOW_REFRESH_TOKEN_AUTH). Only after the manage-auth release with GetTokensFromRefreshToken is live."
+  type        = bool
+  default     = false
+}
