@@ -46,7 +46,7 @@ variable "backend_repo" {
 }
 variable "platform_admin_frontend_repo" {
   type        = string
-  description = "Operator console repo name (no org prefix), e.g. sbs-admin - holds the operator web app AND the platform-tenants Lambda; trusted by security/iam/oidc/platform-admin-front-end-role to deploy both"
+  description = "Operator console repo name (no org prefix), e.g. booqy-console - holds the operator web app AND the platform-tenants Lambda; trusted by security/iam/oidc/platform-admin-front-end-role to deploy both"
   sensitive   = false
 }
 variable "demo_request_recipient" {

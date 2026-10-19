@@ -18,7 +18,7 @@ adding consent first.
 | booqy.se | nothing | no |
 | Restaurant sites (customer-front-end) | chosen location, cart, table code, order/catering tokens (tab only); Stripe fraud cookies on the card guarantee step | no |
 | Restaurant admin (admin-front-end) | refresh token in an HttpOnly cookie; chosen location; guide done | no |
-| Booqy Console (sbs-admin) | Amplify tokens in sessionStorage (tab only) | no |
+| Booqy Console (booqy-console) | Amplify tokens in sessionStorage (tab only) | no |
 
 ## Admin app session
 
