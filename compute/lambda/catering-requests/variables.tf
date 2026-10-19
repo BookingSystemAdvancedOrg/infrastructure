@@ -106,3 +106,9 @@ variable "cloudfront_edge_secret" {
   type        = string
   sensitive   = true
 }
+
+variable "marketing_table_name" {
+  description = "Marketing table (welcome-offer codes, statistics, subscribers); empty = no marketing"
+  type        = string
+  default     = ""
+}

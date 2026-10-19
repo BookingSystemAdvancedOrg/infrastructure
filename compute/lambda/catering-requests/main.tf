@@ -53,6 +53,7 @@ resource "aws_lambda_function" "this" {
       USER_TABLE_NAME                     = var.user_table_name
       REQUEST_GUARD_TABLE_NAME            = var.request_guard_table_name
       TURNSTILE_REQUIRED                  = var.turnstile_required ? "true" : "false"
+      MARKETING_TABLE_NAME                = var.marketing_table_name # statistics + "offers" opt-in
     }
   }
 

@@ -94,6 +94,19 @@ resource "aws_apigatewayv2_stage" "this" {
     throttling_burst_limit = var.visit_throttle_burst_limit
   }
 
+  # Welcome-offer sign-up (sends an email) and code checks: the low limit.
+  route_settings {
+    route_key              = "POST /m/signup"
+    throttling_rate_limit  = var.booking_throttle_rate_limit
+    throttling_burst_limit = var.booking_throttle_burst_limit
+  }
+
+  route_settings {
+    route_key              = "POST /m/code"
+    throttling_rate_limit  = var.booking_throttle_rate_limit
+    throttling_burst_limit = var.booking_throttle_burst_limit
+  }
+
   # route_settings names a route by key - it has to exist first.
   depends_on = [aws_apigatewayv2_route.create_pending_reservation, aws_apigatewayv2_route.payment_intent,
   aws_apigatewayv2_route.catering_requests_post, aws_apigatewayv2_route.marketing_public]
@@ -1576,6 +1589,10 @@ resource "aws_lambda_permission" "marketing_invoke" {
 #   GET  /m/c/{token}      click in a campaign email -> redirect (HMAC-signed)
 #   GET  /m/u/{token}      unsubscribe page (HMAC-signed)
 #   POST /m/u/{token}      unsubscribe, incl. RFC 8058 one-click from mail apps
+#   GET  /m/offer          the welcome offer card's settings
+#   POST /m/signup         welcome offer sign-up (Turnstile + per-IP/address limits)
+#   POST /m/code           check a discount code before checkout
+#   GET|POST /m/s/{token}  confirm a welcome-offer sign-up (double opt-in, signed)
 # Email links reach these through the admin app's /api (restaurant.<domain>).
 
 resource "aws_apigatewayv2_integration" "marketing_public" {
@@ -1588,7 +1605,8 @@ resource "aws_apigatewayv2_integration" "marketing_public" {
 
 # --- marketing-public ---
 locals {
-  marketing_public_routes = ["POST /t", "GET /m/c/{token}", "GET /m/u/{token}", "POST /m/u/{token}"]
+  marketing_public_routes = ["POST /t", "GET /m/c/{token}", "GET /m/u/{token}", "POST /m/u/{token}",
+  "GET /m/offer", "POST /m/signup", "POST /m/code", "GET /m/s/{token}", "POST /m/s/{token}"]
 }
 
 resource "aws_apigatewayv2_route" "marketing_public" {

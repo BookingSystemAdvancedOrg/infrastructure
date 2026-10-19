@@ -117,3 +117,34 @@ variable "send_rate" {
   type        = number
   default     = 10
 }
+
+variable "turnstile_required" {
+  description = "The sites show the Turnstile widget: sign-ups need a token"
+  type        = bool
+  default     = false
+}
+
+variable "turnstile_secret_arn" {
+  description = "Turnstile secret (bot check on the welcome-offer sign-up)"
+  type        = string
+}
+
+variable "request_guard_table_name" {
+  description = "Attempt-counter table (per-IP / per-address sign-up limits)"
+  type        = string
+}
+
+variable "request_guard_table_arn" {
+  description = "Attempt-counter table ARN"
+  type        = string
+}
+
+variable "payment_intent_role_name" {
+  description = "payment-intent's role: gets item access to discount codes"
+  type        = string
+}
+
+variable "catering_requests_role_name" {
+  description = "catering-requests' role: gets update access for statistics and opt-in"
+  type        = string
+}

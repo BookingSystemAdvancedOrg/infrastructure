@@ -1089,6 +1089,7 @@ module "payment_intent_fn" {
   turnstile_secret_arn     = module.catering_secrets.turnstile_secret_arn
   request_guard_table_name = module.request_guard.table_name
   cloudfront_edge_secret   = random_password.cloudfront_edge.result
+  marketing_table_name     = module.marketing.table_name
 }
 module "list_layout_version_fn" {
   source                               = "./compute/lambda/list-layout-version"
@@ -1317,6 +1318,7 @@ module "catering_requests_fn" {
   # Bot check on the catering form only once the sites show the widget.
   turnstile_required     = var.turnstile_site_key != ""
   cloudfront_edge_secret = random_password.cloudfront_edge.result
+  marketing_table_name   = module.marketing.table_name
 }
 module "catering_offer_fn" {
   source                              = "./compute/lambda/catering-offer"
@@ -1714,6 +1716,16 @@ module "marketing" {
   from_address            = local.no_reply_email
   mail_outbox_bucket_name = local.mail_outbox_bucket
   mail_outbox_bucket_arn  = local.mail_outbox_arn
+  # Welcome offer sign-up: the same bot check and attempt counters as the
+  # booking and order forms.
+  turnstile_required       = var.turnstile_site_key != ""
+  turnstile_secret_arn     = module.catering_secrets.turnstile_secret_arn
+  request_guard_table_name = module.request_guard.table_name
+  request_guard_table_arn  = module.request_guard.table_arn
+  # Discount codes at checkout and the catering form's opt-in write to the
+  # marketing table: a policy on those functions' roles.
+  payment_intent_role_name    = module.payment_intent_role.role_name
+  catering_requests_role_name = module.catering_requests_role.role_name
 }
 
 # Stripe webhook endpoints - created in Stripe by Terraform, pointing straight

@@ -119,3 +119,8 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | GET | `/m/c/{token}` | NONE | marketing-public |
 | GET | `/m/u/{token}` | NONE | marketing-public |
 | POST | `/m/u/{token}` | NONE | marketing-public |
+| GET | `/m/offer` | NONE | marketing-public |
+| POST | `/m/signup` | NONE | marketing-public |
+| POST | `/m/code` | NONE | marketing-public |
+| GET | `/m/s/{token}` | NONE | marketing-public |
+| POST | `/m/s/{token}` | NONE | marketing-public |

@@ -10,8 +10,9 @@
 # images from them), API Gateway routes are in network/api-gateway.
 #
 #   marketing          owner API (JWT)                 ANY /marketing/{proxy+}
-#   marketing-public   visits, click redirect, unsub   POST /t, GET /m/c/{token}, GET|POST /m/u/{token}
-#   marketing-send     sends due campaigns              Scheduler, every 2 minutes, concurrency 1
+#   marketing-public   visits, links, welcome offer    POST /t, GET /m/c/{token}, GET|POST /m/u/{token},
+#                                                       GET /m/offer, POST /m/signup, POST /m/code
+#   marketing-send     sends due campaigns              Scheduler, every 2 minutes
 #   marketing-sync     bookings/orders/SES -> stats     reservation + order streams, EventBridge (SES)
 
 data "aws_caller_identity" "current" {}
@@ -47,17 +48,30 @@ locals {
       })
     }
     marketing-public = {
-      timeout     = 10
+      timeout     = 15
       memory      = 256
       concurrency = -1
       env = merge(local.common_env, {
         MARKETING_LINK_KEY_SECRET_ARN = aws_secretsmanager_secret.link_key.arn
+        MARKETING_LINK_BASE           = "${var.admin_app_url}/api"
+        NO_REPLY_EMAIL_ADDRESS        = var.from_address
+        MARKETING_CONFIGURATION_SET   = aws_sesv2_configuration_set.marketing.configuration_set_name
+        CUSTOMER_SITE_URL             = var.customer_site_url
+        TURNSTILE_REQUIRED            = var.turnstile_required ? "true" : "false"
+        TURNSTILE_SECRET_ARN          = var.turnstile_secret_arn
+        REQUEST_GUARD_TABLE_NAME      = var.request_guard_table_name
+        MAIL_OUTBOX_BUCKET_NAME       = var.mail_outbox_bucket_name
       })
     }
     marketing-send = {
-      timeout     = 300
-      memory      = 512
-      concurrency = 1 # never two runs at once
+      timeout = 300
+      memory  = 512
+      # No reserved concurrency: new accounts have a total of 10, and AWS
+      # refuses any reservation that leaves fewer than 10 unreserved. Two
+      # overlapping runs are safe anyway: each campaign is leased by one run,
+      # each recipient is claimed before sending, and the monthly counter is
+      # an atomic conditional update.
+      concurrency = -1
       env = merge(local.common_env, {
         MARKETING_LINK_KEY_SECRET_ARN = aws_secretsmanager_secret.link_key.arn
         MARKETING_LINK_BASE           = "${var.admin_app_url}/api"
@@ -106,20 +120,27 @@ locals {
       },
     ], local.ses_statements, local.outbox_statements)
 
-    marketing-public = [
+    marketing-public = concat([
       {
+        # Visits, clicks, unsubscribes; welcome-offer sign-ups and codes.
         Sid      = "MarketingTable"
         Effect   = "Allow"
-        Action   = ["dynamodb:GetItem", "dynamodb:UpdateItem"]
+        Action   = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:DeleteItem"]
         Resource = local.table_arn
       },
       {
-        Sid      = "LinkKey"
+        Sid      = "LinkKeyAndBotCheck"
         Effect   = "Allow"
         Action   = ["secretsmanager:GetSecretValue"]
-        Resource = aws_secretsmanager_secret.link_key.arn
+        Resource = [aws_secretsmanager_secret.link_key.arn, var.turnstile_secret_arn]
       },
-    ]
+      {
+        Sid      = "CountSignupAttempts"
+        Effect   = "Allow"
+        Action   = ["dynamodb:UpdateItem"]
+        Resource = var.request_guard_table_arn
+      },
+    ], local.ses_statements, local.outbox_statements)
 
     marketing-send = concat([
       {
@@ -337,6 +358,39 @@ resource "aws_lambda_alias" "live" {
   lifecycle {
     ignore_changes = [function_version, routing_config]
   }
+}
+
+# --- other functions that write marketing data -----------------------------------------------
+
+# payment-intent holds a welcome-offer code for the order while the guest
+# pays; catering-requests counts the request and subscribes a guest who
+# ticked "offers". Item reads/updates on this table only.
+resource "aws_iam_role_policy" "codes_at_checkout" {
+  name = "marketing-discount-codes"
+  role = var.payment_intent_role_name
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "HoldAndReleaseDiscountCodes"
+      Effect   = "Allow"
+      Action   = ["dynamodb:GetItem", "dynamodb:UpdateItem"]
+      Resource = local.table_arn
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "catering_opt_in" {
+  name = "marketing-catering-opt-in"
+  role = var.catering_requests_role_name
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "CateringStatisticsAndOptIn"
+      Effect   = "Allow"
+      Action   = ["dynamodb:UpdateItem"]
+      Resource = local.table_arn
+    }]
+  })
 }
 
 # --- marketing-send: every 2 minutes ---------------------------------------------------------
