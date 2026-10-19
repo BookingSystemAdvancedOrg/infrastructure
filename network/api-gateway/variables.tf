@@ -408,3 +408,34 @@ variable "booking_throttle_burst_limit" {
   sensitive   = false
   default     = 100
 }
+variable "marketing_function_name" {
+  description = "Name of the marketing Lambda (marketing module) - granted permission to be invoked by this API"
+  type        = string
+  sensitive   = false
+}
+variable "marketing_invoke_arn" {
+  description = "Invoke ARN of the marketing Lambda's live alias - the integration target for /marketing/{proxy+}"
+  type        = string
+  sensitive   = true
+}
+variable "marketing_public_function_name" {
+  description = "Name of the marketing-public Lambda (marketing module) - granted permission to be invoked by this API"
+  type        = string
+  sensitive   = false
+}
+variable "marketing_public_invoke_arn" {
+  description = "Invoke ARN of the marketing-public Lambda's live alias - the integration target for /t and /m/*"
+  type        = string
+  sensitive   = true
+}
+variable "visit_throttle_rate_limit" {
+  description = "Steady requests per second for POST /t (visit counter, every restaurant website together)"
+  type        = number
+  default     = 50
+}
+variable "visit_throttle_burst_limit" {
+  description = "Burst for POST /t"
+  type        = number
+  default     = 100
+}
+

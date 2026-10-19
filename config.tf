@@ -690,6 +690,8 @@ module "tenant_context_policy" {
     # Catering: staff see their own location's requests.
     catering_requests = module.catering_requests_role.role_name
     catering_offer    = module.catering_offer_role.role_name
+    # Marketing test emails go to the signed-in owner's own address.
+    marketing = module.marketing.role_names["marketing"]
   }
 }
 
@@ -805,6 +807,27 @@ module "catering_settings_ecr" {
 module "catering_discount_tiers_ecr" {
   source      = "./storage/ecr/catering-discount-tiers"
   environment = var.env
+}
+# Marketing: one generic module, one instance per function.
+module "marketing_ecr" {
+  source      = "./storage/ecr/marketing-function"
+  environment = var.env
+  function    = "marketing"
+}
+module "marketing_public_ecr" {
+  source      = "./storage/ecr/marketing-function"
+  environment = var.env
+  function    = "marketing-public"
+}
+module "marketing_send_ecr" {
+  source      = "./storage/ecr/marketing-function"
+  environment = var.env
+  function    = "marketing-send"
+}
+module "marketing_sync_ecr" {
+  source      = "./storage/ecr/marketing-function"
+  environment = var.env
+  function    = "marketing-sync"
 }
 module "catering_requests_ecr" {
   source      = "./storage/ecr/catering-requests"
@@ -1534,47 +1557,51 @@ module "lambda_releases" {
   rollback_alarms_enabled        = var.env == "prod"
 
   functions = {
-    (module.activate_layout_version_fn.function_name)    = { alias_name = module.activate_layout_version_fn.alias_name }
-    (module.block_table_fn.function_name)                = { alias_name = module.block_table_fn.alias_name }
-    (module.cancel_reservation_fn.function_name)         = { alias_name = module.cancel_reservation_fn.alias_name }
-    (module.catering_customer_fn.function_name)          = { alias_name = module.catering_customer_fn.alias_name }
-    (module.catering_discount_tiers_fn.function_name)    = { alias_name = module.catering_discount_tiers_fn.alias_name }
-    (module.catering_document_fn.function_name)          = { alias_name = module.catering_document_fn.alias_name }
-    (module.catering_lifecycle_fn.function_name)         = { alias_name = module.catering_lifecycle_fn.alias_name }
-    (module.catering_offer_fn.function_name)             = { alias_name = module.catering_offer_fn.alias_name }
-    (module.catering_requests_fn.function_name)          = { alias_name = module.catering_requests_fn.alias_name }
-    (module.catering_settings_fn.function_name)          = { alias_name = module.catering_settings_fn.alias_name }
-    (module.catering_signing_webhook_fn.function_name)   = { alias_name = module.catering_signing_webhook_fn.alias_name }
-    (module.catering_stripe_webhook_fn.function_name)    = { alias_name = module.catering_stripe_webhook_fn.alias_name }
-    (module.create_location_fn.function_name)            = { alias_name = module.create_location_fn.alias_name }
-    (module.create_pending_reservation_fn.function_name) = { alias_name = module.create_pending_reservation_fn.alias_name }
-    (module.dlq_replay_fn.function_name)                 = { alias_name = module.dlq_replay_fn.alias_name }
-    (module.expire_layout_version_fn.function_name)      = { alias_name = module.expire_layout_version_fn.alias_name }
-    (module.get_availability_fn.function_name)           = { alias_name = module.get_availability_fn.alias_name }
-    (module.get_location_fn.function_name)               = { alias_name = module.get_location_fn.alias_name }
-    (module.get_menu_fn.function_name)                   = { alias_name = module.get_menu_fn.alias_name }
-    (module.get_order_fn.function_name)                  = { alias_name = module.get_order_fn.alias_name }
-    (module.get_reservation_fn.function_name)            = { alias_name = module.get_reservation_fn.alias_name }
-    (module.list_layout_version_fn.function_name)        = { alias_name = module.list_layout_version_fn.alias_name }
-    (module.manage_auth_fn.function_name)                = { alias_name = module.manage_auth_fn.alias_name }
-    (module.manage_layout_element_fn.function_name)      = { alias_name = module.manage_layout_element_fn.alias_name }
-    (module.manage_menu_fn.function_name)                = { alias_name = module.manage_menu_fn.alias_name }
-    (module.manage_order_fn.function_name)               = { alias_name = module.manage_order_fn.alias_name }
-    (module.manage_user_fn.function_name)                = { alias_name = module.manage_user_fn.alias_name }
-    (module.mark_arrived_fn.function_name)               = { alias_name = module.mark_arrived_fn.alias_name }
-    (module.no_show_check_fn.function_name)              = { alias_name = module.no_show_check_fn.alias_name }
-    (module.notification_fn.function_name)               = { alias_name = module.notification_fn.alias_name }
-    (module.payment_intent_fn.function_name)             = { alias_name = module.payment_intent_fn.alias_name }
-    (module.platform_stripe_webhook_fn.function_name)    = { alias_name = module.platform_stripe_webhook_fn.alias_name }
-    (module.platform_tenants_fn.function_name)           = { alias_name = module.platform_tenants_fn.alias_name }
-    (module.pre_signed_url_fn.function_name)             = { alias_name = module.pre_signed_url_fn.alias_name }
-    (module.publish_layout_fn.function_name)             = { alias_name = module.publish_layout_fn.alias_name }
-    (module.reactivate_menu_item_fn.function_name)       = { alias_name = module.reactivate_menu_item_fn.alias_name }
-    (module.stripe_webhook_fn.function_name)             = { alias_name = module.stripe_webhook_fn.alias_name }
-    (module.tenant_account_fn.function_name)             = { alias_name = module.tenant_account_fn.alias_name }
-    (module.tenant_site_config_fn.function_name)         = { alias_name = module.tenant_site_config_fn.alias_name }
-    (module.reservation_reminders_fn.function_name)      = { alias_name = module.reservation_reminders_fn.alias_name }
-    (module.webhook_payment_intent_fn.function_name)     = { alias_name = module.webhook_payment_intent_fn.alias_name }
+    (module.activate_layout_version_fn.function_name)     = { alias_name = module.activate_layout_version_fn.alias_name }
+    (module.block_table_fn.function_name)                 = { alias_name = module.block_table_fn.alias_name }
+    (module.cancel_reservation_fn.function_name)          = { alias_name = module.cancel_reservation_fn.alias_name }
+    (module.catering_customer_fn.function_name)           = { alias_name = module.catering_customer_fn.alias_name }
+    (module.catering_discount_tiers_fn.function_name)     = { alias_name = module.catering_discount_tiers_fn.alias_name }
+    (module.catering_document_fn.function_name)           = { alias_name = module.catering_document_fn.alias_name }
+    (module.catering_lifecycle_fn.function_name)          = { alias_name = module.catering_lifecycle_fn.alias_name }
+    (module.catering_offer_fn.function_name)              = { alias_name = module.catering_offer_fn.alias_name }
+    (module.catering_requests_fn.function_name)           = { alias_name = module.catering_requests_fn.alias_name }
+    (module.catering_settings_fn.function_name)           = { alias_name = module.catering_settings_fn.alias_name }
+    (module.catering_signing_webhook_fn.function_name)    = { alias_name = module.catering_signing_webhook_fn.alias_name }
+    (module.catering_stripe_webhook_fn.function_name)     = { alias_name = module.catering_stripe_webhook_fn.alias_name }
+    (module.create_location_fn.function_name)             = { alias_name = module.create_location_fn.alias_name }
+    (module.create_pending_reservation_fn.function_name)  = { alias_name = module.create_pending_reservation_fn.alias_name }
+    (module.dlq_replay_fn.function_name)                  = { alias_name = module.dlq_replay_fn.alias_name }
+    (module.expire_layout_version_fn.function_name)       = { alias_name = module.expire_layout_version_fn.alias_name }
+    (module.get_availability_fn.function_name)            = { alias_name = module.get_availability_fn.alias_name }
+    (module.get_location_fn.function_name)                = { alias_name = module.get_location_fn.alias_name }
+    (module.get_menu_fn.function_name)                    = { alias_name = module.get_menu_fn.alias_name }
+    (module.get_order_fn.function_name)                   = { alias_name = module.get_order_fn.alias_name }
+    (module.get_reservation_fn.function_name)             = { alias_name = module.get_reservation_fn.alias_name }
+    (module.list_layout_version_fn.function_name)         = { alias_name = module.list_layout_version_fn.alias_name }
+    (module.manage_auth_fn.function_name)                 = { alias_name = module.manage_auth_fn.alias_name }
+    (module.manage_layout_element_fn.function_name)       = { alias_name = module.manage_layout_element_fn.alias_name }
+    (module.manage_menu_fn.function_name)                 = { alias_name = module.manage_menu_fn.alias_name }
+    (module.manage_order_fn.function_name)                = { alias_name = module.manage_order_fn.alias_name }
+    (module.manage_user_fn.function_name)                 = { alias_name = module.manage_user_fn.alias_name }
+    (module.mark_arrived_fn.function_name)                = { alias_name = module.mark_arrived_fn.alias_name }
+    (module.no_show_check_fn.function_name)               = { alias_name = module.no_show_check_fn.alias_name }
+    (module.notification_fn.function_name)                = { alias_name = module.notification_fn.alias_name }
+    (module.payment_intent_fn.function_name)              = { alias_name = module.payment_intent_fn.alias_name }
+    (module.platform_stripe_webhook_fn.function_name)     = { alias_name = module.platform_stripe_webhook_fn.alias_name }
+    (module.platform_tenants_fn.function_name)            = { alias_name = module.platform_tenants_fn.alias_name }
+    (module.pre_signed_url_fn.function_name)              = { alias_name = module.pre_signed_url_fn.alias_name }
+    (module.publish_layout_fn.function_name)              = { alias_name = module.publish_layout_fn.alias_name }
+    (module.reactivate_menu_item_fn.function_name)        = { alias_name = module.reactivate_menu_item_fn.alias_name }
+    (module.stripe_webhook_fn.function_name)              = { alias_name = module.stripe_webhook_fn.alias_name }
+    (module.tenant_account_fn.function_name)              = { alias_name = module.tenant_account_fn.alias_name }
+    (module.tenant_site_config_fn.function_name)          = { alias_name = module.tenant_site_config_fn.alias_name }
+    (module.reservation_reminders_fn.function_name)       = { alias_name = module.reservation_reminders_fn.alias_name }
+    (module.webhook_payment_intent_fn.function_name)      = { alias_name = module.webhook_payment_intent_fn.alias_name }
+    (module.marketing.function_names["marketing"])        = { alias_name = module.marketing.alias_names["marketing"] }
+    (module.marketing.function_names["marketing-public"]) = { alias_name = module.marketing.alias_names["marketing-public"] }
+    (module.marketing.function_names["marketing-send"])   = { alias_name = module.marketing.alias_names["marketing-send"] }
+    (module.marketing.function_names["marketing-sync"])   = { alias_name = module.marketing.alias_names["marketing-sync"] }
   }
 }
 
@@ -1649,6 +1676,44 @@ module "api_gateway" {
   catering_customer_invoke_arn             = module.catering_customer_fn.alias_invoke_arn
   catering_signing_webhook_function_name   = module.catering_signing_webhook_fn.function_name
   catering_signing_webhook_invoke_arn      = module.catering_signing_webhook_fn.alias_invoke_arn
+  marketing_function_name                  = module.marketing.function_names["marketing"]
+  marketing_invoke_arn                     = module.marketing.alias_invoke_arns["marketing"]
+  marketing_public_function_name           = module.marketing.function_names["marketing-public"]
+  marketing_public_invoke_arn              = module.marketing.alias_invoke_arns["marketing-public"]
+}
+
+# Marketing (plan feature "marketing"): visit statistics, attribution and
+# email campaigns. Table, link key, functions, schedule, streams and SES
+# events are all in ./marketing.
+module "marketing" {
+  source      = "./marketing"
+  environment = var.env
+  region      = var.aws_region
+  ecr_repository_urls = {
+    marketing          = module.marketing_ecr.repository_url
+    "marketing-public" = module.marketing_public_ecr.repository_url
+    "marketing-send"   = module.marketing_send_ecr.repository_url
+    "marketing-sync"   = module.marketing_sync_ecr.repository_url
+  }
+  tenant_table_name      = module.tenant.table_name
+  location_table_name    = module.location.table_name
+  location_id_index_name = module.location.location_id_index_name
+  user_table_name        = module.user.table_name
+  user_table_arn         = module.user.table_arn
+  menu_table_name        = module.menu.table_name
+  menu_table_arn         = module.menu.table_arn
+  # imageKey already starts with menu-images/, served by the public distribution.
+  menu_image_base_url     = local.customer_site_url
+  customer_site_url       = local.customer_site_url
+  admin_app_url           = local.admin_app_url
+  reservation_table_name  = module.reservation.table_name
+  reservation_stream_arn  = module.reservation.stream_arn
+  order_table_name        = module.order.table_name
+  order_stream_arn        = module.order.stream_arn
+  ses_identity_arn        = local.ses_identity_arn
+  from_address            = local.no_reply_email
+  mail_outbox_bucket_name = local.mail_outbox_bucket
+  mail_outbox_bucket_arn  = local.mail_outbox_arn
 }
 
 # Stripe webhook endpoints - created in Stripe by Terraform, pointing straight
@@ -1750,6 +1815,10 @@ locals {
     tenant_site_config         = module.tenant_site_config_role.role_name
     reservation_reminders      = module.reservation_reminders_role.role_name
     webhook_payment_intent     = module.webhook_payment_intent_role.role_name
+    marketing                  = module.marketing.role_names["marketing"]
+    marketing_public           = module.marketing.role_names["marketing-public"]
+    marketing_send             = module.marketing.role_names["marketing-send"]
+    marketing_sync             = module.marketing.role_names["marketing-sync"]
   }
 }
 

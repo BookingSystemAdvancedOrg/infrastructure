@@ -108,6 +108,10 @@ output "ecr_repository_urls" {
     tenant_site_config         = module.tenant_site_config_ecr.tenant_site_config_ecr_repository_url
     reservation_reminders      = module.reservation_reminders_ecr.reservation_reminders_ecr_repository_url
     platform_stripe_webhook    = module.platform_stripe_webhook_ecr.platform_stripe_webhook_ecr_repository_url
+    marketing                  = module.marketing_ecr.repository_url
+    marketing_public           = module.marketing_public_ecr.repository_url
+    marketing_send             = module.marketing_send_ecr.repository_url
+    marketing_sync             = module.marketing_sync_ecr.repository_url
   }
 }
 

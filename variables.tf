@@ -125,18 +125,18 @@ variable "plans" {
     max_locations = number
     features      = map(bool)
   }))
-  description = "Plan catalog (packages you sell). A tenant's limits are copied from its plan when the plan is assigned and can be overridden per tenant from the platform dashboard - no deploy either way. Feature keys: reservations, ordering, catering, terminal (card readers for in-person payments, managed from Booqy Console)."
+  description = "Plan catalog (packages you sell). A tenant's limits are copied from its plan when the plan is assigned and can be overridden per tenant from the platform dashboard - no deploy either way. Feature keys: reservations, ordering, catering, terminal (card readers for in-person payments, managed from Booqy Console), marketing (visit statistics and email campaigns to guests who opted in)."
   sensitive   = false
   default = {
     starter = {
       name          = "Starter"
       max_locations = 1
-      features      = { reservations = true, ordering = true, catering = false, terminal = true }
+      features      = { reservations = true, ordering = true, catering = false, terminal = true, marketing = false }
     }
     growth = {
       name          = "Growth"
       max_locations = 3
-      features      = { reservations = true, ordering = true, catering = true, terminal = true }
+      features      = { reservations = true, ordering = true, catering = true, terminal = true, marketing = true }
     }
   }
 }
