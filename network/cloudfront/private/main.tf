@@ -53,9 +53,12 @@ locals {
 resource "aws_cloudfront_function" "spa_routing" {
   name    = "${local.name_prefix}admin-spa-routing"
   runtime = "cloudfront-js-2.0"
-  comment = "Admin app: client-side routes load /index.html"
+  comment = "Admin app: client-side routes load /index.html; legacy hostnames redirect"
   publish = true
-  code    = file("${path.module}/functions/spa-routing.js")
+  code = templatefile("${path.module}/functions/spa-routing.js", {
+    canonical_host = var.canonical_host
+    legacy_hosts   = jsonencode(var.legacy_hosts)
+  })
 }
 
 resource "aws_cloudfront_function" "api_proxy" {
@@ -130,7 +133,7 @@ resource "aws_cloudfront_distribution" "this" {
   comment             = local.distribution_comment
   default_root_object = "index.html"
 
-  # restaurant.<platform domain> once the platform domain is set - one shared admin
+  # restaurang.<platform domain> once the platform domain is set - one shared admin
   # app for every tenant (who you are comes from your login, not the URL).
   aliases = var.aliases
 
@@ -233,7 +236,7 @@ resource "aws_cloudfront_distribution" "this" {
 
   # Default *.cloudfront.net certificate until the platform domain is set;
   # then the platform's wildcard certificate (network/platform-domain) for
-  # restaurant.<domain>.
+  # restaurang.<domain>.
   viewer_certificate {
     cloudfront_default_certificate = var.acm_certificate_arn == ""
     acm_certificate_arn            = var.acm_certificate_arn == "" ? null : var.acm_certificate_arn

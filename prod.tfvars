@@ -15,7 +15,7 @@ alert_emails = [
   "arya.eisa@ithjalparna.se",
 ]
 
-# Domain the platform owns. Turns on the restaurant./admin. hostnames,
+# Domain the platform owns. Turns on the restaurang./admin. hostnames,
 # the SES sending domain mail.booqy.se and (tenant_sites_enabled below)
 # restaurant custom domains (see docs/PLATFORM-SETUP.md, "Platform domain").
 # The zone is the one Route 53 created when booqy.se was registered in this

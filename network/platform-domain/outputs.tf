@@ -9,7 +9,7 @@ output "name_servers" {
 }
 
 output "certificate_arn" {
-  description = "ARN of the validated *.<domain> certificate (us-east-1) for the restaurant./admin. aliases"
+  description = "ARN of the validated *.<domain> certificate (us-east-1) for the restaurang./admin. aliases"
   value       = aws_acm_certificate_validation.wildcard.certificate_arn
 }
 

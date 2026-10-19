@@ -17,7 +17,7 @@ alert_emails = [
 
 # Domain the platform owns. Dev runs on dev.booqy.se: its own hosted zone in
 # THIS account (created by hand, delegated from the booqy.se zone in prod), so
-# dev and prod DNS never touch. Turns on the restaurant./admin. hostnames,
+# dev and prod DNS never touch. Turns on the restaurang./admin. hostnames,
 # the SES sending domain mail.dev.booqy.se and (tenant_sites_enabled below)
 # restaurant custom domains (see docs/PLATFORM-SETUP.md, "Platform domain").
 # dev.booqy.se is delegated from the booqy.se zone in prod (NS record, also

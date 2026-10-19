@@ -1593,7 +1593,7 @@ resource "aws_lambda_permission" "marketing_invoke" {
 #   POST /m/signup         welcome offer sign-up (Turnstile + per-IP/address limits)
 #   POST /m/code           check a discount code before checkout
 #   GET|POST /m/s/{token}  confirm a welcome-offer sign-up (double opt-in, signed)
-# Email links reach these through the admin app's /api (restaurant.<domain>).
+# Email links reach these through the admin app's /api (restaurang.<domain>).
 
 resource "aws_apigatewayv2_integration" "marketing_public" {
   api_id                 = aws_apigatewayv2_api.this.id
