@@ -23,25 +23,25 @@ variable "catering_requests_table_name" {
 }
 
 variable "location_table_name" {
-  description = "Name of the location DynamoDB table — used to validate location and read catering settings at request time"
+  description = "Name of the location DynamoDB table - used to validate location and read catering settings at request time"
   type        = string
   sensitive   = false
 }
 
 variable "catering_discount_tiers_table_name" {
-  description = "Name of the catering-discount-tiers DynamoDB table — used to calculate volume discounts at submission time"
+  description = "Name of the catering-discount-tiers DynamoDB table - used to calculate volume discounts at submission time"
   type        = string
   sensitive   = false
 }
 
 variable "menu_table_name" {
-  description = "Name of the menu DynamoDB table — used to validate line items and capture price snapshots"
+  description = "Name of the menu DynamoDB table - used to validate line items and capture price snapshots"
   type        = string
   sensitive   = false
 }
 
 variable "region" {
-  description = "AWS region — passed to the function as an environment variable"
+  description = "AWS region - passed to the function as an environment variable"
   type        = string
   sensitive   = false
 }
@@ -99,4 +99,16 @@ variable "turnstile_required" {
   type        = bool
   sensitive   = false
   default     = false
+}
+
+variable "cloudfront_edge_secret" {
+  description = "Shared secret from the admin app's CloudFront (x-booqy-edge); lets shared/http.py trust the viewer IP header"
+  type        = string
+  sensitive   = true
+}
+
+variable "marketing_table_name" {
+  description = "Marketing table (welcome-offer codes, statistics, subscribers); empty = no marketing"
+  type        = string
+  default     = ""
 }

@@ -21,12 +21,11 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | PUT | `/locations/{locationId}/menu/{proxy+}` | JWT | manage-menu |
 | DELETE | `/locations/{locationId}/menu/{proxy+}` | JWT | manage-menu |
 | GET | `/locations/{locationId}/availability` | NONE | get-availability |
-| POST | `/reservations` | NONE | create-pending-reservation |
-| GET | `/reservations/{reservationId}` | JWT | get-reservation |
-| GET | `/reservations/{reservationId}/orders/{orderId}` | JWT | get-order |
 | POST | `/order` | NONE | payment-intent |
-| POST | `/reservations/{reservationId}/cancel` | NONE | cancel-reservation |
-| POST | `/reservations/{reservationId}/arrive` | JWT | mark-arrived |
+| POST | `/locations/{locationId}/reservations/{reservationId}/cancel` | NONE | cancel-reservation |
+| POST | `/locations/{locationId}/reservations/{reservationId}/status` | JWT | mark-arrived |
+| PATCH | `/locations/{locationId}/reservations/{reservationId}` | JWT | mark-arrived |
+| POST | `/locations/{locationId}/reservations/{reservationId}/payment` | JWT | mark-arrived |
 | POST | `/locations/{locationId}/tables/{tableId}/block` | JWT | block-table |
 | GET | `/locations/{locationId}/layout-elements/{proxy+}` | JWT | manage-layout-element |
 | POST | `/locations/{locationId}/layout-elements/{proxy+}` | JWT | manage-layout-element |
@@ -86,9 +85,42 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | DELETE | `/platform/tenants/{tenantId}/locations/{locationId}` | JWT (operator) | platform-tenants |
 | POST | `/platform/tenants/{tenantId}/domains` | JWT (operator) | platform-tenants |
 | DELETE | `/platform/tenants/{tenantId}/domains/{domain}` | JWT (operator) | platform-tenants |
+| GET | `/platform/domains/search` | JWT (operator) | platform-tenants |
+| GET | `/platform/domains/dns-scan` | JWT (operator) | platform-tenants |
+| POST | `/platform/tenants/{tenantId}/domains/documents` | JWT (operator) | platform-tenants |
+| POST | `/platform/tenants/{tenantId}/domains/registrations` | JWT (operator) | platform-tenants |
+| POST | `/platform/tenants/{tenantId}/domains/connections` | JWT (operator) | platform-tenants |
+| GET | `/platform/tenants/{tenantId}/zones/{domain}/document` | JWT (operator) | platform-tenants |
+| GET | `/platform/tenants/{tenantId}/zones/{domain}/transfer` | JWT (operator) | platform-tenants |
+| POST | `/platform/tenants/{tenantId}/zones/{domain}/transfer` | JWT (operator) | platform-tenants |
 | POST | `/platform/tenants/{tenantId}/stripe/account-link` | JWT (operator) | platform-tenants |
 | POST | `/platform/tenants/{tenantId}/stripe/sync` | JWT (operator) | platform-tenants |
+| GET | `/platform/tenants/{tenantId}/locations/{locationId}/terminal` | JWT (operator) | platform-tenants |
+| POST | `/platform/tenants/{tenantId}/locations/{locationId}/terminal` | JWT (operator) | platform-tenants |
+| PATCH | `/platform/tenants/{tenantId}/locations/{locationId}/terminal` | JWT (operator) | platform-tenants |
+| POST | `/platform/tenants/{tenantId}/locations/{locationId}/terminal/readers` | JWT (operator) | platform-tenants |
+| DELETE | `/platform/tenants/{tenantId}/locations/{locationId}/terminal/readers/{readerId}` | JWT (operator) | platform-tenants |
+| GET | `/platform/operators` | JWT (operator) | platform-tenants |
+| POST | `/platform/operators` | JWT (operator) | platform-tenants |
+| PATCH | `/platform/operators/{username}` | JWT (operator) | platform-tenants |
+| DELETE | `/platform/operators/{username}` | JWT (operator) | platform-tenants |
+| POST | `/platform/operators/{username}/resend-invite` | JWT (operator) | platform-tenants |
+| GET | `/platform/outbox` | JWT (operator) | platform-tenants |
+| GET | `/platform/outbox/{messageId}` | JWT (operator) | platform-tenants |
 | GET | `/tenant` | JWT | tenant-account |
 | PATCH | `/tenant` | JWT | tenant-account |
 | POST | `/tenant/stripe/account-link` | JWT | tenant-account |
 | GET | `/site-config` | NONE | tenant-site-config |
+| GET | `/marketing/{proxy+}` | JWT | marketing |
+| POST | `/marketing/{proxy+}` | JWT | marketing |
+| PUT | `/marketing/{proxy+}` | JWT | marketing |
+| DELETE | `/marketing/{proxy+}` | JWT | marketing |
+| POST | `/t` | NONE | marketing-public |
+| GET | `/m/c/{token}` | NONE | marketing-public |
+| GET | `/m/u/{token}` | NONE | marketing-public |
+| POST | `/m/u/{token}` | NONE | marketing-public |
+| GET | `/m/offer` | NONE | marketing-public |
+| POST | `/m/signup` | NONE | marketing-public |
+| POST | `/m/code` | NONE | marketing-public |
+| GET | `/m/s/{token}` | NONE | marketing-public |
+| POST | `/m/s/{token}` | NONE | marketing-public |

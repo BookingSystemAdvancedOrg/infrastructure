@@ -8,7 +8,7 @@ are affected:
 | App | Repo | Who uses it | URL |
 |---|---|---|---|
 | Restaurant admin (existing) | `admin-front-end` | owners + staff of **every** restaurant | `admin_app_url` output - `https://app.<platform domain>` once set |
-| Platform admin (**new**, built - Booqy Console repo) | `sbs-admin` | you (operators) - create and manage tenants | `platform_admin_app_url` output - `https://ops.<platform domain>` once set |
+| Platform admin (**new**, built - Booqy Console repo) | `booqy-console` | you (operators) - create and manage tenants | `platform_admin_app_url` output - `https://ops.<platform domain>` once set |
 | Restaurant websites | `site-<slug>` per restaurant (from a template) | the restaurants' guests | `https://<slug>.<platform domain>` + the restaurant's own domain |
 
 Ground rules:
@@ -123,7 +123,7 @@ section documents what it does, for maintenance.
 
 ### 2.1 Hosting and deploy
 
-- The repo name must be exactly `sbs-admin` (the deploy role trusts that
+- The repo name must be exactly `booqy-console` (the deploy role trusts that
   name; `PLATFORM_ADMIN_FRONTEND_REPO` in `.github/config/project.env`).
 - Its pipeline (`.github/workflows/deploy.yml` in Booqy Console) uses role
   `platform-admin-front-end-deploy-role` (prod) /

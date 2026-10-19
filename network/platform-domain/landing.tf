@@ -103,6 +103,19 @@ resource "aws_cloudfront_origin_access_control" "landing" {
   signing_protocol                  = "sigv4"
 }
 
+# "Boka en demo" (booqy-website /demo): POST /api/demo-request goes to the
+# demo-request Lambda's function URL (compute/lambda/demo-request). OAC signs
+# each request so the URL (AWS_IAM) only accepts calls through this
+# distribution. Lambda URLs need the body hash on POST - the page sends it as
+# x-amz-content-sha256.
+resource "aws_cloudfront_origin_access_control" "demo_request" {
+  count                             = var.demo_request_enabled ? 1 : 0
+  name                              = "${local.prefix}landing-demo-request-oac"
+  origin_access_control_origin_type = "lambda"
+  signing_behavior                  = "always"
+  signing_protocol                  = "sigv4"
+}
+
 resource "aws_cloudfront_distribution" "landing" {
   enabled             = true
   comment             = "${local.prefix}public page on ${var.platform_domain}"
@@ -116,6 +129,37 @@ resource "aws_cloudfront_distribution" "landing" {
     origin_id                = "landing"
     domain_name              = aws_s3_bucket.landing.bucket_regional_domain_name
     origin_access_control_id = aws_cloudfront_origin_access_control.landing.id
+  }
+
+  dynamic "origin" {
+    for_each = var.demo_request_enabled ? [1] : []
+    content {
+      origin_id                = "demo-request"
+      domain_name              = var.demo_request_origin_domain
+      origin_access_control_id = aws_cloudfront_origin_access_control.demo_request[0].id
+
+      custom_origin_config {
+        http_port              = 80
+        https_port             = 443
+        origin_protocol_policy = "https-only"
+        origin_ssl_protocols   = ["TLSv1.2"]
+      }
+    }
+  }
+
+  dynamic "ordered_cache_behavior" {
+    for_each = var.demo_request_enabled ? [1] : []
+    content {
+      path_pattern           = "/api/*"
+      target_origin_id       = "demo-request"
+      viewer_protocol_policy = "https-only"
+      allowed_methods        = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
+      cached_methods         = ["GET", "HEAD"]
+      compress               = false
+      cache_policy_id        = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # AWS managed "CachingDisabled"
+      # Everything but Host (a Lambda URL rejects a foreign Host header).
+      origin_request_policy_id = "b689b0a8-53d0-40ab-baf2-68738e2966ac" # AWS managed "AllViewerExceptHostHeader"
+    }
   }
 
   default_cache_behavior {

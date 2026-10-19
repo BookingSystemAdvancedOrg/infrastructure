@@ -18,15 +18,21 @@ terraform {
       source  = "hashicorp/archive"
       version = "~> 2.7"
     }
+    # The shared secret between the admin app's CloudFront and the API
+    # (random_password.cloudfront_edge)
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.6"
+    }
   }
 }
 
-# Primary provider — all resources deploy to Stockholm (eu-north-1) for GDPR data residency
+# Primary provider - all resources deploy to Stockholm (eu-north-1) for GDPR data residency
 provider "aws" {
   region = var.aws_region
 }
 
-# ACM certificates for CloudFront MUST be in us-east-1 — AWS hard requirement
+# ACM certificates for CloudFront MUST be in us-east-1 - AWS hard requirement
 # Only the acm module uses this alias via providers = { aws = aws.us_east_1 }
 provider "aws" {
   alias  = "us_east_1"
@@ -207,6 +213,7 @@ module "cognito" {
   invites_via_ses                    = var.cognito_invites_via_ses
   ses_identity_arn                   = local.ses_identity_arn
   invite_from_address                = local.no_reply_from_address
+  refresh_token_rotation_enabled     = var.refresh_token_rotation_enabled
 }
 # Operator pool - you; the only tokens /platform/* accepts
 module "cognito_platform" {
@@ -683,6 +690,8 @@ module "tenant_context_policy" {
     # Catering: staff see their own location's requests.
     catering_requests = module.catering_requests_role.role_name
     catering_offer    = module.catering_offer_role.role_name
+    # Marketing test emails go to the signed-in owner's own address.
+    marketing = module.marketing.role_names["marketing"]
   }
 }
 
@@ -798,6 +807,27 @@ module "catering_settings_ecr" {
 module "catering_discount_tiers_ecr" {
   source      = "./storage/ecr/catering-discount-tiers"
   environment = var.env
+}
+# Marketing: one generic module, one instance per function.
+module "marketing_ecr" {
+  source      = "./storage/ecr/marketing-function"
+  environment = var.env
+  function    = "marketing"
+}
+module "marketing_public_ecr" {
+  source      = "./storage/ecr/marketing-function"
+  environment = var.env
+  function    = "marketing-public"
+}
+module "marketing_send_ecr" {
+  source      = "./storage/ecr/marketing-function"
+  environment = var.env
+  function    = "marketing-send"
+}
+module "marketing_sync_ecr" {
+  source      = "./storage/ecr/marketing-function"
+  environment = var.env
+  function    = "marketing-sync"
 }
 module "catering_requests_ecr" {
   source      = "./storage/ecr/catering-requests"
@@ -975,6 +1005,7 @@ module "create_pending_reservation_fn" {
   turnstile_required       = var.turnstile_site_key != ""
   turnstile_secret_arn     = module.catering_secrets.turnstile_secret_arn
   request_guard_table_name = module.request_guard.table_name
+  cloudfront_edge_secret   = random_password.cloudfront_edge.result
 }
 module "get_availability_fn" {
   source                               = "./compute/lambda/get-availability"
@@ -1057,6 +1088,8 @@ module "payment_intent_fn" {
   turnstile_required       = var.turnstile_site_key != ""
   turnstile_secret_arn     = module.catering_secrets.turnstile_secret_arn
   request_guard_table_name = module.request_guard.table_name
+  cloudfront_edge_secret   = random_password.cloudfront_edge.result
+  marketing_table_name     = module.marketing.table_name
 }
 module "list_layout_version_fn" {
   source                               = "./compute/lambda/list-layout-version"
@@ -1080,6 +1113,12 @@ module "manage_auth_fn" {
   cognito_client_secret    = module.cognito.user_pool_client_secret
   region                   = var.aws_region
   request_guard_table_name = module.request_guard.table_name
+  cloudfront_edge_secret   = random_password.cloudfront_edge.result
+  # Refresh cookie lifetime = the app client's refresh token validity.
+  refresh_cookie_max_age = module.cognito.refresh_token_validity_hours * 3600
+  # Local dev of the admin app (vite on :7070) may use the cookie routes
+  # against the dev API. Never in prod.
+  cookie_allowed_origins = var.env == "prod" ? "" : "http://localhost:7070"
 }
 module "manage_layout_element_fn" {
   source                         = "./compute/lambda/manage-layout-element"
@@ -1277,7 +1316,9 @@ module "catering_requests_fn" {
   user_table_name                     = module.user.table_name
   request_guard_table_name            = module.request_guard.table_name
   # Bot check on the catering form only once the sites show the widget.
-  turnstile_required = var.turnstile_site_key != ""
+  turnstile_required     = var.turnstile_site_key != ""
+  cloudfront_edge_secret = random_password.cloudfront_edge.result
+  marketing_table_name   = module.marketing.table_name
 }
 module "catering_offer_fn" {
   source                              = "./compute/lambda/catering-offer"
@@ -1315,6 +1356,7 @@ module "catering_customer_fn" {
   region                              = var.aws_region
   tenant_table_name                   = module.tenant.table_name
   location_id_index_name              = module.location.location_id_index_name
+  cloudfront_edge_secret              = random_password.cloudfront_edge.result
 }
 module "catering_signing_webhook_fn" {
   source                              = "./compute/lambda/catering-signing-webhook"
@@ -1517,47 +1559,51 @@ module "lambda_releases" {
   rollback_alarms_enabled        = var.env == "prod"
 
   functions = {
-    (module.activate_layout_version_fn.function_name)    = { alias_name = module.activate_layout_version_fn.alias_name }
-    (module.block_table_fn.function_name)                = { alias_name = module.block_table_fn.alias_name }
-    (module.cancel_reservation_fn.function_name)         = { alias_name = module.cancel_reservation_fn.alias_name }
-    (module.catering_customer_fn.function_name)          = { alias_name = module.catering_customer_fn.alias_name }
-    (module.catering_discount_tiers_fn.function_name)    = { alias_name = module.catering_discount_tiers_fn.alias_name }
-    (module.catering_document_fn.function_name)          = { alias_name = module.catering_document_fn.alias_name }
-    (module.catering_lifecycle_fn.function_name)         = { alias_name = module.catering_lifecycle_fn.alias_name }
-    (module.catering_offer_fn.function_name)             = { alias_name = module.catering_offer_fn.alias_name }
-    (module.catering_requests_fn.function_name)          = { alias_name = module.catering_requests_fn.alias_name }
-    (module.catering_settings_fn.function_name)          = { alias_name = module.catering_settings_fn.alias_name }
-    (module.catering_signing_webhook_fn.function_name)   = { alias_name = module.catering_signing_webhook_fn.alias_name }
-    (module.catering_stripe_webhook_fn.function_name)    = { alias_name = module.catering_stripe_webhook_fn.alias_name }
-    (module.create_location_fn.function_name)            = { alias_name = module.create_location_fn.alias_name }
-    (module.create_pending_reservation_fn.function_name) = { alias_name = module.create_pending_reservation_fn.alias_name }
-    (module.dlq_replay_fn.function_name)                 = { alias_name = module.dlq_replay_fn.alias_name }
-    (module.expire_layout_version_fn.function_name)      = { alias_name = module.expire_layout_version_fn.alias_name }
-    (module.get_availability_fn.function_name)           = { alias_name = module.get_availability_fn.alias_name }
-    (module.get_location_fn.function_name)               = { alias_name = module.get_location_fn.alias_name }
-    (module.get_menu_fn.function_name)                   = { alias_name = module.get_menu_fn.alias_name }
-    (module.get_order_fn.function_name)                  = { alias_name = module.get_order_fn.alias_name }
-    (module.get_reservation_fn.function_name)            = { alias_name = module.get_reservation_fn.alias_name }
-    (module.list_layout_version_fn.function_name)        = { alias_name = module.list_layout_version_fn.alias_name }
-    (module.manage_auth_fn.function_name)                = { alias_name = module.manage_auth_fn.alias_name }
-    (module.manage_layout_element_fn.function_name)      = { alias_name = module.manage_layout_element_fn.alias_name }
-    (module.manage_menu_fn.function_name)                = { alias_name = module.manage_menu_fn.alias_name }
-    (module.manage_order_fn.function_name)               = { alias_name = module.manage_order_fn.alias_name }
-    (module.manage_user_fn.function_name)                = { alias_name = module.manage_user_fn.alias_name }
-    (module.mark_arrived_fn.function_name)               = { alias_name = module.mark_arrived_fn.alias_name }
-    (module.no_show_check_fn.function_name)              = { alias_name = module.no_show_check_fn.alias_name }
-    (module.notification_fn.function_name)               = { alias_name = module.notification_fn.alias_name }
-    (module.payment_intent_fn.function_name)             = { alias_name = module.payment_intent_fn.alias_name }
-    (module.platform_stripe_webhook_fn.function_name)    = { alias_name = module.platform_stripe_webhook_fn.alias_name }
-    (module.platform_tenants_fn.function_name)           = { alias_name = module.platform_tenants_fn.alias_name }
-    (module.pre_signed_url_fn.function_name)             = { alias_name = module.pre_signed_url_fn.alias_name }
-    (module.publish_layout_fn.function_name)             = { alias_name = module.publish_layout_fn.alias_name }
-    (module.reactivate_menu_item_fn.function_name)       = { alias_name = module.reactivate_menu_item_fn.alias_name }
-    (module.stripe_webhook_fn.function_name)             = { alias_name = module.stripe_webhook_fn.alias_name }
-    (module.tenant_account_fn.function_name)             = { alias_name = module.tenant_account_fn.alias_name }
-    (module.tenant_site_config_fn.function_name)         = { alias_name = module.tenant_site_config_fn.alias_name }
-    (module.reservation_reminders_fn.function_name)      = { alias_name = module.reservation_reminders_fn.alias_name }
-    (module.webhook_payment_intent_fn.function_name)     = { alias_name = module.webhook_payment_intent_fn.alias_name }
+    (module.activate_layout_version_fn.function_name)     = { alias_name = module.activate_layout_version_fn.alias_name }
+    (module.block_table_fn.function_name)                 = { alias_name = module.block_table_fn.alias_name }
+    (module.cancel_reservation_fn.function_name)          = { alias_name = module.cancel_reservation_fn.alias_name }
+    (module.catering_customer_fn.function_name)           = { alias_name = module.catering_customer_fn.alias_name }
+    (module.catering_discount_tiers_fn.function_name)     = { alias_name = module.catering_discount_tiers_fn.alias_name }
+    (module.catering_document_fn.function_name)           = { alias_name = module.catering_document_fn.alias_name }
+    (module.catering_lifecycle_fn.function_name)          = { alias_name = module.catering_lifecycle_fn.alias_name }
+    (module.catering_offer_fn.function_name)              = { alias_name = module.catering_offer_fn.alias_name }
+    (module.catering_requests_fn.function_name)           = { alias_name = module.catering_requests_fn.alias_name }
+    (module.catering_settings_fn.function_name)           = { alias_name = module.catering_settings_fn.alias_name }
+    (module.catering_signing_webhook_fn.function_name)    = { alias_name = module.catering_signing_webhook_fn.alias_name }
+    (module.catering_stripe_webhook_fn.function_name)     = { alias_name = module.catering_stripe_webhook_fn.alias_name }
+    (module.create_location_fn.function_name)             = { alias_name = module.create_location_fn.alias_name }
+    (module.create_pending_reservation_fn.function_name)  = { alias_name = module.create_pending_reservation_fn.alias_name }
+    (module.dlq_replay_fn.function_name)                  = { alias_name = module.dlq_replay_fn.alias_name }
+    (module.expire_layout_version_fn.function_name)       = { alias_name = module.expire_layout_version_fn.alias_name }
+    (module.get_availability_fn.function_name)            = { alias_name = module.get_availability_fn.alias_name }
+    (module.get_location_fn.function_name)                = { alias_name = module.get_location_fn.alias_name }
+    (module.get_menu_fn.function_name)                    = { alias_name = module.get_menu_fn.alias_name }
+    (module.get_order_fn.function_name)                   = { alias_name = module.get_order_fn.alias_name }
+    (module.get_reservation_fn.function_name)             = { alias_name = module.get_reservation_fn.alias_name }
+    (module.list_layout_version_fn.function_name)         = { alias_name = module.list_layout_version_fn.alias_name }
+    (module.manage_auth_fn.function_name)                 = { alias_name = module.manage_auth_fn.alias_name }
+    (module.manage_layout_element_fn.function_name)       = { alias_name = module.manage_layout_element_fn.alias_name }
+    (module.manage_menu_fn.function_name)                 = { alias_name = module.manage_menu_fn.alias_name }
+    (module.manage_order_fn.function_name)                = { alias_name = module.manage_order_fn.alias_name }
+    (module.manage_user_fn.function_name)                 = { alias_name = module.manage_user_fn.alias_name }
+    (module.mark_arrived_fn.function_name)                = { alias_name = module.mark_arrived_fn.alias_name }
+    (module.no_show_check_fn.function_name)               = { alias_name = module.no_show_check_fn.alias_name }
+    (module.notification_fn.function_name)                = { alias_name = module.notification_fn.alias_name }
+    (module.payment_intent_fn.function_name)              = { alias_name = module.payment_intent_fn.alias_name }
+    (module.platform_stripe_webhook_fn.function_name)     = { alias_name = module.platform_stripe_webhook_fn.alias_name }
+    (module.platform_tenants_fn.function_name)            = { alias_name = module.platform_tenants_fn.alias_name }
+    (module.pre_signed_url_fn.function_name)              = { alias_name = module.pre_signed_url_fn.alias_name }
+    (module.publish_layout_fn.function_name)              = { alias_name = module.publish_layout_fn.alias_name }
+    (module.reactivate_menu_item_fn.function_name)        = { alias_name = module.reactivate_menu_item_fn.alias_name }
+    (module.stripe_webhook_fn.function_name)              = { alias_name = module.stripe_webhook_fn.alias_name }
+    (module.tenant_account_fn.function_name)              = { alias_name = module.tenant_account_fn.alias_name }
+    (module.tenant_site_config_fn.function_name)          = { alias_name = module.tenant_site_config_fn.alias_name }
+    (module.reservation_reminders_fn.function_name)       = { alias_name = module.reservation_reminders_fn.alias_name }
+    (module.webhook_payment_intent_fn.function_name)      = { alias_name = module.webhook_payment_intent_fn.alias_name }
+    (module.marketing.function_names["marketing"])        = { alias_name = module.marketing.alias_names["marketing"] }
+    (module.marketing.function_names["marketing-public"]) = { alias_name = module.marketing.alias_names["marketing-public"] }
+    (module.marketing.function_names["marketing-send"])   = { alias_name = module.marketing.alias_names["marketing-send"] }
+    (module.marketing.function_names["marketing-sync"])   = { alias_name = module.marketing.alias_names["marketing-sync"] }
   }
 }
 
@@ -1632,6 +1678,54 @@ module "api_gateway" {
   catering_customer_invoke_arn             = module.catering_customer_fn.alias_invoke_arn
   catering_signing_webhook_function_name   = module.catering_signing_webhook_fn.function_name
   catering_signing_webhook_invoke_arn      = module.catering_signing_webhook_fn.alias_invoke_arn
+  marketing_function_name                  = module.marketing.function_names["marketing"]
+  marketing_invoke_arn                     = module.marketing.alias_invoke_arns["marketing"]
+  marketing_public_function_name           = module.marketing.function_names["marketing-public"]
+  marketing_public_invoke_arn              = module.marketing.alias_invoke_arns["marketing-public"]
+}
+
+# Marketing (plan feature "marketing"): visit statistics, attribution and
+# email campaigns. Table, link key, functions, schedule, streams and SES
+# events are all in ./marketing.
+module "marketing" {
+  source      = "./marketing"
+  environment = var.env
+  region      = var.aws_region
+  ecr_repository_urls = {
+    marketing          = module.marketing_ecr.repository_url
+    "marketing-public" = module.marketing_public_ecr.repository_url
+    "marketing-send"   = module.marketing_send_ecr.repository_url
+    "marketing-sync"   = module.marketing_sync_ecr.repository_url
+  }
+  tenant_table_name      = module.tenant.table_name
+  location_table_name    = module.location.table_name
+  location_id_index_name = module.location.location_id_index_name
+  user_table_name        = module.user.table_name
+  user_table_arn         = module.user.table_arn
+  menu_table_name        = module.menu.table_name
+  menu_table_arn         = module.menu.table_arn
+  # imageKey already starts with menu-images/, served by the public distribution.
+  menu_image_base_url     = local.customer_site_url
+  customer_site_url       = local.customer_site_url
+  admin_app_url           = local.admin_app_url
+  reservation_table_name  = module.reservation.table_name
+  reservation_stream_arn  = module.reservation.stream_arn
+  order_table_name        = module.order.table_name
+  order_stream_arn        = module.order.stream_arn
+  ses_identity_arn        = local.ses_identity_arn
+  from_address            = local.no_reply_email
+  mail_outbox_bucket_name = local.mail_outbox_bucket
+  mail_outbox_bucket_arn  = local.mail_outbox_arn
+  # Welcome offer sign-up: the same bot check and attempt counters as the
+  # booking and order forms.
+  turnstile_required       = var.turnstile_site_key != ""
+  turnstile_secret_arn     = module.catering_secrets.turnstile_secret_arn
+  request_guard_table_name = module.request_guard.table_name
+  request_guard_table_arn  = module.request_guard.table_arn
+  # Discount codes at checkout and the catering form's opt-in write to the
+  # marketing table: a policy on those functions' roles.
+  payment_intent_role_name    = module.payment_intent_role.role_name
+  catering_requests_role_name = module.catering_requests_role.role_name
 }
 
 # Stripe webhook endpoints - created in Stripe by Terraform, pointing straight
@@ -1733,6 +1827,10 @@ locals {
     tenant_site_config         = module.tenant_site_config_role.role_name
     reservation_reminders      = module.reservation_reminders_role.role_name
     webhook_payment_intent     = module.webhook_payment_intent_role.role_name
+    marketing                  = module.marketing.role_names["marketing"]
+    marketing_public           = module.marketing.role_names["marketing-public"]
+    marketing_send             = module.marketing.role_names["marketing-send"]
+    marketing_sync             = module.marketing.role_names["marketing-sync"]
   }
 }
 
@@ -1756,6 +1854,9 @@ module "platform_domain" {
   admin_app_hostname                      = local.admin_app_hostname
   platform_admin_hostname                 = local.platform_admin_hostname
   platform_admin_distribution_domain_name = module.cloudfront_platform_admin.distribution_domain_name
+  demo_request_enabled                    = true
+  demo_request_origin_domain              = module.demo_request_fn[0].function_url_domain
+  site_response_headers_policy_id         = module.cloudfront_public.site_response_headers_policy_id
 }
 
 # Adopt an existing hosted zone for the platform domain (var.platform_domain_zone_id)
@@ -1809,6 +1910,15 @@ module "cloudfront_public" {
   customer_bucket_regional_domain_name   = module.customer_front_end_asset.bucket_regional_domain_name
   menu_image_bucket_regional_domain_name = module.menu_image.bucket_regional_domain_name
 }
+# Shared secret the admin app's CloudFront sends to the API with every /api
+# request (origin header x-booqy-edge). The API trusts the viewer IP and
+# host headers only when it matches. Not an IAM credential; rotating it is
+# a terraform apply (taint this resource).
+resource "random_password" "cloudfront_edge" {
+  length  = 48
+  special = false
+}
+
 module "cloudfront_private" {
   source                                 = "./network/cloudfront/private"
   environment                            = var.env
@@ -1816,6 +1926,10 @@ module "cloudfront_private" {
   menu_image_bucket_regional_domain_name = module.menu_image.bucket_regional_domain_name
   aliases                                = local.platform_domain_enabled ? [local.admin_app_hostname] : []
   acm_certificate_arn                    = local.platform_domain_enabled ? module.platform_domain[0].certificate_arn : ""
+  # From the API's id, not its stage URL: the stage waits for routes and
+  # their Lambdas, some of which take the admin app's URL (a cycle).
+  api_origin_domain = "${module.api_gateway.api_id}.execute-api.${var.aws_region}.amazonaws.com"
+  edge_secret       = random_password.cloudfront_edge.result
 }
 # Operator app (platform admin) - where tenants are created and managed
 module "cloudfront_platform_admin" {
@@ -1824,6 +1938,12 @@ module "cloudfront_platform_admin" {
   bucket_regional_domain_name = module.platform_admin_front_end_asset.bucket_regional_domain_name
   aliases                     = local.platform_domain_enabled ? [local.platform_admin_hostname] : []
   acm_certificate_arn         = local.platform_domain_enabled ? module.platform_domain[0].certificate_arn : ""
+  # The Console's CSP: it talks to the operator user pool (Amplify SRP) and
+  # the API directly. From the API's id (see cloudfront_private).
+  api_origin = "https://${module.api_gateway.api_id}.execute-api.${var.aws_region}.amazonaws.com"
+  region     = var.aws_region
+  # DomainWizard posts domain-transfer PDFs straight to this bucket
+  upload_bucket_name = module.domain_documents.bucket_name
 }
 
 #OIDC
@@ -1860,6 +1980,46 @@ module "platform_admin_front_end_role" {
   codedeploy_deployment_group_arn = module.lambda_releases.deployment_group_arns[module.platform_tenants_fn.function_name]
   alert_topic_arn                 = module.alerts.topic_arn
 }
+# "Boka en demo" form on the public page: <platform_domain>/api/demo-request
+# -> demo-request Lambda (zip from this repo) -> email to var.demo_request_recipient.
+module "demo_request_role" {
+  count            = local.platform_domain_enabled ? 1 : 0
+  source           = "./security/iam/demo-request"
+  environment      = var.env
+  region           = var.aws_region
+  ses_identity_arn = local.ses_identity_arn
+  from_address     = local.no_reply_email
+}
+module "demo_request_fn" {
+  count        = local.platform_domain_enabled ? 1 : 0
+  source       = "./compute/lambda/demo-request"
+  environment  = var.env
+  role_arn     = module.demo_request_role[0].role_arn
+  recipient    = var.demo_request_recipient
+  from_address = local.no_reply_email
+}
+# Only the landing distribution may call the function URL (AWS_IAM + OAC).
+# Function URLs need both permissions for the CloudFront service principal.
+resource "aws_lambda_permission" "demo_request_url" {
+  count                  = local.platform_domain_enabled ? 1 : 0
+  statement_id           = "AllowLandingCloudFrontInvokeUrl"
+  action                 = "lambda:InvokeFunctionUrl"
+  function_name          = module.demo_request_fn[0].function_name
+  qualifier              = module.demo_request_fn[0].alias_name
+  principal              = "cloudfront.amazonaws.com"
+  source_arn             = module.platform_domain[0].landing_distribution_arn
+  function_url_auth_type = "AWS_IAM"
+}
+resource "aws_lambda_permission" "demo_request_invoke" {
+  count         = local.platform_domain_enabled ? 1 : 0
+  statement_id  = "AllowLandingCloudFrontInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = module.demo_request_fn[0].function_name
+  qualifier     = module.demo_request_fn[0].alias_name
+  principal     = "cloudfront.amazonaws.com"
+  source_arn    = module.platform_domain[0].landing_distribution_arn
+}
+
 # The public page on <platform_domain> (booqy-website repo) - its own bucket
 # and distribution, nothing else.
 module "website_deploy_role" {

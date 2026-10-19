@@ -46,9 +46,16 @@ variable "backend_repo" {
 }
 variable "platform_admin_frontend_repo" {
   type        = string
-  description = "Operator console repo name (no org prefix), e.g. sbs-admin - holds the operator web app AND the platform-tenants Lambda; trusted by security/iam/oidc/platform-admin-front-end-role to deploy both"
+  description = "Operator console repo name (no org prefix), e.g. booqy-console - holds the operator web app AND the platform-tenants Lambda; trusted by security/iam/oidc/platform-admin-front-end-role to deploy both"
   sensitive   = false
 }
+variable "demo_request_recipient" {
+  description = "Where the public page's \"Boka en demo\" requests are emailed. In the SES sandbox it must be a verified identity (or on a verified domain)."
+  type        = string
+  sensitive   = false
+  default     = "support@ithjalparna.se"
+}
+
 variable "website_repo" {
   type        = string
   description = "Repo name (no org prefix) of the public page on <platform_domain> - trusted by security/iam/oidc/website-deploy-role to deploy it"
@@ -118,18 +125,18 @@ variable "plans" {
     max_locations = number
     features      = map(bool)
   }))
-  description = "Plan catalog (packages you sell). A tenant's limits are copied from its plan when the plan is assigned and can be overridden per tenant from the platform dashboard - no deploy either way. Feature keys: reservations, ordering, catering, terminal (card readers for in-person payments, managed from Booqy Console)."
+  description = "Plan catalog (packages you sell). A tenant's limits are copied from its plan when the plan is assigned and can be overridden per tenant from the platform dashboard - no deploy either way. Feature keys: reservations, ordering, catering, terminal (card readers for in-person payments, managed from Booqy Console), marketing (visit statistics and email campaigns to guests who opted in)."
   sensitive   = false
   default = {
     starter = {
       name          = "Starter"
       max_locations = 1
-      features      = { reservations = true, ordering = true, catering = false, terminal = true }
+      features      = { reservations = true, ordering = true, catering = false, terminal = true, marketing = false }
     }
     growth = {
       name          = "Growth"
       max_locations = 3
-      features      = { reservations = true, ordering = true, catering = true, terminal = true }
+      features      = { reservations = true, ordering = true, catering = true, terminal = true, marketing = true }
     }
   }
 }
@@ -193,4 +200,10 @@ variable "sms_monthly_spend_limit_usd" {
   description = "Account-wide monthly SMS spend limit in USD for this environment's account, alarmed at 80%. Check the current value first (aws sns get-sms-attributes) - a lower value here stops SMS sooner. New AWS accounts have a 1 USD SMS quota; raise it with an AWS support case before setting a higher value. null (default) = the account's SMS settings aren't managed by Terraform"
   sensitive   = false
   default     = null
+}
+
+variable "refresh_token_rotation_enabled" {
+  description = "Staff app client: rotate refresh tokens on every use. Turn on only after the manage-auth release that uses GetTokensFromRefreshToken is live (docs/COOKIES.md, step 4)."
+  type        = bool
+  default     = false
 }

@@ -43,6 +43,12 @@ resource "aws_lambda_function" "this" {
       COGNITO_CLIENT_SECRET = var.cognito_client_secret
       # per-IP limits on forgot/reset password (shared/request_guard.py)
       REQUEST_GUARD_TABLE_NAME = var.request_guard_table_name
+      # Cookie sessions for the admin app (refresh token in an HttpOnly
+      # cookie, see the function's docstring)
+      AUTH_COOKIE_PATH       = "/api/auth"
+      REFRESH_COOKIE_MAX_AGE = tostring(var.refresh_cookie_max_age)
+      COOKIE_ALLOWED_ORIGINS = var.cookie_allowed_origins
+      CLOUDFRONT_EDGE_SECRET = var.cloudfront_edge_secret
     }
   }
 

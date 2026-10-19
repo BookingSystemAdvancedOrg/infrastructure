@@ -14,6 +14,49 @@ resource "aws_cloudfront_origin_access_control" "this" {
   signing_protocol                  = "sigv4"
 }
 
+# The managed SecurityHeadersPolicy plus a Content Security Policy: the
+# Console holds operator tokens in sessionStorage, so the CSP is what keeps
+# injected script from loading or sending them anywhere.
+resource "aws_cloudfront_response_headers_policy" "this" {
+  name    = "${var.environment == "prod" ? "" : "${var.environment}-"}console-security-headers"
+  comment = "Booqy Console: CSP, HSTS, no framing"
+
+  security_headers_config {
+    content_security_policy {
+      content_security_policy = join("; ", [
+        "default-src 'self'",
+        "script-src 'self'",
+        "style-src 'self' 'unsafe-inline'",
+        "img-src 'self' data:",
+        "font-src 'self'",
+        "connect-src 'self' https://cognito-idp.${var.region}.amazonaws.com ${var.api_origin} https://${var.upload_bucket_name}.s3.${var.region}.amazonaws.com https://${var.upload_bucket_name}.s3.amazonaws.com",
+        "object-src 'none'",
+        "base-uri 'self'",
+        "form-action 'self'",
+        "frame-ancestors 'none'",
+      ])
+      override = true
+    }
+    content_type_options {
+      override = true
+    }
+    frame_options {
+      frame_option = "DENY"
+      override     = true
+    }
+    referrer_policy {
+      referrer_policy = "strict-origin-when-cross-origin"
+      override        = true
+    }
+    strict_transport_security {
+      access_control_max_age_sec = 63072000
+      include_subdomains         = false
+      preload                    = false
+      override                   = true
+    }
+  }
+}
+
 resource "aws_cloudfront_distribution" "this" {
   enabled             = true
   is_ipv6_enabled     = true
@@ -36,7 +79,7 @@ resource "aws_cloudfront_distribution" "this" {
     target_origin_id           = "platform-admin-front-end-asset"
     viewer_protocol_policy     = "redirect-to-https"
     cache_policy_id            = "658327ea-f89d-4fab-a63d-7e88639e58f6" # AWS managed "CachingOptimized"
-    response_headers_policy_id = "67f7725c-6f97-4210-82d7-5512b31e9d03" # AWS managed "SecurityHeadersPolicy"
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.this.id
     compress                   = true
   }
 

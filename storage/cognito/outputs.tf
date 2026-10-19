@@ -28,3 +28,8 @@ output "staff_group_name" {
   description = "Name of the Cognito group for restaurant staff"
   value       = aws_cognito_user_group.staff_user.name
 }
+
+output "refresh_token_validity_hours" {
+  description = "Refresh token validity of the staff app client, in hours (manage-auth sets its cookie lifetime from it)"
+  value       = local.refresh_token_validity_hours
+}

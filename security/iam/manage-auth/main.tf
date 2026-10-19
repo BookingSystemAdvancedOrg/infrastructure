@@ -2,8 +2,11 @@
 #
 # Covers the flows this function handles against the Cognito user pool:
 #   - Login: cognito-idp:InitiateAuth with USER_PASSWORD_AUTH
-#   - Silent refresh: cognito-idp:InitiateAuth with REFRESH_TOKEN_AUTH, to
-#     mint new access/id tokens without the user re-entering credentials
+#   - Silent refresh: cognito-idp:GetTokensFromRefreshToken, to mint new
+#     access/id tokens (and, with refresh token rotation, a new refresh
+#     token) without the user re-entering credentials
+#   - Sign out: cognito-idp:RevokeToken, so the refresh token in the admin
+#     app's cookie stops working right away
 #   - First-time "registration": when an owner-user creates a new
 #     staff account, Cognito issues a temporary password by email (via SES,
 #     handled by manage-user). The invited user's first login trips a
@@ -61,6 +64,15 @@ resource "aws_iam_role_policy" "cognito_auth" {
         Resource = "${var.user_pool_arn}"
       },
       {
+        Sid    = "RefreshRotationAndSignOut"
+        Effect = "Allow"
+        Action = [
+          "cognito-idp:GetTokensFromRefreshToken",
+          "cognito-idp:RevokeToken",
+        ]
+        Resource = "${var.user_pool_arn}"
+      },
+      {
         Sid    = "ForgotPassword"
         Effect = "Allow"
         Action = [
@@ -90,7 +102,7 @@ resource "aws_iam_role_policy" "request_guard" {
   })
 }
 
-# Scoped to exactly this function's own log group — not logs:* on everything.
+# Scoped to exactly this function's own log group - not logs:* on everything.
 #
 # No logs:CreateLogGroup - the log group is expected to be provisioned
 # explicitly alongside this Lambda's function resource (same pattern as

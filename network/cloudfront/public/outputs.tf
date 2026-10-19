@@ -12,3 +12,8 @@ output "distribution_domain_name" {
   description = "Default *.cloudfront.net domain the customer front-end is reachable at until a custom domain is wired up"
   value       = aws_cloudfront_distribution.this.domain_name
 }
+
+output "site_response_headers_policy_id" {
+  description = "Security headers policy for restaurant websites, shared with the tenant_sites distribution"
+  value       = aws_cloudfront_response_headers_policy.site.id
+}

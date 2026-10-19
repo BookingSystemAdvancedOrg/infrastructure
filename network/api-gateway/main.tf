@@ -85,9 +85,31 @@ resource "aws_apigatewayv2_stage" "this" {
     throttling_burst_limit = var.booking_throttle_burst_limit
   }
 
+  # Cookieless visit counter on every restaurant website: one request per
+  # page view, nothing else. Its own ceiling so a flood of fake page views
+  # can't eat the platform-wide default.
+  route_settings {
+    route_key              = "POST /t"
+    throttling_rate_limit  = var.visit_throttle_rate_limit
+    throttling_burst_limit = var.visit_throttle_burst_limit
+  }
+
+  # Welcome-offer sign-up (sends an email) and code checks: the low limit.
+  route_settings {
+    route_key              = "POST /m/signup"
+    throttling_rate_limit  = var.booking_throttle_rate_limit
+    throttling_burst_limit = var.booking_throttle_burst_limit
+  }
+
+  route_settings {
+    route_key              = "POST /m/code"
+    throttling_rate_limit  = var.booking_throttle_rate_limit
+    throttling_burst_limit = var.booking_throttle_burst_limit
+  }
+
   # route_settings names a route by key - it has to exist first.
   depends_on = [aws_apigatewayv2_route.create_pending_reservation, aws_apigatewayv2_route.payment_intent,
-  aws_apigatewayv2_route.catering_requests_post]
+  aws_apigatewayv2_route.catering_requests_post, aws_apigatewayv2_route.marketing_public]
 
   tags = {
     Environment = var.environment
@@ -177,12 +199,12 @@ resource "aws_apigatewayv2_route" "list_locations" {
 
 # --- get-location: public-info ---
 #
-# Public route — customer-facing site (no auth required). Reuses the
+# Public route - customer-facing site (no auth required). Reuses the
 # get_location integration and Lambda so no new function, integration, or
 # IAM change is needed: the existing lambda_permission's source_arn
 # ("${execution_arn}/*/*") already covers this route. The Lambda branches
 # on the routeKey it receives to return only the public-safe fields
-# (name, address, phone, email, openingHours) — internal fields such as
+# (name, address, phone, email, openingHours) - internal fields such as
 # createdBy and gracePeriodHours are never included in the response.
 
 resource "aws_apigatewayv2_route" "get_location_public_info" {
@@ -248,7 +270,7 @@ resource "aws_apigatewayv2_integration" "get_menu" {
   payload_format_version = "2.0"
 }
 
-# Public route — customers (no auth required)
+# Public route - customers (no auth required)
 resource "aws_apigatewayv2_route" "get_menu" {
   api_id             = aws_apigatewayv2_api.this.id
   route_key          = "GET /locations/{locationId}/menu"
@@ -256,7 +278,7 @@ resource "aws_apigatewayv2_route" "get_menu" {
   authorization_type = "NONE"
 }
 
-# Staff route — JWT required; same get_menu Lambda handles both routes and
+# Staff route - JWT required; same get_menu Lambda handles both routes and
 # uses the routeKey to decide whether to include inactive items.
 resource "aws_apigatewayv2_route" "get_menu_staff_and_owner" {
   api_id             = aws_apigatewayv2_api.this.id
@@ -688,12 +710,12 @@ resource "aws_lambda_permission" "list_layout_version_invoke" {
 # --- archive-layout-version (DELETE) ---
 #
 # Soft-archive a specific layout version. Reuses the list-layout-version Lambda
-# (same ECR image, same integration) — the Lambda branches on routeKey
+# (same ECR image, same integration) - the Lambda branches on routeKey
 # "DELETE /locations/{locationId}/layout/versions/{versionId}" to perform the
 # archive write instead of a list read.
 #
 # The lambda_permission here is intentionally route-scoped (not the wildcard
-# "/*/*" used by the GET list permission above) — this route carries a write
+# "/*/*" used by the GET list permission above) - this route carries a write
 # operation and least-privilege applies at the permission boundary too.
 
 resource "aws_apigatewayv2_route" "archive_layout_version" {
@@ -715,12 +737,12 @@ resource "aws_lambda_permission" "archive_layout_version_invoke" {
 
 # --- list-layout-version: active layout (public) ---
 #
-# Public route — customer-facing site (no auth required). Reuses the
+# Public route - customer-facing site (no auth required). Reuses the
 # list_layout_version integration and Lambda so no new function, integration,
 # or IAM change is needed: the existing lambda_permission's source_arn
 # ("${execution_arn}/*/*") already covers this route. The Lambda branches on
 # the routeKey it receives to return only the floor-plan element fields
-# (walls, tables, doors, windows) — version numbers, isCurrent, expiresAt,
+# (walls, tables, doors, windows) - version numbers, isCurrent, expiresAt,
 # and audit fields are stripped before the response is sent.
 #
 # Note: floor area and the cash register are not stored in this table at all
@@ -765,7 +787,7 @@ resource "aws_lambda_permission" "activate_layout_version_invoke" {
 
 # --- pending-activation (PUT + DELETE) ---
 # Both routes reuse the activate-layout-version integration and Lambda.
-# No new integration or Lambda permission needed — the existing
+# No new integration or Lambda permission needed - the existing
 # activate_layout_version_invoke permission covers all methods via /*/*.
 
 resource "aws_apigatewayv2_route" "put_pending_activation" {
@@ -977,9 +999,9 @@ resource "aws_lambda_permission" "manage_order_invoke" {
 # ── catering-settings ─────────────────────────────────────────────────────────
 #
 # Manages the cateringSettings map attribute embedded on the location item.
-# GET is unauthenticated — customers need the settings to render the calculator
+# GET is unauthenticated - customers need the settings to render the calculator
 # (delivery window, minimum notice, etc.) without signing in.
-# PUT is JWT-protected — only owners and staff can change these settings.
+# PUT is JWT-protected - only owners and staff can change these settings.
 
 resource "aws_apigatewayv2_integration" "catering_settings" {
   api_id                 = aws_apigatewayv2_api.this.id
@@ -1020,7 +1042,7 @@ resource "aws_lambda_permission" "catering_settings_invoke" {
 #
 # Volume-based discount tiers per location. GET is unauthenticated so customers
 # can see the tiers in the calculator before submitting a request. POST, PUT and
-# DELETE are JWT-protected — only owners and staff manage the tier schedule.
+# DELETE are JWT-protected - only owners and staff manage the tier schedule.
 
 resource "aws_apigatewayv2_integration" "catering_discount_tiers" {
   api_id                 = aws_apigatewayv2_api.this.id
@@ -1078,8 +1100,8 @@ resource "aws_lambda_permission" "catering_discount_tiers_invoke" {
 # ── catering-requests ─────────────────────────────────────────────────────────
 #
 # Customer-submitted catering enquiries and owner responses.
-# POST is unauthenticated — customers submit requests without an account.
-# GET is JWT-protected — only owners and staff can list a location's requests.
+# POST is unauthenticated - customers submit requests without an account.
+# GET is JWT-protected - only owners and staff can list a location's requests.
 # Everything that happens to a request afterwards (adjust, send, decline,
 # cancel, delivered) goes through catering-offer below; the former
 # PATCH accept/reject route was removed with the offer workflow.
@@ -1515,6 +1537,91 @@ resource "aws_lambda_permission" "tenant_site_config_invoke" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
   function_name = var.tenant_site_config_function_name
+  qualifier     = var.lambda_alias_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
+}
+
+
+# -- marketing --------------------------------------------------------------
+#
+# Owner API for the "Marknadsföring" section (plan feature "marketing"):
+# statistics, templates, campaigns, subscribers. Explicit methods, not ANY,
+# so CORS preflight (OPTIONS) is answered by the API (see manage-user).
+
+resource "aws_apigatewayv2_integration" "marketing" {
+  api_id                 = aws_apigatewayv2_api.this.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = var.marketing_invoke_arn
+  integration_method     = "POST" # Lambda proxy integrations always invoke via POST, regardless of the route's own method
+  payload_format_version = "2.0"
+}
+
+# --- marketing ---
+locals {
+  marketing_methods = ["GET", "POST", "PUT", "DELETE"]
+}
+
+resource "aws_apigatewayv2_route" "marketing" {
+  for_each = toset(local.marketing_methods)
+
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "${each.value} /marketing/{proxy+}"
+  target             = "integrations/${aws_apigatewayv2_integration.marketing.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_lambda_permission" "marketing_invoke" {
+  statement_id  = "AllowAPIGatewayInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = var.marketing_function_name
+  qualifier     = var.lambda_alias_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
+}
+
+# -- marketing-public -------------------------------------------------------
+#
+# Unauthenticated by design:
+#   POST /t                visit counter from restaurant websites (no cookies,
+#                          no IP stored; aggregated per day)
+#   GET  /m/c/{token}      click in a campaign email -> redirect (HMAC-signed)
+#   GET  /m/u/{token}      unsubscribe page (HMAC-signed)
+#   POST /m/u/{token}      unsubscribe, incl. RFC 8058 one-click from mail apps
+#   GET  /m/offer          the welcome offer card's settings
+#   POST /m/signup         welcome offer sign-up (Turnstile + per-IP/address limits)
+#   POST /m/code           check a discount code before checkout
+#   GET|POST /m/s/{token}  confirm a welcome-offer sign-up (double opt-in, signed)
+# Email links reach these through the admin app's /api (restaurant.<domain>).
+
+resource "aws_apigatewayv2_integration" "marketing_public" {
+  api_id                 = aws_apigatewayv2_api.this.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = var.marketing_public_invoke_arn
+  integration_method     = "POST" # Lambda proxy integrations always invoke via POST, regardless of the route's own method
+  payload_format_version = "2.0"
+}
+
+# --- marketing-public ---
+locals {
+  marketing_public_routes = ["POST /t", "GET /m/c/{token}", "GET /m/u/{token}", "POST /m/u/{token}",
+  "GET /m/offer", "POST /m/signup", "POST /m/code", "GET /m/s/{token}", "POST /m/s/{token}"]
+}
+
+resource "aws_apigatewayv2_route" "marketing_public" {
+  for_each = toset(local.marketing_public_routes)
+
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = each.value
+  target             = "integrations/${aws_apigatewayv2_integration.marketing_public.id}"
+  authorization_type = "NONE"
+}
+
+resource "aws_lambda_permission" "marketing_public_invoke" {
+  statement_id  = "AllowAPIGatewayInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = var.marketing_public_function_name
   qualifier     = var.lambda_alias_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"

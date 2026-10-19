@@ -179,10 +179,11 @@ resource "aws_cloudfront_multitenant_distribution" "tenant_sites" {
   # deploy uploads index.html as no-cache and hashed assets as immutable, so a
   # deploy is live on every restaurant domain without invalidating them.
   default_cache_behavior {
-    target_origin_id       = "customer-site"
-    viewer_protocol_policy = "redirect-to-https"
-    cache_policy_id        = "658327ea-f89d-4fab-a63d-7e88639e58f6" # AWS managed "CachingOptimized"
-    compress               = true
+    target_origin_id           = "customer-site"
+    viewer_protocol_policy     = "redirect-to-https"
+    cache_policy_id            = "658327ea-f89d-4fab-a63d-7e88639e58f6" # AWS managed "CachingOptimized"
+    response_headers_policy_id = var.site_response_headers_policy_id
+    compress                   = true
 
     allowed_methods {
       items          = ["GET", "HEAD"]
