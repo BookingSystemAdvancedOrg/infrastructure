@@ -23,7 +23,7 @@ resource "aws_cognito_user_pool" "this" {
 
     invite_message_template {
       email_subject = "Plattformsåtkomst - operatörskonto"
-      email_message = "Ditt operatörskonto är skapat. Användarnamn: {username}, tillfälligt lösenord: {####}. Logga in via plattformens adminapp; du sätter upp MFA (TOTP) vid första inloggningen."
+      email_message = "Hej!<br><br>Ditt operatörskonto i Booqy Console är skapat.<br>Logga in på <a href=\"${var.console_url}\">${var.console_url}</a> med användarnamnet {username} och det tillfälliga lösenordet <b>{####}</b>.<br>Du väljer ett eget lösenord och sätter upp MFA (TOTP) vid första inloggningen."
       sms_message   = "{username} {####}"
     }
   }
