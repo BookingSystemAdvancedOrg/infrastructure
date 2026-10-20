@@ -205,3 +205,28 @@ variable "scheduler_invoke_role_arn" {
   type        = string
   sensitive   = true
 }
+
+variable "billing_reminder_interval_days" {
+  description = "Days between payment reminders for an unpaid invoice (0 = none from us)"
+  type        = number
+}
+
+variable "billing_late_fee_sek" {
+  description = "Late fee added once per invoice unpaid after the grace period (0 = none)"
+  type        = number
+}
+
+variable "billing_late_fee_after_days" {
+  description = "Days after the due date before the late fee is added"
+  type        = number
+}
+
+variable "billing_reference_rate_pct" {
+  description = "Riksbank reference rate in percent"
+  type        = number
+}
+
+variable "billing_interest_margin_pct" {
+  description = "Percentage points over the reference rate for interest on late payments"
+  type        = number
+}

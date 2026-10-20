@@ -1450,6 +1450,8 @@ locals {
     "POST /platform/tenants/{tenantId}/billing/subscription",
     "PATCH /platform/tenants/{tenantId}/billing/subscription",
     "POST /platform/tenants/{tenantId}/billing/card-link",
+    "POST /platform/tenants/{tenantId}/billing/invoices/{invoiceId}/remind",
+    "GET /platform/finance/invoices",
   ]
 }
 

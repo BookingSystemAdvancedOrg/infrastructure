@@ -1574,6 +1574,11 @@ module "platform_tenants_fn" {
   billing_tax_rate_id                = module.billing_catalog.tax_rate_id
   billing_days_until_due             = var.billing_days_until_due
   billing_suspend_after_days         = var.billing_suspend_after_days
+  billing_reminder_interval_days     = var.billing_reminder_interval_days
+  billing_late_fee_sek               = var.billing_late_fee_sek
+  billing_late_fee_after_days        = var.billing_late_fee_after_days
+  billing_reference_rate_pct         = var.billing_reference_rate_pct
+  billing_interest_margin_pct        = var.billing_interest_margin_pct
   dunning_schedule_expression        = var.billing_dunning_schedule
   scheduler_invoke_role_arn          = module.scheduler_invoke_platform_tenants_role.role_arn
 }

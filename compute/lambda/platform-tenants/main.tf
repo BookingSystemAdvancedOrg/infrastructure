@@ -82,6 +82,12 @@ resource "aws_lambda_function" "this" {
       BILLING_TAX_RATE_ID         = var.billing_tax_rate_id
       BILLING_DAYS_UNTIL_DUE      = tostring(var.billing_days_until_due)
       BILLING_SUSPEND_AFTER_DAYS  = tostring(var.billing_suspend_after_days)
+      # Reminders, late fee and interest on unpaid invoices (dunning task)
+      BILLING_REMINDER_INTERVAL_DAYS = tostring(var.billing_reminder_interval_days)
+      BILLING_LATE_FEE_SEK           = tostring(var.billing_late_fee_sek)
+      BILLING_LATE_FEE_AFTER_DAYS    = tostring(var.billing_late_fee_after_days)
+      BILLING_REFERENCE_RATE_PCT     = tostring(var.billing_reference_rate_pct)
+      BILLING_INTEREST_MARGIN_PCT    = tostring(var.billing_interest_margin_pct)
     }
   }
 

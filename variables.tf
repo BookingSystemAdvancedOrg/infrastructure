@@ -169,6 +169,36 @@ variable "billing_suspend_after_days" {
   sensitive   = false
   default     = 14
 }
+variable "billing_reminder_interval_days" {
+  type        = number
+  description = "Days between payment reminders for an unpaid invoice, from the day after its due date until it is paid (the dunning task asks Stripe to re-send the invoice email). 0 = no reminders from us (Stripe's own reminder settings still apply)."
+  sensitive   = false
+  default     = 7
+}
+variable "billing_late_fee_sek" {
+  type        = number
+  description = "Statutory late fee (förseningsavgift, VAT-free) added once per invoice that is still unpaid billing_late_fee_after_days days after its due date; 450 kr for a company customer under Swedish law. 0 = no fee. Must be stated in the customer terms."
+  sensitive   = false
+  default     = 450
+}
+variable "billing_late_fee_after_days" {
+  type        = number
+  description = "Grace period in days after the due date before the late fee is added."
+  sensitive   = false
+  default     = 7
+}
+variable "billing_reference_rate_pct" {
+  type        = number
+  description = "The Riksbank reference rate (referensränta) in percent, set twice a year (1 January and 1 July). Default interest on late payments is this plus billing_interest_margin_pct per year (räntelagen). Update it in tfvars when the Riksbank changes it."
+  sensitive   = false
+  default     = 2.0
+}
+variable "billing_interest_margin_pct" {
+  type        = number
+  description = "Percentage points added to the reference rate for interest on late payments (dröjsmålsränta); 8 under räntelagen unless the contract says otherwise. Interest is charged, VAT-free, on the overdue amount for the days from the due date to the payment, on the customer's next invoice."
+  sensitive   = false
+  default     = 8
+}
 variable "billing_dunning_schedule" {
   type        = string
   description = "EventBridge Scheduler expression (UTC) for the dunning task: platform-tenants checks past-due subscriptions and suspends / resumes customers."

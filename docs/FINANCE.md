@@ -23,7 +23,7 @@ payments), which stays as it is.
 | Plan change | `PUT .../plan` also moves the subscription item to the new price with prorations. Extra-location overrides are not priced. |
 | Suspend / resume | Leave the subscription alone (a suspended customer still owes). **Pause invoicing** / **Resume invoicing** on the Billing tab is a separate action (`pause_collection`). |
 | Offboarding | The console cancels the subscription at once with a final prorated invoice, then starts the offboarding workflow. A Stripe failure is reported and does not block offboarding. The Stripe customer and the invoices are never deleted (bookkeeping); tenant-purge touches neither Stripe nor the finance table. |
-| Failed payment | Stripe retries and reminds (Dashboard settings, see PLATFORM-SETUP). `invoice.payment_failed` sets `billing.pastDueSince` and shows red on the Finance page. The daily **dunning task** (platform-tenants, `{"financeTask": "dunning"}`, `billing_dunning_schedule`) suspends customers past due longer than `billing_suspend_after_days` (14; 0 = never) exactly like Suspend in the console (users disabled, audit row, email to the operators), marks `billing.autoSuspended`, and resumes them when the invoice is paid. |
+| Unpaid invoice | The daily **dunning task** (platform-tenants, `{"financeTask": "dunning"}`, `billing_dunning_schedule`) works every open invoice through Stripe: **reminders** from the day after the due date and every `billing_reminder_interval_days` (7) days, as Stripe re-sends of the invoice email (`POST /invoices/{id}/send`; card-charged invoices are left to Smart Retries); the **late fee** `billing_late_fee_sek` (450 kr, VAT-free, förseningsavgift) once per invoice still unpaid `billing_late_fee_after_days` (7) days after the due date, as an invoice item on the customer that lands on their next invoice; **interest** (dröjsmålsränta) when a late invoice is paid: the overdue amount at `billing_reference_rate_pct` + `billing_interest_margin_pct` (8) per year for the days late, as a VAT-free invoice item; a customer without a running subscription gets a one-off invoice for the items at once. Every step is recorded on the ledger row (`remindersSent`, `lastReminderAt`, `lateFeeAdded`, `interestAdded`), so a re-run never repeats it. `invoice.payment_failed` sets `billing.pastDueSince`; customers past due longer than `billing_suspend_after_days` (14; 0 = never) are suspended exactly like Suspend in the console and resumed when they pay. The operators get one email per run that did something. **Payments** on the Finance page shows who has paid for a month, with days late, reminders and fees, and a Send reminder button. |
 
 ### Webhook (`platform-stripe-webhook`, path `/billing`)
 
@@ -130,6 +130,15 @@ Finance page.
 
 No OIDC / deploy role changed: the application deploy role already covers
 every `<env>-*` function and ECR repository.
+
+### Customer terms
+
+The late fee and the interest are the statutory defaults for a company
+customer in Sweden (lag 1981:739 om ersättning för inkassokostnader §4a,
+räntelagen §6), but say so in the customer contract: payment terms 30
+days, förseningsavgift 450 kr, dröjsmålsränta referensränta + 8 %. Update
+`billing_reference_rate_pct` in tfvars when the Riksbank sets a new
+reference rate (1 January and 1 July).
 
 ## 6. Hand set-up (Terraform cannot)
 

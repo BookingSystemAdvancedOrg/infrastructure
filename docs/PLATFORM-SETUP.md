@@ -218,6 +218,13 @@ apps run on `*.cloudfront.net` and restaurants have no website URL yet.
 - [ ] AWS: open Cost Explorer once in each account to enable it; the
       nightly `finance-rollup` reads it from the next day. Until then the
       Finance page shows a warning and cost 0.
+- [ ] Late payments: the customer terms must state 30 days payment,
+      förseningsavgift 450 kr and dröjsmålsränta referensränta + 8 %
+      (the tfvars defaults `billing_late_fee_sek`,
+      `billing_late_fee_after_days`, `billing_reference_rate_pct`,
+      `billing_interest_margin_pct`, `billing_reminder_interval_days`).
+      Set the current Riksbank reference rate and update it each
+      1 January and 1 July.
 - [ ] Check `aws_usd_to_sek` (tfvars) now and then; the rate is recorded on
       every cost row, so a change never rewrites history (Rebuild does).
 - [ ] The pipeline key (`STRIPE_SECRET_KEY_*`) needs Products: Write,
