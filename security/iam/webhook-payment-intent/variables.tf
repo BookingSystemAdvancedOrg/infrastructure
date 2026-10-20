@@ -5,7 +5,7 @@ variable "environment" {
 }
 
 variable "order_table_arn" {
-  description = "ARN of the order DynamoDB table — full access for this role"
+  description = "ARN of the order DynamoDB table - full access for this role"
   type        = string
   sensitive   = false
 }

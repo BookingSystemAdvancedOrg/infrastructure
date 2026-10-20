@@ -11,7 +11,7 @@ variable "role_arn" {
 }
 
 variable "ecr_repository_url" {
-  description = "Repository URL of the PlatformTenantsFn ECR repository (storage/ecr/platform-tenants) — the repo itself is owned there, not created in this module"
+  description = "Repository URL of the PlatformTenantsFn ECR repository (storage/ecr/platform-tenants) - the repo itself is owned there, not created in this module"
   type        = string
   sensitive   = true
 }
@@ -153,4 +153,90 @@ variable "domain_documents_bucket_name" {
   description = "Bucket for the registreringsbevis uploaded when buying a .se domain, passed as an environment variable"
   type        = string
   sensitive   = false
+}
+
+variable "no_reply_email_address" {
+  description = "The no-reply address news to restaurant owners is sent from (Mail page), passed as an environment variable"
+  type        = string
+}
+
+variable "support_email_address" {
+  description = "Default Reply-To for news to restaurant owners, passed as an environment variable"
+  type        = string
+}
+
+variable "finance_table_name" {
+  description = "The finance table (per-day figures, invoice ledger), passed as an environment variable"
+  type        = string
+}
+
+variable "finance_rollup_alias_arn" {
+  description = "Live alias of the finance-rollup Lambda that Rebuild invokes, passed as an environment variable"
+  type        = string
+}
+
+variable "alert_topic_arn" {
+  description = "Operator alert topic the dunning task reports to, passed as an environment variable"
+  type        = string
+}
+
+variable "billing_tax_rate_id" {
+  description = "Stripe tax rate (txr_...) of Swedish VAT, attached to every subscription (payments/billing)"
+  type        = string
+}
+
+variable "billing_days_until_due" {
+  description = "Days until an emailed subscription invoice is due"
+  type        = number
+}
+
+variable "billing_suspend_after_days" {
+  description = "Days past due before the dunning task suspends a customer (0 = never)"
+  type        = number
+}
+
+variable "dunning_schedule_expression" {
+  description = "When the dunning task runs (cron(), UTC)"
+  type        = string
+}
+
+variable "scheduler_invoke_role_arn" {
+  description = "ARN of the role EventBridge Scheduler assumes to invoke this function for the dunning task"
+  type        = string
+  sensitive   = true
+}
+
+variable "billing_reminder_interval_days" {
+  description = "Days between payment reminders for an unpaid invoice (0 = none from us)"
+  type        = number
+}
+
+variable "billing_late_fee_sek" {
+  description = "Late fee added once per invoice unpaid after the grace period (0 = none)"
+  type        = number
+}
+
+variable "billing_late_fee_after_days" {
+  description = "Days after the due date before the late fee is added"
+  type        = number
+}
+
+variable "billing_reference_rate_pct" {
+  description = "Riksbank reference rate in percent"
+  type        = number
+}
+
+variable "billing_interest_margin_pct" {
+  description = "Percentage points over the reference rate for interest on late payments"
+  type        = number
+}
+
+variable "billing_notice_months" {
+  description = "Months of notice for a subscription customer's cancellation"
+  type        = number
+}
+
+variable "billing_trial_months" {
+  description = "Months after which a try-out customer becomes a subscription automatically (0 = never)"
+  type        = number
 }

@@ -1,5 +1,5 @@
 output "role_arn" {
-  description = "ARN of the CateringLifecycleFn Lambda's execution role — reference this in the Lambda's `role` argument"
+  description = "ARN of the CateringLifecycleFn Lambda's execution role - reference this in the Lambda's `role` argument"
   value       = aws_iam_role.this.arn
   sensitive   = true
 

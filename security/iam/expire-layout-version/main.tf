@@ -6,7 +6,7 @@
 # here when the code starts calling a new one.
 #
 # This is the Lambda targeted by the one-time EventBridge Schedule
-# created at publish time — it fires at cutover and conditionally flips
+# created at publish time - it fires at cutover and conditionally flips
 # isCurrent = false on the superseded version.
 
 data "aws_caller_identity" "current" {}
@@ -54,7 +54,7 @@ resource "aws_iam_role_policy" "dynamodb_full" {
   })
 }
 
-# Scoped to exactly this function's own log group — not logs:* on everything.
+# Scoped to exactly this function's own log group - not logs:* on everything.
 #
 # No logs:CreateLogGroup - the log group is provisioned explicitly in
 # compute/lambda/expire-layout-version (with a real retention period, not

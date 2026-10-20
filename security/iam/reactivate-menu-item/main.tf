@@ -2,7 +2,7 @@
 #
 # This is the Lambda targeted by the one-time EventBridge Schedule created
 # by ManageMenuFn when staff sets a menu item inactive for a date window
-# (security/iam/manage-menu's eventbridge_scheduler policy) — it fires at
+# (security/iam/manage-menu's eventbridge_scheduler policy) - it fires at
 # the end of that window and flips the item's `active` attribute back to
 # true. Scoped to exactly dynamodb:UpdateItem on the menu table - this
 # Lambda does one conditional write per invocation, never a Scan/Query/
@@ -50,7 +50,7 @@ resource "aws_iam_role_policy" "dynamodb_update" {
   })
 }
 
-# Scoped to exactly this function's own log group — not logs:* on everything.
+# Scoped to exactly this function's own log group - not logs:* on everything.
 #
 # No logs:CreateLogGroup - the log group is provisioned explicitly in
 # compute/lambda/reactivate-menu-item (with a real retention period, not

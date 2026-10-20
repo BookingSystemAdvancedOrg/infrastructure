@@ -80,11 +80,10 @@ resource "stripe_webhook_endpoint" "catering" {
 #             from the platform. Keeps PROFILE.stripe.* in the tenant table
 #             truthful without anyone polling Stripe.
 #   billing - YOUR platform account's own subscriptions: the restaurant's
-#             SaaS plan. A subscription change (e.g. quantity 1 -> 2
-#             locations from the Stripe customer portal) updates the
-#             tenant's plan and maxLocations - an upgrade with no deploy and
-#             no operator involved. Silent until you sell plans through
-#             Stripe Billing.
+#             SaaS plan (payments/billing is the catalog, Booqy Console
+#             starts the subscriptions). Subscription and invoice events
+#             keep PROFILE.billing on the tenant row truthful and write the
+#             invoice ledger and the revenue figures in the finance table.
 resource "stripe_webhook_endpoint" "platform_connect" {
   connect        = true
   url            = "${var.platform_webhook_url}connect"

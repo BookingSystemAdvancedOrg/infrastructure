@@ -9,7 +9,7 @@ output "function_arn" {
 }
 
 output "invoke_arn" {
-  description = "Invoke ARN of the ExpireLayoutVersionFn Lambda — for wiring into the EventBridge Scheduler target that fires it at cutover"
+  description = "Invoke ARN of the ExpireLayoutVersionFn Lambda - for wiring into the EventBridge Scheduler target that fires it at cutover"
   value       = aws_lambda_function.this.invoke_arn
 }
 

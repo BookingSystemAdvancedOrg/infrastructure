@@ -56,6 +56,13 @@ variable "demo_request_recipient" {
   default     = "support@ithjalparna.se"
 }
 
+variable "support_email_address" {
+  description = "Where restaurant owners' replies to news from Booqy Console go (Reply-To); the default on the Mail page's brand template"
+  type        = string
+  sensitive   = false
+  default     = "support@ithjalparna.se"
+}
+
 variable "website_repo" {
   type        = string
   description = "Repo name (no org prefix) of the public page on <platform_domain> - trusted by security/iam/oidc/website-deploy-role to deploy it"
@@ -124,20 +131,129 @@ variable "plans" {
     name          = string
     max_locations = number
     features      = map(bool)
+    price_sek     = number
   }))
-  description = "Plan catalog (packages you sell). A tenant's limits are copied from its plan when the plan is assigned and can be overridden per tenant from the platform dashboard - no deploy either way. Feature keys: reservations, ordering, catering, terminal (card readers for in-person payments, managed from Booqy Console), marketing (visit statistics and email campaigns to guests who opted in)."
+  description = "Plan catalog (packages you sell). A tenant's limits are copied from its plan when the plan is assigned and can be overridden per tenant from the platform dashboard - no deploy either way. Feature keys: reservations, ordering, catering, terminal (card readers for in-person payments, managed from Booqy Console), marketing (visit statistics and email campaigns to guests who opted in). price_sek: the monthly subscription price excluding VAT, invoiced through Stripe Billing on the platform account (payments/billing creates the Stripe product and price; a changed price archives the old Stripe price and applies to a customer the next time their plan is saved in Booqy Console)."
   sensitive   = false
   default = {
     starter = {
       name          = "Starter"
       max_locations = 1
       features      = { reservations = true, ordering = true, catering = false, terminal = true, marketing = false }
+      price_sek     = 990
     }
     growth = {
       name          = "Growth"
       max_locations = 3
       features      = { reservations = true, ordering = true, catering = true, terminal = true, marketing = true }
+      price_sek     = 1990
     }
+  }
+
+  validation {
+    condition     = alltrue([for p in var.plans : p.price_sek >= 0 && floor(p.price_sek) == p.price_sek])
+    error_message = "price_sek must be a whole number of SEK per month (0 or more)."
+  }
+}
+
+# --- Finance: subscription invoicing and the cost/margin figures -------------
+variable "billing_days_until_due" {
+  type        = number
+  description = "Days a restaurant has to pay a subscription invoice sent by email (Stripe collection method send_invoice)."
+  sensitive   = false
+  default     = 30
+}
+variable "billing_suspend_after_days" {
+  type        = number
+  description = "A customer whose subscription has been past due this many days is suspended automatically by the nightly dunning task (same as Suspend in Booqy Console; resumed again when the invoice is paid). 0 = never suspend automatically."
+  sensitive   = false
+  default     = 14
+}
+variable "billing_reminder_interval_days" {
+  type        = number
+  description = "Days between payment reminders for an unpaid invoice, from the day after its due date until it is paid (the dunning task asks Stripe to re-send the invoice email). 0 = no reminders from us (Stripe's own reminder settings still apply)."
+  sensitive   = false
+  default     = 7
+}
+variable "billing_late_fee_sek" {
+  type        = number
+  description = "Statutory late fee (förseningsavgift, VAT-free) added once per invoice that is still unpaid billing_late_fee_after_days days after its due date; 450 kr for a company customer under Swedish law. 0 = no fee. Must be stated in the customer terms."
+  sensitive   = false
+  default     = 450
+}
+variable "billing_late_fee_after_days" {
+  type        = number
+  description = "Grace period in days after the due date before the late fee is added."
+  sensitive   = false
+  default     = 7
+}
+variable "billing_reference_rate_pct" {
+  type        = number
+  description = "The Riksbank reference rate (referensränta) in percent, set twice a year (1 January and 1 July). Default interest on late payments is this plus billing_interest_margin_pct per year (räntelagen). Update it in tfvars when the Riksbank changes it."
+  sensitive   = false
+  default     = 2.0
+}
+variable "billing_interest_margin_pct" {
+  type        = number
+  description = "Percentage points added to the reference rate for interest on late payments (dröjsmålsränta); 8 under räntelagen unless the contract says otherwise. Interest is charged, VAT-free, on the overdue amount for the days from the due date to the payment, on the customer's next invoice."
+  sensitive   = false
+  default     = 8
+}
+variable "billing_notice_months" {
+  type        = number
+  description = "Notice period for a customer on subscription terms: a cancellation takes effect this many months after the end of the current billing month (the customer pays that many more monthly invoices). A customer in a try-out period leaves at the end of the paid month instead."
+  sensitive   = false
+  default     = 3
+}
+variable "billing_trial_months" {
+  type        = number
+  description = "A customer started on try-out terms becomes a subscription (with the notice period) automatically after this many months, unless converted earlier from Booqy Console. 0 = never automatically."
+  sensitive   = false
+  default     = 6
+}
+variable "billing_dunning_schedule" {
+  type        = string
+  description = "EventBridge Scheduler expression (UTC) for the dunning task: platform-tenants checks past-due subscriptions and suspends / resumes customers."
+  sensitive   = false
+  default     = "cron(0 5 * * ? *)"
+}
+variable "finance_rollup_schedule" {
+  type        = string
+  description = "EventBridge Scheduler expression (UTC) for finance-rollup: pulls the account's cost from Cost Explorer, counts usage per customer and writes the per-day figures the Finance page reads. AWS has yesterday's cost ready a few hours after midnight UTC."
+  sensitive   = false
+  default     = "cron(30 4 * * ? *)"
+}
+variable "aws_usd_to_sek" {
+  type        = number
+  description = "Exchange rate used to show AWS cost (billed in USD) in SEK on the Finance page. Recorded on every cost row when it is written, so a change applies from the next run (Rebuild in Booqy Console recomputes a range)."
+  sensitive   = false
+  default     = 10.5
+}
+variable "cost_allocation" {
+  type = object({
+    baseline = list(string)
+    email    = list(string)
+    sms      = list(string)
+  })
+  description = "How each AWS service's daily cost is split between customers (Cost Explorer service names). baseline: shared platform cost split equally over the customers active that day. email: split by emails sent. sms: split by SMS sent. Every other service is split by API requests. Move a service between lists without a code change."
+  sensitive   = false
+  default = {
+    baseline = [
+      "Amazon Route 53",
+      "AWS Secrets Manager",
+      "AWS Key Management Service",
+      "Amazon Elastic Container Registry (ECR)",
+      "Amazon EC2 Container Registry (ECR)",
+      "AWS Config",
+      "AWS CloudTrail",
+      "AWS Support (Developer)",
+      "AWS Support (Business)",
+      "Tax",
+      "AWS Cost Explorer",
+      "Amazon Registrar",
+    ]
+    email = ["Amazon Simple Email Service"]
+    sms   = ["Amazon Simple Notification Service"]
   }
 }
 variable "default_tax_rates" {
@@ -206,4 +322,29 @@ variable "refresh_token_rotation_enabled" {
   description = "Staff app client: rotate refresh tokens on every use. Turn on only after the manage-auth release that uses GetTokensFromRefreshToken is live (docs/COOKIES.md, step 4)."
   type        = bool
   default     = false
+}
+
+variable "tenant_data_retention_days" {
+  type        = number
+  description = "Days an offboarded restaurant's data is kept before tenant-purge deletes it (bookings, orders, menus, layouts, catering requests, marketing, users, menu images). Catering documents and the restaurant's Stripe account are kept."
+  sensitive   = false
+  default     = 90
+
+  validation {
+    condition     = var.tenant_data_retention_days >= 1 && var.tenant_data_retention_days <= 365
+    error_message = "tenant_data_retention_days must be between 1 and 365."
+  }
+}
+variable "tenant_purge_schedule" {
+  type        = string
+  description = "EventBridge Scheduler expression for the tenant-purge sweep (UTC). It only deletes restaurants whose purgeAt has passed, so a missed run just means a later deletion."
+  sensitive   = false
+  default     = "cron(0 2 * * ? *)"
+}
+
+variable "smoke_test_host" {
+  type        = string
+  description = "Hostname of a restaurant site that always exists in this environment (e.g. test-restaurang-2.dev.booqy.se). The uptime check and the pipelines' smoke tests call GET /site-config?host=<this> and expect 200. Empty = they expect 404 for an unknown host instead, which still proves the API end to end"
+  sensitive   = false
+  default     = ""
 }

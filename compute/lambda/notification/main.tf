@@ -50,6 +50,7 @@ resource "aws_lambda_function" "this" {
       ORDER_TABLE_NAME                     = var.order_table_name                # routes this table's stream records
       CATERING_REQUESTS_TABLE_NAME         = var.catering_requests_table_name    # routes this table's stream records
       MAIL_OUTBOX_BUCKET_NAME              = var.mail_outbox_bucket_name         # dev only: save emails here instead of SES ("" = send)
+      FINANCE_TABLE_NAME                   = var.finance_table_name              # counts emails and SMS sent per restaurant and day
     }
   }
 

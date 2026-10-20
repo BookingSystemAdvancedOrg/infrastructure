@@ -10,6 +10,19 @@ variable "plans" {
     name          = string
     max_locations = number
     features      = map(bool)
+    price_sek     = number
   }))
   sensitive = false
+}
+
+variable "plan_price_ids" {
+  description = "Stripe price id per plan id (payments/billing) - stored on the PLAN# rows as stripePriceId"
+  type        = map(string)
+  sensitive   = false
+}
+
+variable "plan_product_ids" {
+  description = "Stripe product id per plan id (payments/billing) - stored on the PLAN# rows as stripeProductId; a customer's own monthly price is created on it"
+  type        = map(string)
+  sensitive   = false
 }

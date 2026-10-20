@@ -1,8 +1,8 @@
-"""ListLayoutVersionFn — handles the active public layout and internal version listing.
+"""ListLayoutVersionFn - handles the active public layout and internal version listing.
 
 Routes handled:
-  GET /locations/{locationId}/layout/active    (NONE auth — customer-facing site)
-  GET /locations/{locationId}/layout/versions  (JWT  — internal/staff, not yet implemented)
+  GET /locations/{locationId}/layout/active    (NONE auth - customer-facing site)
+  GET /locations/{locationId}/layout/versions  (JWT  - internal/staff, not yet implemented)
 """
 
 import json
@@ -15,7 +15,7 @@ _dynamo = boto3.resource("dynamodb")
 _table = _dynamo.Table(os.environ["PUBLISHED_LAYOUT_SNAPSHOT_TABLE_NAME"])
 
 # Floor-plan element fields the customer site renders. Version numbers,
-# audit timestamps, and isCurrent are internal state — excluded so the
+# audit timestamps, and isCurrent are internal state - excluded so the
 # response contains nothing the renderer doesn't need.
 _ELEMENT_FIELDS = {"walls", "tables", "doors", "windows"}
 
@@ -43,7 +43,7 @@ def _get_active_layout(location_id):
 
     # Query all versions for this location. At this scale (a handful of
     # published versions per restaurant) a filter-after-read is cheaper and
-    # simpler than a GSI on isCurrent — the table schema deliberately avoids
+    # simpler than a GSI on isCurrent - the table schema deliberately avoids
     # that GSI (see storage/dynamodb/published-layout-snapshot/main.tf).
     response = _table.query(
         KeyConditionExpression=(
@@ -60,7 +60,7 @@ def _get_active_layout(location_id):
     if not active:
         return _error(404, "No active layout found for this location")
 
-    # Strip everything except the floor-plan elements — version numbers,
+    # Strip everything except the floor-plan elements - version numbers,
     # isCurrent, expiresAt, and any audit fields stay server-side.
     elements = {k: active[k] for k in _ELEMENT_FIELDS if k in active}
 

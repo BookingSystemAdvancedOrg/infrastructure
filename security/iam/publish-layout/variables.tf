@@ -5,13 +5,13 @@ variable "environment" {
 }
 
 variable "live_layout_element_table_arn" {
-  description = "ARN of the live layout element DynamoDB table — this role may only Scan it"
+  description = "ARN of the live layout element DynamoDB table - this role may only Scan it"
   type        = string
   sensitive   = false
 }
 
 variable "published_layout_snapshot_table_arn" {
-  description = "ARN of the published layout snapshot DynamoDB table — this role has full access to it"
+  description = "ARN of the published layout snapshot DynamoDB table - this role has full access to it"
   type        = string
   sensitive   = false
 }

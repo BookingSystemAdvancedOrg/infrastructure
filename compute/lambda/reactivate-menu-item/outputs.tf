@@ -9,7 +9,7 @@ output "function_arn" {
 }
 
 output "invoke_arn" {
-  description = "Invoke ARN of the ReactivateMenuItemFn Lambda — for wiring into the EventBridge Scheduler target that fires it when a menu item's inactive window ends"
+  description = "Invoke ARN of the ReactivateMenuItemFn Lambda - for wiring into the EventBridge Scheduler target that fires it when a menu item's inactive window ends"
   value       = aws_lambda_function.this.invoke_arn
 }
 

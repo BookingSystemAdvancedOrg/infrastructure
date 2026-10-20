@@ -202,6 +202,26 @@ resource "aws_iam_role_policy" "ses_send_email" {
   })
 }
 
+# Finance: +1 on the restaurant's day row per email and SMS sent, so AWS
+# cost can be split by messages. UpdateItem only - this role can neither
+# read figures nor touch other rows' fields.
+resource "aws_iam_role_policy" "finance_counters" {
+  name = "finance-counters"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "CountMessagesSent"
+        Effect   = "Allow"
+        Action   = "dynamodb:UpdateItem"
+        Resource = var.finance_table_arn
+      }
+    ]
+  })
+}
+
 # Dev mail outbox: write-only, and only when the outbox exists
 # (var.mail_outbox, never prod). The ses_send_email policy stays - the
 # Lambda just doesn't call SES while the outbox is on.
@@ -223,7 +243,7 @@ resource "aws_iam_role_policy" "mail_outbox" {
   })
 }
 
-# Scoped to exactly this function's own log group — not logs:* on everything.
+# Scoped to exactly this function's own log group - not logs:* on everything.
 #
 # No logs:CreateLogGroup - the log group is expected to be provisioned
 # explicitly alongside this Lambda's function resource (same pattern as

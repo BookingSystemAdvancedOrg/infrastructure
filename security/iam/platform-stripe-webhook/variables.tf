@@ -33,3 +33,8 @@ variable "region" {
   type        = string
   sensitive   = false
 }
+
+variable "finance_table_arn" {
+  description = "The finance table the /billing events write invoices and revenue to"
+  type        = string
+}

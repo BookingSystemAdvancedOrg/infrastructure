@@ -66,8 +66,43 @@ cognito_invites_via_ses = false
 # Switch off (false) once mail.dev.booqy.se is verified to send for real.
 mail_outbox = true
 
+# Subscription prices (SEK per month, excluding VAT) invoiced through Stripe
+# Billing on the platform account (sandbox mode). PLACEHOLDERS: set the real
+# prices before the first subscription is started. Changing a price creates
+# a new Stripe price; a customer moves to it the next time their plan is
+# saved in Booqy Console.
+plans = {
+  starter = {
+    name          = "Starter"
+    max_locations = 1
+    features      = { reservations = true, ordering = true, catering = false, terminal = true, marketing = false }
+    price_sek     = 990
+  }
+  growth = {
+    name          = "Growth"
+    max_locations = 3
+    features      = { reservations = true, ordering = true, catering = true, terminal = true, marketing = true }
+    price_sek     = 1990
+  }
+}
+
 # VAT rates created on every new restaurant's Stripe account - set once an
 # accountant has confirmed them.
 # default_tax_rates = {
 #   food = { display_name = "Moms", percentage = 12, inclusive = true }
 # }
+
+# Offboarded restaurants: data deleted 1 day after offboarding, checked every
+# hour, so the whole flow can be tested in a day.
+tenant_data_retention_days = 1
+tenant_purge_schedule      = "rate(1 hour)"
+
+# A restaurant that always exists in dev, by host: the pipelines' smoke tests
+# and the 5-minute uptime check (monitoring/alerts) call
+# GET /site-config?host=<this> and load https://<this>/, expecting 200.
+# test-restaurang-2 (customer-front-end's VITE_DEV_TENANT_SLUG_DEV) exists
+# but was onboarded before <slug>.dev.booqy.se sites were on, so its host
+# has no distribution tenant yet (TLS fails). Until "re-run setup" has been
+# done for it in Booqy Console the checks run in the fallback mode: the
+# customer site's own distribution and a 404 for an unknown host.
+# smoke_test_host = "test-restaurang-2.dev.booqy.se"

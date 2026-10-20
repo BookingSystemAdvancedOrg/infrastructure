@@ -1,7 +1,7 @@
 # Execution role for the GetAvailabilityFn Lambda.
 #
 # Least privilege: read-only across three tables it needs to cross-reference
-# to compute availability — location (booking rules), slot occupancy
+# to compute availability - location (booking rules), slot occupancy
 # (what's already taken), and the published layout snapshot (which tables
 # exist at all). No write access to any of them.
 
@@ -55,7 +55,7 @@ resource "aws_iam_role_policy" "dynamodb_read" {
   })
 }
 
-# Scoped to exactly this function's own log group — not logs:* on everything.
+# Scoped to exactly this function's own log group - not logs:* on everything.
 #
 # No logs:CreateLogGroup - the log group is expected to be provisioned
 # explicitly alongside this Lambda's function resource (same pattern as

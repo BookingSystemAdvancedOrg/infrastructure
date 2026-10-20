@@ -1,5 +1,5 @@
 {
-  "Comment": "Tenant offboarding. Started by platform-tenants (POST /platform/tenants/{tenantId}/offboard). Blocks the tenant immediately (status offboarding - every Lambda's tenant check then refuses it), disables and signs out all of its users, detaches all of its domains, and marks it offboarded. Data is NOT deleted here: export/deletion follows the retention policy (docs/TENANT-ONBOARDING.md, Offboarding) - bookkeeping records must be kept for 7 years. The restaurant keeps its Stripe account.",
+  "Comment": "Tenant offboarding. Started by platform-tenants (POST /platform/tenants/{tenantId}/offboard). Blocks the tenant immediately (status offboarding - every Lambda's tenant check then refuses it), disables and signs out all of its users, detaches all of its domains, and marks it offboarded with purgeAt = now + ${retention_days} days. Data is NOT deleted here: the tenant-purge Lambda deletes it once purgeAt has passed (docs/TENANT-ONBOARDING.md, Offboarding). Catering documents (7-year Object Lock) and the restaurant's Stripe account are kept.",
   "QueryLanguage": "JSONata",
   "TimeoutSeconds": 21600,
   "StartAt": "Init",
@@ -13,7 +13,8 @@
         "domains": [],
         "detachFailures": [],
         "failure": {},
-        "failedState": "{% '' %}"
+        "failedState": "{% '' %}",
+        "purgeAt": "{% $fromMillis($toMillis($now()) + ${retention_days} * 86400000, '[Y0001]-[M01]-[D01]T[H01]:[m01]:[s01]Z') %}"
       },
       "Next": "MarkOffboarding"
     },
@@ -224,11 +225,12 @@
           "PK": { "S": "{% 'TENANT#' & $tenantId %}" },
           "SK": { "S": "PROFILE" }
         },
-        "UpdateExpression": "SET #status = :status, offboardedAt = :now, updatedAt = :now",
+        "UpdateExpression": "SET #status = :status, offboardedAt = :now, updatedAt = :now, purgeAt = :purgeAt",
         "ExpressionAttributeNames": { "#status": "status" },
         "ExpressionAttributeValues": {
           ":status": { "S": "offboarded" },
-          ":now": { "S": "{% $now() %}" }
+          ":now": { "S": "{% $now() %}" },
+          ":purgeAt": { "S": "{% $purgeAt %}" }
         }
       },
       "Catch": [
@@ -246,7 +248,7 @@
       "Arguments": {
         "TopicArn": "${alert_topic_arn}",
         "Subject": "${environment}: tenant offboarded",
-        "Message": "{% 'Tenant ' & $tenantId & ' is offboarded: ' & $string($count($users)) & ' user(s) disabled, ' & $string($count($domains)) & ' domain(s) detached' & ($count($detachFailures) > 0 ? ' (FAILED: ' & $join($detachFailures, ', ') & ' - start domain-detach for these manually)' : '') & '.\\n\\nNext: export the tenant data if the customer asked for it and schedule deletion per the retention policy (docs/TENANT-ONBOARDING.md, Offboarding). The restaurant keeps its Stripe account.' %}"
+        "Message": "{% 'Tenant ' & $tenantId & ' is offboarded: ' & $string($count($users)) & ' user(s) disabled, ' & $string($count($domains)) & ' domain(s) detached' & ($count($detachFailures) > 0 ? ' (FAILED: ' & $join($detachFailures, ', ') & ' - start domain-detach for these manually)' : '') & '.\\n\\nIts data is deleted automatically on ' & $substring($purgeAt, 0, 10) & ' (Booqy Console shows the date). Export it before then if the customer asked for it. Kept: catering documents and the Stripe account of the restaurant.' %}"
       },
       "Catch": [
         {

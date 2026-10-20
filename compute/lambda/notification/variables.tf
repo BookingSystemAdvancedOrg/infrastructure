@@ -11,7 +11,7 @@ variable "role_arn" {
 }
 
 variable "ecr_repository_url" {
-  description = "Repository URL of the NotificationFn ECR repository (storage/ecr/notification) — the repo itself is owned there, not created in this module"
+  description = "Repository URL of the NotificationFn ECR repository (storage/ecr/notification) - the repo itself is owned there, not created in this module"
   type        = string
   sensitive   = true
 }
@@ -93,4 +93,9 @@ variable "mail_outbox_bucket_name" {
   type        = string
   sensitive   = false
   default     = ""
+}
+
+variable "finance_table_name" {
+  description = "The finance table whose per-day counters (emails, sms) this function bumps, passed as an environment variable"
+  type        = string
 }

@@ -112,7 +112,22 @@ module "catering_request_history" {
 }
 # Control plane: tenants, their domains/plan/Stripe account, plan catalog
 module "tenant" {
-  source      = "./storage/dynamodb/tenant"
+  source           = "./storage/dynamodb/tenant"
+  environment      = var.env
+  plans            = var.plans
+  plan_price_ids   = module.billing_catalog.price_ids
+  plan_product_ids = module.billing_catalog.product_ids
+}
+# Per-customer per-day figures (usage, allocated AWS cost, revenue) and the
+# invoice ledger behind Booqy Console's Finance page. Not purged.
+module "finance" {
+  source      = "./storage/dynamodb/finance"
+  environment = var.env
+}
+# The subscription catalog in the platform Stripe account: a product and a
+# monthly price per plan (var.plans.price_sek) and the Swedish VAT rate.
+module "billing_catalog" {
+  source      = "./payments/billing"
   environment = var.env
   plans       = var.plans
 }
@@ -482,6 +497,7 @@ module "notification_role" {
   catering_link_signing_key_secret_arn = module.catering_secrets.link_signing_key_secret_arn
   mail_outbox_enabled                  = local.mail_outbox_enabled
   mail_outbox_bucket_arn               = local.mail_outbox_arn
+  finance_table_arn                    = module.finance.table_arn
 }
 module "catering_settings_role" {
   source             = "./security/iam/catering-settings"
@@ -603,6 +619,46 @@ module "scheduler_invoke_catering_lifecycle_role" {
 }
 
 # --- Platform / tenant control plane Lambdas -----------------------------------
+module "tenant_purge_role" {
+  source                 = "./security/iam/tenant-purge"
+  environment            = var.env
+  region                 = var.aws_region
+  tenant_table_arn       = module.tenant.table_arn
+  data_table_arns        = values(local.tenant_purge_tables)[*].arn
+  user_table_arn         = module.user.table_arn
+  user_tenant_index_name = module.user.tenant_index_name
+  tenant_user_pool_arn   = module.cognito.user_pool_arn
+  menu_image_bucket_arn  = module.menu_image.bucket_arn
+  alert_topic_arn        = module.alerts.topic_arn
+  protected_zone_ids     = local.platform_domain_enabled ? [module.platform_domain[0].zone_id] : []
+}
+module "scheduler_invoke_tenant_purge_role" {
+  source                  = "./security/iam/scheduler-invoke-tenant-purge"
+  environment             = var.env
+  tenant_purge_lambda_arn = module.tenant_purge_fn.function_arn
+}
+module "finance_rollup_role" {
+  source                = "./security/iam/finance-rollup"
+  environment           = var.env
+  region                = var.aws_region
+  finance_table_arn     = module.finance.table_arn
+  tenant_table_arn      = module.tenant.table_arn
+  location_table_arn    = module.location.table_arn
+  reservation_table_arn = module.reservation.table_arn
+  order_table_arn       = module.order.table_arn
+  log_group_names       = local.tenant_aware_log_groups
+  alert_topic_arn       = module.alerts.topic_arn
+}
+module "scheduler_invoke_finance_rollup_role" {
+  source                    = "./security/iam/scheduler-invoke-finance-rollup"
+  environment               = var.env
+  finance_rollup_lambda_arn = module.finance_rollup_fn.function_arn
+}
+module "scheduler_invoke_platform_tenants_role" {
+  source                      = "./security/iam/scheduler-invoke-platform-tenants"
+  environment                 = var.env
+  platform_tenants_lambda_arn = module.platform_tenants_fn.function_arn
+}
 module "platform_tenants_role" {
   source                             = "./security/iam/platform-tenants"
   environment                        = var.env
@@ -623,6 +679,11 @@ module "platform_tenants_role" {
   platform_zone_id                   = local.platform_domain_enabled ? module.platform_domain[0].zone_id : ""
   mail_outbox_enabled                = local.mail_outbox_enabled
   mail_outbox_bucket_arn             = local.mail_outbox_arn
+  ses_identity_arn                   = local.ses_identity_arn
+  from_address                       = local.no_reply_email
+  finance_table_arn                  = module.finance.table_arn
+  finance_rollup_lambda_arn          = module.finance_rollup_fn.function_arn
+  alert_topic_arn                    = module.alerts.topic_arn
 }
 module "tenant_account_role" {
   source             = "./security/iam/tenant-account"
@@ -659,6 +720,7 @@ module "platform_stripe_webhook_role" {
   billing_webhook_secret_arn = module.stripe_webhooks.platform_billing_webhook_secret_arn
   stripe_secret_arn          = module.platform_secrets.stripe_secret_arn
   region                     = var.aws_region
+  finance_table_arn          = module.finance.table_arn
 }
 
 # Shared tenant-context read policy (tenant table + locationId index) on every
@@ -862,6 +924,10 @@ module "catering_lifecycle_ecr" {
   source      = "./storage/ecr/catering-lifecycle"
   environment = var.env
 }
+module "tenant_purge_ecr" {
+  source      = "./storage/ecr/tenant-purge"
+  environment = var.env
+}
 module "platform_tenants_ecr" {
   source      = "./storage/ecr/platform-tenants"
   environment = var.env
@@ -880,6 +946,10 @@ module "reservation_reminders_ecr" {
 }
 module "platform_stripe_webhook_ecr" {
   source      = "./storage/ecr/platform-stripe-webhook"
+  environment = var.env
+}
+module "finance_rollup_ecr" {
+  source      = "./storage/ecr/finance-rollup"
   environment = var.env
 }
 
@@ -1225,6 +1295,7 @@ module "notification_fn" {
   catering_requests_table_name         = module.catering_requests.table_name
   reservation_link_key_secret_arn      = module.reservation_secrets.link_signing_key_secret_arn
   mail_outbox_bucket_name              = local.mail_outbox_bucket
+  finance_table_name                   = module.finance.table_name
 }
 module "pre_signed_url_fn" {
   source                  = "./compute/lambda/pre-signed-url"
@@ -1445,6 +1516,29 @@ module "dlq_replay_fn" {
 }
 
 # --- Platform / tenant control plane Lambdas -----------------------------------
+# Deletes offboarded restaurants' data once purgeAt has passed
+# (var.tenant_data_retention_days after offboarding).
+module "tenant_purge_fn" {
+  source                              = "./compute/lambda/tenant-purge"
+  environment                         = var.env
+  role_arn                            = module.tenant_purge_role.role_arn
+  ecr_repository_url                  = module.tenant_purge_ecr.tenant_purge_ecr_repository_url
+  scheduler_invoke_role_arn           = module.scheduler_invoke_tenant_purge_role.role_arn
+  schedule_expression                 = var.tenant_purge_schedule
+  retention_days                      = var.tenant_data_retention_days
+  tenant_table_name                   = module.tenant.table_name
+  location_table_name                 = module.location.table_name
+  user_table_name                     = module.user.table_name
+  user_tenant_index_name              = module.user.tenant_index_name
+  tenant_user_pool_id                 = module.cognito.user_pool_id
+  location_table_names                = [for k, t in local.tenant_purge_tables : t.name if !contains(["location", "catering_request_history", "marketing"], k)]
+  catering_requests_table_name        = module.catering_requests.table_name
+  catering_request_history_table_name = module.catering_request_history.table_name
+  marketing_table_name                = module.marketing.table_name
+  menu_image_bucket_name              = module.menu_image.bucket_name
+  alert_topic_arn                     = module.alerts.topic_arn
+  protected_zone_ids                  = local.platform_domain_enabled ? [module.platform_domain[0].zone_id] : []
+}
 module "platform_tenants_fn" {
   source                             = "./compute/lambda/platform-tenants"
   environment                        = var.env
@@ -1470,9 +1564,45 @@ module "platform_tenants_fn" {
   region                             = var.aws_region
   operator_user_pool_id              = module.cognito_platform.user_pool_id
   operator_group_name                = module.cognito_platform.admin_group_name
+  no_reply_email_address             = local.no_reply_email
+  support_email_address              = var.support_email_address
   mail_outbox_bucket_name            = local.mail_outbox_bucket
   domain_provision_state_machine_arn = module.tenant_workflows.domain_provision_state_machine_arn
   domain_documents_bucket_name       = module.domain_documents.bucket_name
+  finance_table_name                 = module.finance.table_name
+  finance_rollup_alias_arn           = module.finance_rollup_fn.alias_arn
+  alert_topic_arn                    = module.alerts.topic_arn
+  billing_tax_rate_id                = module.billing_catalog.tax_rate_id
+  billing_days_until_due             = var.billing_days_until_due
+  billing_suspend_after_days         = var.billing_suspend_after_days
+  billing_reminder_interval_days     = var.billing_reminder_interval_days
+  billing_late_fee_sek               = var.billing_late_fee_sek
+  billing_late_fee_after_days        = var.billing_late_fee_after_days
+  billing_reference_rate_pct         = var.billing_reference_rate_pct
+  billing_interest_margin_pct        = var.billing_interest_margin_pct
+  billing_notice_months              = var.billing_notice_months
+  billing_trial_months               = var.billing_trial_months
+  dunning_schedule_expression        = var.billing_dunning_schedule
+  scheduler_invoke_role_arn          = module.scheduler_invoke_platform_tenants_role.role_arn
+}
+# Nightly figures for the Finance page (Cost Explorer, usage per customer,
+# allocation). Booqy Console's Rebuild invokes it for a date range.
+module "finance_rollup_fn" {
+  source                    = "./compute/lambda/finance-rollup"
+  environment               = var.env
+  role_arn                  = module.finance_rollup_role.role_arn
+  ecr_repository_url        = module.finance_rollup_ecr.finance_rollup_ecr_repository_url
+  scheduler_invoke_role_arn = module.scheduler_invoke_finance_rollup_role.role_arn
+  schedule_expression       = var.finance_rollup_schedule
+  finance_table_name        = module.finance.table_name
+  tenant_table_name         = module.tenant.table_name
+  location_table_name       = module.location.table_name
+  reservation_table_name    = module.reservation.table_name
+  order_table_name          = module.order.table_name
+  log_group_names           = local.tenant_aware_log_groups
+  usd_to_sek                = var.aws_usd_to_sek
+  cost_allocation           = var.cost_allocation
+  alert_topic_arn           = module.alerts.topic_arn
 }
 module "tenant_account_fn" {
   source                 = "./compute/lambda/tenant-account"
@@ -1523,12 +1653,19 @@ module "platform_stripe_webhook_fn" {
   stripe_secret_arn          = module.platform_secrets.stripe_secret_arn
   stripe_api_version         = var.stripe_api_version
   region                     = var.aws_region
+  finance_table_name         = module.finance.table_name
 }
 
 
 #Monitoring
 module "alerts" {
-  source                  = "./monitoring/alerts"
+  source = "./monitoring/alerts"
+  # CloudFront metrics and their alarms live in us-east-1 (front-door.tf)
+  providers = {
+    aws           = aws
+    aws.us_east_1 = aws.us_east_1
+  }
+
   environment             = var.env
   region                  = var.aws_region
   alert_emails            = var.alert_emails
@@ -1537,6 +1674,24 @@ module "alerts" {
   replay_interval_minutes = var.dlq_replay_interval_minutes
 
   sms_monthly_spend_limit_usd = var.sms_monthly_spend_limit_usd
+
+  # Front door: API Gateway 5xx rate and p99 latency, CloudFront 5xx rate on
+  # the admin, customer and (when on) tenant-sites distributions, and the
+  # 5-minute uptime check of the customer site, the admin app and
+  # GET /site-config - see docs/RELEASES.md.
+  api_id       = module.api_gateway.api_id
+  api_name     = module.api_gateway.api_name
+  api_endpoint = module.api_gateway.api_endpoint
+  cloudfront_distributions = merge(
+    {
+      admin    = module.cloudfront_private.distribution_id
+      customer = module.cloudfront_public.distribution_id
+    },
+    local.tenant_sites_enabled ? { tenant-sites = module.platform_domain[0].multitenant_distribution_id } : {}
+  )
+  customer_site_url = var.smoke_test_host != "" ? "https://${var.smoke_test_host}" : local.customer_site_url
+  admin_app_url     = local.admin_app_url
+  smoke_test_host   = var.smoke_test_host
 }
 
 # Blue/green releases (CodeDeploy) for every container-image Lambda - see
@@ -1598,6 +1753,8 @@ module "lambda_releases" {
     (module.reactivate_menu_item_fn.function_name)        = { alias_name = module.reactivate_menu_item_fn.alias_name }
     (module.stripe_webhook_fn.function_name)              = { alias_name = module.stripe_webhook_fn.alias_name }
     (module.tenant_account_fn.function_name)              = { alias_name = module.tenant_account_fn.alias_name }
+    (module.tenant_purge_fn.function_name)                = { alias_name = module.tenant_purge_fn.alias_name }
+    (module.finance_rollup_fn.function_name)              = { alias_name = module.finance_rollup_fn.alias_name }
     (module.tenant_site_config_fn.function_name)          = { alias_name = module.tenant_site_config_fn.alias_name }
     (module.reservation_reminders_fn.function_name)       = { alias_name = module.reservation_reminders_fn.alias_name }
     (module.webhook_payment_intent_fn.function_name)      = { alias_name = module.webhook_payment_intent_fn.alias_name }
@@ -1717,6 +1874,8 @@ module "marketing" {
   from_address            = local.no_reply_email
   mail_outbox_bucket_name = local.mail_outbox_bucket
   mail_outbox_bucket_arn  = local.mail_outbox_arn
+  finance_table_name      = module.finance.table_name
+  finance_table_arn       = module.finance.table_arn
   # Welcome offer sign-up: the same bot check and attempt counters as the
   # booking and order forms.
   turnstile_required       = var.turnstile_site_key != ""
@@ -1785,6 +1944,23 @@ locals {
   no_reply_from_address = local.no_reply_email
   ses_identity_arn      = local.platform_domain_enabled ? module.platform_domain[0].ses_identity_arn : module.ses.identity_arn
 
+  # Every table tenant-purge deletes a restaurant's partitions from. All but
+  # the last three are keyed LOCATION#<locationId>. Add a new tenant table
+  # here (and to functions/tenant-purge) or offboarded data stays behind.
+  tenant_purge_tables = {
+    reservation               = { name = module.reservation.table_name, arn = module.reservation.table_arn }
+    slot_occupancy            = { name = module.slot_occupancy.table_name, arn = module.slot_occupancy.table_arn }
+    order                     = { name = module.order.table_name, arn = module.order.table_arn }
+    menu                      = { name = module.menu.table_name, arn = module.menu.table_arn }
+    live_layout_element       = { name = module.live_layout_element.table_name, arn = module.live_layout_element.table_arn }
+    published_layout_snapshot = { name = module.published_layout_snapshot.table_name, arn = module.published_layout_snapshot.table_arn }
+    catering_requests         = { name = module.catering_requests.table_name, arn = module.catering_requests.table_arn }
+    catering_discount_tiers   = { name = module.catering_discount_tiers.table_name, arn = module.catering_discount_tiers.table_arn }
+    location                  = { name = module.location.table_name, arn = module.location.table_arn }
+    catering_request_history  = { name = module.catering_request_history.table_name, arn = module.catering_request_history.table_arn }
+    marketing                 = { name = module.marketing.table_name, arn = module.marketing.table_arn }
+  }
+
   tenant_domain_cname_target = local.tenant_sites_enabled ? module.platform_domain[0].cname_target : ""
 
   # Every application Lambda that serves tenant data gets the shared
@@ -1837,6 +2013,13 @@ locals {
     marketing_send             = module.marketing.role_names["marketing-send"]
     marketing_sync             = module.marketing.role_names["marketing-sync"]
   }
+
+  # Log groups finance-rollup counts API requests in: every Lambda that
+  # resolves a tenant (shared/tenant.py logs one line per request).
+  tenant_aware_log_groups = [
+    for name in keys(local.tenant_aware_role_names) :
+    "/aws/lambda/${var.env == "prod" ? "" : "${var.env}-"}${replace(name, "_", "-")}"
+  ]
 }
 
 # --- Platform domain (off until var.platform_domain is set) --------------------
@@ -1906,6 +2089,7 @@ module "tenant_workflows" {
   cname_target                 = local.tenant_domain_cname_target
   # The function's live alias, by name: the function's environment holds
   # this module's state machine ARNs, so referencing it would be a cycle.
+  tenant_data_retention_days    = var.tenant_data_retention_days
   platform_tenants_function_arn = "arn:aws:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:${var.env == "prod" ? "platform-tenants" : "${var.env}-platform-tenants"}:live"
 }
 

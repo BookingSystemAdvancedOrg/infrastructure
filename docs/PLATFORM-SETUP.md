@@ -33,8 +33,8 @@ workflow. You never handle a restaurant's keys.
 
 | Key | Where | Needs |
 |---|---|---|
-| Pipeline key (`rk_...` or `sk_...`) | GitHub secrets `STRIPE_SECRET_KEY_DEV` / `STRIPE_SECRET_KEY_PROD` | Webhook Endpoints: Write, Connect → Accounts: Write (v1 + v2), Tax Rates: Write. Used by Terraform (webhook endpoints), the onboarding workflow (creating connected accounts + their VAT rates) and to seed the Lambda secret on first apply. |
-| Lambda key (`rk_...`) | Secrets Manager `<env->stripe/api-key` as `{"apiKey":"rk_..."}` | Checkout Sessions, PaymentIntents, SetupIntents, Customers, Invoices, Invoice items, Credit notes, Refunds, Charges, Tax Rates: Write; Account Links: Write (v2); Accounts: Read; Terminal Locations + Readers: Write. Replace the seeded pipeline key after the first apply - Terraform never overwrites it. |
+| Pipeline key (`rk_...` or `sk_...`) | GitHub secrets `STRIPE_SECRET_KEY_DEV` / `STRIPE_SECRET_KEY_PROD` | Webhook Endpoints: Write, Connect → Accounts: Write (v1 + v2), Tax Rates: Write, Products: Write, Prices: Write (the subscription catalog, payments/billing). Used by Terraform (webhook endpoints), the onboarding workflow (creating connected accounts + their VAT rates) and to seed the Lambda secret on first apply. |
+| Lambda key (`rk_...`) | Secrets Manager `<env->stripe/api-key` as `{"apiKey":"rk_..."}` | Checkout Sessions, PaymentIntents, SetupIntents, Customers, Subscriptions, Invoices, Invoice items, Credit notes, Refunds, Charges, Payment Methods, Tax IDs, Tax Rates: Write; Account Links: Write (v2); Accounts: Read; Terminal Locations + Readers: Write. Replace the seeded pipeline key after the first apply - Terraform never overwrites it. |
 | Publishable key (`pk_...`) | `stripe_publishable_key` in `dev.tfvars` / `prod.tfvars` | Not secret. Websites get it from `GET /site-config`. |
 
   ```
@@ -204,7 +204,36 @@ apps run on `*.cloudfront.net` and restaurants have no website URL yet.
 - [ ] Push to `dev` → the pipeline applies, deploys placeholders. Merge
       to `main` for production.
 
-## 7. Smoke test (dev, then production)
+## 7. Subscriptions and the Finance page
+
+- [ ] Set the plan prices (`plans.<id>.price_sek`, SEK per month excluding
+      VAT) in `dev.tfvars` and `prod.tfvars`; the defaults are
+      placeholders. Apply: Terraform creates the Stripe products, prices
+      and the 25 % VAT rate in the platform account (sandbox for dev, live
+      for production) and writes the price ids on the plan rows.
+- [ ] Stripe Dashboard, per mode: Billing → Settings → Subscriptions and
+      emails (invoice emails, reminders, Smart Retries) and the invoice
+      template (company details, org. number, "Godkänd för F-skatt",
+      bankgiro in the footer). See docs/FINANCE.md §6.
+- [ ] AWS: open Cost Explorer once in each account to enable it; the
+      nightly `finance-rollup` reads it from the next day. Until then the
+      Finance page shows a warning and cost 0.
+- [ ] Late payments: the customer terms must state 30 days payment,
+      förseningsavgift 450 kr and dröjsmålsränta referensränta + 8 %
+      (the tfvars defaults `billing_late_fee_sek`,
+      `billing_late_fee_after_days`, `billing_reference_rate_pct`,
+      `billing_interest_margin_pct`, `billing_reminder_interval_days`).
+      Set the current Riksbank reference rate and update it each
+      1 January and 1 July.
+- [ ] Check `aws_usd_to_sek` (tfvars) now and then; the rate is recorded on
+      every cost row, so a change never rewrites history (Rebuild does).
+- [ ] The pipeline key (`STRIPE_SECRET_KEY_*`) needs Products: Write,
+      Prices: Write and Tax Rates: Write for the catalog; the Lambda key
+      (`stripe/api-key`) needs Customers, Subscriptions, Invoices, Payment
+      Methods, Checkout Sessions, Tax IDs: Write (platform-tenants) - add
+      them in the Dashboard if a restricted key is used.
+
+## 8. Smoke test (dev, then production)
 
 - [ ] Sign in to the operator app; create a test tenant with your own
       email as owner → status `active` within a minute.

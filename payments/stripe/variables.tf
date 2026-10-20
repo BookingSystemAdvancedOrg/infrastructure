@@ -108,6 +108,11 @@ variable "platform_billing_events" {
     "customer.subscription.created",
     "customer.subscription.updated",
     "customer.subscription.deleted",
+    "invoice.finalized",
+    "invoice.paid",
     "invoice.payment_failed",
+    "invoice.voided",
+    "invoice.marked_uncollectible",
+    "credit_note.created",
   ]
 }

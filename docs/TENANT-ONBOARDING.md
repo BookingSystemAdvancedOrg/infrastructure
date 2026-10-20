@@ -144,36 +144,81 @@ it's `live` - one bill, renewals handled by us; .se/.com/.eu/.net only):
       one.com plan - but must keep any *email* subscription there if their
       MX records still point at one.com.
 
+## 5b. Subscription (invoicing)
+
+On the **New customer** form, section 4b: the monthly price (the plan's,
+or this customer's own amount), the terms and "Start invoicing when the
+customer is created" (on by default; a later first invoice date delays
+the first invoice, nothing is charged before it). Terms: **try-out
+period** (pays monthly, may leave at the end of any paid month, becomes a
+subscription after 6 months or when you convert them) or **subscription**
+(3 months' notice). Invoices are by email, due in 30 days, paid by card
+on Stripe's invoice page or by bankgiro to you (then marked paid in
+Stripe); a card on file is possible too (send the **card link**, then
+"Charge the card" on the Billing tab). From then on Stripe invoices the
+price plus 25 % VAT every month and the Finance page shows revenue, AWS
+cost and margin per customer and location. Cancelling (Billing tab) ends
+a try-out with the paid month and a subscription three months after the
+current month, and offboards the customer when it ends unless you untick
+that. Details: `docs/FINANCE.md`.
+
 ## 6. Upgrade / downgrade
 
 Operator app → tenant → **Plan**: pick the plan or override
 max locations / features. Takes effect immediately - "2 locations instead
 of 1" is this one action. Lowering below the current number of locations
 asks for confirmation; existing locations keep working, new ones are
-blocked.
+blocked. A changed plan or price is invoiced from the next month; the
+paid month stays as it is.
 
 ## 7. Suspend / resume
 
 **Suspend** (e.g. unpaid subscription): all its users are signed out and
 can't sign in, the API refuses its admin calls, the website shows
 "unavailable", its public endpoints return 404. Data, Stripe account and
-domains stay. **Resume** reverses it.
+domains stay. **Resume** reverses it. The subscription keeps running
+(pause it on the Billing tab if invoicing should stop). A customer whose
+subscription is past due for `billing_suspend_after_days` (14) days is
+suspended automatically by the daily dunning task and resumed when they
+pay.
 
 ## 8. Offboarding
 
-**Offboard** (type the slug to confirm): users disabled and signed out,
+**Offboard** (type the slug to confirm): the subscription is cancelled
+with a final prorated invoice, users disabled and signed out,
 custom and platform domains detached from CloudFront (certificates
-deleted), tenant marked `offboarded`. Kept on purpose:
+deleted), tenant marked `offboarded` with
+`purgeAt = offboarded + tenant_data_retention_days` (90 in production, 1 in
+dev). Export their data before that date if they ask for it.
 
-- their data in DynamoDB (export on request, then delete by `tenantId` /
-  `TENANT#<tenantId>` keys);
+**Deletion** is automatic: the `tenant-purge` Lambda runs on
+`tenant_purge_schedule` (nightly in production, hourly in dev) and deletes
+every offboarded tenant whose `purgeAt` has passed: bookings, holds,
+orders, menus, layouts, catering requests and history, marketing,
+locations, users (DynamoDB and Cognito), menu images, its audit rows and
+domain orders. Domains we registered get auto-renew switched off; a hosted
+zone is deleted once the domain no longer points at it (otherwise it is
+kept and listed in the email). One email per run that did something.
+Booqy Console shows the date and has **Delete data now** (moves `purgeAt`
+to now; the next run deletes). Tenants offboarded before this existed get
+a date on the first run, never sooner than 7 days later.
+
+Kept on purpose:
+
+- a tombstone PROFILE (`status = purged`: company name, org. and VAT
+  number, slug, plan, dates, Stripe account id; no personal data) and the
+  `SLUG#` claim, so an old address never moves to another restaurant;
 - catering documents - 7-year Object Lock (bookkeeping law), can't be
   deleted before expiry;
 - their Stripe account - it's theirs; they can disconnect the platform in
   their Stripe dashboard;
-- the website files under `tenant-sites/<tenantId>/` (versioned bucket) -
-  delete the prefix once the data request is settled; archive the
-  `site-<slug>` repo.
+- their Stripe customer and invoices on the platform account, and the
+  finance table rows (what they paid and cost) - bookkeeping;
+- point-in-time backups keep deleted rows for up to 35 days.
+
+A new table that holds tenant data must be added to `tenant_purge_tables`
+(config.tf) and to `functions/tenant-purge` in the application repo, or
+offboarded data stays behind.
 
 ## 9. Things that are not per-tenant anymore
 

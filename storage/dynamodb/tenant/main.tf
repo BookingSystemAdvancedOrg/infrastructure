@@ -29,8 +29,14 @@
 #   STRIPE_ACCOUNT#<acct>  | TENANT           tenantId - Connect webhooks carry
 #                                              only event.account
 #   PLAN#<planId>          | PLAN             plan catalog, seeded from
-#                                              var.plans by Terraform.
+#                                              var.plans by Terraform:
+#                                              name, maxLocations, features,
+#                                              priceSek (per month, ex VAT),
+#                                              stripePriceId, stripeProductId
+#                                              (payments/billing).
 #                                              GSI1PK = "PLAN", GSI1SK = planId
+#   STRIPE_CUSTOMER#<cus>  | TENANT           tenantId - billing webhooks carry
+#                                              only the Stripe customer id
 #
 # Uniqueness rows (SLUG#, DOMAIN#, STRIPE_ACCOUNT#) are always written in
 # the same TransactWriteItems as the tenant row they point at, conditioned
@@ -123,5 +129,8 @@ resource "aws_dynamodb_table_item" "plan" {
     features = {
       M = { for feature, enabled in each.value.features : feature => { BOOL = enabled } }
     }
+    priceSek        = { N = tostring(each.value.price_sek) }
+    stripePriceId   = { S = var.plan_price_ids[each.key] }
+    stripeProductId = { S = var.plan_product_ids[each.key] }
   })
 }

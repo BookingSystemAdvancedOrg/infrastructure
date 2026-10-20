@@ -77,6 +77,7 @@ locals {
         MARKETING_LINK_BASE           = "${var.admin_app_url}/api"
         NO_REPLY_EMAIL_ADDRESS        = var.from_address
         MARKETING_CONFIGURATION_SET   = aws_sesv2_configuration_set.marketing.configuration_set_name
+        FINANCE_TABLE_NAME            = var.finance_table_name
         MARKETING_MONTHLY_LIMIT       = tostring(var.monthly_email_limit)
         MARKETING_SEND_RATE           = tostring(var.send_rate)
         MAIL_OUTBOX_BUCKET_NAME       = var.mail_outbox_bucket_name
@@ -154,6 +155,13 @@ locals {
         Effect   = "Allow"
         Action   = ["secretsmanager:GetSecretValue"]
         Resource = aws_secretsmanager_secret.link_key.arn
+      },
+      {
+        # +1 marketing email on the restaurant's day row in the finance table.
+        Sid      = "CountMarketingEmails"
+        Effect   = "Allow"
+        Action   = ["dynamodb:UpdateItem"]
+        Resource = var.finance_table_arn
       },
     ], local.ses_statements, local.outbox_statements)
 

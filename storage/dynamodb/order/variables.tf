@@ -5,7 +5,7 @@ variable "environment" {
 }
 
 variable "notification_lambda_arn" {
-  description = "ARN of the NotificationFn Lambda function — invoked off this table's stream when an order's paymentStatus goes \"processing\" -> \"paid\" (the receipt message)"
+  description = "ARN of the NotificationFn Lambda function - invoked off this table's stream when an order's paymentStatus goes \"processing\" -> \"paid\" (the receipt message)"
   type        = string
   sensitive   = false
 }

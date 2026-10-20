@@ -1394,6 +1394,7 @@ locals {
     "POST /platform/tenants/{tenantId}/suspend",
     "POST /platform/tenants/{tenantId}/resume",
     "POST /platform/tenants/{tenantId}/offboard",
+    "POST /platform/tenants/{tenantId}/purge",
     "POST /platform/tenants/{tenantId}/onboarding/retry",
     "GET /platform/tenants/{tenantId}/users",
     "POST /platform/tenants/{tenantId}/owners",
@@ -1431,6 +1432,26 @@ locals {
     # Dev mail outbox (var.mail_outbox) - {"enabled": false} when it's off
     "GET /platform/outbox",
     "GET /platform/outbox/{messageId}",
+    # News to the restaurant owners (Mail page): brand template, preview, send
+    "GET /platform/mail/template",
+    "PUT /platform/mail/template",
+    "POST /platform/mail/preview",
+    "GET /platform/mail/recipients",
+    "GET /platform/mail/newsletters",
+    "POST /platform/mail/newsletters",
+    "GET /platform/mail/newsletters/{newsletterId}",
+    # Finance: the customers' subscriptions (Stripe Billing on the platform
+    # account) and the Finance page (revenue, AWS cost, margin per customer)
+    "GET /platform/finance/overview",
+    "GET /platform/finance/tenants/{tenantId}",
+    "POST /platform/finance/rebuild",
+    "POST /platform/finance/stripe-sync",
+    "GET /platform/tenants/{tenantId}/billing",
+    "POST /platform/tenants/{tenantId}/billing/subscription",
+    "PATCH /platform/tenants/{tenantId}/billing/subscription",
+    "POST /platform/tenants/{tenantId}/billing/card-link",
+    "POST /platform/tenants/{tenantId}/billing/invoices/{invoiceId}/remind",
+    "GET /platform/finance/invoices",
   ]
 }
 

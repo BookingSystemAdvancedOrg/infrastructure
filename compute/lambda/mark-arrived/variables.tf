@@ -11,7 +11,7 @@ variable "role_arn" {
 }
 
 variable "ecr_repository_url" {
-  description = "Repository URL of the MarkArrivedFn ECR repository (storage/ecr/mark-arrived) — the repo itself is owned there, not created in this module"
+  description = "Repository URL of the MarkArrivedFn ECR repository (storage/ecr/mark-arrived) - the repo itself is owned there, not created in this module"
   type        = string
   sensitive   = true
 }

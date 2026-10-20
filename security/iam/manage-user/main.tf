@@ -93,7 +93,7 @@ resource "aws_iam_role_policy" "cognito_user_management" {
   })
 }
 
-# Scoped to exactly this function's own log group — not logs:* on everything.
+# Scoped to exactly this function's own log group - not logs:* on everything.
 #
 # No logs:CreateLogGroup - the log group is expected to be provisioned
 # explicitly alongside this Lambda's function resource (same pattern as

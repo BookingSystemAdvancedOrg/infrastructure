@@ -41,7 +41,9 @@ resource "aws_lambda_function" "this" {
   }
   architectures = ["arm64"]
 
-  timeout     = 28
+  # API calls are cut by API Gateway at 29 s regardless; the longer timeout
+  # is for the scheduled dunning task and the Stripe invoice import.
+  timeout     = 60
   memory_size = 512
 
   environment {
@@ -66,10 +68,30 @@ resource "aws_lambda_function" "this" {
       PLATFORM_ADMIN_APP_URL          = var.platform_admin_app_url
       OPERATOR_USER_POOL_ID           = var.operator_user_pool_id
       OPERATOR_GROUP_NAME             = var.operator_group_name
-      MAIL_OUTBOX_BUCKET_NAME         = var.mail_outbox_bucket_name # dev only: GET /platform/outbox reads it ("" = off)
+      MAIL_OUTBOX_BUCKET_NAME         = var.mail_outbox_bucket_name # dev only: GET /platform/outbox reads it, news is saved there ("" = off)
+      # News to the restaurant owners (Mail page): From and default Reply-To
+      NO_REPLY_EMAIL_ADDRESS = var.no_reply_email_address
+      SUPPORT_EMAIL_ADDRESS  = var.support_email_address
       # Restaurant domains bought / connected from Booqy Console
       DOMAIN_PROVISION_STATE_MACHINE_ARN = var.domain_provision_state_machine_arn
       DOMAIN_DOCUMENTS_BUCKET            = var.domain_documents_bucket_name
+      # Finance: subscriptions (Stripe Billing), the Finance page, dunning
+      FINANCE_TABLE_NAME          = var.finance_table_name
+      FINANCE_ROLLUP_FUNCTION_ARN = var.finance_rollup_alias_arn
+      ALERT_TOPIC_ARN             = var.alert_topic_arn
+      BILLING_TAX_RATE_ID         = var.billing_tax_rate_id
+      BILLING_DAYS_UNTIL_DUE      = tostring(var.billing_days_until_due)
+      BILLING_SUSPEND_AFTER_DAYS  = tostring(var.billing_suspend_after_days)
+      # Reminders, late fee and interest on unpaid invoices (dunning task)
+      BILLING_REMINDER_INTERVAL_DAYS = tostring(var.billing_reminder_interval_days)
+      BILLING_LATE_FEE_SEK           = tostring(var.billing_late_fee_sek)
+      BILLING_LATE_FEE_AFTER_DAYS    = tostring(var.billing_late_fee_after_days)
+      BILLING_REFERENCE_RATE_PCT     = tostring(var.billing_reference_rate_pct)
+      BILLING_INTEREST_MARGIN_PCT    = tostring(var.billing_interest_margin_pct)
+      # Terms: try-out (leave at the end of any month, becomes a subscription
+      # after BILLING_TRIAL_MONTHS) or subscription (BILLING_NOTICE_MONTHS notice)
+      BILLING_NOTICE_MONTHS = tostring(var.billing_notice_months)
+      BILLING_TRIAL_MONTHS  = tostring(var.billing_trial_months)
     }
   }
 
@@ -78,4 +100,32 @@ resource "aws_lambda_function" "this" {
   }
 
   depends_on = [aws_cloudwatch_log_group.this]
+}
+
+# Dunning: once a day the function checks every customer's subscription
+# (PROFILE.billing, kept current by platform-stripe-webhook) and suspends
+# those past due longer than BILLING_SUSPEND_AFTER_DAYS, resumes the ones
+# it suspended that have paid since, and emails the operators. The same
+# code path as Suspend / Resume in Booqy Console; the event carries no
+# routeKey, so API Gateway's JWT check does not apply and only the
+# scheduler role may invoke it this way.
+resource "aws_scheduler_schedule" "dunning" {
+  name                = "${local.function_name}-dunning"
+  group_name          = "default"
+  schedule_expression = var.dunning_schedule_expression
+
+  flexible_time_window {
+    mode = "OFF"
+  }
+
+  target {
+    arn      = aws_lambda_alias.live.arn
+    role_arn = var.scheduler_invoke_role_arn
+    input    = jsonencode({ financeTask = "dunning" })
+
+    retry_policy {
+      maximum_retry_attempts       = 2
+      maximum_event_age_in_seconds = 3600
+    }
+  }
 }

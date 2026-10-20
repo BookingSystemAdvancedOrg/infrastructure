@@ -11,7 +11,7 @@ variable "role_arn" {
 }
 
 variable "ecr_repository_url" {
-  description = "Repository URL of the PlatformStripeWebhookFn ECR repository (storage/ecr/platform-stripe-webhook) — the repo itself is owned there, not created in this module"
+  description = "Repository URL of the PlatformStripeWebhookFn ECR repository (storage/ecr/platform-stripe-webhook) - the repo itself is owned there, not created in this module"
   type        = string
   sensitive   = true
 }
@@ -50,4 +50,9 @@ variable "region" {
   description = "AWS region this Lambda's log group, ECR repository, and image push target live in"
   type        = string
   sensitive   = false
+}
+
+variable "finance_table_name" {
+  description = "The finance table the /billing events write invoices and revenue to, passed as an environment variable"
+  type        = string
 }

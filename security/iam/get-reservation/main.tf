@@ -1,7 +1,7 @@
 # Execution role for the get-reservation Lambda.
 #
 # Least privilege: read-only, and only the reservation table. Scan (not
-# Query) — this Lambda is for cross-location lookups by time/status, not a
+# Query) - this Lambda is for cross-location lookups by time/status, not a
 # single location's PK, so it filters rather than key-matches.
 
 data "aws_caller_identity" "current" {}
@@ -50,7 +50,7 @@ resource "aws_iam_role_policy" "dynamodb_read" {
   })
 }
 
-# Scoped to exactly this function's own log group — not logs:* on everything.
+# Scoped to exactly this function's own log group - not logs:* on everything.
 #
 # No logs:CreateLogGroup - the log group is expected to be provisioned
 # explicitly alongside this Lambda's function resource (same pattern as
