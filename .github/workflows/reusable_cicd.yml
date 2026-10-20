@@ -103,7 +103,11 @@ jobs:
         id: plan
         # Read-only preview - not saved/applied later, since apply below
         # runs its own plan internally (that's what lets it accept -var-file).
-        run: terraform plan -input=false -no-color -var-file="${{ inputs.environment }}.tfvars"
+        # Written to plan.txt for the PR comment: a big plan does not fit in
+        # an environment variable (the runner fails with "Argument list too long").
+        run: |
+          set -o pipefail
+          terraform plan -input=false -no-color -var-file="${{ inputs.environment }}.tfvars" 2>&1 | tee plan.txt
 
       - name: Comment the plan on the pull request
         # The review step for a dev -> main PR: the plan (or its error) is
@@ -112,19 +116,18 @@ jobs:
         if: github.event_name == 'pull_request' && always()
         uses: actions/github-script@v7
         env:
-          PLAN: ${{ steps.plan.outputs.stdout }}
-          PLAN_ERROR: ${{ steps.plan.outputs.stderr }}
           OUTCOME: ${{ steps.plan.outcome }}
           ENVIRONMENT: ${{ inputs.environment }}
         with:
           script: |
+            const fs = require('fs');
             const marker = `<!-- terraform-plan:${process.env.ENVIRONMENT} -->`;
             const ok = process.env.OUTCOME === 'success';
-            let plan = (ok ? process.env.PLAN : `${process.env.PLAN}\n${process.env.PLAN_ERROR}`).trim();
+            let plan = fs.existsSync('plan.txt') ? fs.readFileSync('plan.txt', 'utf8').trim() : '(no plan output)';
             const summary = ok
               ? (plan.match(/^(Plan: .*|No changes\. .*)$/m) || ['see the plan below'])[0]
               : 'PLAN FAILED - do not merge until it passes';
-            if (plan.length > 60000) plan = plan.slice(0, 60000) + '\n... (truncated - the full plan is in the workflow run)';
+            if (plan.length > 60000) plan = plan.slice(-60000) + '\n... (truncated - the full plan is in the workflow run)';
             const run = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
             const body = `${marker}\n### Terraform plan (${process.env.ENVIRONMENT}): ${summary}\n\n<details><summary>Show plan</summary>\n\n\`\`\`\n${plan}\n\`\`\`\n\n</details>\n\n[Workflow run](${run})`;
             const { data: comments } = await github.rest.issues.listComments({ ...context.repo, issue_number: context.issue.number, per_page: 100 });
