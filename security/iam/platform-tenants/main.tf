@@ -268,7 +268,7 @@ resource "aws_iam_role_policy" "mail_outbox" {
       {
         Sid      = "ReadDevMailOutbox"
         Effect   = "Allow"
-        Action   = "s3:GetObject"
+        Action   = ["s3:GetObject", "s3:PutObject"]
         Resource = "${var.mail_outbox_bucket_arn}/outbox/*"
       }
     ]
@@ -371,6 +371,64 @@ resource "aws_iam_role_policy" "logs" {
           "logs:PutLogEvents",
         ]
         Resource = "arn:aws:logs:${var.region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${local.function_name}:*"
+      }
+    ]
+  })
+}
+
+# News to the restaurant owners (Booqy Console, Mail page): sent from the
+# platform's no-reply address, replies go to support. Same shape as the
+# notification and demo-request roles; SendRawEmail because the logo travels
+# as an inline image (multipart/related).
+resource "aws_iam_role_policy" "ses" {
+  name = "ses-send-news"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "SendFromNoReplyIdentity"
+        Effect   = "Allow"
+        Action   = ["ses:SendEmail", "ses:SendRawEmail"]
+        Resource = var.ses_identity_arn
+      },
+      {
+        # SES also authorizes against the RECIPIENT's identity when it is a
+        # verified identity (the sandbox) - any identity in this account,
+        # but only for mail from the no-reply address.
+        Sid      = "SendToVerifiedRecipientIdentities"
+        Effect   = "Allow"
+        Action   = ["ses:SendEmail", "ses:SendRawEmail"]
+        Resource = "arn:aws:ses:${var.region}:${data.aws_caller_identity.current.account_id}:identity/*"
+        Condition = {
+          StringLike = {
+            "ses:FromAddress" = [var.from_address, "*<${var.from_address}>"]
+          }
+        }
+      }
+    ]
+  })
+}
+
+# A send to every owner is longer than one API call: the function writes the
+# newsletter row and invokes itself asynchronously (and again before its own
+# timeout) - only its own function, through the live alias.
+resource "aws_iam_role_policy" "self_invoke" {
+  name = "invoke-self"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "InvokeOwnFunction"
+        Effect = "Allow"
+        Action = "lambda:InvokeFunction"
+        Resource = [
+          "arn:aws:lambda:${var.region}:${data.aws_caller_identity.current.account_id}:function:${local.function_name}",
+          "arn:aws:lambda:${var.region}:${data.aws_caller_identity.current.account_id}:function:${local.function_name}:*",
+        ]
       }
     ]
   })

@@ -66,7 +66,10 @@ resource "aws_lambda_function" "this" {
       PLATFORM_ADMIN_APP_URL          = var.platform_admin_app_url
       OPERATOR_USER_POOL_ID           = var.operator_user_pool_id
       OPERATOR_GROUP_NAME             = var.operator_group_name
-      MAIL_OUTBOX_BUCKET_NAME         = var.mail_outbox_bucket_name # dev only: GET /platform/outbox reads it ("" = off)
+      MAIL_OUTBOX_BUCKET_NAME         = var.mail_outbox_bucket_name # dev only: GET /platform/outbox reads it, news is saved there ("" = off)
+      # News to the restaurant owners (Mail page): From and default Reply-To
+      NO_REPLY_EMAIL_ADDRESS = var.no_reply_email_address
+      SUPPORT_EMAIL_ADDRESS  = var.support_email_address
       # Restaurant domains bought / connected from Booqy Console
       DOMAIN_PROVISION_STATE_MACHINE_ARN = var.domain_provision_state_machine_arn
       DOMAIN_DOCUMENTS_BUCKET            = var.domain_documents_bucket_name

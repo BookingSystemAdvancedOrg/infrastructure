@@ -56,6 +56,13 @@ variable "demo_request_recipient" {
   default     = "support@ithjalparna.se"
 }
 
+variable "support_email_address" {
+  description = "Where restaurant owners' replies to news from Booqy Console go (Reply-To); the default on the Mail page's brand template"
+  type        = string
+  sensitive   = false
+  default     = "support@ithjalparna.se"
+}
+
 variable "website_repo" {
   type        = string
   description = "Repo name (no org prefix) of the public page on <platform_domain> - trusted by security/iam/oidc/website-deploy-role to deploy it"

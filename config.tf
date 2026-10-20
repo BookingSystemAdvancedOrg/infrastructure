@@ -641,6 +641,8 @@ module "platform_tenants_role" {
   platform_zone_id                   = local.platform_domain_enabled ? module.platform_domain[0].zone_id : ""
   mail_outbox_enabled                = local.mail_outbox_enabled
   mail_outbox_bucket_arn             = local.mail_outbox_arn
+  ses_identity_arn                   = local.ses_identity_arn
+  from_address                       = local.no_reply_email
 }
 module "tenant_account_role" {
   source             = "./security/iam/tenant-account"
@@ -1515,6 +1517,8 @@ module "platform_tenants_fn" {
   region                             = var.aws_region
   operator_user_pool_id              = module.cognito_platform.user_pool_id
   operator_group_name                = module.cognito_platform.admin_group_name
+  no_reply_email_address             = local.no_reply_email
+  support_email_address              = var.support_email_address
   mail_outbox_bucket_name            = local.mail_outbox_bucket
   domain_provision_state_machine_arn = module.tenant_workflows.domain_provision_state_machine_arn
   domain_documents_bucket_name       = module.domain_documents.bucket_name

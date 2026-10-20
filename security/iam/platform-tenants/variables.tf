@@ -109,3 +109,13 @@ variable "platform_zone_id" {
   sensitive   = false
   default     = ""
 }
+
+variable "ses_identity_arn" {
+  description = "ARN of the SES identity the no-reply address sends through (news to restaurant owners from Booqy Console)"
+  type        = string
+}
+
+variable "from_address" {
+  description = "The no-reply address news is sent from - the only From the recipient-identity grant allows"
+  type        = string
+}

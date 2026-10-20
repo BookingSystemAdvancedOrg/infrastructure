@@ -11,7 +11,7 @@ variable "role_arn" {
 }
 
 variable "ecr_repository_url" {
-  description = "Repository URL of the PlatformTenantsFn ECR repository (storage/ecr/platform-tenants) — the repo itself is owned there, not created in this module"
+  description = "Repository URL of the PlatformTenantsFn ECR repository (storage/ecr/platform-tenants) - the repo itself is owned there, not created in this module"
   type        = string
   sensitive   = true
 }
@@ -153,4 +153,14 @@ variable "domain_documents_bucket_name" {
   description = "Bucket for the registreringsbevis uploaded when buying a .se domain, passed as an environment variable"
   type        = string
   sensitive   = false
+}
+
+variable "no_reply_email_address" {
+  description = "The no-reply address news to restaurant owners is sent from (Mail page), passed as an environment variable"
+  type        = string
+}
+
+variable "support_email_address" {
+  description = "Default Reply-To for news to restaurant owners, passed as an environment variable"
+  type        = string
 }

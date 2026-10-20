@@ -1432,6 +1432,14 @@ locals {
     # Dev mail outbox (var.mail_outbox) - {"enabled": false} when it's off
     "GET /platform/outbox",
     "GET /platform/outbox/{messageId}",
+    # News to the restaurant owners (Mail page): brand template, preview, send
+    "GET /platform/mail/template",
+    "PUT /platform/mail/template",
+    "POST /platform/mail/preview",
+    "GET /platform/mail/recipients",
+    "GET /platform/mail/newsletters",
+    "POST /platform/mail/newsletters",
+    "GET /platform/mail/newsletters/{newsletterId}",
   ]
 }
 
