@@ -13,6 +13,7 @@ Terraform change, no deploy per customer:
 - [docs/PLATFORM-SETUP.md](docs/PLATFORM-SETUP.md) - one-time setup per environment
 - [docs/TENANT-ONBOARDING.md](docs/TENANT-ONBOARDING.md) - adding, upgrading, suspending, offboarding a restaurant
 - [docs/handoff/BACKEND.md](docs/handoff/BACKEND.md), [docs/handoff/FRONTEND.md](docs/handoff/FRONTEND.md) - what the application and front-end repos implement against this
+- [docs/RELEASES.md](docs/RELEASES.md) - rollout order, rolling back each layer, re-running a release, where alarms go
 
 ## CI/CD
 
@@ -27,8 +28,8 @@ accounts** and, on the Stripe side, the platform Stripe account's sandbox
 (dev) vs live mode (production) - selected purely by which API key the pipeline
 exports. Restaurants are Connect accounts under it.
 
-- **PR into `dev` or `main`** → fmt / init / validate / plan only. Read-only - this is the review step, and it also exercises the Stripe key.
-- **Push to `dev` / merge to `main`** → full apply: ECR repos first (the `-target` list is derived from `config.tf`'s `module "*_ecr"` blocks - nothing to keep in sync by hand), placeholder Lambda images into any empty repo, the full `terraform apply`, then placeholder front-ends into any empty bucket.
+- **PR into `dev` or `main`** → fmt / init / validate / plan only, with the plan posted as a comment on the PR. Read-only - this is the review step, and it also exercises the Stripe key.
+- **Push to `dev` / merge to `main`** → full apply: ECR repos first (the `-target` list is derived from `config.tf`'s `module "*_ecr"` blocks - nothing to keep in sync by hand), placeholder Lambda images into any empty repo, the full `terraform apply`, then placeholder front-ends into any empty bucket, then the smoke test (`ci/smoke-test.sh`).
 
 Note: production applies the moment a PR merges to `main` - no manual approval
 gate in this version.
@@ -58,7 +59,7 @@ repo, per account, before the first pipeline run.
 - `security/secrets/` - Secrets Manager secrets (platform Stripe key; catering: signing provider, Turnstile, magic-link key)
 - `security/iam/tenant-context/` - the shared read policy every tenant-aware Lambda gets
 - `network/` - API Gateway (see `network/api-gateway/ROUTES.md`, generated - run `generate_routes.py` after route changes), CloudFront, SES; `platform-domain/` = Route 53 zone, multi-tenant distribution, SES domain (only when `platform_domain` is set)
-- `monitoring/` - SNS alert topic + CloudWatch alarms for the dead-letter queues and their scheduled replay (`dlq-replay`)
+- `monitoring/` - SNS alert topics + CloudWatch alarms: dead-letter queues and their replay, SES/SMS guardrails, API Gateway and CloudFront front-door alarms, the 5-minute `uptime-check` Lambda
 - `payments/stripe/` - Stripe webhook endpoints as code (per-environment, event lists as variables)
-- `ci/` - placeholder Lambda image + front-ends for bootstrap
+- `ci/` - placeholder Lambda image + front-ends for bootstrap, `lambda-release.sh` and `smoke-test.sh` (sources of truth for the app repos' copies)
 - `docs/` - the multi-tenancy docs above, [RESERVATION-PAYMENT-FLOW.md](docs/RESERVATION-PAYMENT-FLOW.md) (card-on-file design), [CATERING-FLOW.md](docs/CATERING-FLOW.md) (catering offer → BankID → payment/invoice contract)

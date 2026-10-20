@@ -56,3 +56,11 @@ platform_subdomain_delegations = {
 # nightly at 02:00 UTC.
 tenant_data_retention_days = 90
 tenant_purge_schedule      = "cron(0 2 * * ? *)"
+
+# No permanent test restaurant in production yet: the smoke tests and the
+# uptime check load the customer site's own distribution and expect
+# GET /site-config to answer 404 for an unknown host (which still proves
+# API Gateway -> Lambda -> DynamoDB). Set this to a restaurant host that
+# will always exist (e.g. a demo restaurant on its own domain) to check a
+# real 200 instead.
+# smoke_test_host = "demo.booqy.se"

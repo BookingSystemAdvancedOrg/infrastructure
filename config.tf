@@ -1577,7 +1577,13 @@ module "platform_stripe_webhook_fn" {
 
 #Monitoring
 module "alerts" {
-  source                  = "./monitoring/alerts"
+  source = "./monitoring/alerts"
+  # CloudFront metrics and their alarms live in us-east-1 (front-door.tf)
+  providers = {
+    aws           = aws
+    aws.us_east_1 = aws.us_east_1
+  }
+
   environment             = var.env
   region                  = var.aws_region
   alert_emails            = var.alert_emails
@@ -1586,6 +1592,24 @@ module "alerts" {
   replay_interval_minutes = var.dlq_replay_interval_minutes
 
   sms_monthly_spend_limit_usd = var.sms_monthly_spend_limit_usd
+
+  # Front door: API Gateway 5xx rate and p99 latency, CloudFront 5xx rate on
+  # the admin, customer and (when on) tenant-sites distributions, and the
+  # 5-minute uptime check of the customer site, the admin app and
+  # GET /site-config - see docs/RELEASES.md.
+  api_id       = module.api_gateway.api_id
+  api_name     = module.api_gateway.api_name
+  api_endpoint = module.api_gateway.api_endpoint
+  cloudfront_distributions = merge(
+    {
+      admin    = module.cloudfront_private.distribution_id
+      customer = module.cloudfront_public.distribution_id
+    },
+    local.tenant_sites_enabled ? { tenant-sites = module.platform_domain[0].multitenant_distribution_id } : {}
+  )
+  customer_site_url = var.smoke_test_host != "" ? "https://${var.smoke_test_host}" : local.customer_site_url
+  admin_app_url     = local.admin_app_url
+  smoke_test_host   = var.smoke_test_host
 }
 
 # Blue/green releases (CodeDeploy) for every container-image Lambda - see

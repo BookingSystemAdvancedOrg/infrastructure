@@ -224,3 +224,14 @@ output "booqy_website_deploy" {
     ADMIN_HOST                 = local.admin_app_hostname
   } : null
 }
+
+# Read by the smoke test in reusable_cicd.yml (and copied into the app
+# repos' project.env): what a release must answer right after deploying.
+output "smoke_test" {
+  description = "URLs the post-deploy smoke test and the 5-minute uptime check load, with the expected status"
+  value = {
+    api_endpoint = module.api_gateway.api_endpoint
+    host         = var.smoke_test_host
+    checks       = module.alerts.uptime_checks
+  }
+}

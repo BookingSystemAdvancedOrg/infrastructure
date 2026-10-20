@@ -46,3 +46,44 @@ resource "aws_s3_bucket_policy" "platform_admin_front_end_asset" {
     ]
   })
 }
+
+# Every deploy overwrites index.html and deletes the previous build's hashed
+# assets (s3 sync --delete). With versioning on, the previous build is still
+# there as noncurrent versions for var.noncurrent_version_days, so a bad
+# release can be undone by redeploying the previous commit (the "Redeploy a
+# commit" workflow, docs/RELEASES.md) and nothing is lost in between.
+resource "aws_s3_bucket_versioning" "platform_admin_front_end_asset" {
+  bucket = aws_s3_bucket.platform_admin_front_end_asset.id
+
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+# Old builds are not kept forever: noncurrent versions expire after
+# var.noncurrent_version_days, and the delete markers s3 sync --delete
+# leaves behind are removed once nothing is under them.
+resource "aws_s3_bucket_lifecycle_configuration" "platform_admin_front_end_asset" {
+  bucket = aws_s3_bucket.platform_admin_front_end_asset.id
+
+  rule {
+    id     = "expire-previous-builds"
+    status = "Enabled"
+
+    filter {}
+
+    noncurrent_version_expiration {
+      noncurrent_days = var.noncurrent_version_days
+    }
+
+    expiration {
+      expired_object_delete_marker = true
+    }
+
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
+    }
+  }
+
+  depends_on = [aws_s3_bucket_versioning.platform_admin_front_end_asset]
+}

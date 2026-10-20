@@ -232,3 +232,10 @@ variable "tenant_purge_schedule" {
   sensitive   = false
   default     = "cron(0 2 * * ? *)"
 }
+
+variable "smoke_test_host" {
+  type        = string
+  description = "Hostname of a restaurant site that always exists in this environment (e.g. test-restaurang-2.dev.booqy.se). The uptime check and the pipelines' smoke tests call GET /site-config?host=<this> and expect 200. Empty = they expect 404 for an unknown host instead, which still proves the API end to end"
+  sensitive   = false
+  default     = ""
+}
