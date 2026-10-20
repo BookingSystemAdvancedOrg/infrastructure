@@ -163,7 +163,7 @@ module "menu_image" {
   allowed_origins = distinct([
     "https://${module.cloudfront_public.distribution_domain_name}",
     "https://${module.cloudfront_private.distribution_domain_name}",
-    local.admin_app_url, # restaurant.<platform domain> once set - presigned uploads come from there
+    local.admin_app_url, # restaurang.<platform domain> once set - presigned uploads come from there
   ])
 }
 module "customer_front_end_asset" {
@@ -1760,11 +1760,15 @@ locals {
   tenant_sites_enabled      = local.platform_domain_enabled && var.tenant_sites_enabled
   tenant_subdomains_enabled = local.tenant_sites_enabled && var.tenant_subdomains_enabled
 
-  # restaurant.<domain> = restaurant admin app, admin.<domain> = Booqy Console.
-  admin_app_hostname      = "restaurant.${var.platform_domain}"
-  platform_admin_hostname = "admin.${var.platform_domain}"
-  admin_app_url           = local.platform_domain_enabled ? "https://${local.admin_app_hostname}" : "https://${module.cloudfront_private.distribution_domain_name}"
-  platform_admin_app_url  = local.platform_domain_enabled ? "https://${local.platform_admin_hostname}" : "https://${module.cloudfront_platform_admin.distribution_domain_name}"
+  # restaurang.<domain> = restaurant admin app, admin.<domain> = Booqy Console.
+  # restaurant.<domain> was the admin app's first name: it stays an alias of
+  # the same distribution and redirects (301) to restaurang.<domain>, so old
+  # bookmarks and the /api links in emails already sent keep working.
+  admin_app_hostname        = "restaurang.${var.platform_domain}"
+  legacy_admin_app_hostname = "restaurant.${var.platform_domain}"
+  platform_admin_hostname   = "admin.${var.platform_domain}"
+  admin_app_url             = local.platform_domain_enabled ? "https://${local.admin_app_hostname}" : "https://${module.cloudfront_private.distribution_domain_name}"
+  platform_admin_app_url    = local.platform_domain_enabled ? "https://${local.platform_admin_hostname}" : "https://${module.cloudfront_platform_admin.distribution_domain_name}"
   # Every origin the operator app may sign in from (OAuth callback URLs).
   platform_admin_app_urls = distinct(concat(
     ["https://${module.cloudfront_platform_admin.distribution_domain_name}"],
@@ -1853,6 +1857,7 @@ module "platform_domain" {
   menu_image_bucket_regional_domain_name  = module.menu_image.bucket_regional_domain_name
   admin_distribution_domain_name          = module.cloudfront_private.distribution_domain_name
   admin_app_hostname                      = local.admin_app_hostname
+  legacy_admin_app_hostname               = local.legacy_admin_app_hostname
   platform_admin_hostname                 = local.platform_admin_hostname
   platform_admin_distribution_domain_name = module.cloudfront_platform_admin.distribution_domain_name
   demo_request_enabled                    = true
@@ -1925,7 +1930,9 @@ module "cloudfront_private" {
   environment                            = var.env
   admin_bucket_regional_domain_name      = module.admin_front_end_asset.bucket_regional_domain_name
   menu_image_bucket_regional_domain_name = module.menu_image.bucket_regional_domain_name
-  aliases                                = local.platform_domain_enabled ? [local.admin_app_hostname] : []
+  aliases                                = local.platform_domain_enabled ? [local.admin_app_hostname, local.legacy_admin_app_hostname] : []
+  canonical_host                         = local.platform_domain_enabled ? local.admin_app_hostname : ""
+  legacy_hosts                           = local.platform_domain_enabled ? [local.legacy_admin_app_hostname] : []
   acm_certificate_arn                    = local.platform_domain_enabled ? module.platform_domain[0].certificate_arn : ""
   # From the API's id, not its stage URL: the stage waits for routes and
   # their Lambdas, some of which take the admin app's URL (a cycle).

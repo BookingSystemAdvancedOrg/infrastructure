@@ -6,7 +6,7 @@ document is what the handlers must implement for that to hold.
 
 ## Decisions this design is built on
 
-- Customers are private (B2C) **and** companies (B2B); no customer account —
+- Customers are private (B2C) **and** companies (B2B); no customer account -
   access is a magic link.
 - The owner can adjust an offer freely; every save is a new, immutable
   offer version. The customer signs **one specific version**.
@@ -50,7 +50,7 @@ expired
 `closed` = delivered **and** paid (B2C at confirmation, B2B when the
 invoice is paid). Every transition is a conditional `UpdateItem` on
 `status` **and** `version` (optimistic lock, `version = version + 1`) plus
-an `AUDIT#` entry in catering-request-history — in one
+an `AUDIT#` entry in catering-request-history - in one
 `TransactWriteItems` when capacity is involved.
 
 | Transition | Written by | Trigger |
@@ -70,33 +70,33 @@ an `AUDIT#` entry in catering-request-history — in one
 
 **catering-requests** (PK `LOCATION#<locationId>`)
 
-- `REQUEST#<requestId>` — head item: `status`, `version`, `customerType`
+- `REQUEST#<requestId>` - head item: `status`, `version`, `customerType`
   (`private`/`company`), contact + company fields, `deliveryDate`,
   `fulfilment` (`pickup`/`delivery`), `priceSnapshot`,
   `currentOfferVersion`, `validUntil`, `linkVersion`, `signedOfferVersion`,
   `signedDocHash`, `stripeCheckoutSessionId`, `stripeInvoiceId`,
   `invoiceNumber`, `invoiceStatus`.
-- `CAPACITY#<yyyy-mm-dd>` — `heldServings`; reserve with
+- `CAPACITY#<yyyy-mm-dd>` - `heldServings`; reserve with
   `ADD heldServings :n` + condition `heldServings + :n <= maxServingsPerDay`.
 
-**catering-request-history** (PK `REQUEST#<requestId>`, append-only —
+**catering-request-history** (PK `REQUEST#<requestId>`, append-only -
 always `PutItem` with `attribute_not_exists(SK)`)
 
-- `OFFER#v0001` — line items, VAT per line, delivery fee, terms text,
+- `OFFER#v0001` - line items, VAT per line, delivery fee, terms text,
   `validUntil`, `pdfKey`, `pdfSha256`.
-- `AUDIT#<ISO ts>#<seq>` — actor, action, from/to status, IP, user agent,
+- `AUDIT#<ISO ts>#<seq>` - actor, action, from/to status, IP, user agent,
   document hash. Webhook-driven entries use `AUDIT#STRIPE#<evt id>` /
   `AUDIT#SIGNING#<event id>` instead, which doubles as the dedup key.
 
-**Webhook deduplication** — no separate table. Each webhook handler first
+**Webhook deduplication** - no separate table. Each webhook handler first
 writes its audit entry as `AUDIT#STRIPE#<evt id>` / `AUDIT#SIGNING#<event id>`
 in catering-request-history with `attribute_not_exists(SK)`; on
 `ConditionalCheckFailed` (a redelivery), return 200 and stop. Status updates
 stay conditional on `status` + `version` as a second guard.
 
-**catering-documents** (S3, Object Lock) — `<tenantId>/offers/<requestId>/v<NNNN>.pdf`,
+**catering-documents** (S3, Object Lock) - `<tenantId>/offers/<requestId>/v<NNNN>.pdf`,
 `<tenantId>/signed/<requestId>/v<NNNN>.pdf`, `<tenantId>/invoices/<stripeInvoiceId>.pdf`. Never
-hand out object URLs — presigned GET only.
+hand out object URLs - presigned GET only.
 
 ## Magic links
 
@@ -160,7 +160,7 @@ Covered platform-wide, not just for catering - see `storage/sqs/dead-letter`.
 | `scheduled-invocation-dlq` | EventBridge Scheduler, when it can't reach `catering-lifecycle` at all (`DeadLetterConfig` set by catering-lifecycle's app code) | The schedule's input |
 
 `dlq-replay` drains all three on a recurring schedule
-(`dlq_replay_interval_minutes`: 6 in dev, 720 in prod) and redelivers each
+(`dlq_replay_interval_minutes`: 6 in dev, 720 in production) and redelivers each
 item to the Lambda that owns it - scheduled invocations to the function in
 the record (allow-listed), stream pointers by re-reading the records
 (possible for ~24h). A message is deleted only after the owning Lambda

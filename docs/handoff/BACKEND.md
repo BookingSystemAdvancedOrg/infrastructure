@@ -214,7 +214,7 @@ structured JSON (e.g. Powertools Logger `append_keys`).
 | **get-menu, get-availability, create-pending-reservation, cancel-reservation, payment-intent** (public) | `for_public(locationId, feature)`. Reservation/order ids in later calls must be checked back to that location. |
 | **every JWT route on `/locations/{locationId}/...`** (menu, layout, block-table, orders, catering-offer, catering-settings, catering-discount-tiers, mark-arrived, pre-signed-url...) | `for_jwt(event, location_id, feature)`. Routes keyed by `{reservationId}`/`{orderId}` without a location: load the item, then check its location belongs to the tenant. |
 | **pre-signed-url** | Keys under `menu-images/<tenantId>/<locationId>/...` (§2.4); verify the location first. |
-| **catering-requests** (public POST) | `for_public(locationId, "catering")`. Turnstile: after `siteverify`, check the returned `hostname` is a domain of THIS tenant (`DOMAIN#<hostname>` → `tenantId` matches - the `<slug>.<platform domain>` subdomain has a `DOMAIN#` row too; outside prod also accept `localhost` and `*.cloudfront.net`). Stops a token minted on one tenant's site being replayed against another tenant. |
+| **catering-requests** (public POST) | `for_public(locationId, "catering")`. Turnstile: after `siteverify`, check the returned `hostname` is a domain of THIS tenant (`DOMAIN#<hostname>` → `tenantId` matches - the `<slug>.<platform domain>` subdomain has a `DOMAIN#` row too; outside production also accept `localhost` and `*.cloudfront.net`). Stops a token minted on one tenant's site being replayed against another tenant. |
 | **catering-customer, catering-offer, catering-lifecycle, catering-document, catering-signing-webhook, catering-stripe-webhook** | Tenant from the location of the request. Stripe changes per §5. Tax rates: `tenant.stripe.taxRates[<key>]` (same keys as before, e.g. `food`) instead of `STRIPE_TAX_RATE_IDS`. Signing orders: put `tenantId`, `locationId`, `requestId` in the provider's metadata and verify them in the webhook. Magic links: base URL per §4.3. |
 | **notification** | Sender, links and SMS per §4.3. Tenant from the stream item's `tenantId` (new writes) or its location. |
 | **stripe-webhook, webhook-payment-intent** | Endpoints are now Connect endpoints - §5.3. |
@@ -292,7 +292,7 @@ Stripe Elements with `Stripe(pk, { stripeAccount: acct })` (`pk` from
 - `stripe-webhook`, `webhook-payment-intent`, `catering-stripe-webhook`
   now receive **Connect** events: tenant = `STRIPE_ACCOUNT#<event.account>`
   row in the tenant table. Unknown account → 200 + log (don't make Stripe retry).
-- Check `event.livemode`: dev processes test events only, prod live only
+- Check `event.livemode`: dev processes test events only, production live only
   (a live Connect endpoint also receives connected accounts' test events).
 - Cross-check `metadata.locationId` of the object against the tenant.
 - Signing secrets unchanged in mechanism (`*_WEBHOOK_SECRET_ARN`).
@@ -363,7 +363,7 @@ to parse executions beyond the onboarding summary.
 
 ### 6.3 tenant-site-config - `GET /site-config` (public)
 
-Query `host=<hostname>` (lowercase, strip port) **or**, outside prod,
+Query `host=<hostname>` (lowercase, strip port) **or**, outside production,
 `slug=<slug>` (sites on `*.cloudfront.net` can't be mapped by host).
 
 1. `DOMAIN#<host>` → `tenantId` (or `SLUG#<slug>`); the tenant's `DOMAIN#`

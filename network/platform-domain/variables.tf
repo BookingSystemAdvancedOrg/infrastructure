@@ -62,8 +62,14 @@ variable "tenant_subdomains_enabled" {
   default     = false
 }
 
+variable "legacy_admin_app_hostname" {
+  description = "The admin app's first hostname, e.g. restaurant.booqy.se - still points at the admin distribution, which redirects it to admin_app_hostname"
+  type        = string
+  sensitive   = false
+}
+
 variable "admin_app_hostname" {
-  description = "Hostname of the restaurant admin app (admin-front-end), e.g. restaurant.booqy.se"
+  description = "Hostname of the restaurant admin app (admin-front-end), e.g. restaurang.booqy.se"
   type        = string
   sensitive   = false
 }

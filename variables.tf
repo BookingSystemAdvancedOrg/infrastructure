@@ -74,7 +74,7 @@ variable "platform_operator_emails" {
 }
 variable "platform_domain" {
   type        = string
-  description = "Domain the platform owns, e.g. bokning.example.se. Empty (default) switches off everything that needs it: tenant subdomains (<slug>.<domain>), customer custom domains (CloudFront multi-tenant distribution), restaurant./admin. aliases and the SES sending domain. Setting it creates a Route 53 hosted zone - delegate the domain to the name servers in the platform_domain_name_servers output."
+  description = "Domain the platform owns, e.g. bokning.example.se. Empty (default) switches off everything that needs it: tenant subdomains (<slug>.<domain>), customer custom domains (CloudFront multi-tenant distribution), restaurang./admin. aliases and the SES sending domain. Setting it creates a Route 53 hosted zone - delegate the domain to the name servers in the platform_domain_name_servers output."
   sensitive   = false
   default     = ""
 
@@ -107,7 +107,7 @@ variable "platform_subdomain_delegations" {
 
 variable "tenant_sites_enabled" {
   type        = bool
-  description = "Serve restaurant websites (the shared customer-front-end build) on each restaurant's own domain, attached from Booqy Console: CloudFront multi-tenant distribution + connection group, one CNAME per restaurant. Off = custom domains are refused and the platform domain is used only for restaurant. (admin app), admin. (Booqy Console) and mail. (SES)."
+  description = "Serve restaurant websites (the shared customer-front-end build) on each restaurant's own domain, attached from Booqy Console: CloudFront multi-tenant distribution + connection group, one CNAME per restaurant. Off = custom domains are refused and the platform domain is used only for restaurang. (admin app), admin. (Booqy Console) and mail. (SES)."
   sensitive   = false
   default     = false
 }

@@ -1,6 +1,6 @@
 # Platform setup (once per environment)
 
-What you do **once** for dev and once for prod so that adding a restaurant
+What you do **once** for dev and once for production so that adding a restaurant
 afterwards is code-less (`docs/TENANT-ONBOARDING.md`). Architecture:
 `docs/MULTI-TENANCY.md`.
 
@@ -27,9 +27,9 @@ workflow. You never handle a restaurant's keys.
 - [ ] Accounts are created with **Accounts v2** (`POST /v2/core/accounts`):
       Stripe refuses v1 account creation for new Connect platforms. Leave
       "Accounts v1 support" (Settings → Developers → API policies) **off**.
-- [ ] Sandbox (dev) and live (prod) are separate: repeat the Connect
+- [ ] Sandbox (dev) and live (production) are separate: repeat the Connect
       setup in the sandbox.
-- [ ] Keys - per environment (sandbox for dev, live for prod):
+- [ ] Keys - per environment (sandbox for dev, live for production):
 
 | Key | Where | Needs |
 |---|---|---|
@@ -39,7 +39,7 @@ workflow. You never handle a restaurant's keys.
 
   ```
   aws secretsmanager put-secret-value --secret-id dev-stripe/api-key \
-    --secret-string '{"apiKey":"rk_test_..."}'      # prod: stripe/api-key
+    --secret-string '{"apiKey":"rk_test_..."}'      # production: stripe/api-key
   ```
 
   If a restricted key gets permission errors on a Connect call, the
@@ -61,12 +61,12 @@ workflow. You never handle a restaurant's keys.
   Tenants onboarded before that: **Re-run provisioning** on their page in
   the operator app creates the missing rates.
 
-## 2. SES (start early - prod needs production access)
+## 2. SES (start early - the production account needs SES production access)
 
 - [ ] Before a platform domain exists, mail goes from
       `NO_REPLY_EMAIL_ADDRESS` (`project.env`) - verify it in SES in both
       accounts.
-- [ ] Prod: request SES **production access** (sandbox only sends to
+- [ ] Production: request SES **production access** (sandbox only sends to
       verified recipients; ~24 h).
 - [ ] Once the platform domain is live (§3) Terraform creates the
       `mail.<platform domain>` identity with DKIM, MAIL FROM and DMARC;
@@ -94,12 +94,12 @@ workflow. You never handle a restaurant's keys.
       (`dev-staff-user-pool` in dev, `staff-user-pool` in prod.)
 - [ ] **SMS** (guest confirmations/reminders, when a restaurant turns SMS
       on): new accounts are in the SNS SMS sandbox and have a 1 USD/month
-      SMS quota. Prod: request SMS production access and a higher monthly
+      SMS quota. Production: request SMS production access and a higher monthly
       quota (support case), then set `sms_monthly_spend_limit_usd` in
       prod.tfvars - Terraform sets the account's spend limit and alarms at
       80 % of it. Check the current limit first
       (`aws sns get-sms-attributes --region eu-north-1`): a lower value in
-      tfvars stops SMS sooner. Unset (prod today), the account's SMS
+      tfvars stops SMS sooner. Unset (production today), the account's SMS
       settings are left alone and there is no spend alarm. SMS only go to
       Nordic numbers (+46, +45, +47, +358, +354); everyone else gets the
       email only.
@@ -116,7 +116,7 @@ workflow. You never handle a restaurant's keys.
       every email to a private S3 bucket (`dev-mail-outbox-<account>`)
       instead of sending it, and copies every SMS there too (the SMS is
       still sent). Read them in Booqy Console → **Mail outbox** (HTML, text and
-      every link in the message). Kept 30 days; can't be turned on in prod
+      every link in the message). Kept 30 days; can't be turned on in production
       (variable validation). Set it to `false` once
       `mail.dev.booqy.se` is verified to send for real.
 - [ ] SES and SMS alarms (bounce rate, complaint rate, SMS spend) mail
@@ -156,7 +156,7 @@ apps run on `*.cloudfront.net` and restaurants have no website URL yet.
       `<env->catering/signing-provider` picks the provider
       (application `shared/bankid.py`):
   - **Quick dev test, no BankID at all** - the simulator (refused in
-    prod): signs as "Test Testsson" on the second status poll:
+    production): signs as "Test Testsson" on the second status poll:
     `aws secretsmanager put-secret-value --region eu-north-1 --secret-id dev-catering/signing-provider --secret-string '{"provider":"simulator"}'`
   - **BankID test environment** (real BankID app in test mode): download
     BankID's public test RP certificate (`FPTestcert5_*.p12`, password
@@ -202,9 +202,9 @@ apps run on `*.cloudfront.net` and restaurants have no website URL yet.
       GitHub template). Site repos must match `tenant_site_repo_pattern`
       (`site-*`).
 - [ ] Push to `dev` → the pipeline applies, deploys placeholders. Merge
-      to `main` for prod.
+      to `main` for production.
 
-## 7. Smoke test (dev, then prod)
+## 7. Smoke test (dev, then production)
 
 - [ ] Sign in to the operator app; create a test tenant with your own
       email as owner → status `active` within a minute.

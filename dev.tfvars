@@ -17,7 +17,7 @@ alert_emails = [
 
 # Domain the platform owns. Dev runs on dev.booqy.se: its own hosted zone in
 # THIS account (created by hand, delegated from the booqy.se zone in prod), so
-# dev and prod DNS never touch. Turns on the restaurant./admin. hostnames,
+# dev and prod DNS never touch. Turns on the restaurang./admin. hostnames,
 # the SES sending domain mail.dev.booqy.se and (tenant_sites_enabled below)
 # restaurant custom domains (see docs/PLATFORM-SETUP.md, "Platform domain").
 # dev.booqy.se is delegated from the booqy.se zone in prod (NS record, also
@@ -28,9 +28,17 @@ platform_domain_zone_id = "Z0571042RSRT4D1DDZ1L"
 
 # Restaurant websites on each restaurant's own domain (e.g. www.arya.se),
 # attached from Booqy Console: the restaurant adds one CNAME, CloudFront
-# issues the certificate. No <slug>.<domain> sites - booqy.se itself never
-# hosts a restaurant site (tenant_subdomains_enabled stays false).
+# issues the certificate.
 tenant_sites_enabled = true
+
+# Dev only: every restaurant also gets <slug>.dev.booqy.se at onboarding, so
+# its site works (and can be previewed) before a custom domain is attached.
+# A *.dev.booqy.se CNAME to the connection group; every fixed name in the zone
+# (dev., www., restaurang., restaurant., admin., mail.) has its own records,
+# so the wildcard never captures them. Adds cloudfront:CreateDistributionTenant
+# / GetDistributionTenant to the onboarding workflow role (owner-approved
+# 2026-10-20). Whether prod should do the same is still open.
+tenant_subdomains_enabled = true
 
 # Public keys handed to restaurant websites by GET /site-config - not
 # secrets (see docs/PLATFORM-SETUP.md).

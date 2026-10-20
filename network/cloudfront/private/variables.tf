@@ -16,8 +16,22 @@ variable "menu_image_bucket_regional_domain_name" {
   sensitive   = false
 }
 
+variable "canonical_host" {
+  description = "The admin app's own hostname (restaurang.<platform domain>); requests for a legacy_hosts name are redirected here. Empty = no redirect"
+  type        = string
+  sensitive   = false
+  default     = ""
+}
+
+variable "legacy_hosts" {
+  description = "Old hostnames still served by this distribution only to redirect (301) to canonical_host - e.g. restaurant.<platform domain>"
+  type        = list(string)
+  sensitive   = false
+  default     = []
+}
+
 variable "aliases" {
-  description = "Custom hostnames for this distribution (restaurant.<platform domain>); empty until the platform domain is set"
+  description = "Custom hostnames for this distribution (restaurang.<platform domain> plus the legacy restaurant. name); empty until the platform domain is set"
   type        = list(string)
   sensitive   = false
   default     = []

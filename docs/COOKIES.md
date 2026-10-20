@@ -46,7 +46,7 @@ referrer policy. Plus a full CSP on the admin app and the Console, and
 `frame-ancestors 'none'` on the restaurant sites (their page CSP stays in
 customer-front-end's `index.html`).
 
-## Rollout (dev first, then the same order to prod)
+## Rollout (dev first, then the same order to production)
 
 1. **infrastructure**: IAM for GetTokensFromRefreshToken/RevokeToken, the edge
    secret, manage-auth's new env vars, CloudFront `/api` and headers, refresh

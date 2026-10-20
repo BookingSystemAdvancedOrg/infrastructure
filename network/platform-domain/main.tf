@@ -11,7 +11,8 @@
 #   connection group              the CNAME target customers point at
 #   *.<domain>  -> connection group   only with var.tenant_subdomains_enabled
 #                                 (<slug>.<domain>); off = own domains only
-#   restaurant.<domain>          restaurant admin app (admin-front-end)
+#   restaurang.<domain>          restaurant admin app (admin-front-end)
+#   restaurant.<domain>          its first name - redirects to restaurang.
 #   admin.<domain>               operator app (Booqy Console)
 #   mail.<domain>                 SES sending domain (DKIM, MAIL FROM, DMARC)
 #
@@ -267,7 +268,25 @@ resource "aws_route53_record" "tenant_sites_wildcard" {
 # --- Fixed hostnames for the two admin apps ---------------------------------------
 # More specific than the wildcard, so they win over it.
 
+# The admin app's first name (restaurant.<domain>). Kept as this resource,
+# unchanged, so renaming the app to restaurang. never deletes and recreates
+# this record (no DNS gap, no moved block). The distribution redirects it.
 resource "aws_route53_record" "app" {
+  for_each = toset(["A", "AAAA"])
+
+  zone_id = aws_route53_zone.platform.zone_id
+  name    = var.legacy_admin_app_hostname
+  type    = each.value
+
+  alias {
+    name                   = var.admin_distribution_domain_name
+    zone_id                = local.cloudfront_zone_id
+    evaluate_target_health = false
+  }
+}
+
+# restaurang.<domain> - the admin app's current name.
+resource "aws_route53_record" "admin_app" {
   for_each = toset(["A", "AAAA"])
 
   zone_id = aws_route53_zone.platform.zone_id
