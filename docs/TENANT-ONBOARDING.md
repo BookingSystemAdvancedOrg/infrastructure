@@ -144,24 +144,42 @@ it's `live` - one bill, renewals handled by us; .se/.com/.eu/.net only):
       one.com plan - but must keep any *email* subscription there if their
       MX records still point at one.com.
 
+## 5b. Subscription (invoicing)
+
+Operator app → tenant → **Billing** → **Start subscription**, once the
+restaurant is live and the contract says so. Choose invoice by email
+(default; due in 30 days, paid by card on Stripe's invoice page or by
+bankgiro to you, then marked paid in Stripe) or a card on file (send the
+**card link** first, then "Charge the card"). A later first invoice date
+delays the first invoice; nothing is charged before it. From then on
+Stripe invoices the plan price plus 25 % VAT every month and the Finance
+page shows revenue, AWS cost and margin per customer. Details:
+`docs/FINANCE.md`.
+
 ## 6. Upgrade / downgrade
 
 Operator app → tenant → **Plan**: pick the plan or override
 max locations / features. Takes effect immediately - "2 locations instead
 of 1" is this one action. Lowering below the current number of locations
 asks for confirmation; existing locations keep working, new ones are
-blocked.
+blocked. A running subscription moves to the new plan's price with a
+prorated line on the next invoice.
 
 ## 7. Suspend / resume
 
 **Suspend** (e.g. unpaid subscription): all its users are signed out and
 can't sign in, the API refuses its admin calls, the website shows
 "unavailable", its public endpoints return 404. Data, Stripe account and
-domains stay. **Resume** reverses it.
+domains stay. **Resume** reverses it. The subscription keeps running
+(pause it on the Billing tab if invoicing should stop). A customer whose
+subscription is past due for `billing_suspend_after_days` (14) days is
+suspended automatically by the daily dunning task and resumed when they
+pay.
 
 ## 8. Offboarding
 
-**Offboard** (type the slug to confirm): users disabled and signed out,
+**Offboard** (type the slug to confirm): the subscription is cancelled
+with a final prorated invoice, users disabled and signed out,
 custom and platform domains detached from CloudFront (certificates
 deleted), tenant marked `offboarded` with
 `purgeAt = offboarded + tenant_data_retention_days` (90 in production, 1 in
@@ -188,6 +206,8 @@ Kept on purpose:
   deleted before expiry;
 - their Stripe account - it's theirs; they can disconnect the platform in
   their Stripe dashboard;
+- their Stripe customer and invoices on the platform account, and the
+  finance table rows (what they paid and cost) - bookkeeping;
 - point-in-time backups keep deleted rows for up to 35 days.
 
 A new table that holds tenant data must be added to `tenant_purge_tables`

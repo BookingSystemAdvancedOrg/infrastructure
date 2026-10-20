@@ -433,3 +433,46 @@ resource "aws_iam_role_policy" "self_invoke" {
     ]
   })
 }
+
+# Finance: the Finance page reads the per-day figures and the invoice ledger,
+# starting a subscription writes the Stripe customer lookup (tenant table,
+# already covered above) and importing invoices from Stripe writes ledger
+# rows. Rebuild hands a date range to finance-rollup; the dunning task
+# emails the operators when it suspends or resumes a customer.
+resource "aws_iam_role_policy" "finance" {
+  name = "finance"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "FinanceTable"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:GetItem",
+          "dynamodb:Query",
+          "dynamodb:PutItem",
+          "dynamodb:UpdateItem",
+          "dynamodb:BatchWriteItem",
+        ]
+        Resource = var.finance_table_arn
+      },
+      {
+        Sid    = "RebuildFigures"
+        Effect = "Allow"
+        Action = "lambda:InvokeFunction"
+        Resource = [
+          var.finance_rollup_lambda_arn,
+          "${var.finance_rollup_lambda_arn}:*",
+        ]
+      },
+      {
+        Sid      = "NotifyOperators"
+        Effect   = "Allow"
+        Action   = "sns:Publish"
+        Resource = var.alert_topic_arn
+      },
+    ]
+  })
+}

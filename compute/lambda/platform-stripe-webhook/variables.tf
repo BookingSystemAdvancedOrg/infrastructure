@@ -51,3 +51,8 @@ variable "region" {
   type        = string
   sensitive   = false
 }
+
+variable "finance_table_name" {
+  description = "The finance table the /billing events write invoices and revenue to, passed as an environment variable"
+  type        = string
+}

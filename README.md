@@ -13,6 +13,7 @@ Terraform change, no deploy per customer:
 - [docs/PLATFORM-SETUP.md](docs/PLATFORM-SETUP.md) - one-time setup per environment
 - [docs/TENANT-ONBOARDING.md](docs/TENANT-ONBOARDING.md) - adding, upgrading, suspending, offboarding a restaurant
 - [docs/handoff/BACKEND.md](docs/handoff/BACKEND.md), [docs/handoff/FRONTEND.md](docs/handoff/FRONTEND.md) - what the application and front-end repos implement against this
+- [docs/FINANCE.md](docs/FINANCE.md) - subscription invoicing (Stripe Billing), AWS cost allocation per customer, the finance table and the Finance page
 - [docs/RELEASES.md](docs/RELEASES.md) - rollout order, rolling back each layer, re-running a release, where alarms go
 
 ## CI/CD
@@ -39,7 +40,7 @@ gate in this version.
 | | Where |
 |---|---|
 | Non-secret platform values | `.github/config/project.env`: OIDC role ARNs, state bucket names, region, no-reply email, GitHub org + repo names |
-| Per-environment Terraform values | `dev.tfvars` / `prod.tfvars`: operator emails, alert emails, `platform_domain`, plans, default VAT rates, Stripe publishable key, Turnstile site key |
+| Per-environment Terraform values | `dev.tfvars` / `prod.tfvars`: operator emails, alert emails, `platform_domain`, plans (with `price_sek`), default VAT rates, Stripe publishable key, Turnstile site key, `aws_usd_to_sek` |
 | Secrets | GitHub repo secrets `STRIPE_SECRET_KEY_DEV` / `STRIPE_SECRET_KEY_PROD` (platform Stripe key). Webhook signing secrets are created by Terraform (`payments/stripe`) into Secrets Manager. Set once per environment by hand in Secrets Manager: the Lambdas' Stripe key (`stripe/api-key`), signing provider and Turnstile secrets (`catering/*`) - see docs/PLATFORM-SETUP.md |
 | Per-restaurant data | Nowhere in this repo - the tenant table, written by the operator app |
 
@@ -60,6 +61,6 @@ repo, per account, before the first pipeline run.
 - `security/iam/tenant-context/` - the shared read policy every tenant-aware Lambda gets
 - `network/` - API Gateway (see `network/api-gateway/ROUTES.md`, generated - run `generate_routes.py` after route changes), CloudFront, SES; `platform-domain/` = Route 53 zone, multi-tenant distribution, SES domain (only when `platform_domain` is set)
 - `monitoring/` - SNS alert topics + CloudWatch alarms: dead-letter queues and their replay, SES/SMS guardrails, API Gateway and CloudFront front-door alarms, the 5-minute `uptime-check` Lambda
-- `payments/stripe/` - Stripe webhook endpoints as code (per-environment, event lists as variables)
+- `payments/stripe/` - Stripe webhook endpoints as code (per-environment, event lists as variables); `payments/billing/` - the subscription catalog (a Stripe product and monthly price per plan, the VAT rate)
 - `ci/` - placeholder Lambda image + front-ends for bootstrap, `lambda-release.sh` and `smoke-test.sh` (sources of truth for the app repos' copies)
 - `docs/` - the multi-tenancy docs above, [RESERVATION-PAYMENT-FLOW.md](docs/RESERVATION-PAYMENT-FLOW.md) (card-on-file design), [CATERING-FLOW.md](docs/CATERING-FLOW.md) (catering offer → BankID → payment/invoice contract)

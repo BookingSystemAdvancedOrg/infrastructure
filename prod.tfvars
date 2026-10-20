@@ -46,6 +46,26 @@ platform_subdomain_delegations = {
 # stripe_publishable_key = "pk_live_..."
 # turnstile_site_key     = "0x..."
 
+# Subscription prices (SEK per month, excluding VAT) invoiced through Stripe
+# Billing on the platform account (live mode). PLACEHOLDERS: set the real
+# prices before the first subscription is started. Changing a price creates
+# a new Stripe price; a customer moves to it the next time their plan is
+# saved in Booqy Console.
+plans = {
+  starter = {
+    name          = "Starter"
+    max_locations = 1
+    features      = { reservations = true, ordering = true, catering = false, terminal = true, marketing = false }
+    price_sek     = 990
+  }
+  growth = {
+    name          = "Growth"
+    max_locations = 3
+    features      = { reservations = true, ordering = true, catering = true, terminal = true, marketing = true }
+    price_sek     = 1990
+  }
+}
+
 # VAT rates created on every new restaurant's Stripe account - set once an
 # accountant has confirmed them.
 # default_tax_rates = {

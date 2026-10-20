@@ -94,3 +94,8 @@ variable "mail_outbox_bucket_name" {
   sensitive   = false
   default     = ""
 }
+
+variable "finance_table_name" {
+  description = "The finance table whose per-day counters (emails, sms) this function bumps, passed as an environment variable"
+  type        = string
+}

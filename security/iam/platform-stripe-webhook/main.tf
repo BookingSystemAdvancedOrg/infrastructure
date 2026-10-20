@@ -60,6 +60,28 @@ resource "aws_iam_role_policy" "tenant_table" {
   })
 }
 
+# /billing events: the invoice ledger and the day's revenue figures.
+resource "aws_iam_role_policy" "finance_table" {
+  name = "finance-table-write"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "WriteInvoicesAndRevenue"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:UpdateItem",
+        ]
+        Resource = var.finance_table_arn
+      }
+    ]
+  })
+}
+
 resource "aws_iam_role_policy" "secrets" {
   name = "platform-stripe-secrets"
   role = aws_iam_role.this.id

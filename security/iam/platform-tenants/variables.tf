@@ -119,3 +119,18 @@ variable "from_address" {
   description = "The no-reply address news is sent from - the only From the recipient-identity grant allows"
   type        = string
 }
+
+variable "finance_table_arn" {
+  description = "The finance table (per-day figures, invoice ledger) the Finance page reads and Stripe imports write"
+  type        = string
+}
+
+variable "finance_rollup_lambda_arn" {
+  description = "The finance-rollup Lambda that Rebuild in Booqy Console invokes for a date range"
+  type        = string
+}
+
+variable "alert_topic_arn" {
+  description = "Operator alert topic: the dunning task reports suspensions and resumptions there"
+  type        = string
+}

@@ -164,3 +164,44 @@ variable "support_email_address" {
   description = "Default Reply-To for news to restaurant owners, passed as an environment variable"
   type        = string
 }
+
+variable "finance_table_name" {
+  description = "The finance table (per-day figures, invoice ledger), passed as an environment variable"
+  type        = string
+}
+
+variable "finance_rollup_alias_arn" {
+  description = "Live alias of the finance-rollup Lambda that Rebuild invokes, passed as an environment variable"
+  type        = string
+}
+
+variable "alert_topic_arn" {
+  description = "Operator alert topic the dunning task reports to, passed as an environment variable"
+  type        = string
+}
+
+variable "billing_tax_rate_id" {
+  description = "Stripe tax rate (txr_...) of Swedish VAT, attached to every subscription (payments/billing)"
+  type        = string
+}
+
+variable "billing_days_until_due" {
+  description = "Days until an emailed subscription invoice is due"
+  type        = number
+}
+
+variable "billing_suspend_after_days" {
+  description = "Days past due before the dunning task suspends a customer (0 = never)"
+  type        = number
+}
+
+variable "dunning_schedule_expression" {
+  description = "When the dunning task runs (cron(), UTC)"
+  type        = string
+}
+
+variable "scheduler_invoke_role_arn" {
+  description = "ARN of the role EventBridge Scheduler assumes to invoke this function for the dunning task"
+  type        = string
+  sensitive   = true
+}

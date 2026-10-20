@@ -112,7 +112,21 @@ module "catering_request_history" {
 }
 # Control plane: tenants, their domains/plan/Stripe account, plan catalog
 module "tenant" {
-  source      = "./storage/dynamodb/tenant"
+  source         = "./storage/dynamodb/tenant"
+  environment    = var.env
+  plans          = var.plans
+  plan_price_ids = module.billing_catalog.price_ids
+}
+# Per-customer per-day figures (usage, allocated AWS cost, revenue) and the
+# invoice ledger behind Booqy Console's Finance page. Not purged.
+module "finance" {
+  source      = "./storage/dynamodb/finance"
+  environment = var.env
+}
+# The subscription catalog in the platform Stripe account: a product and a
+# monthly price per plan (var.plans.price_sek) and the Swedish VAT rate.
+module "billing_catalog" {
+  source      = "./payments/billing"
   environment = var.env
   plans       = var.plans
 }
@@ -482,6 +496,7 @@ module "notification_role" {
   catering_link_signing_key_secret_arn = module.catering_secrets.link_signing_key_secret_arn
   mail_outbox_enabled                  = local.mail_outbox_enabled
   mail_outbox_bucket_arn               = local.mail_outbox_arn
+  finance_table_arn                    = module.finance.table_arn
 }
 module "catering_settings_role" {
   source             = "./security/iam/catering-settings"
@@ -621,6 +636,28 @@ module "scheduler_invoke_tenant_purge_role" {
   environment             = var.env
   tenant_purge_lambda_arn = module.tenant_purge_fn.function_arn
 }
+module "finance_rollup_role" {
+  source                = "./security/iam/finance-rollup"
+  environment           = var.env
+  region                = var.aws_region
+  finance_table_arn     = module.finance.table_arn
+  tenant_table_arn      = module.tenant.table_arn
+  location_table_arn    = module.location.table_arn
+  reservation_table_arn = module.reservation.table_arn
+  order_table_arn       = module.order.table_arn
+  log_group_names       = local.tenant_aware_log_groups
+  alert_topic_arn       = module.alerts.topic_arn
+}
+module "scheduler_invoke_finance_rollup_role" {
+  source                    = "./security/iam/scheduler-invoke-finance-rollup"
+  environment               = var.env
+  finance_rollup_lambda_arn = module.finance_rollup_fn.function_arn
+}
+module "scheduler_invoke_platform_tenants_role" {
+  source                      = "./security/iam/scheduler-invoke-platform-tenants"
+  environment                 = var.env
+  platform_tenants_lambda_arn = module.platform_tenants_fn.function_arn
+}
 module "platform_tenants_role" {
   source                             = "./security/iam/platform-tenants"
   environment                        = var.env
@@ -643,6 +680,9 @@ module "platform_tenants_role" {
   mail_outbox_bucket_arn             = local.mail_outbox_arn
   ses_identity_arn                   = local.ses_identity_arn
   from_address                       = local.no_reply_email
+  finance_table_arn                  = module.finance.table_arn
+  finance_rollup_lambda_arn          = module.finance_rollup_fn.function_arn
+  alert_topic_arn                    = module.alerts.topic_arn
 }
 module "tenant_account_role" {
   source             = "./security/iam/tenant-account"
@@ -679,6 +719,7 @@ module "platform_stripe_webhook_role" {
   billing_webhook_secret_arn = module.stripe_webhooks.platform_billing_webhook_secret_arn
   stripe_secret_arn          = module.platform_secrets.stripe_secret_arn
   region                     = var.aws_region
+  finance_table_arn          = module.finance.table_arn
 }
 
 # Shared tenant-context read policy (tenant table + locationId index) on every
@@ -904,6 +945,10 @@ module "reservation_reminders_ecr" {
 }
 module "platform_stripe_webhook_ecr" {
   source      = "./storage/ecr/platform-stripe-webhook"
+  environment = var.env
+}
+module "finance_rollup_ecr" {
+  source      = "./storage/ecr/finance-rollup"
   environment = var.env
 }
 
@@ -1249,6 +1294,7 @@ module "notification_fn" {
   catering_requests_table_name         = module.catering_requests.table_name
   reservation_link_key_secret_arn      = module.reservation_secrets.link_signing_key_secret_arn
   mail_outbox_bucket_name              = local.mail_outbox_bucket
+  finance_table_name                   = module.finance.table_name
 }
 module "pre_signed_url_fn" {
   source                  = "./compute/lambda/pre-signed-url"
@@ -1522,6 +1568,33 @@ module "platform_tenants_fn" {
   mail_outbox_bucket_name            = local.mail_outbox_bucket
   domain_provision_state_machine_arn = module.tenant_workflows.domain_provision_state_machine_arn
   domain_documents_bucket_name       = module.domain_documents.bucket_name
+  finance_table_name                 = module.finance.table_name
+  finance_rollup_alias_arn           = module.finance_rollup_fn.alias_arn
+  alert_topic_arn                    = module.alerts.topic_arn
+  billing_tax_rate_id                = module.billing_catalog.tax_rate_id
+  billing_days_until_due             = var.billing_days_until_due
+  billing_suspend_after_days         = var.billing_suspend_after_days
+  dunning_schedule_expression        = var.billing_dunning_schedule
+  scheduler_invoke_role_arn          = module.scheduler_invoke_platform_tenants_role.role_arn
+}
+# Nightly figures for the Finance page (Cost Explorer, usage per customer,
+# allocation). Booqy Console's Rebuild invokes it for a date range.
+module "finance_rollup_fn" {
+  source                    = "./compute/lambda/finance-rollup"
+  environment               = var.env
+  role_arn                  = module.finance_rollup_role.role_arn
+  ecr_repository_url        = module.finance_rollup_ecr.finance_rollup_ecr_repository_url
+  scheduler_invoke_role_arn = module.scheduler_invoke_finance_rollup_role.role_arn
+  schedule_expression       = var.finance_rollup_schedule
+  finance_table_name        = module.finance.table_name
+  tenant_table_name         = module.tenant.table_name
+  location_table_name       = module.location.table_name
+  reservation_table_name    = module.reservation.table_name
+  order_table_name          = module.order.table_name
+  log_group_names           = local.tenant_aware_log_groups
+  usd_to_sek                = var.aws_usd_to_sek
+  cost_allocation           = var.cost_allocation
+  alert_topic_arn           = module.alerts.topic_arn
 }
 module "tenant_account_fn" {
   source                 = "./compute/lambda/tenant-account"
@@ -1572,6 +1645,7 @@ module "platform_stripe_webhook_fn" {
   stripe_secret_arn          = module.platform_secrets.stripe_secret_arn
   stripe_api_version         = var.stripe_api_version
   region                     = var.aws_region
+  finance_table_name         = module.finance.table_name
 }
 
 
@@ -1672,6 +1746,7 @@ module "lambda_releases" {
     (module.stripe_webhook_fn.function_name)              = { alias_name = module.stripe_webhook_fn.alias_name }
     (module.tenant_account_fn.function_name)              = { alias_name = module.tenant_account_fn.alias_name }
     (module.tenant_purge_fn.function_name)                = { alias_name = module.tenant_purge_fn.alias_name }
+    (module.finance_rollup_fn.function_name)              = { alias_name = module.finance_rollup_fn.alias_name }
     (module.tenant_site_config_fn.function_name)          = { alias_name = module.tenant_site_config_fn.alias_name }
     (module.reservation_reminders_fn.function_name)       = { alias_name = module.reservation_reminders_fn.alias_name }
     (module.webhook_payment_intent_fn.function_name)      = { alias_name = module.webhook_payment_intent_fn.alias_name }
@@ -1791,6 +1866,8 @@ module "marketing" {
   from_address            = local.no_reply_email
   mail_outbox_bucket_name = local.mail_outbox_bucket
   mail_outbox_bucket_arn  = local.mail_outbox_arn
+  finance_table_name      = module.finance.table_name
+  finance_table_arn       = module.finance.table_arn
   # Welcome offer sign-up: the same bot check and attempt counters as the
   # booking and order forms.
   turnstile_required       = var.turnstile_site_key != ""
@@ -1928,6 +2005,13 @@ locals {
     marketing_send             = module.marketing.role_names["marketing-send"]
     marketing_sync             = module.marketing.role_names["marketing-sync"]
   }
+
+  # Log groups finance-rollup counts API requests in: every Lambda that
+  # resolves a tenant (shared/tenant.py logs one line per request).
+  tenant_aware_log_groups = [
+    for name in keys(local.tenant_aware_role_names) :
+    "/aws/lambda/${var.env == "prod" ? "" : "${var.env}-"}${replace(name, "_", "-")}"
+  ]
 }
 
 # --- Platform domain (off until var.platform_domain is set) --------------------

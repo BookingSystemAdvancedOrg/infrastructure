@@ -65,3 +65,8 @@ variable "mail_outbox_enabled" {
   sensitive   = false
   default     = false
 }
+
+variable "finance_table_arn" {
+  description = "The finance table whose per-day counters (emails, sms) this role may bump"
+  type        = string
+}

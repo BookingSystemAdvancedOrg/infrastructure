@@ -1440,6 +1440,16 @@ locals {
     "GET /platform/mail/newsletters",
     "POST /platform/mail/newsletters",
     "GET /platform/mail/newsletters/{newsletterId}",
+    # Finance: the customers' subscriptions (Stripe Billing on the platform
+    # account) and the Finance page (revenue, AWS cost, margin per customer)
+    "GET /platform/finance/overview",
+    "GET /platform/finance/tenants/{tenantId}",
+    "POST /platform/finance/rebuild",
+    "POST /platform/finance/stripe-sync",
+    "GET /platform/tenants/{tenantId}/billing",
+    "POST /platform/tenants/{tenantId}/billing/subscription",
+    "PATCH /platform/tenants/{tenantId}/billing/subscription",
+    "POST /platform/tenants/{tenantId}/billing/card-link",
   ]
 }
 

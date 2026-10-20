@@ -148,3 +148,13 @@ variable "catering_requests_role_name" {
   description = "catering-requests' role: gets update access for statistics and opt-in"
   type        = string
 }
+
+variable "finance_table_name" {
+  description = "The finance table whose per-day counter (marketingEmails) marketing-send bumps"
+  type        = string
+}
+
+variable "finance_table_arn" {
+  description = "ARN of the finance table (marketing-send: UpdateItem on the counters)"
+  type        = string
+}

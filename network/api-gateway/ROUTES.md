@@ -76,7 +76,7 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | POST | `/platform/tenants/{tenantId}/suspend` | JWT (operator) | platform-tenants |
 | POST | `/platform/tenants/{tenantId}/resume` | JWT (operator) | platform-tenants |
 | POST | `/platform/tenants/{tenantId}/offboard` | JWT (operator) | platform-tenants |
-| POST | `/platform/tenants/{tenantId}/purge` | JWT (operator) | platform-tenants (offboarded only: delete data at the next tenant-purge run) |
+| POST | `/platform/tenants/{tenantId}/purge` | JWT (operator) | platform-tenants |
 | POST | `/platform/tenants/{tenantId}/onboarding/retry` | JWT (operator) | platform-tenants |
 | GET | `/platform/tenants/{tenantId}/users` | JWT (operator) | platform-tenants |
 | POST | `/platform/tenants/{tenantId}/owners` | JWT (operator) | platform-tenants |
@@ -108,6 +108,21 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | POST | `/platform/operators/{username}/resend-invite` | JWT (operator) | platform-tenants |
 | GET | `/platform/outbox` | JWT (operator) | platform-tenants |
 | GET | `/platform/outbox/{messageId}` | JWT (operator) | platform-tenants |
+| GET | `/platform/mail/template` | JWT (operator) | platform-tenants |
+| PUT | `/platform/mail/template` | JWT (operator) | platform-tenants |
+| POST | `/platform/mail/preview` | JWT (operator) | platform-tenants |
+| GET | `/platform/mail/recipients` | JWT (operator) | platform-tenants |
+| GET | `/platform/mail/newsletters` | JWT (operator) | platform-tenants |
+| POST | `/platform/mail/newsletters` | JWT (operator) | platform-tenants |
+| GET | `/platform/mail/newsletters/{newsletterId}` | JWT (operator) | platform-tenants |
+| GET | `/platform/finance/overview` | JWT (operator) | platform-tenants |
+| GET | `/platform/finance/tenants/{tenantId}` | JWT (operator) | platform-tenants |
+| POST | `/platform/finance/rebuild` | JWT (operator) | platform-tenants |
+| POST | `/platform/finance/stripe-sync` | JWT (operator) | platform-tenants |
+| GET | `/platform/tenants/{tenantId}/billing` | JWT (operator) | platform-tenants |
+| POST | `/platform/tenants/{tenantId}/billing/subscription` | JWT (operator) | platform-tenants |
+| PATCH | `/platform/tenants/{tenantId}/billing/subscription` | JWT (operator) | platform-tenants |
+| POST | `/platform/tenants/{tenantId}/billing/card-link` | JWT (operator) | platform-tenants |
 | GET | `/tenant` | JWT | tenant-account |
 | PATCH | `/tenant` | JWT | tenant-account |
 | POST | `/tenant/stripe/account-link` | JWT | tenant-account |

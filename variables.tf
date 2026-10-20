@@ -131,20 +131,87 @@ variable "plans" {
     name          = string
     max_locations = number
     features      = map(bool)
+    price_sek     = number
   }))
-  description = "Plan catalog (packages you sell). A tenant's limits are copied from its plan when the plan is assigned and can be overridden per tenant from the platform dashboard - no deploy either way. Feature keys: reservations, ordering, catering, terminal (card readers for in-person payments, managed from Booqy Console), marketing (visit statistics and email campaigns to guests who opted in)."
+  description = "Plan catalog (packages you sell). A tenant's limits are copied from its plan when the plan is assigned and can be overridden per tenant from the platform dashboard - no deploy either way. Feature keys: reservations, ordering, catering, terminal (card readers for in-person payments, managed from Booqy Console), marketing (visit statistics and email campaigns to guests who opted in). price_sek: the monthly subscription price excluding VAT, invoiced through Stripe Billing on the platform account (payments/billing creates the Stripe product and price; a changed price archives the old Stripe price and applies to a customer the next time their plan is saved in Booqy Console)."
   sensitive   = false
   default = {
     starter = {
       name          = "Starter"
       max_locations = 1
       features      = { reservations = true, ordering = true, catering = false, terminal = true, marketing = false }
+      price_sek     = 990
     }
     growth = {
       name          = "Growth"
       max_locations = 3
       features      = { reservations = true, ordering = true, catering = true, terminal = true, marketing = true }
+      price_sek     = 1990
     }
+  }
+
+  validation {
+    condition     = alltrue([for p in var.plans : p.price_sek >= 0 && floor(p.price_sek) == p.price_sek])
+    error_message = "price_sek must be a whole number of SEK per month (0 or more)."
+  }
+}
+
+# --- Finance: subscription invoicing and the cost/margin figures -------------
+variable "billing_days_until_due" {
+  type        = number
+  description = "Days a restaurant has to pay a subscription invoice sent by email (Stripe collection method send_invoice)."
+  sensitive   = false
+  default     = 30
+}
+variable "billing_suspend_after_days" {
+  type        = number
+  description = "A customer whose subscription has been past due this many days is suspended automatically by the nightly dunning task (same as Suspend in Booqy Console; resumed again when the invoice is paid). 0 = never suspend automatically."
+  sensitive   = false
+  default     = 14
+}
+variable "billing_dunning_schedule" {
+  type        = string
+  description = "EventBridge Scheduler expression (UTC) for the dunning task: platform-tenants checks past-due subscriptions and suspends / resumes customers."
+  sensitive   = false
+  default     = "cron(0 5 * * ? *)"
+}
+variable "finance_rollup_schedule" {
+  type        = string
+  description = "EventBridge Scheduler expression (UTC) for finance-rollup: pulls the account's cost from Cost Explorer, counts usage per customer and writes the per-day figures the Finance page reads. AWS has yesterday's cost ready a few hours after midnight UTC."
+  sensitive   = false
+  default     = "cron(30 4 * * ? *)"
+}
+variable "aws_usd_to_sek" {
+  type        = number
+  description = "Exchange rate used to show AWS cost (billed in USD) in SEK on the Finance page. Recorded on every cost row when it is written, so a change applies from the next run (Rebuild in Booqy Console recomputes a range)."
+  sensitive   = false
+  default     = 10.5
+}
+variable "cost_allocation" {
+  type = object({
+    baseline = list(string)
+    email    = list(string)
+    sms      = list(string)
+  })
+  description = "How each AWS service's daily cost is split between customers (Cost Explorer service names). baseline: shared platform cost split equally over the customers active that day. email: split by emails sent. sms: split by SMS sent. Every other service is split by API requests. Move a service between lists without a code change."
+  sensitive   = false
+  default = {
+    baseline = [
+      "Amazon Route 53",
+      "AWS Secrets Manager",
+      "AWS Key Management Service",
+      "Amazon Elastic Container Registry (ECR)",
+      "Amazon EC2 Container Registry (ECR)",
+      "AWS Config",
+      "AWS CloudTrail",
+      "AWS Support (Developer)",
+      "AWS Support (Business)",
+      "Tax",
+      "AWS Cost Explorer",
+      "Amazon Registrar",
+    ]
+    email = ["Amazon Simple Email Service"]
+    sms   = ["Amazon Simple Notification Service"]
   }
 }
 variable "default_tax_rates" {
