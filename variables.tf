@@ -199,6 +199,18 @@ variable "billing_interest_margin_pct" {
   sensitive   = false
   default     = 8
 }
+variable "billing_notice_months" {
+  type        = number
+  description = "Notice period for a customer on subscription terms: a cancellation takes effect this many months after the end of the current billing month (the customer pays that many more monthly invoices). A customer in a try-out period leaves at the end of the paid month instead."
+  sensitive   = false
+  default     = 3
+}
+variable "billing_trial_months" {
+  type        = number
+  description = "A customer started on try-out terms becomes a subscription (with the notice period) automatically after this many months, unless converted earlier from Booqy Console. 0 = never automatically."
+  sensitive   = false
+  default     = 6
+}
 variable "billing_dunning_schedule" {
   type        = string
   description = "EventBridge Scheduler expression (UTC) for the dunning task: platform-tenants checks past-due subscriptions and suspends / resumes customers."

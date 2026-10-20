@@ -20,3 +20,9 @@ variable "plan_price_ids" {
   type        = map(string)
   sensitive   = false
 }
+
+variable "plan_product_ids" {
+  description = "Stripe product id per plan id (payments/billing) - stored on the PLAN# rows as stripeProductId; a customer's own monthly price is created on it"
+  type        = map(string)
+  sensitive   = false
+}

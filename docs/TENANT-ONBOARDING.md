@@ -146,15 +146,21 @@ it's `live` - one bill, renewals handled by us; .se/.com/.eu/.net only):
 
 ## 5b. Subscription (invoicing)
 
-Operator app → tenant → **Billing** → **Start subscription**, once the
-restaurant is live and the contract says so. Choose invoice by email
-(default; due in 30 days, paid by card on Stripe's invoice page or by
-bankgiro to you, then marked paid in Stripe) or a card on file (send the
-**card link** first, then "Charge the card"). A later first invoice date
-delays the first invoice; nothing is charged before it. From then on
-Stripe invoices the plan price plus 25 % VAT every month and the Finance
-page shows revenue, AWS cost and margin per customer. Details:
-`docs/FINANCE.md`.
+On the **New customer** form, section 4b: the monthly price (the plan's,
+or this customer's own amount), the terms and "Start invoicing when the
+customer is created" (on by default; a later first invoice date delays
+the first invoice, nothing is charged before it). Terms: **try-out
+period** (pays monthly, may leave at the end of any paid month, becomes a
+subscription after 6 months or when you convert them) or **subscription**
+(3 months' notice). Invoices are by email, due in 30 days, paid by card
+on Stripe's invoice page or by bankgiro to you (then marked paid in
+Stripe); a card on file is possible too (send the **card link**, then
+"Charge the card" on the Billing tab). From then on Stripe invoices the
+price plus 25 % VAT every month and the Finance page shows revenue, AWS
+cost and margin per customer and location. Cancelling (Billing tab) ends
+a try-out with the paid month and a subscription three months after the
+current month, and offboards the customer when it ends unless you untick
+that. Details: `docs/FINANCE.md`.
 
 ## 6. Upgrade / downgrade
 
@@ -162,8 +168,8 @@ Operator app → tenant → **Plan**: pick the plan or override
 max locations / features. Takes effect immediately - "2 locations instead
 of 1" is this one action. Lowering below the current number of locations
 asks for confirmation; existing locations keep working, new ones are
-blocked. A running subscription moves to the new plan's price with a
-prorated line on the next invoice.
+blocked. A changed plan or price is invoiced from the next month; the
+paid month stays as it is.
 
 ## 7. Suspend / resume
 

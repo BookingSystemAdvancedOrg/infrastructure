@@ -32,7 +32,8 @@
 #                                              var.plans by Terraform:
 #                                              name, maxLocations, features,
 #                                              priceSek (per month, ex VAT),
-#                                              stripePriceId (payments/billing).
+#                                              stripePriceId, stripeProductId
+#                                              (payments/billing).
 #                                              GSI1PK = "PLAN", GSI1SK = planId
 #   STRIPE_CUSTOMER#<cus>  | TENANT           tenantId - billing webhooks carry
 #                                              only the Stripe customer id
@@ -128,7 +129,8 @@ resource "aws_dynamodb_table_item" "plan" {
     features = {
       M = { for feature, enabled in each.value.features : feature => { BOOL = enabled } }
     }
-    priceSek      = { N = tostring(each.value.price_sek) }
-    stripePriceId = { S = var.plan_price_ids[each.key] }
+    priceSek        = { N = tostring(each.value.price_sek) }
+    stripePriceId   = { S = var.plan_price_ids[each.key] }
+    stripeProductId = { S = var.plan_product_ids[each.key] }
   })
 }

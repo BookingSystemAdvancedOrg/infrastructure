@@ -230,3 +230,13 @@ variable "billing_interest_margin_pct" {
   description = "Percentage points over the reference rate for interest on late payments"
   type        = number
 }
+
+variable "billing_notice_months" {
+  description = "Months of notice for a subscription customer's cancellation"
+  type        = number
+}
+
+variable "billing_trial_months" {
+  description = "Months after which a try-out customer becomes a subscription automatically (0 = never)"
+  type        = number
+}

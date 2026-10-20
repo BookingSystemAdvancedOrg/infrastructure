@@ -112,10 +112,11 @@ module "catering_request_history" {
 }
 # Control plane: tenants, their domains/plan/Stripe account, plan catalog
 module "tenant" {
-  source         = "./storage/dynamodb/tenant"
-  environment    = var.env
-  plans          = var.plans
-  plan_price_ids = module.billing_catalog.price_ids
+  source           = "./storage/dynamodb/tenant"
+  environment      = var.env
+  plans            = var.plans
+  plan_price_ids   = module.billing_catalog.price_ids
+  plan_product_ids = module.billing_catalog.product_ids
 }
 # Per-customer per-day figures (usage, allocated AWS cost, revenue) and the
 # invoice ledger behind Booqy Console's Finance page. Not purged.
@@ -1579,6 +1580,8 @@ module "platform_tenants_fn" {
   billing_late_fee_after_days        = var.billing_late_fee_after_days
   billing_reference_rate_pct         = var.billing_reference_rate_pct
   billing_interest_margin_pct        = var.billing_interest_margin_pct
+  billing_notice_months              = var.billing_notice_months
+  billing_trial_months               = var.billing_trial_months
   dunning_schedule_expression        = var.billing_dunning_schedule
   scheduler_invoke_role_arn          = module.scheduler_invoke_platform_tenants_role.role_arn
 }

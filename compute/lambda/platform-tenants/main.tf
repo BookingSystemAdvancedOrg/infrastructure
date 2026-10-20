@@ -88,6 +88,10 @@ resource "aws_lambda_function" "this" {
       BILLING_LATE_FEE_AFTER_DAYS    = tostring(var.billing_late_fee_after_days)
       BILLING_REFERENCE_RATE_PCT     = tostring(var.billing_reference_rate_pct)
       BILLING_INTEREST_MARGIN_PCT    = tostring(var.billing_interest_margin_pct)
+      # Terms: try-out (leave at the end of any month, becomes a subscription
+      # after BILLING_TRIAL_MONTHS) or subscription (BILLING_NOTICE_MONTHS notice)
+      BILLING_NOTICE_MONTHS = tostring(var.billing_notice_months)
+      BILLING_TRIAL_MONTHS  = tostring(var.billing_trial_months)
     }
   }
 
