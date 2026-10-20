@@ -12,21 +12,21 @@
 #             is all-at-once even in prod: a configuration-only release
 #             (environment variables, memory, timeout, role) needs no canary -
 #             the gradual shift and its alarm rollback are for new code.
-#   --notify  always (default): email every result. failure: email only
-#             rollbacks/failures - for pipelines releasing many functions at
-#             once, which send one summary email themselves.
+#   --notify  failure (default): email only failures and rollbacks - a
+#             successful release (or manual rollback) sends nothing. always:
+#             email every result.
 #   --source  free text recorded on the version and in the email,
 #             e.g. "application@1a2b3c4".
 #   --to-version
 #             manual rollback: point "live" straight at an existing version N
 #             (no CodeDeploy - its alarms are usually firing when you roll
-#             back and would undo it), email the result, and put N's image
+#             back and would undo it), and put N's image
 #             back on :latest and $LATEST.
 #
 # Steps: put the image on $LATEST -> publish version N (green) -> CodeDeploy
 # shifts the "live" alias from blue to N (code releases: canary in prod,
 # all-at-once in dev; configuration releases: all-at-once everywhere),
-# rolling back on its own if an alarm fires -> email the result.
+# rolling back on its own if an alarm fires -> email if it failed.
 # On failure the previous image is also put back on :latest and $LATEST, so
 # nothing that invokes the function unqualified, and no later Terraform
 # apply, picks up the broken image.
@@ -37,7 +37,7 @@
 # copy - keep them in sync.
 set -euo pipefail
 
-FN="" APP="" TOPIC="" ENVIRONMENT="" IMAGE="" SOURCE="" TO_VERSION="" NOTIFY="always"
+FN="" APP="" TOPIC="" ENVIRONMENT="" IMAGE="" SOURCE="" TO_VERSION="" NOTIFY="failure"
 ALIAS="live"
 TIMEOUT_SECONDS="${RELEASE_TIMEOUT_SECONDS:-1800}"
 
@@ -99,6 +99,7 @@ if [ -n "$TO_VERSION" ]; then
     --routing-config '{"AdditionalVersionWeights": {}}' >/dev/null
   if restore_image "$green_image"; then restored="yes"; else restored="NO - put $green_image on :latest by hand"; fi
   log "ROLLED BACK - live -> version $green (image restored: $restored)"
+  [ "$NOTIFY" = always ] && \
   notify "[$ENVIRONMENT] ROLLBACK DONE: $FN is on v$green" \
 "$FN ($ENVIRONMENT): the manual rollback finished - 100% of traffic is on version $green.
 
@@ -139,6 +140,39 @@ else
     sleep 5
   done
   log "version $green state: $state"
+
+  # CodeDeploy runs one deployment per function at a time. Another release of
+  # this function (an app pipeline's canary, or this repo's apply racing one)
+  # may still be shifting traffic: wait for it instead of failing, then
+  # release from whatever it left live.
+  active_waited=0
+  while :; do
+    active=$(aws deploy list-deployments --application-name "$APP" --deployment-group-name "$FN" \
+      --include-only-statuses Created Queued InProgress Baking Ready \
+      --query 'deployments[0]' --output text 2>/dev/null) || active="None"
+    if [ -z "$active" ] || [ "$active" = "None" ]; then break; fi
+    if [ "$active_waited" -ge "$TIMEOUT_SECONDS" ]; then
+      log "deployment $active is still running after ${TIMEOUT_SECONDS}s - trying anyway"
+      break
+    fi
+    [ "$active_waited" -eq 0 ] && log "waiting for deployment $active (another release of $FN) to finish"
+    sleep 15
+    active_waited=$((active_waited + 15))
+  done
+  if [ "$active_waited" -gt 0 ]; then
+    live_now=$(aws lambda get-alias --function-name "$FN" --name "$ALIAS" --query FunctionVersion --output text)
+    if [ "$live_now" != "$blue" ]; then
+      log "the other release moved live from version $blue to $live_now"
+      blue="$live_now"
+      blue_image=$(aws lambda get-function --function-name "$FN" --qualifier "$blue" --query Code.ResolvedImageUri --output text)
+    fi
+    # A version is a snapshot of $LATEST when it was published: a newer live
+    # version already contains everything in ours, so going back would undo it.
+    if [ "$green" -le "$blue" ]; then
+      log "nothing to release - live is already on version $blue (this release is version $green)"
+      exit 0
+    fi
+  fi
 fi
 log "releasing version $blue -> $green"
 

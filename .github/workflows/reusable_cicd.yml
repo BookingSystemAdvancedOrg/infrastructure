@@ -11,10 +11,10 @@ jobs:
   terraform:
     runs-on: ubuntu-24.04
     # Deploys (push to dev/main) run in the GitHub environment named like the
-    # target - "prod" has required reviewers, so nothing reaches prod without
-    # an approval. The environment also puts ":environment:<env>" in the OIDC
+    # target - "prod" only accepts main (no approval step), so a merge to main
+    # deploys at once. The environment also puts ":environment:<env>" in the OIDC
     # token's sub, which the AWS deploy roles can trust. PR runs (tests /
-    # plan only) use no environment, so they never wait for approval.
+    # plan only) use no environment.
     environment: ${{ github.event_name == 'push' && inputs.environment || '' }}
     # Never two applies of one environment at once; a queued one waits.
     concurrency:
@@ -178,8 +178,8 @@ jobs:
         # function's configuration (environment variables, memory, timeout,
         # ...) but never moves the "live" alias callers invoke - so such a
         # change is released here exactly like the app repos release code:
-        # CodeDeploy canary, automatic rollback on alarm, result emailed.
-        # Functions whose configuration didn't change are skipped (no email).
+        # CodeDeploy canary, automatic rollback on alarm, failures emailed.
+        # Functions whose configuration did not change are skipped.
         if: github.event_name == 'push'
         run: |
           set -euo pipefail
