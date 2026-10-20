@@ -22,3 +22,8 @@ output "table_name" {
   description = "Marketing table name"
   value       = aws_dynamodb_table.marketing.name
 }
+
+output "table_arn" {
+  description = "Marketing table ARN"
+  value       = aws_dynamodb_table.marketing.arn
+}

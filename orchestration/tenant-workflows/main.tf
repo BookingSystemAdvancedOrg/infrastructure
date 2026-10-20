@@ -9,7 +9,9 @@
 #                         tenant with a CloudFront-managed certificate, poll
 #                         until issued
 #   tenant-domain-detach  disable -> wait for deploy -> delete -> release
-#   tenant-offboarding    block, disable + sign out users, detach domains
+#   tenant-offboarding    block, disable + sign out users, detach domains,
+#                         set purgeAt (the tenant-purge Lambda deletes the
+#                         data once it has passed)
 #   tenant-domain-provision  a domain we run DNS for (bought through Route 53
 #                         Domains, or connected by switching name servers):
 #                         wait for the registry / the name servers -> apex +
@@ -478,6 +480,7 @@ resource "aws_sfn_state_machine" "offboarding" {
     user_tenant_index               = var.user_tenant_index_name
     user_pool_id                    = var.tenant_user_pool_id
     domain_detach_state_machine_arn = aws_sfn_state_machine.domain_detach.arn
+    retention_days                  = var.tenant_data_retention_days
   }))
 
   logging_configuration {

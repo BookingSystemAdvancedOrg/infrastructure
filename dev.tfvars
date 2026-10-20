@@ -71,3 +71,8 @@ mail_outbox = true
 # default_tax_rates = {
 #   food = { display_name = "Moms", percentage = 12, inclusive = true }
 # }
+
+# Offboarded restaurants: data deleted 1 day after offboarding, checked every
+# hour, so the whole flow can be tested in a day.
+tenant_data_retention_days = 1
+tenant_purge_schedule      = "rate(1 hour)"

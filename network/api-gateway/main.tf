@@ -1394,6 +1394,7 @@ locals {
     "POST /platform/tenants/{tenantId}/suspend",
     "POST /platform/tenants/{tenantId}/resume",
     "POST /platform/tenants/{tenantId}/offboard",
+    "POST /platform/tenants/{tenantId}/purge",
     "POST /platform/tenants/{tenantId}/onboarding/retry",
     "GET /platform/tenants/{tenantId}/users",
     "POST /platform/tenants/{tenantId}/owners",

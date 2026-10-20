@@ -207,3 +207,21 @@ variable "refresh_token_rotation_enabled" {
   type        = bool
   default     = false
 }
+
+variable "tenant_data_retention_days" {
+  type        = number
+  description = "Days an offboarded restaurant's data is kept before tenant-purge deletes it (bookings, orders, menus, layouts, catering requests, marketing, users, menu images). Catering documents and the restaurant's Stripe account are kept."
+  sensitive   = false
+  default     = 90
+
+  validation {
+    condition     = var.tenant_data_retention_days >= 1 && var.tenant_data_retention_days <= 365
+    error_message = "tenant_data_retention_days must be between 1 and 365."
+  }
+}
+variable "tenant_purge_schedule" {
+  type        = string
+  description = "EventBridge Scheduler expression for the tenant-purge sweep (UTC). It only deletes restaurants whose purgeAt has passed, so a missed run just means a later deletion."
+  sensitive   = false
+  default     = "cron(0 2 * * ? *)"
+}

@@ -51,3 +51,8 @@ platform_subdomain_delegations = {
 # default_tax_rates = {
 #   food = { display_name = "Moms", percentage = 12, inclusive = true }
 # }
+
+# Offboarded restaurants: data deleted 90 days after offboarding, checked
+# nightly at 02:00 UTC.
+tenant_data_retention_days = 90
+tenant_purge_schedule      = "cron(0 2 * * ? *)"

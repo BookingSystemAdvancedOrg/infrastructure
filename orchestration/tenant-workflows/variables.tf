@@ -182,3 +182,8 @@ variable "max_nameserver_checks" {
   sensitive   = false
   default     = 432
 }
+
+variable "tenant_data_retention_days" {
+  description = "Days an offboarded tenant's data is kept before the tenant-purge Lambda deletes it. Offboarding writes purgeAt = offboarded + this."
+  type        = number
+}

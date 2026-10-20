@@ -103,6 +103,7 @@ output "ecr_repository_urls" {
     catering_document          = module.catering_document_ecr.catering_document_ecr_repository_url
     catering_lifecycle         = module.catering_lifecycle_ecr.catering_lifecycle_ecr_repository_url
     dlq_replay                 = module.dlq_replay_ecr.dlq_replay_ecr_repository_url
+    tenant_purge               = module.tenant_purge_ecr.tenant_purge_ecr_repository_url
     platform_tenants           = module.platform_tenants_ecr.platform_tenants_ecr_repository_url
     tenant_account             = module.tenant_account_ecr.tenant_account_ecr_repository_url
     tenant_site_config         = module.tenant_site_config_ecr.tenant_site_config_ecr_repository_url

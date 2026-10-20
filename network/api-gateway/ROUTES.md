@@ -76,6 +76,7 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | POST | `/platform/tenants/{tenantId}/suspend` | JWT (operator) | platform-tenants |
 | POST | `/platform/tenants/{tenantId}/resume` | JWT (operator) | platform-tenants |
 | POST | `/platform/tenants/{tenantId}/offboard` | JWT (operator) | platform-tenants |
+| POST | `/platform/tenants/{tenantId}/purge` | JWT (operator) | platform-tenants (offboarded only: delete data at the next tenant-purge run) |
 | POST | `/platform/tenants/{tenantId}/onboarding/retry` | JWT (operator) | platform-tenants |
 | GET | `/platform/tenants/{tenantId}/users` | JWT (operator) | platform-tenants |
 | POST | `/platform/tenants/{tenantId}/owners` | JWT (operator) | platform-tenants |

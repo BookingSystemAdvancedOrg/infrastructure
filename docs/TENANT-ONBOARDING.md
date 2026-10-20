@@ -163,17 +163,36 @@ domains stay. **Resume** reverses it.
 
 **Offboard** (type the slug to confirm): users disabled and signed out,
 custom and platform domains detached from CloudFront (certificates
-deleted), tenant marked `offboarded`. Kept on purpose:
+deleted), tenant marked `offboarded` with
+`purgeAt = offboarded + tenant_data_retention_days` (90 in production, 1 in
+dev). Export their data before that date if they ask for it.
 
-- their data in DynamoDB (export on request, then delete by `tenantId` /
-  `TENANT#<tenantId>` keys);
+**Deletion** is automatic: the `tenant-purge` Lambda runs on
+`tenant_purge_schedule` (nightly in production, hourly in dev) and deletes
+every offboarded tenant whose `purgeAt` has passed: bookings, holds,
+orders, menus, layouts, catering requests and history, marketing,
+locations, users (DynamoDB and Cognito), menu images, its audit rows and
+domain orders. Domains we registered get auto-renew switched off; a hosted
+zone is deleted once the domain no longer points at it (otherwise it is
+kept and listed in the email). One email per run that did something.
+Booqy Console shows the date and has **Delete data now** (moves `purgeAt`
+to now; the next run deletes). Tenants offboarded before this existed get
+a date on the first run, never sooner than 7 days later.
+
+Kept on purpose:
+
+- a tombstone PROFILE (`status = purged`: company name, org. and VAT
+  number, slug, plan, dates, Stripe account id; no personal data) and the
+  `SLUG#` claim, so an old address never moves to another restaurant;
 - catering documents - 7-year Object Lock (bookkeeping law), can't be
   deleted before expiry;
 - their Stripe account - it's theirs; they can disconnect the platform in
   their Stripe dashboard;
-- the website files under `tenant-sites/<tenantId>/` (versioned bucket) -
-  delete the prefix once the data request is settled; archive the
-  `site-<slug>` repo.
+- point-in-time backups keep deleted rows for up to 35 days.
+
+A new table that holds tenant data must be added to `tenant_purge_tables`
+(config.tf) and to `functions/tenant-purge` in the application repo, or
+offboarded data stays behind.
 
 ## 9. Things that are not per-tenant anymore
 

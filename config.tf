@@ -603,6 +603,24 @@ module "scheduler_invoke_catering_lifecycle_role" {
 }
 
 # --- Platform / tenant control plane Lambdas -----------------------------------
+module "tenant_purge_role" {
+  source                 = "./security/iam/tenant-purge"
+  environment            = var.env
+  region                 = var.aws_region
+  tenant_table_arn       = module.tenant.table_arn
+  data_table_arns        = values(local.tenant_purge_tables)[*].arn
+  user_table_arn         = module.user.table_arn
+  user_tenant_index_name = module.user.tenant_index_name
+  tenant_user_pool_arn   = module.cognito.user_pool_arn
+  menu_image_bucket_arn  = module.menu_image.bucket_arn
+  alert_topic_arn        = module.alerts.topic_arn
+  protected_zone_ids     = local.platform_domain_enabled ? [module.platform_domain[0].zone_id] : []
+}
+module "scheduler_invoke_tenant_purge_role" {
+  source                  = "./security/iam/scheduler-invoke-tenant-purge"
+  environment             = var.env
+  tenant_purge_lambda_arn = module.tenant_purge_fn.function_arn
+}
 module "platform_tenants_role" {
   source                             = "./security/iam/platform-tenants"
   environment                        = var.env
@@ -860,6 +878,10 @@ module "dlq_replay_ecr" {
 }
 module "catering_lifecycle_ecr" {
   source      = "./storage/ecr/catering-lifecycle"
+  environment = var.env
+}
+module "tenant_purge_ecr" {
+  source      = "./storage/ecr/tenant-purge"
   environment = var.env
 }
 module "platform_tenants_ecr" {
@@ -1445,6 +1467,29 @@ module "dlq_replay_fn" {
 }
 
 # --- Platform / tenant control plane Lambdas -----------------------------------
+# Deletes offboarded restaurants' data once purgeAt has passed
+# (var.tenant_data_retention_days after offboarding).
+module "tenant_purge_fn" {
+  source                              = "./compute/lambda/tenant-purge"
+  environment                         = var.env
+  role_arn                            = module.tenant_purge_role.role_arn
+  ecr_repository_url                  = module.tenant_purge_ecr.tenant_purge_ecr_repository_url
+  scheduler_invoke_role_arn           = module.scheduler_invoke_tenant_purge_role.role_arn
+  schedule_expression                 = var.tenant_purge_schedule
+  retention_days                      = var.tenant_data_retention_days
+  tenant_table_name                   = module.tenant.table_name
+  location_table_name                 = module.location.table_name
+  user_table_name                     = module.user.table_name
+  user_tenant_index_name              = module.user.tenant_index_name
+  tenant_user_pool_id                 = module.cognito.user_pool_id
+  location_table_names                = [for k, t in local.tenant_purge_tables : t.name if !contains(["location", "catering_request_history", "marketing"], k)]
+  catering_requests_table_name        = module.catering_requests.table_name
+  catering_request_history_table_name = module.catering_request_history.table_name
+  marketing_table_name                = module.marketing.table_name
+  menu_image_bucket_name              = module.menu_image.bucket_name
+  alert_topic_arn                     = module.alerts.topic_arn
+  protected_zone_ids                  = local.platform_domain_enabled ? [module.platform_domain[0].zone_id] : []
+}
 module "platform_tenants_fn" {
   source                             = "./compute/lambda/platform-tenants"
   environment                        = var.env
@@ -1598,6 +1643,7 @@ module "lambda_releases" {
     (module.reactivate_menu_item_fn.function_name)        = { alias_name = module.reactivate_menu_item_fn.alias_name }
     (module.stripe_webhook_fn.function_name)              = { alias_name = module.stripe_webhook_fn.alias_name }
     (module.tenant_account_fn.function_name)              = { alias_name = module.tenant_account_fn.alias_name }
+    (module.tenant_purge_fn.function_name)                = { alias_name = module.tenant_purge_fn.alias_name }
     (module.tenant_site_config_fn.function_name)          = { alias_name = module.tenant_site_config_fn.alias_name }
     (module.reservation_reminders_fn.function_name)       = { alias_name = module.reservation_reminders_fn.alias_name }
     (module.webhook_payment_intent_fn.function_name)      = { alias_name = module.webhook_payment_intent_fn.alias_name }
@@ -1785,6 +1831,23 @@ locals {
   no_reply_from_address = local.no_reply_email
   ses_identity_arn      = local.platform_domain_enabled ? module.platform_domain[0].ses_identity_arn : module.ses.identity_arn
 
+  # Every table tenant-purge deletes a restaurant's partitions from. All but
+  # the last three are keyed LOCATION#<locationId>. Add a new tenant table
+  # here (and to functions/tenant-purge) or offboarded data stays behind.
+  tenant_purge_tables = {
+    reservation               = { name = module.reservation.table_name, arn = module.reservation.table_arn }
+    slot_occupancy            = { name = module.slot_occupancy.table_name, arn = module.slot_occupancy.table_arn }
+    order                     = { name = module.order.table_name, arn = module.order.table_arn }
+    menu                      = { name = module.menu.table_name, arn = module.menu.table_arn }
+    live_layout_element       = { name = module.live_layout_element.table_name, arn = module.live_layout_element.table_arn }
+    published_layout_snapshot = { name = module.published_layout_snapshot.table_name, arn = module.published_layout_snapshot.table_arn }
+    catering_requests         = { name = module.catering_requests.table_name, arn = module.catering_requests.table_arn }
+    catering_discount_tiers   = { name = module.catering_discount_tiers.table_name, arn = module.catering_discount_tiers.table_arn }
+    location                  = { name = module.location.table_name, arn = module.location.table_arn }
+    catering_request_history  = { name = module.catering_request_history.table_name, arn = module.catering_request_history.table_arn }
+    marketing                 = { name = module.marketing.table_name, arn = module.marketing.table_arn }
+  }
+
   tenant_domain_cname_target = local.tenant_sites_enabled ? module.platform_domain[0].cname_target : ""
 
   # Every application Lambda that serves tenant data gets the shared
@@ -1906,6 +1969,7 @@ module "tenant_workflows" {
   cname_target                 = local.tenant_domain_cname_target
   # The function's live alias, by name: the function's environment holds
   # this module's state machine ARNs, so referencing it would be a cycle.
+  tenant_data_retention_days    = var.tenant_data_retention_days
   platform_tenants_function_arn = "arn:aws:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:${var.env == "prod" ? "platform-tenants" : "${var.env}-platform-tenants"}:live"
 }
 
