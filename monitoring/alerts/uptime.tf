@@ -36,11 +36,11 @@ locals {
       expect_body   = "id=\"root\""
     }
     site-config = var.smoke_test_host != "" ? {
-      url           = "${var.api_endpoint}/site-config?host=${var.smoke_test_host}"
+      url           = "${trimsuffix(var.api_endpoint, "/")}/site-config?host=${var.smoke_test_host}"
       expect_status = 200
       expect_body   = "\"tenantId\""
       } : {
-      url           = "${var.api_endpoint}/site-config?host=smoke-test.invalid"
+      url           = "${trimsuffix(var.api_endpoint, "/")}/site-config?host=smoke-test.invalid"
       expect_status = 404
       expect_body   = "not found"
     }
