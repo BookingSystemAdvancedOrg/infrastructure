@@ -5,7 +5,7 @@ variable "environment" {
 }
 
 variable "location_table_arn" {
-  description = "ARN of the location DynamoDB table — this role reads and updates catering settings on location items"
+  description = "ARN of the location DynamoDB table - this role reads and updates catering settings on location items"
   type        = string
   sensitive   = false
 }

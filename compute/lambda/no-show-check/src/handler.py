@@ -1,4 +1,4 @@
-"""NoShowCheckFn — placeholder handler.
+"""NoShowCheckFn - placeholder handler.
 
 This is a bootstrap stub, not the real implementation: it exists so the
 container image has something deployable to point at while the actual

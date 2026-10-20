@@ -5,13 +5,13 @@ variable "environment" {
 }
 
 variable "user_table_arn" {
-  description = "ARN of the user DynamoDB table — the only resource this role is allowed to access"
+  description = "ARN of the user DynamoDB table - the only resource this role is allowed to access"
   type        = string
   sensitive   = false
 }
 
 variable "user_pool_arn" {
-  description = "ARN of the tenant (owner/staff) Cognito User Pool — scoped Admin* user-management access"
+  description = "ARN of the tenant (owner/staff) Cognito User Pool - scoped Admin* user-management access"
   type        = string
   sensitive   = false
 }

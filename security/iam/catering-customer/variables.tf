@@ -17,7 +17,7 @@ variable "catering_request_history_table_arn" {
 }
 
 variable "location_table_arn" {
-  description = "ARN of the location DynamoDB table — read-only, for cateringSettings"
+  description = "ARN of the location DynamoDB table - read-only, for cateringSettings"
   type        = string
   sensitive   = false
 }

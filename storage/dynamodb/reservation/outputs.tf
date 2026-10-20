@@ -9,6 +9,6 @@ output "table_arn" {
 }
 
 output "stream_arn" {
-  description = "ARN of the reservation table's DynamoDB Stream — for granting stream-read access to NotificationFn"
+  description = "ARN of the reservation table's DynamoDB Stream - for granting stream-read access to NotificationFn"
   value       = aws_dynamodb_table.reservation.stream_arn
 }

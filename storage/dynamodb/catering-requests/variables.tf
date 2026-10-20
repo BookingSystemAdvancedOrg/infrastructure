@@ -5,7 +5,7 @@ variable "environment" {
 }
 
 variable "notification_lambda_arn" {
-  description = "ARN of the NotificationFn Lambda function — invoked off this table's stream for new requests and customer-facing status changes"
+  description = "ARN of the NotificationFn Lambda function - invoked off this table's stream for new requests and customer-facing status changes"
   type        = string
   sensitive   = false
 }
@@ -17,7 +17,7 @@ variable "notification_dlq_arn" {
 }
 
 variable "lifecycle_lambda_arn" {
-  description = "ARN of the catering-lifecycle Lambda function — invoked off this table's stream on every write to a request head item"
+  description = "ARN of the catering-lifecycle Lambda function - invoked off this table's stream on every write to a request head item"
   type        = string
   sensitive   = false
 }

@@ -5,7 +5,7 @@ variable "environment" {
 }
 
 variable "reservation_table_arn" {
-  description = "ARN of the reservation DynamoDB table — the only resource this role is allowed to access"
+  description = "ARN of the reservation DynamoDB table - the only resource this role is allowed to access"
   type        = string
   sensitive   = false
 }

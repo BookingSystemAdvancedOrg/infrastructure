@@ -9,7 +9,7 @@ output "function_arn" {
 }
 
 output "invoke_arn" {
-  description = "Invoke ARN of the catering-settings Lambda — use this as the API Gateway integration URI"
+  description = "Invoke ARN of the catering-settings Lambda - use this as the API Gateway integration URI"
   value       = aws_lambda_function.this.invoke_arn
 }
 

@@ -9,7 +9,7 @@ output "function_arn" {
 }
 
 output "invoke_arn" {
-  description = "Invoke ARN of the CateringLifecycleFn Lambda — for wiring into API Gateway"
+  description = "Invoke ARN of the CateringLifecycleFn Lambda - for wiring into API Gateway"
   value       = aws_lambda_function.this.invoke_arn
 }
 

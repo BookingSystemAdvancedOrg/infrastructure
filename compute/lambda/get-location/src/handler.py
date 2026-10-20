@@ -1,9 +1,9 @@
-"""GetLocationFn — handles public location info and internal location reads.
+"""GetLocationFn - handles public location info and internal location reads.
 
 Routes handled:
-  GET /locations/{locationId}/public-info  (NONE auth — customer-facing site)
-  GET /locations/{locationId}              (JWT  — internal/staff, not yet implemented)
-  GET /locations                           (JWT  — internal/staff, not yet implemented)
+  GET /locations/{locationId}/public-info  (NONE auth - customer-facing site)
+  GET /locations/{locationId}              (JWT  - internal/staff, not yet implemented)
+  GET /locations                           (JWT  - internal/staff, not yet implemented)
 """
 
 import json

@@ -23,7 +23,7 @@ variable "catering_discount_tiers_table_name" {
 }
 
 variable "region" {
-  description = "AWS region — passed to the function as an environment variable"
+  description = "AWS region - passed to the function as an environment variable"
   type        = string
   sensitive   = false
 }

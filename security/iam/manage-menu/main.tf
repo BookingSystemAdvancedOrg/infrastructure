@@ -1,9 +1,9 @@
 # Execution role for the manage-menu Lambda.
 #
-# Same structure as get-menu's role, but its own separate resource — one
+# Same structure as get-menu's role, but its own separate resource - one
 # IAM role per Lambda, never shared. This Lambda creates, edits, and
 # deletes menu items (including setting `imageKey` after a successful S3
-# upload) — it operates on items it already has the key for, so it needs
+# upload) - it operates on items it already has the key for, so it needs
 # no Scan/Query/GetItem, only the three write actions below.
 
 data "aws_caller_identity" "current" {}
@@ -95,7 +95,7 @@ resource "aws_iam_role_policy" "eventbridge_scheduler" {
   })
 }
 
-# Scoped to exactly this function's own log group — not logs:* on everything.
+# Scoped to exactly this function's own log group - not logs:* on everything.
 #
 # No logs:CreateLogGroup - the log group is expected to be provisioned
 # explicitly alongside this Lambda's function resource (same pattern as

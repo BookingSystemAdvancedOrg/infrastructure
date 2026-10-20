@@ -1,5 +1,5 @@
 output "role_arn" {
-  description = "ARN of the role EventBridge Scheduler assumes to invoke reactivate-menu-item — pass this as RoleArn in create_schedule/update_schedule calls"
+  description = "ARN of the role EventBridge Scheduler assumes to invoke reactivate-menu-item - pass this as RoleArn in create_schedule/update_schedule calls"
   value       = aws_iam_role.this.arn
   sensitive   = true
 }

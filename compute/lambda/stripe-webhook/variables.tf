@@ -11,7 +11,7 @@ variable "role_arn" {
 }
 
 variable "ecr_repository_url" {
-  description = "Repository URL of the StripeWebhookFn ECR repository (storage/ecr/stripe-webhook) — the repo itself is owned there, not created in this module"
+  description = "Repository URL of the StripeWebhookFn ECR repository (storage/ecr/stripe-webhook) - the repo itself is owned there, not created in this module"
   type        = string
   sensitive   = true
 }
@@ -41,7 +41,7 @@ variable "scheduler_invoke_role_arn" {
 }
 
 variable "no_show_check_function_arn" {
-  description = "ARN of the NoShowCheckFn Lambda — the Scheduler target for the no-show-check schedule, passed as an environment variable for the handler's SDK calls"
+  description = "ARN of the NoShowCheckFn Lambda - the Scheduler target for the no-show-check schedule, passed as an environment variable for the handler's SDK calls"
   type        = string
   sensitive   = false
 }

@@ -2,7 +2,7 @@
 #
 # Least privilege: this Lambda only reads the menu table (Scan, to fetch
 # items across the table) and writes its own CloudWatch logs.
-# No S3 access, no other DynamoDB table, no write access to menu itself —
+# No S3 access, no other DynamoDB table, no write access to menu itself;
 # writes belong to manage-menu, a separate role with its own permissions.
 
 data "aws_caller_identity" "current" {}
@@ -30,7 +30,7 @@ resource "aws_iam_role" "this" {
   }
 }
 
-# Read-only, and only the menu table — no PutItem/UpdateItem/DeleteItem/etc.
+# Read-only, and only the menu table - no PutItem/UpdateItem/DeleteItem/etc.
 resource "aws_iam_role_policy" "dynamodb_read" {
   name = "menu-table-scan"
   role = aws_iam_role.this.id
@@ -52,7 +52,7 @@ resource "aws_iam_role_policy" "dynamodb_read" {
   })
 }
 
-# Scoped to exactly this function's own log group — not logs:* on everything.
+# Scoped to exactly this function's own log group - not logs:* on everything.
 #
 # No logs:CreateLogGroup - the log group is expected to be provisioned
 # explicitly alongside this Lambda's function resource (same pattern as

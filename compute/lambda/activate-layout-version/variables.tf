@@ -11,7 +11,7 @@ variable "role_arn" {
 }
 
 variable "ecr_repository_url" {
-  description = "Repository URL of the ActivateLayoutVersionFn ECR repository (storage/ecr/activate-layout-version) — the repo itself is owned there, not created in this module"
+  description = "Repository URL of the ActivateLayoutVersionFn ECR repository (storage/ecr/activate-layout-version) - the repo itself is owned there, not created in this module"
   type        = string
   sensitive   = true
 }
@@ -29,7 +29,7 @@ variable "scheduler_invoke_role_arn" {
 }
 
 variable "expire_layout_version_function_arn" {
-  description = "ARN of the ExpireLayoutVersionFn Lambda — the Scheduler target for the expire-layout-version schedule, passed as an environment variable for the handler's SDK calls"
+  description = "ARN of the ExpireLayoutVersionFn Lambda - the Scheduler target for the expire-layout-version schedule, passed as an environment variable for the handler's SDK calls"
   type        = string
   sensitive   = false
 }

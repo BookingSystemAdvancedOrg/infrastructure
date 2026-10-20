@@ -17,13 +17,13 @@ variable "catering_request_history_table_arn" {
 }
 
 variable "location_table_arn" {
-  description = "ARN of the location DynamoDB table — read-only, for cateringSettings"
+  description = "ARN of the location DynamoDB table - read-only, for cateringSettings"
   type        = string
   sensitive   = false
 }
 
 variable "menu_table_arn" {
-  description = "ARN of the menu DynamoDB table — read-only, for re-pricing dishes when the owner adjusts an offer"
+  description = "ARN of the menu DynamoDB table - read-only, for re-pricing dishes when the owner adjusts an offer"
   type        = string
   sensitive   = false
 }

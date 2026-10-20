@@ -98,7 +98,7 @@ resource "aws_iam_role_policy" "eventbridge_scheduler" {
   })
 }
 
-# Scoped to exactly this function's own log group — not logs:* on everything.
+# Scoped to exactly this function's own log group - not logs:* on everything.
 #
 # No logs:CreateLogGroup - the log group is provisioned explicitly in
 # compute/lambda/activate-layout-version (with a real retention period,

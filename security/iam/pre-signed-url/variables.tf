@@ -5,7 +5,7 @@ variable "environment" {
 }
 
 variable "menu_images_bucket_arn" {
-  description = "ARN of the MenuImages S3 bucket — full s3:* access"
+  description = "ARN of the MenuImages S3 bucket - full s3:* access"
   type        = string
   sensitive   = false
 }

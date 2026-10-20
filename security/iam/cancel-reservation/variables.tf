@@ -5,19 +5,19 @@ variable "environment" {
 }
 
 variable "location_table_arn" {
-  description = "ARN of the location DynamoDB table — read-only access"
+  description = "ARN of the location DynamoDB table - read-only access"
   type        = string
   sensitive   = false
 }
 
 variable "slot_occupancy_table_arn" {
-  description = "ARN of the slot occupancy DynamoDB table — full access"
+  description = "ARN of the slot occupancy DynamoDB table - full access"
   type        = string
   sensitive   = false
 }
 
 variable "reservation_table_arn" {
-  description = "ARN of the reservation DynamoDB table — full access"
+  description = "ARN of the reservation DynamoDB table - full access"
   type        = string
   sensitive   = false
 }

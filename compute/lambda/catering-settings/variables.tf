@@ -17,13 +17,13 @@ variable "ecr_repository_url" {
 }
 
 variable "location_table_name" {
-  description = "Name of the location DynamoDB table — used to read and update catering settings on the location item"
+  description = "Name of the location DynamoDB table - used to read and update catering settings on the location item"
   type        = string
   sensitive   = false
 }
 
 variable "region" {
-  description = "AWS region — passed to the function as an environment variable"
+  description = "AWS region - passed to the function as an environment variable"
   type        = string
   sensitive   = false
 }
