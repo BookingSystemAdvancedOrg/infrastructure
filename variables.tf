@@ -211,6 +211,18 @@ variable "billing_trial_months" {
   sensitive   = false
   default     = 6
 }
+variable "sms_price_sek" {
+  type        = number
+  description = "What a restaurant pays per SMS part (160 GSM-7 characters, 70 with emoji, long messages in parts of 153/67), in SEK excluding VAT, on its monthly invoice. Overridable per customer in Booqy Console (Billing tab). Counted from the deploy that introduced part counting; earlier SMS are not charged."
+  sensitive   = false
+  default     = 0.70
+}
+variable "billing_invoicing_schedule" {
+  type        = string
+  description = "EventBridge Scheduler expression (UTC) for the monthly invoicing run: on the 25th, after the period from the 25th to the 24th has ended, platform-tenants invoices every restaurant for that period (monthly price pro rata by days plus the SMS parts sent). After finance-rollup (04:30 UTC) so the figures for the 24th exist."
+  sensitive   = false
+  default     = "cron(0 5 25 * ? *)"
+}
 variable "billing_dunning_schedule" {
   type        = string
   description = "EventBridge Scheduler expression (UTC) for the dunning task: platform-tenants checks past-due subscriptions and suspends / resumes customers."

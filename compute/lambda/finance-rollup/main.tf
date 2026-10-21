@@ -58,6 +58,7 @@ resource "aws_lambda_function" "this" {
       USAGE_DAYS              = "3"
       USD_TO_SEK              = tostring(var.usd_to_sek)
       COST_ALLOCATION         = jsonencode(var.cost_allocation)
+      SMS_PRICE_SEK           = tostring(var.sms_price_sek) # SMS revenue per day = parts x the restaurant's price (own or this)
       ALERT_TOPIC_ARN         = var.alert_topic_arn
     }
   }

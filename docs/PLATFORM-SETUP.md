@@ -208,9 +208,14 @@ apps run on `*.cloudfront.net` and restaurants have no website URL yet.
 
 - [ ] Set the plan prices (`plans.<id>.price_sek`, SEK per month excluding
       VAT) in `dev.tfvars` and `prod.tfvars`; the defaults are
-      placeholders. Apply: Terraform creates the Stripe products, prices
-      and the 25 % VAT rate in the platform account (sandbox for dev, live
-      for production) and writes the price ids on the plan rows.
+      placeholders. Apply: Terraform creates the 25 % VAT rate (and a
+      catalog product and price per plan) in the platform account
+      (sandbox for dev, live for production) and writes the prices on the
+      plan rows. Customers are invoiced in arrears on the 25th for the
+      period from the 25th to the 24th (`billing_invoicing_schedule`),
+      the monthly price pro rata plus SMS per part at `sms_price_sek`
+      (0,70 kr ex VAT; change it in tfvars, or per customer on the Billing
+      tab). SMS sent before this deploy are not charged.
 - [ ] Stripe Dashboard, per mode: Billing → Settings → Subscriptions and
       emails (invoice emails, reminders, Smart Retries) and the invoice
       template (company details, org. number, "Godkänd för F-skatt",
@@ -229,9 +234,11 @@ apps run on `*.cloudfront.net` and restaurants have no website URL yet.
       every cost row, so a change never rewrites history (Rebuild does).
 - [ ] The pipeline key (`STRIPE_SECRET_KEY_*`) needs Products: Write,
       Prices: Write and Tax Rates: Write for the catalog; the Lambda key
-      (`stripe/api-key`) needs Customers, Subscriptions, Invoices, Payment
-      Methods, Checkout Sessions, Tax IDs: Write (platform-tenants) - add
-      them in the Dashboard if a restricted key is used.
+      (`stripe/api-key`) needs Customers, Invoices, Invoice Items,
+      Payment Methods, Checkout Sessions, Tax IDs: Write and, until the
+      last first-version subscription is migrated, Subscriptions: Write
+      (platform-tenants) - add them in the Dashboard if a restricted key
+      is used.
 
 ## 8. Smoke test (dev, then production)
 

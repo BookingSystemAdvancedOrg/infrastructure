@@ -77,3 +77,8 @@ variable "cost_allocation" {
 variable "alert_topic_arn" {
   type = string
 }
+
+variable "sms_price_sek" {
+  description = "Default price per SMS part, SEK excluding VAT (root var.sms_price_sek)"
+  type        = number
+}

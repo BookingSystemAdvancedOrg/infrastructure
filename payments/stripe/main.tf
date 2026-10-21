@@ -79,11 +79,11 @@ resource "stripe_webhook_endpoint" "catering" {
 #             (charges_enabled), details due, or the restaurant disconnected
 #             from the platform. Keeps PROFILE.stripe.* in the tenant table
 #             truthful without anyone polling Stripe.
-#   billing - YOUR platform account's own subscriptions: the restaurant's
-#             SaaS plan (payments/billing is the catalog, Booqy Console
-#             starts the subscriptions). Subscription and invoice events
-#             keep PROFILE.billing on the tenant row truthful and write the
-#             invoice ledger and the revenue figures in the finance table.
+#   billing - YOUR platform account's own invoices to the restaurants
+#             (built by platform-tenants on the 25th for the period 25th
+#             to 24th: monthly price plus SMS). Invoice events keep the
+#             invoice ledger, the revenue figures and the past-due state
+#             on the tenant row truthful.
 resource "stripe_webhook_endpoint" "platform_connect" {
   connect        = true
   url            = "${var.platform_webhook_url}connect"

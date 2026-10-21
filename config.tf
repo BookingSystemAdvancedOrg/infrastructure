@@ -1582,6 +1582,8 @@ module "platform_tenants_fn" {
   billing_interest_margin_pct        = var.billing_interest_margin_pct
   billing_notice_months              = var.billing_notice_months
   billing_trial_months               = var.billing_trial_months
+  sms_price_sek                      = var.sms_price_sek
+  invoicing_schedule_expression      = var.billing_invoicing_schedule
   dunning_schedule_expression        = var.billing_dunning_schedule
   scheduler_invoke_role_arn          = module.scheduler_invoke_platform_tenants_role.role_arn
 }
@@ -1602,6 +1604,7 @@ module "finance_rollup_fn" {
   log_group_names           = local.tenant_aware_log_groups
   usd_to_sek                = var.aws_usd_to_sek
   cost_allocation           = var.cost_allocation
+  sms_price_sek             = var.sms_price_sek
   alert_topic_arn           = module.alerts.topic_arn
 }
 module "tenant_account_fn" {

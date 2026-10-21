@@ -1,32 +1,36 @@
-# Finance: subscription invoicing and the Finance page
+# Finance: invoicing in arrears and the Finance page
 
 What every customer pays and what they cost, per day, and how Booqy
-Console shows it. Code: `payments/billing` (Stripe catalog),
+Console shows it. Code: `payments/billing` (Stripe VAT rate and plan catalog),
 `storage/dynamodb/finance` (the table), `compute/lambda/finance-rollup`
 (the nightly job, code in the application repo), platform-stripe-webhook
 (`/billing` events, application repo), platform-tenants (console API,
 booqy-console repo: `billing.py`, `finance.py`).
 
-## 1. Subscriptions: Stripe Billing on the platform account
+## 1. The agreement: one invoice per period, in arrears
 
 Every restaurant company (tenant) is a **Stripe Customer** on YOUR
-platform account with one **Subscription** on its plan's monthly price.
-This has nothing to do with the restaurant's Connect account (guest
-payments), which stays as it is.
+platform account. There is no Stripe subscription: the platform keeps the
+agreement itself (`PROFILE.billing`) and builds one Stripe invoice per
+billing period, after the period, from its own figures. Nobody pays in
+advance. This has nothing to do with the restaurant's Connect account
+(guest payments), which stays as it is.
 
 | Piece | Where |
 |---|---|
-| Plans and prices | `var.plans` (tfvars): `price_sek` per month excluding VAT. `payments/billing` creates one `stripe_product` + monthly `stripe_price` per plan and the Swedish VAT rate (`Moms`, 25 %, exclusive). The ids land on the `PLAN#` rows (`priceSek`, `stripePriceId`) and in platform-tenants' env (`BILLING_TAX_RATE_ID`). |
-| Price change | A new Stripe price (amounts are immutable); the old one is archived. Running subscriptions keep their price until the customer's plan is saved again in Booqy Console, or until **Update to the plan price** on the Billing tab. |
-| Customer + subscription | Booqy Console: on the **New customer** form (section 4b, "Start invoicing when the customer is created", on by default) or later from the customer page's **Billing** tab. A future first invoice date is a Stripe trial until then. The console creates the Stripe customer (legal name, billing email, address, VAT number as `eu_vat`, `metadata.tenantId`), claims `STRIPE_CUSTOMER#<cus> / TENANT` in the tenant table and writes `PROFILE.billing`. |
-| Own price | The form and the Plan tab take a monthly price (SEK ex VAT). The plan's price uses the plan's Stripe price; a different amount becomes a price on the plan's product (`price_data`, `stripeProductId` on the PLAN row) and is stored as `billing.priceSek`. |
-| Terms | `billing.terms`: **try-out** (default on the form): pays monthly, can leave at the end of any paid month, becomes a subscription by itself after `billing_trial_months` (6) or when converted from the Billing tab; **subscription**: `billing_notice_months` (3) months' notice. Stored with `termsSince`; the daily task does the conversion. |
-| Cancellation | Billing tab, **Cancel subscription**: Stripe `cancel_at` = the end of the paid month (try-out) or that plus the notice months (subscription); the customer is invoiced until then. "Offboard automatically when it ends" (default on) makes the daily task offboard the customer the day after Stripe has ended the subscription (`billing.offboardAtEnd`). **Keep the subscription** undoes it; "End today" is the immediate cancel with a final prorated invoice. |
-| Collection | `send_invoice` (default): Stripe emails the invoice, due in `billing_days_until_due` (30) days; paid by card on the hosted invoice page, or by bankgiro to your own account, in which case you mark the invoice paid in Stripe (`paid_out_of_band`). `charge_automatically`: after the restaurant added a card through a **card link** (Stripe Checkout in setup mode) and **Charge the card** on the Billing tab. Stripe's own bank transfers do not support SEK. |
-| Plan change | `PUT .../plan` (with the optional own price) moves the subscription item to the new price **from the next invoice** (no proration: the paid month stays as it is). Extra-location overrides are not priced. |
-| Suspend / resume | Leave the subscription alone (a suspended customer still owes). **Pause invoicing** / **Resume invoicing** on the Billing tab is a separate action (`pause_collection`). |
-| Offboarding | The console cancels a still running subscription at once with a final prorated invoice, then starts the offboarding workflow (the daily task does the same for an ended subscription marked to offboard). A Stripe failure is reported and does not block offboarding. The Stripe customer and the invoices are never deleted (bookkeeping); tenant-purge touches neither Stripe nor the finance table. |
-| Unpaid invoice | The daily **dunning task** (platform-tenants, `{"financeTask": "dunning"}`, `billing_dunning_schedule`) works every open invoice through Stripe: **reminders** from the day after the due date and every `billing_reminder_interval_days` (7) days, as Stripe re-sends of the invoice email (`POST /invoices/{id}/send`; card-charged invoices are left to Smart Retries); the **late fee** `billing_late_fee_sek` (450 kr, VAT-free, förseningsavgift) once per invoice still unpaid `billing_late_fee_after_days` (7) days after the due date, as an invoice item on the customer that lands on their next invoice; **interest** (dröjsmålsränta) when a late invoice is paid: the overdue amount at `billing_reference_rate_pct` + `billing_interest_margin_pct` (8) per year for the days late, as a VAT-free invoice item; a customer without a running subscription gets a one-off invoice for the items at once. Every step is recorded on the ledger row (`remindersSent`, `lastReminderAt`, `lateFeeAdded`, `interestAdded`), so a re-run never repeats it. `invoice.payment_failed` sets `billing.pastDueSince`; customers past due longer than `billing_suspend_after_days` (14; 0 = never) are suspended exactly like Suspend in the console and resumed when they pay. The operators get one email per run that did something. **Payments** on the Finance page shows who has paid for a month, with days late, reminders and fees, and a Send reminder button. |
+| Billing period | The 25th of one month to the 24th of the next, UTC days. The **invoicing run** on the 25th (`billing_invoicing_schedule`, 05:00 UTC, platform-tenants `{"financeTask": "invoice"}`, after finance-rollup) invoices the period that ended the day before; a missed run catches up every complete period not yet invoiced. Helpers `period_of`, `next_period`, `active_days`, `fee_for` in the console API's `billing.py`, the same in `web/src/finance.ts`. |
+| Agreement | `PROFILE.billing`: `status` active \| ended, `startsAt`, `endsAt`, `terms` trial \| subscription with `termsSince`, `priceSek` (the customer's own monthly price), `smsPriceSek` (own SMS price), `collectionMethod`, `lastInvoicedPeriodEnd`, `offboardAtEnd`, `customerId`. The console shows the phase: none, scheduled (starts later), active, ending (`endsAt` set), ended. Started from the **New customer** form (section 4b) or the customer page's **Billing** tab with a start date; the console creates the Stripe customer (legal name, billing email, address, VAT number as `eu_vat`, `metadata.tenantId`) and claims `STRIPE_CUSTOMER#<cus> / TENANT` in the tenant table. |
+| The invoice | Two invoice items on the customer, then `POST /invoices` with `pending_invoice_items_behavior=include`, finalize and send (or pay). **The monthly price**: `var.plans.price_sek` or the customer's own `priceSek`, pro rata by active days when the agreement started or ended inside the period ("Booqy Starter, 25 aug till 24 sep 2026 (15 av 31 dagar)"). **One SMS line**: the period's `smsParts` from the customer's day rows times the SMS price, with the split per location in the text ("SMS 25 aug till 24 sep 2026: 412 delar x 0,70 kr (Roma Södermalm 300, Roma Vasastan 112)", `quantity` and `unit_amount_decimal`). Both carry the 25 % VAT rate and `period[start/end]`; `metadata.kind` fee \| sms on the items, `periodStart` / `periodEnd` on the invoice. Idempotency keys `fee-<tenant>-<periodEnd>`, `sms-...`, `inv-...` plus `lastInvoicedPeriodEnd` on the profile: a re-run never invoices a period twice. |
+| SMS price | `sms_price_sek` (tfvars, 0,70 kr ex VAT per part); **Change** next to the SMS price on the Billing tab sets `billing.smsPriceSek` for one customer. A part is 160 GSM-7 characters, 70 when the text has other characters (emoji), long messages in parts of 153 / 67 (`application/shared/sms.py`). Parts are counted when sent, per customer, location and type (`smsParts`, `smsBooking`, `smsReminder`, `smsOrder`, `smsCatering` on the DAY and LOC rows); SMS sent before the deploy that counts parts are not charged. |
+| Plans and prices | `var.plans` (tfvars): `price_sek` per month excluding VAT on the `PLAN#` rows. `payments/billing` still creates the Swedish VAT rate (`Moms`, 25 %, exclusive; `BILLING_TAX_RATE_ID`) and one Stripe product and price per plan as a catalog reference; the invoice lines are plain amounts, so a changed `price_sek` applies from the next run without touching Stripe. |
+| Own price | The form and the Plan tab take a monthly price (SEK ex VAT), stored as `billing.priceSek`. |
+| Terms | `billing.terms`: **try-out** (default on the form) can leave at the end of any period and becomes a subscription by itself after `billing_trial_months` (6) or with **Convert to subscription**; **subscription**: `billing_notice_months` (3) months' notice. Stored with `termsSince`; the daily task does the conversion. |
+| Cancellation | Billing tab, **Cancel agreement**: `endsAt` = the end of the current period (try-out) or the end of the period `billing_notice_months` later (subscription). The customer is invoiced up to `endsAt` on the next run (the final invoice); a try-out leaving mid-period pays the whole period. "Offboard the customer automatically" (default on, `billing.offboardAtEnd`) makes the daily task offboard them once that invoice exists. **Keep the agreement** undoes it. Offboarding from the Danger zone ends the agreement today; the days used are invoiced on the next run. |
+| Collection | `send_invoice` (default): Stripe emails the invoice on the 25th, due `billing_days_until_due` (30) days later; paid by card on the hosted invoice page, or by bankgiro to your own account, in which case you mark the invoice paid in Stripe (`paid_out_of_band`). `charge_automatically`: the card on file (a **card link**, Stripe Checkout in setup mode, then **Charge the card**) is charged on the 25th; a failed charge leaves the invoice open for the dunning task. Stripe's own bank transfers do not support SEK. |
+| Plan change | `PUT .../plan` (with the optional own price) changes the agreement's price; the next invoice uses it for its whole period (a running period is not prorated). Extra-location overrides are not priced. |
+| Suspend / resume | Leave the agreement alone: a suspended customer still owes and is still invoiced. |
+| Unpaid invoice | The daily **dunning task** (platform-tenants, `{"financeTask": "dunning"}`, `billing_dunning_schedule`) works every open invoice through Stripe: **reminders** from the day after the due date and every `billing_reminder_interval_days` (7) days, as Stripe re-sends of the invoice email (`POST /invoices/{id}/send`; card-charged invoices are left to Smart Retries); the **late fee** `billing_late_fee_sek` (450 kr, VAT-free, förseningsavgift) once per invoice still unpaid `billing_late_fee_after_days` (7) days after the due date, as an invoice item that lands on the customer's next invoice; **interest** (dröjsmålsränta) when a late invoice is paid: the overdue amount at `billing_reference_rate_pct` + `billing_interest_margin_pct` (8) per year for the days late, as a VAT-free invoice item; a customer whose agreement has ended gets a one-off invoice for the items at once. Every step is recorded on the ledger row (`remindersSent`, `lastReminderAt`, `lateFeeAdded`, `interestAdded`), so a re-run never repeats it. `invoice.payment_failed` sets `billing.pastDueSince`; customers past due longer than `billing_suspend_after_days` (14; 0 = never) are suspended exactly like Suspend in the console and resumed when they pay. The operators get one email per run that did something. **Payments** on the Finance page shows who has paid for a month, with days late, reminders and fees, a Send reminder button and **Run invoicing** (a preview of every invoice the run would create, then the run). |
+| First version | A customer still on a Stripe subscription from the first version (billed in advance, `billing.legacySubscriptionId` afterwards): the first run cancels the subscription without a final invoice, voids its open advance invoice and continues in arrears from the same start date (`migrated` in the run result). |
 
 ### Webhook (`platform-stripe-webhook`, path `/billing`)
 
@@ -34,8 +38,7 @@ The platform billing endpoint (`payments/stripe`, `platform_billing_events`):
 
 | Event | Effect |
 |---|---|
-| `customer.subscription.created/updated/deleted` | `PROFILE.billing`: status, price, plan, `mrrSek`, period, pause, `pastDueSince` (set on past_due/unpaid, cleared on active) |
-| `invoice.finalized`, `invoice.paid`, `invoice.payment_failed`, `invoice.voided`, `invoice.marked_uncollectible` | finance table: the invoice row (`INVOICE#<created day>#<in_...>`) and the day's `invoicedSek` (finalized), `paidSek` (paid), reversal (voided); `lastPaidAt` / `lastPaymentFailedAt` on the profile |
+| `invoice.finalized`, `invoice.paid`, `invoice.payment_failed`, `invoice.voided`, `invoice.marked_uncollectible` | finance table: the invoice row (`INVOICE#<created day>#<in_...>`, with the period and the fee / SMS split from the lines) and the day's `invoicedSek` (finalized), `paidSek` (paid), reversal (voided); `lastPaidAt`, `lastPaymentFailedAt` and `pastDueSince` (set on a failed payment, cleared when paid) on the profile |
 | `credit_note.created` | finance table: `CREDIT#...` row and `creditedSek` on the day |
 
 The customer resolves through `STRIPE_CUSTOMER#<cus>`; every profile
@@ -91,27 +94,30 @@ CloudFront), so cost per customer is a split, not a measurement.
 
 | PK | SK | Written by | Fields |
 |---|---|---|---|
-| `TENANT#<id>` | `DAY#<yyyy-mm-dd>` | finance-rollup (`requests`, `bookings`, `orders`, `costSek`, `costSplitSek`, `mrrSek`, `planId`, `active`); senders (`emails`, `sms`, `marketingEmails`, ADD); webhook / Stripe import (`invoicedSek`, `paidSek`, `creditedSek`, ADD) | one row per customer and day |
-| `TENANT#<id>` | `LOC#<locationId>#DAY#<yyyy-mm-dd>` | finance-rollup (`requests`, `bookings`, `orders`, `costSek`: the location's share of the customer's cost, by requests, else bookings and orders, else equally); senders (`emails`, `sms`, ADD) | one row per location and day; the Finance page's location filter (revenue stays the customer's) |
-| `TENANT#<id>` | `INVOICE#<day>#<in_...>` | webhook, Stripe import | status, amounts ex and incl VAT, dates, links, booking flags |
+| `TENANT#<id>` | `DAY#<yyyy-mm-dd>` | finance-rollup (`requests`, `bookings`, `orders`, `costSek`, `costSplitSek`, `mrrSek` from the agreement, `smsRevenueSek` = `smsParts` x the customer's SMS price, `planId`, `active`); senders (`emails`, `sms`, `marketingEmails`, `smsParts`, `smsBooking`, `smsReminder`, `smsOrder`, `smsCatering`, ADD); webhook / Stripe import (`invoicedSek`, `paidSek`, `creditedSek`, ADD) | one row per customer and day |
+| `TENANT#<id>` | `LOC#<locationId>#DAY#<yyyy-mm-dd>` | finance-rollup (`requests`, `bookings`, `orders`, `costSek`: the location's share of the customer's cost, by requests, else bookings and orders, else equally; `smsRevenueSek`); senders (`emails`, `sms`, `smsParts` and the per-type counters, ADD) | one row per location and day; the Finance page's location filter (revenue stays the customer's) and the per-location split on the SMS invoice line |
+| `TENANT#<id>` | `INVOICE#<day>#<in_...>` | webhook, Stripe import | status, amounts ex and incl VAT, dates, links, booking flags, `periodStart` / `periodEnd`, `feeSek`, `smsParts`, `smsSek` |
 | `TENANT#<id>` | `CREDIT#<day>#<cn_...>` | webhook | credit notes |
 | `PLATFORM` | `COST#<day>` | finance-rollup | USD by service, rate, SEK |
-| `PLATFORM` | `DAY#<day>` | finance-rollup | customers active / new / churned, MRR, cost, usage and revenue totals |
+| `PLATFORM` | `DAY#<day>` | finance-rollup | customers active / new / churned, MRR, cost, usage (incl. `smsParts`), `smsRevenueSek` and revenue totals |
 | `PLATFORM` | `JOB#latest`, `JOB#<time>` | finance-rollup | last run, days done, warnings |
 
 Day is the grain: week, month, quarter, year and any range are sums over
 `DAY#` rows (one Query per customer). MRR on the Finance page is the
-live figure from `PROFILE.billing`; the `mrrSek` on day rows is the
-snapshot behind the MRR trend chart.
+agreement's monthly price from `PROFILE.billing` (own price or the plan's),
+not a Stripe figure; the `mrrSek` on day rows is the snapshot behind the
+MRR trend chart. The SMS tile and column show the parts charged, what
+they bring in (`smsRevenueSek`) and the SNS cost share behind them.
 
 ## 4. Jobs and schedules
 
 | What | Where | When |
 |---|---|---|
 | finance-rollup | `compute/lambda/finance-rollup`, role `security/iam/finance-rollup`, code `application/functions/finance-rollup` | `finance_rollup_schedule` (04:30 UTC). Also `{"from","to"}` from Booqy Console's **Rebuild** (max 92 days, yesterday at the latest) and self-continuation near its timeout |
-| dunning | platform-tenants `{"financeTask": "dunning"}`, role `security/iam/scheduler-invoke-platform-tenants` | `billing_dunning_schedule` (05:00 UTC): reminders, late fee, interest, past-due suspension and resumption, try-out conversion after `billing_trial_months`, offboarding of ended subscriptions |
+| invoicing | platform-tenants `{"financeTask": "invoice"}`, same role | `billing_invoicing_schedule` (the 25th, 05:00 UTC): one invoice per customer for the period that ended on the 24th (monthly price pro rata plus the SMS line), card charges, first-version migration. Also by hand: **Run invoicing** on the Payments view (`POST /platform/finance/invoicing`, `dryRun` for the preview) and **Invoice now** on a customer's Billing tab (`POST .../billing/invoice`) |
+| dunning | platform-tenants `{"financeTask": "dunning"}`, role `security/iam/scheduler-invoke-platform-tenants` | `billing_dunning_schedule` (05:00 UTC): reminders, late fee, interest, past-due suspension and resumption, try-out conversion after `billing_trial_months`, offboarding of ended agreements once their final invoice exists |
 | webhook | platform-stripe-webhook `/billing` | on every Stripe event |
-| Stripe import | Booqy Console, Finance page, **Import from Stripe** (`POST /platform/finance/stripe-sync`) | by hand: re-reads every customer's subscription and invoices (missed webhooks) |
+| Stripe import | Booqy Console, Finance page, **Import from Stripe** (`POST /platform/finance/stripe-sync`) | by hand: re-reads every customer's invoices (missed webhooks) |
 
 Warnings (Cost Explorer not enabled, a log query that failed, a day
 that errored) go to the alert topic once per run and are shown on the
@@ -126,7 +132,8 @@ Finance page.
   finance table, `sns:Publish` on the alert topic, `lambda:InvokeFunction`
   on itself.
 - `scheduler-invoke-finance-rollup`, `scheduler-invoke-platform-tenants`
-  (new): EventBridge Scheduler roles for the two schedules.
+  (new): EventBridge Scheduler roles for the schedules (the invoicing
+  schedule reuses the platform-tenants one).
 - `platform-tenants`: finance table read/write, `lambda:InvokeFunction` on
   finance-rollup (Rebuild), `sns:Publish` on the alert topic (dunning).
 - `platform-stripe-webhook`: finance table GetItem/PutItem/UpdateItem.
@@ -143,17 +150,21 @@ customer in Sweden (lag 1981:739 om ersättning för inkassokostnader §4a,
 räntelagen §6), but say so in the customer contract: payment terms 30
 days, förseningsavgift 450 kr, dröjsmålsränta referensränta + 8 %. Update
 `billing_reference_rate_pct` in tfvars when the Riksbank sets a new
-reference rate (1 January and 1 July).
+reference rate (1 January and 1 July). The contract should also state
+that the monthly price is invoiced in arrears for the period from the
+25th to the 24th, pro rata for a part period, and that SMS are charged
+per part at `sms_price_sek` (0,70 kr ex VAT) unless agreed otherwise.
 
 ## 6. Hand set-up (Terraform cannot)
 
 Stripe Dashboard, once per mode (sandbox and live):
 
-- Billing → Settings → **Subscriptions and emails**: send finalized
-  invoices and receipts to customers, reminders before and after the due
-  date, Smart Retries for card payments, and what happens when retries
-  fail (leave the subscription past due; the dunning task here suspends
-  the customer after `billing_suspend_after_days`).
+- Billing → Settings → **Subscriptions and emails** (the invoice email
+  settings apply to one-off invoices too): send finalized invoices and
+  receipts to customers, reminders before and after the due date, Smart
+  Retries for card payments, and what happens when retries fail (leave
+  the invoice open; the dunning task here suspends the customer after
+  `billing_suspend_after_days`).
 - Billing → Settings → **Invoice template**: your company name, address,
   org. number, "Godkänd för F-skatt", and the bankgiro number in the
   footer for customers who pay by bank transfer. Set the numbering

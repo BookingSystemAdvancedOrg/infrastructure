@@ -102,12 +102,9 @@ variable "platform_connect_events" {
 }
 variable "platform_billing_events" {
   type        = list(string)
-  description = "Platform-account subscription events (the restaurants' SaaS plans) delivered to platform-stripe-webhook /billing"
+  description = "Platform-account invoice events (the restaurants' monthly invoices, built by platform-tenants in arrears) delivered to platform-stripe-webhook /billing"
   sensitive   = false
   default = [
-    "customer.subscription.created",
-    "customer.subscription.updated",
-    "customer.subscription.deleted",
     "invoice.finalized",
     "invoice.paid",
     "invoice.payment_failed",
