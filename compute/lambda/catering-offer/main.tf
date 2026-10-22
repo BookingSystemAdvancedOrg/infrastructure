@@ -40,7 +40,7 @@ resource "aws_lambda_function" "this" {
   memory_size = 512
 
   environment {
-    variables = {
+    variables = merge({
       TENANT_TABLE_NAME                   = var.tenant_table_name
       LOCATION_ID_INDEX_NAME              = var.location_id_index_name
       ENVIRONMENT                         = var.environment
@@ -54,7 +54,7 @@ resource "aws_lambda_function" "this" {
       STRIPE_SECRET_ARN                   = var.stripe_secret_arn
       STRIPE_API_VERSION                  = var.stripe_api_version
       USER_TABLE_NAME                     = var.user_table_name
-    }
+    }, var.extra_env)
   }
 
   tags = {

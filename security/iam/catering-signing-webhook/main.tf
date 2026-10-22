@@ -94,12 +94,21 @@ resource "aws_iam_role_policy" "documents_write" {
     Version = "2012-10-17"
     Statement = [
       {
+        Sid    = "ReadOfferPdf"
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+        ]
+        Resource = "${var.catering_documents_bucket_arn}/*/offers/*"
+      },
+      {
         Sid    = "ArchiveSignedAgreement"
         Effect = "Allow"
         Action = [
           "s3:PutObject",
+          "s3:PutObjectRetention", # per-object lock on signed/ (no bucket default, issue 5 C7)
         ]
-        Resource = "${var.catering_documents_bucket_arn}/*"
+        Resource = "${var.catering_documents_bucket_arn}/*/signed/*"
       }
     ]
   })

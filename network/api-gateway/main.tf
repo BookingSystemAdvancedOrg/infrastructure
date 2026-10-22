@@ -1213,6 +1213,17 @@ resource "aws_apigatewayv2_route" "catering_requests_get" {
   authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
 
+# --- catering-requests ---
+# The calculator's live price (issue 5, M2): the server is the only source of
+# prices, the site only shows this answer. Per-IP limits in the handler
+# (shared/request_guard.py); each delivery quote calls Amazon Location.
+resource "aws_apigatewayv2_route" "catering_quote_post" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "POST /locations/{locationId}/catering/quote"
+  target             = "integrations/${aws_apigatewayv2_integration.catering_requests.id}"
+  authorization_type = "NONE"
+}
+
 resource "aws_lambda_permission" "catering_requests_invoke" {
   statement_id  = "AllowAPIGatewayInvokeCateringRequests"
   action        = "lambda:InvokeFunction"
@@ -1335,6 +1346,22 @@ resource "aws_apigatewayv2_route" "catering_offer_invoice_mark_paid" {
   authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
 
+# --- catering-offer ---
+# The restaurant signs each offer version first (issue 5, C2): start the
+# signing and poll it (BankID QR / app) or return from the provider's page.
+resource "aws_apigatewayv2_route" "catering_offer_restaurant_sign" {
+  for_each = toset([
+    "POST /locations/{locationId}/catering/requests/{requestId}/restaurant-sign",
+    "POST /locations/{locationId}/catering/requests/{requestId}/restaurant-sign/status",
+  ])
+
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = each.value
+  target             = "integrations/${aws_apigatewayv2_integration.catering_offer.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
 resource "aws_lambda_permission" "catering_offer_invoke" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
@@ -1380,10 +1407,12 @@ resource "aws_apigatewayv2_route" "catering_customer_sign" {
 }
 
 # The guest's other steps (magic-link token checked in the Lambda):
-# polling the BankID signing, asking for changes, declining the offer.
+# polling the signing, simple acceptance without BankID (when the restaurant
+# allows it), asking for changes, declining the offer.
 resource "aws_apigatewayv2_route" "catering_customer_steps" {
   for_each = toset([
     "POST /locations/{locationId}/catering/requests/{requestId}/customer/sign/status",
+    "POST /locations/{locationId}/catering/requests/{requestId}/customer/accept",
     "POST /locations/{locationId}/catering/requests/{requestId}/customer/change",
     "POST /locations/{locationId}/catering/requests/{requestId}/customer/reject",
   ])

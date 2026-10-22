@@ -206,3 +206,29 @@ resource "aws_iam_role_policy" "dynamodb_catering_menu" {
     ]
   })
 }
+
+# Delivery distance (issue 5, C6): Amazon Location v2 Core APIs with IAM
+# auth, no API key. Geocode the restaurant and the guest's address, then the
+# road distance between them. The provider resource is the only resource
+# these key-less APIs have, so this is as tight as v2 allows.
+resource "aws_iam_role_policy" "geo" {
+  name = "amazon-location-distance"
+  role = aws_iam_role.this.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "GeocodeAddresses"
+        Effect   = "Allow"
+        Action   = "geo-places:Geocode"
+        Resource = "arn:aws:geo-places:${var.region}::provider/default"
+      },
+      {
+        Sid      = "RoadDistance"
+        Effect   = "Allow"
+        Action   = "geo-routes:CalculateRoutes"
+        Resource = "arn:aws:geo-routes:${var.region}::provider/default"
+      }
+    ]
+  })
+}

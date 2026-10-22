@@ -17,10 +17,13 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | POST | `/locations` | JWT | create-location |
 | PUT | `/locations/{locationId}` | JWT | create-location |
 | GET | `/locations/{locationId}/menu` | NONE | get-menu |
+| GET | `/locations/{locationId}/menu/{proxy+}` | NONE | get-menu |
 | POST | `/locations/{locationId}/menu/{proxy+}` | JWT | manage-menu |
 | PUT | `/locations/{locationId}/menu/{proxy+}` | JWT | manage-menu |
 | DELETE | `/locations/{locationId}/menu/{proxy+}` | JWT | manage-menu |
 | GET | `/locations/{locationId}/availability` | NONE | get-availability |
+| GET | `/locations/{locationId}/ordering` | NONE | get-order |
+| GET | `/locations/{locationId}/order-status/{orderId}` | NONE | get-order |
 | POST | `/order` | NONE | payment-intent |
 | POST | `/locations/{locationId}/reservations/{reservationId}/cancel` | NONE | cancel-reservation |
 | POST | `/locations/{locationId}/reservations/{reservationId}/status` | JWT | mark-arrived |
@@ -62,6 +65,7 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | DELETE | `/locations/{locationId}/catering/discount-tiers/{tierId}` | JWT | catering-discount-tiers |
 | POST | `/locations/{locationId}/catering/requests` | NONE | catering-requests |
 | GET | `/locations/{locationId}/catering/requests` | JWT | catering-requests |
+| POST | `/locations/{locationId}/catering/quote` | NONE | catering-requests |
 | GET | `/locations/{locationId}/catering/requests/{requestId}` | JWT | catering-offer |
 | GET | `/locations/{locationId}/catering/requests/{requestId}/documents/{docId}` | JWT | catering-offer |
 | PUT | `/locations/{locationId}/catering/requests/{requestId}/offer` | JWT | catering-offer |
@@ -71,8 +75,14 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | POST | `/locations/{locationId}/catering/requests/{requestId}/delivered` | JWT | catering-offer |
 | GET | `/locations/{locationId}/catering/invoices` | JWT | catering-offer |
 | POST | `/locations/{locationId}/catering/invoices/{invoiceId}/mark-paid` | JWT | catering-offer |
+| POST | `/locations/{locationId}/catering/requests/{requestId}/restaurant-sign` | JWT | catering-offer |
+| POST | `/locations/{locationId}/catering/requests/{requestId}/restaurant-sign/status` | JWT | catering-offer |
 | GET | `/locations/{locationId}/catering/requests/{requestId}/customer` | NONE | catering-customer |
 | POST | `/locations/{locationId}/catering/requests/{requestId}/customer/sign` | NONE | catering-customer |
+| POST | `/locations/{locationId}/catering/requests/{requestId}/customer/sign/status` | NONE | catering-customer |
+| POST | `/locations/{locationId}/catering/requests/{requestId}/customer/accept` | NONE | catering-customer |
+| POST | `/locations/{locationId}/catering/requests/{requestId}/customer/change` | NONE | catering-customer |
+| POST | `/locations/{locationId}/catering/requests/{requestId}/customer/reject` | NONE | catering-customer |
 | POST | `/locations/{locationId}/catering/requests/{requestId}/customer/checkout` | NONE | catering-customer |
 | GET | `/locations/{locationId}/catering/requests/{requestId}/customer/documents/{docId}` | NONE | catering-customer |
 | POST | `/webhooks/signing/catering` | NONE | catering-signing-webhook |

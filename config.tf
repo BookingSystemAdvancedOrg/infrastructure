@@ -547,6 +547,7 @@ module "catering_offer_role" {
   catering_documents_bucket_arn      = module.catering_documents.bucket_arn
   stripe_secret_arn                  = module.platform_secrets.stripe_secret_arn
   document_function_arn              = module.catering_document_fn.function_arn
+  signing_provider_secret_arn        = module.catering_secrets.signing_provider_secret_arn
   region                             = var.aws_region
 }
 module "catering_customer_role" {
@@ -559,6 +560,7 @@ module "catering_customer_role" {
   link_signing_key_secret_arn        = module.catering_secrets.link_signing_key_secret_arn
   signing_provider_secret_arn        = module.catering_secrets.signing_provider_secret_arn
   stripe_secret_arn                  = module.platform_secrets.stripe_secret_arn
+  request_guard_table_arn            = module.request_guard.table_arn
   region                             = var.aws_region
 }
 module "catering_signing_webhook_role" {
@@ -1479,6 +1481,11 @@ module "catering_offer_fn" {
   tenant_table_name                   = module.tenant.table_name
   location_id_index_name              = module.location.location_id_index_name
   user_table_name                     = module.user.table_name
+  extra_env = merge(local.catering_document_lock_env, {
+    SIGNING_PROVIDER_SECRET_ARN = module.catering_secrets.signing_provider_secret_arn
+    SIGNING_WEBHOOK_URL         = local.catering_signing_webhook_url
+    ADMIN_DASHBOARD_URL         = local.admin_app_url
+  })
 }
 module "catering_customer_fn" {
   source                              = "./compute/lambda/catering-customer"
@@ -1499,6 +1506,9 @@ module "catering_customer_fn" {
   tenant_table_name                   = module.tenant.table_name
   location_id_index_name              = module.location.location_id_index_name
   cloudfront_edge_secret              = random_password.cloudfront_edge.result
+  extra_env = merge(local.catering_document_lock_env, {
+    REQUEST_GUARD_TABLE_NAME = module.request_guard.table_name
+  })
 }
 module "catering_signing_webhook_fn" {
   source                              = "./compute/lambda/catering-signing-webhook"
@@ -1513,6 +1523,7 @@ module "catering_signing_webhook_fn" {
   tenant_table_name                   = module.tenant.table_name
   location_table_name                 = module.location.table_name
   location_id_index_name              = module.location.location_id_index_name
+  extra_env                           = local.catering_document_lock_env
 }
 module "catering_stripe_webhook_fn" {
   source                              = "./compute/lambda/catering-stripe-webhook"

@@ -87,3 +87,22 @@ resource "aws_iam_role_policy" "dynamodb_catering_menu" {
     ]
   })
 }
+
+# Checks that the delivery origin address can be found when the owner saves
+# the delivery settings (issue 5, C6). Amazon Location v2, IAM auth, no key;
+# the provider resource is the only resource this key-less API has.
+resource "aws_iam_role_policy" "geo" {
+  name = "amazon-location-geocode"
+  role = aws_iam_role.this.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "GeocodeOrigin"
+        Effect   = "Allow"
+        Action   = "geo-places:Geocode"
+        Resource = "arn:aws:geo-places:${var.region}::provider/default"
+      }
+    ]
+  })
+}

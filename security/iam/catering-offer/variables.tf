@@ -57,3 +57,9 @@ variable "catering_menu_table_arn" {
   type        = string
   sensitive   = false
 }
+
+variable "signing_provider_secret_arn" {
+  description = "ARN of the catering signing-provider secret (restaurant signing)"
+  type        = string
+  sensitive   = false
+}

@@ -227,3 +227,31 @@ resource "aws_iam_role_policy" "dynamodb_catering_menu" {
     ]
   })
 }
+
+# Restaurant signing (issue 5, C2): the owner signs each offer version
+# before the customer can. Reads the signing-provider secret, creates and
+# cancels signing orders, and stores the restaurant's signature evidence
+# under <tenant>/signed/ with a per-object lock (the bucket has no default
+# lock, C7).
+resource "aws_iam_role_policy" "signing" {
+  name = "catering-restaurant-signing"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "ReadSigningProviderSecret"
+        Effect   = "Allow"
+        Action   = "secretsmanager:GetSecretValue"
+        Resource = var.signing_provider_secret_arn
+      },
+      {
+        Sid      = "StoreRestaurantSignatureEvidence"
+        Effect   = "Allow"
+        Action   = ["s3:PutObject", "s3:PutObjectRetention"]
+        Resource = "${var.catering_documents_bucket_arn}/*/signed/*"
+      }
+    ]
+  })
+}

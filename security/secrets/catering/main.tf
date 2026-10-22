@@ -53,10 +53,13 @@ resource "aws_secretsmanager_secret_version" "link_signing_key" {
   secret_string_wo_version = 1 # bump to rotate - every existing customer link stops working
 }
 
-# BankID signing provider (Scrive / Idura / Signicat - whichever is
-# contracted). Expected JSON shape, set out-of-band:
-#   { "provider": "...", "clientId": "...", "clientSecret": "...",
-#     "webhookSecret": "..." }
+# Catering signing provider (application shared/signing.py). Set by hand,
+# JSON; "provider" picks the implementation:
+#   { "provider": "simulator" }                       dev only
+#   { "provider": "bankid_direct", "environment": "test" | "prod",
+#     "certPem": "...", "keyPem": "...", "caPem": "..." }
+# A contracted provider (Scrive or SEB direct, see application
+# docs/orchestrator/CATERING-SIGNING-HANDOFF.md) adds its own fields here.
 resource "aws_secretsmanager_secret" "signing_provider" {
   name                    = "${local.prefix}catering/signing-provider"
   description             = "BankID signing provider API credentials and webhook secret (JSON) - set by hand"

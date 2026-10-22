@@ -1,8 +1,10 @@
 # Archive for every catering document that has legal or bookkeeping value:
 #
 #   offers/<requestId>/v<NNNN>.pdf      - each offer version the owner sent
-#   signed/<requestId>/v<NNNN>.pdf      - the PAdES-sealed agreement returned
-#                                         by the BankID signing provider
+#                                         (expires after 13 months)
+#   signed/<requestId>/v<NNNN>/...      - the signed agreement: the offer PDF,
+#                                         each party's signature evidence and
+#                                         a manifest of hashes (locked)
 #   invoices/<stripeInvoiceId>.pdf      - copy of every finalized Stripe
 #                                         invoice/receipt and credit note
 #
@@ -48,24 +50,25 @@ resource "aws_s3_bucket_versioning" "catering_documents" {
   }
 }
 
-# Default retention applied to every new object version.
+# No default retention (issue 5, C7): a bucket-wide 7-year COMPLIANCE lock
+# would also lock unsigned offer PDFs, which have no legal value and must go
+# (GDPR). The writers lock what is evidence, per object, with
+# s3:PutObjectRetention:
 #
-#   prod: COMPLIANCE, 7 years - nobody, not even the account root user, can
-#         delete or overwrite a version before it expires. That's the point:
-#         the signed agreement and invoices are evidence.
-#   dev:  GOVERNANCE, 1 day - same code paths exercised, but test data can
-#         still be cleaned up (s3:BypassGovernanceRetention) and the bucket
-#         destroyed.
+#   signed/, invoices/  prod: COMPLIANCE, 7 years - nobody, not even the
+#                       account root user, can delete or overwrite a version
+#                       before it expires (Bokföringslagen, contract evidence).
+#                       dev: GOVERNANCE, 1 day - same code paths, test data
+#                       can still be cleaned up and the bucket destroyed.
+#   offers/             no lock; tagged retention=offer and expired after
+#                       13 months by the lifecycle rule below.
+#
+# The mode and days reach the writers as DOCUMENT_LOCK_MODE /
+# DOCUMENT_LOCK_DAYS (root config.tf). Object Lock itself stays enabled: it
+# can't be switched off once on. Without a rule block this resource removes
+# the default retention; objects already written keep their own.
 resource "aws_s3_bucket_object_lock_configuration" "catering_documents" {
   bucket = aws_s3_bucket.catering_documents.id
-
-  rule {
-    default_retention {
-      mode  = local.is_prod ? "COMPLIANCE" : "GOVERNANCE"
-      years = local.is_prod ? 7 : null
-      days  = local.is_prod ? null : 1
-    }
-  }
 
   depends_on = [aws_s3_bucket_versioning.catering_documents]
 }
@@ -119,6 +122,34 @@ resource "aws_s3_bucket_lifecycle_configuration" "catering_documents" {
 
     abort_incomplete_multipart_upload {
       days_after_initiation = 7
+    }
+
+    # Delete markers left after the offers below have expired.
+    expiration {
+      expired_object_delete_marker = true
+    }
+  }
+
+  # Unsigned offer PDFs (catering-document tags them retention=offer): gone
+  # 13 months after they were written. A signed offer is copied to signed/
+  # with its lock, so nothing with legal value is lost here.
+  rule {
+    id     = "expire-offers-after-13-months"
+    status = "Enabled"
+
+    filter {
+      tag {
+        key   = "retention"
+        value = "offer"
+      }
+    }
+
+    expiration {
+      days = 396
+    }
+
+    noncurrent_version_expiration {
+      noncurrent_days = 1
     }
   }
 
