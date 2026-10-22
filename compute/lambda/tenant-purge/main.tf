@@ -41,7 +41,7 @@ resource "aws_lambda_function" "this" {
   reserved_concurrent_executions = var.reserved_concurrency
 
   environment {
-    variables = {
+    variables = merge({
       ENVIRONMENT                         = var.environment
       TENANT_TABLE_NAME                   = var.tenant_table_name
       TENANT_LIST_INDEX_NAME              = "GSI1"
@@ -58,7 +58,7 @@ resource "aws_lambda_function" "this" {
       BACKFILL_GRACE_DAYS                 = "7"
       ALERT_TOPIC_ARN                     = var.alert_topic_arn
       PROTECTED_ZONE_IDS                  = jsonencode(var.protected_zone_ids)
-    }
+    }, var.privacy_env) # consent log (root privacy-consent.tf)
   }
 
   tags = {

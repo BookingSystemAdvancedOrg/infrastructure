@@ -966,6 +966,15 @@ module "tenant_purge_ecr" {
   source      = "./storage/ecr/tenant-purge"
   environment = var.env
 }
+# Guest privacy (privacy-consent.tf); here because CI reads *_ecr from config.tf.
+module "data_retention_ecr" {
+  source      = "./storage/ecr/data-retention"
+  environment = var.env
+}
+module "guest_privacy_ecr" {
+  source      = "./storage/ecr/guest-privacy"
+  environment = var.env
+}
 module "platform_tenants_ecr" {
   source      = "./storage/ecr/platform-tenants"
   environment = var.env
@@ -1104,6 +1113,7 @@ module "create_location_fn" {
 module "create_pending_reservation_fn" {
   source                               = "./compute/lambda/create-pending-reservation"
   environment                          = var.env
+  privacy_env                          = local.privacy_env_booking
   role_arn                             = module.create_pending_reservation_role.role_arn
   ecr_repository_url                   = module.create_pending_reservation_ecr.create_pending_reservation_ecr_repository_url
   location_table_name                  = module.location.table_name
@@ -1189,6 +1199,7 @@ module "get_order_fn" {
 module "payment_intent_fn" {
   source                          = "./compute/lambda/payment-intent"
   environment                     = var.env
+  privacy_env                     = local.privacy_env_consent
   role_arn                        = module.payment_intent_role.role_arn
   ecr_repository_url              = module.payment_intent_ecr.payment_intent_ecr_repository_url
   order_table_name                = module.order.table_name
@@ -1295,6 +1306,7 @@ module "manage_user_fn" {
 module "mark_arrived_fn" {
   source                               = "./compute/lambda/mark-arrived"
   environment                          = var.env
+  privacy_env                          = local.privacy_env_mark_arrived
   role_arn                             = module.mark_arrived_role.role_arn
   ecr_repository_url                   = module.mark_arrived_ecr.mark_arrived_ecr_repository_url
   reservation_table_name               = module.reservation.table_name
@@ -1325,6 +1337,7 @@ module "no_show_check_fn" {
 module "notification_fn" {
   source                 = "./compute/lambda/notification"
   environment            = var.env
+  privacy_env            = local.privacy_env_notification
   role_arn               = module.notification_role.role_arn
   ecr_repository_url     = module.notification_ecr.notification_ecr_repository_url
   no_reply_email_address = local.no_reply_email
@@ -1417,6 +1430,7 @@ module "catering_discount_tiers_fn" {
 module "catering_requests_fn" {
   source                             = "./compute/lambda/catering-requests"
   environment                        = var.env
+  privacy_env                        = local.privacy_env_consent
   role_arn                           = module.catering_requests_role.role_arn
   ecr_repository_url                 = module.catering_requests_ecr.catering_requests_ecr_repository_url
   catering_requests_table_name       = module.catering_requests.table_name
@@ -1567,6 +1581,7 @@ module "dlq_replay_fn" {
 module "tenant_purge_fn" {
   source                              = "./compute/lambda/tenant-purge"
   environment                         = var.env
+  privacy_env                         = local.privacy_env_purge
   role_arn                            = module.tenant_purge_role.role_arn
   ecr_repository_url                  = module.tenant_purge_ecr.tenant_purge_ecr_repository_url
   scheduler_invoke_role_arn           = module.scheduler_invoke_tenant_purge_role.role_arn
@@ -1704,6 +1719,7 @@ module "tenant_account_fn" {
 module "tenant_site_config_fn" {
   source                 = "./compute/lambda/tenant-site-config"
   environment            = var.env
+  privacy_env            = local.retention_env
   role_arn               = module.tenant_site_config_role.role_arn
   ecr_repository_url     = module.tenant_site_config_ecr.tenant_site_config_ecr_repository_url
   tenant_table_name      = module.tenant.table_name
@@ -1837,6 +1853,8 @@ module "lambda_releases" {
     (module.stripe_webhook_fn.function_name)              = { alias_name = module.stripe_webhook_fn.alias_name }
     (module.tenant_account_fn.function_name)              = { alias_name = module.tenant_account_fn.alias_name }
     (module.tenant_purge_fn.function_name)                = { alias_name = module.tenant_purge_fn.alias_name }
+    (module.data_retention_fn.function_name)              = { alias_name = module.data_retention_fn.alias_name }
+    (module.guest_privacy_fn.function_name)               = { alias_name = module.guest_privacy_fn.alias_name }
     (module.finance_rollup_fn.function_name)              = { alias_name = module.finance_rollup_fn.alias_name }
     (module.insights_fn.function_name)                    = { alias_name = module.insights_fn.alias_name }
     (module.insights_rollup_fn.function_name)             = { alias_name = module.insights_rollup_fn.alias_name }
@@ -1853,11 +1871,14 @@ module "lambda_releases" {
 
 #API Gateway
 module "api_gateway" {
-  source               = "./network/api-gateway"
-  environment          = var.env
-  region               = var.aws_region
-  cognito_user_pool_id = module.cognito.user_pool_id
-  cognito_client_id    = module.cognito.user_pool_client_id
+  source      = "./network/api-gateway"
+  environment = var.env
+  # Owner privacy API (privacy-consent.tf, network/api-gateway/privacy-routes.tf)
+  guest_privacy_invoke_arn    = module.guest_privacy_fn.alias_invoke_arn
+  guest_privacy_function_name = module.guest_privacy_fn.function_name
+  region                      = var.aws_region
+  cognito_user_pool_id        = module.cognito.user_pool_id
+  cognito_client_id           = module.cognito.user_pool_client_id
   # Tenant websites live on domains added at runtime - see the CORS note in
   # network/api-gateway (bearer tokens only, so "*" is safe here).
   allowed_origins                          = ["*"]
@@ -1933,9 +1954,10 @@ module "api_gateway" {
 # email campaigns. Table, link key, functions, schedule, streams and SES
 # events are all in ./marketing.
 module "marketing" {
-  source      = "./marketing"
-  environment = var.env
-  region      = var.aws_region
+  source             = "./marketing"
+  environment        = var.env
+  consent_table_name = module.consent_log.table_name
+  region             = var.aws_region
   ecr_repository_urls = {
     marketing          = module.marketing_ecr.repository_url
     "marketing-public" = module.marketing_public_ecr.repository_url

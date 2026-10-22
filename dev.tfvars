@@ -106,3 +106,9 @@ tenant_purge_schedule      = "rate(1 hour)"
 # done for it in Booqy Console the checks run in the fallback mode: the
 # customer site's own distribution and a 404 for an unknown host.
 # smoke_test_host = "test-restaurang-2.dev.booqy.se"
+
+# Guest data retention (privacy-variables.tf). The job only logs counts per
+# data type until this is set to false, after the owner has checked them.
+# Periods: var.data_retention (defaults: bookings 395 days, contact details
+# 24 months, cancelled quotes 12 months, receipts 7 years, suppression 36 months).
+data_retention_dry_run = true

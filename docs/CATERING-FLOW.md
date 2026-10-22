@@ -72,7 +72,8 @@ an `AUDIT#` entry in catering-request-history - in one
 
 - `REQUEST#<requestId>` - head item: `status`, `version`, `customerType`
   (`private`/`company`), contact + company fields, `deliveryDate`,
-  `fulfilment` (`pickup`/`delivery`), `priceSnapshot`,
+  `fulfilment` (`pickup`/`delivery`), `equipmentReturn` (`cleaned`/
+  `not_cleaned`, the latest sent offer's once one is sent), `priceSnapshot`,
   `currentOfferVersion`, `validUntil`, `linkVersion`, `signedOfferVersion`,
   `signedDocHash`, `stripeCheckoutSessionId`, `stripeInvoiceId`,
   `invoiceNumber`, `invoiceStatus`.
@@ -83,7 +84,12 @@ an `AUDIT#` entry in catering-request-history - in one
 always `PutItem` with `attribute_not_exists(SK)`)
 
 - `OFFER#v0001` - line items, VAT per line, delivery fee, terms text,
-  `validUntil`, `pdfKey`, `pdfSha256`.
+  `validUntil`, `pdfKey`, `pdfSha256`, `equipmentReturn` and
+  `totals.cleaningFee` (öre). The cleaning fee is copied from
+  `cateringSettings.cleaningFee` (kronor, owner can change it any time) into
+  the request and each version, and is part of the signed document, so a
+  signed version keeps its price. Same 12 % VAT as the food, not discounted;
+  Stripe Checkout and the invoice get it as its own line.
 - `AUDIT#<ISO ts>#<seq>` - actor, action, from/to status, IP, user agent,
   document hash. Webhook-driven entries use `AUDIT#STRIPE#<evt id>` /
   `AUDIT#SIGNING#<event id>` instead, which doubles as the dedup key.

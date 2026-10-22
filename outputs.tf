@@ -104,6 +104,8 @@ output "ecr_repository_urls" {
     catering_lifecycle         = module.catering_lifecycle_ecr.catering_lifecycle_ecr_repository_url
     dlq_replay                 = module.dlq_replay_ecr.dlq_replay_ecr_repository_url
     tenant_purge               = module.tenant_purge_ecr.tenant_purge_ecr_repository_url
+    data_retention             = module.data_retention_ecr.data_retention_ecr_repository_url
+    guest_privacy              = module.guest_privacy_ecr.guest_privacy_ecr_repository_url
     finance_rollup             = module.finance_rollup_ecr.finance_rollup_ecr_repository_url
     insights                   = module.insights_ecr.insights_ecr_repository_url
     insights_rollup            = module.insights_rollup_ecr.insights_rollup_ecr_repository_url

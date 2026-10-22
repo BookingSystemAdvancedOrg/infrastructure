@@ -35,7 +35,7 @@ resource "aws_lambda_function" "this" {
   memory_size = 512
 
   environment {
-    variables = {
+    variables = merge({
       # Trust the viewer IP from the admin app's CloudFront (/api/*) for the
       # per-IP limits and signing evidence (shared/http.py source_ip).
       CLOUDFRONT_EDGE_SECRET              = var.cloudfront_edge_secret
@@ -54,7 +54,8 @@ resource "aws_lambda_function" "this" {
       REQUEST_GUARD_TABLE_NAME            = var.request_guard_table_name
       TURNSTILE_REQUIRED                  = var.turnstile_required ? "true" : "false"
       MARKETING_TABLE_NAME                = var.marketing_table_name # statistics + "offers" opt-in
-    }
+      # + consent log (root privacy-consent.tf)
+    }, var.privacy_env)
   }
 
   tags = {

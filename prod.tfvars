@@ -84,3 +84,9 @@ tenant_purge_schedule      = "cron(0 2 * * ? *)"
 # will always exist (e.g. a demo restaurant on its own domain) to check a
 # real 200 instead.
 # smoke_test_host = "demo.booqy.se"
+
+# Guest data retention (privacy-variables.tf). The job only logs counts per
+# data type until this is set to false, after the owner has checked them.
+# Periods: var.data_retention (defaults: bookings 395 days, contact details
+# 24 months, cancelled quotes 12 months, receipts 7 years, suppression 36 months).
+data_retention_dry_run = true

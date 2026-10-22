@@ -40,14 +40,14 @@ resource "aws_lambda_function" "this" {
   memory_size = 256
 
   environment {
-    variables = {
+    variables = merge({
       LOCATION_ID_INDEX_NAME = var.location_id_index_name
       ENVIRONMENT            = var.environment
       TENANT_TABLE_NAME      = var.tenant_table_name
       LOCATION_TABLE_NAME    = var.location_table_name
       TURNSTILE_SITE_KEY     = var.turnstile_site_key
       STRIPE_PUBLISHABLE_KEY = var.stripe_publishable_key
-    }
+    }, var.privacy_env) # retention periods for the privacy notice (root privacy-consent.tf)
   }
 
   tags = {
