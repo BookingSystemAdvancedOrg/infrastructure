@@ -19,3 +19,12 @@ variable "consent_table_arn" {
 variable "marketing_table_arn" {
   type = string
 }
+
+variable "location_table_arn" {
+  type = string
+}
+
+variable "guest_table_arns" {
+  description = "Reservation, order and catering-requests table ARNs (export and erasure)"
+  type        = list(string)
+}

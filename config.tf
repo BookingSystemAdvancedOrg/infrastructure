@@ -2179,6 +2179,7 @@ module "platform_domain" {
   demo_request_enabled                    = true
   demo_request_origin_domain              = module.demo_request_fn[0].function_url_domain
   site_response_headers_policy_id         = module.cloudfront_public.site_response_headers_policy_id
+  dmarc_report_address                    = var.dmarc_report_address
 }
 
 # Adopt an existing hosted zone for the platform domain (var.platform_domain_zone_id)

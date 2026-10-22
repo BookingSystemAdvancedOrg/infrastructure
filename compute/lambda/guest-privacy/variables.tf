@@ -45,3 +45,15 @@ variable "consent_table_name" {
 variable "marketing_table_name" {
   type = string
 }
+
+variable "reservation_table_name" {
+  type = string
+}
+
+variable "order_table_name" {
+  type = string
+}
+
+variable "catering_requests_table_name" {
+  type = string
+}

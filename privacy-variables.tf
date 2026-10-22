@@ -50,3 +50,15 @@ variable "data_retention_schedule" {
   sensitive   = false
   default     = "cron(30 2 * * ? *)"
 }
+
+variable "dmarc_report_address" {
+  type        = string
+  description = "Mailbox for DMARC aggregate reports (rua) on the platform domain, e.g. dmarc@booqy.se. The mailbox must exist. Empty = no reports."
+  sensitive   = false
+  default     = ""
+
+  validation {
+    condition     = var.dmarc_report_address == "" || can(regex("^[a-z0-9._+-]+@([a-z0-9-]+\\.)+[a-z]{2,}$", var.dmarc_report_address))
+    error_message = "dmarc_report_address must be an e-mail address or empty."
+  }
+}

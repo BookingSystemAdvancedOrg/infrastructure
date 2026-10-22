@@ -83,10 +83,12 @@ resource "aws_iam_role_policy" "data" {
         Resource = [var.consent_table_arn, "${var.consent_table_arn}/index/*"]
       },
       {
-        # The subscriber row of a guest whose consent is now only a suppression.
-        Sid      = "DeleteSubscriberRows"
+        # The subscriber row of a guest whose consent is now only a suppression;
+        # unconfirmed sign-ups are deleted, bounced/complained rows lose the
+        # address (Query the TENANT#<t>#SUB partition, UpdateItem strips it).
+        Sid      = "ExpireSubscriberRows"
         Effect   = "Allow"
-        Action   = "dynamodb:DeleteItem"
+        Action   = ["dynamodb:Query", "dynamodb:UpdateItem", "dynamodb:DeleteItem"]
         Resource = var.marketing_table_arn
       },
       {

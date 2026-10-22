@@ -371,5 +371,6 @@ resource "aws_route53_record" "dmarc" {
   name    = "_dmarc.${local.mail_domain}"
   type    = "TXT"
   ttl     = 1800
-  records = ["v=DMARC1; p=none;"]
+  # p=none: reports only, nothing is rejected yet.
+  records = [var.dmarc_report_address == "" ? "v=DMARC1; p=none;" : "v=DMARC1; p=none; rua=mailto:${var.dmarc_report_address};"]
 }

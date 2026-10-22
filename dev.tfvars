@@ -112,3 +112,6 @@ tenant_purge_schedule      = "rate(1 hour)"
 # Periods: var.data_retention (defaults: bookings 395 days, contact details
 # 24 months, cancelled quotes 12 months, receipts 7 years, suppression 36 months).
 data_retention_dry_run = true
+
+# DMARC aggregate reports (privacy-variables.tf). The mailbox must exist.
+dmarc_report_address = "dmarc@booqy.se"

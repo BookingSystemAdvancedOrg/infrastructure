@@ -1,6 +1,7 @@
 # Owner API for guest privacy (application functions/guest-privacy): the
 # restaurant's privacy notice (GET/PUT/DELETE /privacy/notice) and the
-# consent lookup / withdrawal on a guest's behalf (/privacy/consents).
+# consent lookup / withdrawal on a guest's behalf (/privacy/consents),
+# and a guest's export and erasure (/privacy/guests).
 # Tenant pool JWT, owners only (checked in the handler).
 
 locals {
@@ -41,6 +42,9 @@ resource "aws_lambda_function" "this" {
       USER_TABLE_NAME        = var.user_table_name
       CONSENT_TABLE_NAME     = var.consent_table_name
       MARKETING_TABLE_NAME   = var.marketing_table_name
+      RESERVATION_TABLE_NAME = var.reservation_table_name
+      ORDER_TABLE_NAME       = var.order_table_name
+      CATERING_TABLE_NAME    = var.catering_requests_table_name
     }, var.retention_env)
   }
 
