@@ -88,3 +88,9 @@ variable "user_table_name" {
   type        = string
   sensitive   = false
 }
+
+variable "catering_menu_table_name" {
+  description = "Name of the catering menu DynamoDB table (catering dishes and packages)"
+  type        = string
+  sensitive   = false
+}

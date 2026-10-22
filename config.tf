@@ -106,6 +106,10 @@ module "catering_requests" {
   lifecycle_lambda_arn    = module.catering_lifecycle_fn.alias_arn
   lifecycle_dlq_arn       = module.dead_letter.lifecycle_stream_dlq_arn
 }
+module "catering_menu" {
+  source      = "./storage/dynamodb/catering-menu"
+  environment = var.env
+}
 module "catering_request_history" {
   source      = "./storage/dynamodb/catering-request-history"
   environment = var.env
@@ -506,10 +510,11 @@ module "notification_role" {
   finance_table_arn                    = module.finance.table_arn
 }
 module "catering_settings_role" {
-  source             = "./security/iam/catering-settings"
-  environment        = var.env
-  location_table_arn = module.location.table_arn
-  region             = var.aws_region
+  source                  = "./security/iam/catering-settings"
+  environment             = var.env
+  location_table_arn      = module.location.table_arn
+  catering_menu_table_arn = module.catering_menu.table_arn
+  region                  = var.aws_region
 }
 module "catering_discount_tiers_role" {
   source                            = "./security/iam/catering-discount-tiers"
@@ -525,6 +530,7 @@ module "catering_requests_role" {
   location_table_arn                 = module.location.table_arn
   catering_discount_tiers_table_arn  = module.catering_discount_tiers.table_arn
   menu_table_arn                     = module.menu.table_arn
+  catering_menu_table_arn            = module.catering_menu.table_arn
   turnstile_secret_arn               = module.catering_secrets.turnstile_secret_arn
   link_signing_key_secret_arn        = module.catering_secrets.link_signing_key_secret_arn
   request_guard_table_arn            = module.request_guard.table_arn
@@ -537,6 +543,7 @@ module "catering_offer_role" {
   catering_request_history_table_arn = module.catering_request_history.table_arn
   location_table_arn                 = module.location.table_arn
   menu_table_arn                     = module.menu.table_arn
+  catering_menu_table_arn            = module.catering_menu.table_arn
   catering_documents_bucket_arn      = module.catering_documents.bucket_arn
   stripe_secret_arn                  = module.platform_secrets.stripe_secret_arn
   document_function_arn              = module.catering_document_fn.function_arn
@@ -1407,14 +1414,15 @@ module "webhook_payment_intent_fn" {
   location_id_index_name          = module.location.location_id_index_name
 }
 module "catering_settings_fn" {
-  source                 = "./compute/lambda/catering-settings"
-  environment            = var.env
-  role_arn               = module.catering_settings_role.role_arn
-  ecr_repository_url     = module.catering_settings_ecr.catering_settings_ecr_repository_url
-  location_table_name    = module.location.table_name
-  region                 = var.aws_region
-  tenant_table_name      = module.tenant.table_name
-  location_id_index_name = module.location.location_id_index_name
+  source                   = "./compute/lambda/catering-settings"
+  environment              = var.env
+  role_arn                 = module.catering_settings_role.role_arn
+  ecr_repository_url       = module.catering_settings_ecr.catering_settings_ecr_repository_url
+  location_table_name      = module.location.table_name
+  catering_menu_table_name = module.catering_menu.table_name
+  region                   = var.aws_region
+  tenant_table_name        = module.tenant.table_name
+  location_id_index_name   = module.location.location_id_index_name
 }
 module "catering_discount_tiers_fn" {
   source                             = "./compute/lambda/catering-discount-tiers"
@@ -1437,6 +1445,7 @@ module "catering_requests_fn" {
   location_table_name                = module.location.table_name
   catering_discount_tiers_table_name = module.catering_discount_tiers.table_name
   menu_table_name                    = module.menu.table_name
+  catering_menu_table_name           = module.catering_menu.table_name
   region                             = var.aws_region
 
   catering_request_history_table_name = module.catering_request_history.table_name
@@ -1461,6 +1470,7 @@ module "catering_offer_fn" {
   catering_request_history_table_name = module.catering_request_history.table_name
   location_table_name                 = module.location.table_name
   menu_table_name                     = module.menu.table_name
+  catering_menu_table_name            = module.catering_menu.table_name
   catering_documents_bucket_name      = module.catering_documents.bucket_name
   document_function_name              = "${module.catering_document_fn.function_name}:${module.catering_document_fn.alias_name}"
   stripe_secret_arn                   = module.platform_secrets.stripe_secret_arn
@@ -2066,6 +2076,7 @@ locals {
     catering_requests         = { name = module.catering_requests.table_name, arn = module.catering_requests.table_arn }
     insights                  = { name = module.insights.table_name, arn = module.insights.table_arn }
     catering_discount_tiers   = { name = module.catering_discount_tiers.table_name, arn = module.catering_discount_tiers.table_arn }
+    catering_menu             = { name = module.catering_menu.table_name, arn = module.catering_menu.table_arn }
     location                  = { name = module.location.table_name, arn = module.location.table_arn }
     catering_request_history  = { name = module.catering_request_history.table_name, arn = module.catering_request_history.table_arn }
     marketing                 = { name = module.marketing.table_name, arn = module.marketing.table_arn }

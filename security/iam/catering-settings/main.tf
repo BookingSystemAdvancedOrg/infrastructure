@@ -63,3 +63,27 @@ resource "aws_iam_role_policy" "logs" {
     ]
   })
 }
+
+# The owner's catering menu CRUD (DISH# / PACKAGE# items) and the public
+# read of the active ones. Item-level actions only: no Scan, no table-level
+# actions.
+resource "aws_iam_role_policy" "dynamodb_catering_menu" {
+  name = "catering-menu-table"
+  role = aws_iam_role.this.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "CateringMenuAccess"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:GetItem",
+          "dynamodb:Query",
+          "dynamodb:PutItem",
+          "dynamodb:DeleteItem",
+        ]
+        Resource = "${var.catering_menu_table_arn}"
+      }
+    ]
+  })
+}

@@ -100,6 +100,16 @@ in catering-request-history with `attribute_not_exists(SK)`; on
 `ConditionalCheckFailed` (a redelivery), return 200 and stop. Status updates
 stay conditional on `status` + `version` as a second guard.
 
+**catering-menu** (PK `LOCATION#<locationId>`) - the restaurant's own
+catering menu, separate from the regular menu (`MENU#` items are never
+changed by catering). `DISH#<dishId>`: `name`, `description`,
+`pricePerPortion` (kronor incl. VAT, like menu prices), `allergens[]`,
+`dietary[]`, `active`, `sort`, `version`, optional `sourceMenuItemId` (copied
+with "Hämta från menyn", no link). `PACKAGE#<packageId>`: `name`,
+`description`, `pricePerGuest` (kronor), `dishIds[]`, optional `minGuests`,
+`active`, `sort`, `version`. Written by catering-settings (owner, conditional
+on `version`); read by catering-requests and catering-offer.
+
 **catering-documents** (S3, Object Lock) - `<tenantId>/offers/<requestId>/v<NNNN>.pdf`,
 `<tenantId>/signed/<requestId>/v<NNNN>.pdf`, `<tenantId>/invoices/<stripeInvoiceId>.pdf`. Never
 hand out object URLs - presigned GET only.

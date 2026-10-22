@@ -112,3 +112,9 @@ variable "marketing_table_name" {
   type        = string
   default     = ""
 }
+
+variable "catering_menu_table_name" {
+  description = "Name of the catering menu DynamoDB table (catering dishes and packages)"
+  type        = string
+  sensitive   = false
+}

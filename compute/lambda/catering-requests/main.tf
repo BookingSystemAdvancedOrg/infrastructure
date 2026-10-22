@@ -44,6 +44,7 @@ resource "aws_lambda_function" "this" {
       ENVIRONMENT                         = var.environment
       CATERING_REQUESTS_TABLE_NAME        = var.catering_requests_table_name
       LOCATION_TABLE_NAME                 = var.location_table_name
+      CATERING_MENU_TABLE_NAME            = var.catering_menu_table_name
       CATERING_DISCOUNT_TIERS_TABLE_NAME  = var.catering_discount_tiers_table_name
       MENU_TABLE_NAME                     = var.menu_table_name
       CATERING_REQUEST_HISTORY_TABLE_NAME = var.catering_request_history_table_name

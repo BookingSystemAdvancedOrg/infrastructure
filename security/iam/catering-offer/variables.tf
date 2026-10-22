@@ -51,3 +51,9 @@ variable "region" {
   type        = string
   sensitive   = false
 }
+
+variable "catering_menu_table_arn" {
+  description = "ARN of the catering menu DynamoDB table (catering dishes and packages)"
+  type        = string
+  sensitive   = false
+}

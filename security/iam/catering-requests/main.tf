@@ -185,3 +185,24 @@ resource "aws_iam_role_policy" "logs" {
     ]
   })
 }
+
+# Catering dishes and packages for pricing (issue 5, read only).
+resource "aws_iam_role_policy" "dynamodb_catering_menu" {
+  name = "catering-menu-table-read"
+  role = aws_iam_role.this.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "ReadCateringMenuTable"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:GetItem",
+          "dynamodb:Query",
+          "dynamodb:BatchGetItem",
+        ]
+        Resource = "${var.catering_menu_table_arn}"
+      }
+    ]
+  })
+}
