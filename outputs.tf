@@ -105,6 +105,8 @@ output "ecr_repository_urls" {
     dlq_replay                 = module.dlq_replay_ecr.dlq_replay_ecr_repository_url
     tenant_purge               = module.tenant_purge_ecr.tenant_purge_ecr_repository_url
     finance_rollup             = module.finance_rollup_ecr.finance_rollup_ecr_repository_url
+    insights                   = module.insights_ecr.insights_ecr_repository_url
+    insights_rollup            = module.insights_rollup_ecr.insights_rollup_ecr_repository_url
     platform_tenants           = module.platform_tenants_ecr.platform_tenants_ecr_repository_url
     tenant_account             = module.tenant_account_ecr.tenant_account_ecr_repository_url
     tenant_site_config         = module.tenant_site_config_ecr.tenant_site_config_ecr_repository_url

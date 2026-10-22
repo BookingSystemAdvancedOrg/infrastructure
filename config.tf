@@ -124,6 +124,12 @@ module "finance" {
   source      = "./storage/dynamodb/finance"
   environment = var.env
 }
+# A restaurant's own figures per location and day (Statistik in the admin
+# app). Purged with the restaurant (tenant_purge_tables).
+module "insights" {
+  source      = "./storage/dynamodb/insights"
+  environment = var.env
+}
 # The subscription catalog in the platform Stripe account: a product and a
 # monthly price per plan (var.plans.price_sek) and the Swedish VAT rate.
 module "billing_catalog" {
@@ -654,6 +660,36 @@ module "scheduler_invoke_finance_rollup_role" {
   environment               = var.env
   finance_rollup_lambda_arn = module.finance_rollup_fn.function_arn
 }
+module "insights_rollup_role" {
+  source                              = "./security/iam/insights-rollup"
+  environment                         = var.env
+  region                              = var.aws_region
+  insights_table_arn                  = module.insights.table_arn
+  tenant_table_arn                    = module.tenant.table_arn
+  location_table_arn                  = module.location.table_arn
+  reservation_table_arn               = module.reservation.table_arn
+  order_table_arn                     = module.order.table_arn
+  catering_requests_table_arn         = module.catering_requests.table_arn
+  published_layout_snapshot_table_arn = module.published_layout_snapshot.table_arn
+  marketing_table_arn                 = module.marketing.table_arn
+}
+module "scheduler_invoke_insights_rollup_role" {
+  source                     = "./security/iam/scheduler-invoke-insights-rollup"
+  environment                = var.env
+  insights_rollup_lambda_arn = module.insights_rollup_fn.function_arn
+}
+module "insights_role" {
+  source                              = "./security/iam/insights"
+  environment                         = var.env
+  region                              = var.aws_region
+  insights_table_arn                  = module.insights.table_arn
+  location_table_arn                  = module.location.table_arn
+  reservation_table_arn               = module.reservation.table_arn
+  order_table_arn                     = module.order.table_arn
+  catering_requests_table_arn         = module.catering_requests.table_arn
+  published_layout_snapshot_table_arn = module.published_layout_snapshot.table_arn
+  marketing_table_arn                 = module.marketing.table_arn
+}
 module "scheduler_invoke_platform_tenants_role" {
   source                      = "./security/iam/scheduler-invoke-platform-tenants"
   environment                 = var.env
@@ -755,6 +791,8 @@ module "tenant_context_policy" {
     catering_offer    = module.catering_offer_role.role_name
     # Marketing test emails go to the signed-in owner's own address.
     marketing = module.marketing.role_names["marketing"]
+    # Statistik: staff see their own location only.
+    insights = module.insights_role.role_name
   }
 }
 
@@ -950,6 +988,14 @@ module "platform_stripe_webhook_ecr" {
 }
 module "finance_rollup_ecr" {
   source      = "./storage/ecr/finance-rollup"
+  environment = var.env
+}
+module "insights_ecr" {
+  source      = "./storage/ecr/insights"
+  environment = var.env
+}
+module "insights_rollup_ecr" {
+  source      = "./storage/ecr/insights-rollup"
   environment = var.env
 }
 
@@ -1607,6 +1653,40 @@ module "finance_rollup_fn" {
   sms_price_sek             = var.sms_price_sek
   alert_topic_arn           = module.alerts.topic_arn
 }
+# Nightly figures for Statistik in the admin app (per location and day).
+module "insights_rollup_fn" {
+  source                               = "./compute/lambda/insights-rollup"
+  environment                          = var.env
+  role_arn                             = module.insights_rollup_role.role_arn
+  ecr_repository_url                   = module.insights_rollup_ecr.insights_rollup_ecr_repository_url
+  scheduler_invoke_role_arn            = module.scheduler_invoke_insights_rollup_role.role_arn
+  schedule_expression                  = var.insights_rollup_schedule
+  insights_table_name                  = module.insights.table_name
+  tenant_table_name                    = module.tenant.table_name
+  location_table_name                  = module.location.table_name
+  reservation_table_name               = module.reservation.table_name
+  order_table_name                     = module.order.table_name
+  catering_requests_table_name         = module.catering_requests.table_name
+  published_layout_snapshot_table_name = module.published_layout_snapshot.table_name
+  marketing_table_name                 = module.marketing.table_name
+}
+# GET /insights: Statistik's figures for a period.
+module "insights_fn" {
+  source                               = "./compute/lambda/insights"
+  environment                          = var.env
+  role_arn                             = module.insights_role.role_arn
+  ecr_repository_url                   = module.insights_ecr.insights_ecr_repository_url
+  insights_table_name                  = module.insights.table_name
+  tenant_table_name                    = module.tenant.table_name
+  location_table_name                  = module.location.table_name
+  location_id_index_name               = module.location.location_id_index_name
+  user_table_name                      = module.user.table_name
+  reservation_table_name               = module.reservation.table_name
+  order_table_name                     = module.order.table_name
+  catering_requests_table_name         = module.catering_requests.table_name
+  published_layout_snapshot_table_name = module.published_layout_snapshot.table_name
+  marketing_table_name                 = module.marketing.table_name
+}
 module "tenant_account_fn" {
   source                 = "./compute/lambda/tenant-account"
   environment            = var.env
@@ -1758,6 +1838,8 @@ module "lambda_releases" {
     (module.tenant_account_fn.function_name)              = { alias_name = module.tenant_account_fn.alias_name }
     (module.tenant_purge_fn.function_name)                = { alias_name = module.tenant_purge_fn.alias_name }
     (module.finance_rollup_fn.function_name)              = { alias_name = module.finance_rollup_fn.alias_name }
+    (module.insights_fn.function_name)                    = { alias_name = module.insights_fn.alias_name }
+    (module.insights_rollup_fn.function_name)             = { alias_name = module.insights_rollup_fn.alias_name }
     (module.tenant_site_config_fn.function_name)          = { alias_name = module.tenant_site_config_fn.alias_name }
     (module.reservation_reminders_fn.function_name)       = { alias_name = module.reservation_reminders_fn.alias_name }
     (module.webhook_payment_intent_fn.function_name)      = { alias_name = module.webhook_payment_intent_fn.alias_name }
@@ -1785,6 +1867,8 @@ module "api_gateway" {
   platform_tenants_invoke_arn              = module.platform_tenants_fn.alias_invoke_arn
   tenant_account_function_name             = module.tenant_account_fn.function_name
   tenant_account_invoke_arn                = module.tenant_account_fn.alias_invoke_arn
+  insights_function_name                   = module.insights_fn.function_name
+  insights_invoke_arn                      = module.insights_fn.alias_invoke_arn
   tenant_site_config_function_name         = module.tenant_site_config_fn.function_name
   tenant_site_config_invoke_arn            = module.tenant_site_config_fn.alias_invoke_arn
   get_location_function_name               = module.get_location_fn.function_name
@@ -1958,6 +2042,7 @@ locals {
     live_layout_element       = { name = module.live_layout_element.table_name, arn = module.live_layout_element.table_arn }
     published_layout_snapshot = { name = module.published_layout_snapshot.table_name, arn = module.published_layout_snapshot.table_arn }
     catering_requests         = { name = module.catering_requests.table_name, arn = module.catering_requests.table_arn }
+    insights                  = { name = module.insights.table_name, arn = module.insights.table_arn }
     catering_discount_tiers   = { name = module.catering_discount_tiers.table_name, arn = module.catering_discount_tiers.table_arn }
     location                  = { name = module.location.table_name, arn = module.location.table_arn }
     catering_request_history  = { name = module.catering_request_history.table_name, arn = module.catering_request_history.table_arn }
@@ -2009,6 +2094,7 @@ locals {
     stripe_webhook             = module.stripe_webhook_role.role_name
     tenant_account             = module.tenant_account_role.role_name
     tenant_site_config         = module.tenant_site_config_role.role_name
+    insights                   = module.insights_role.role_name
     reservation_reminders      = module.reservation_reminders_role.role_name
     webhook_payment_intent     = module.webhook_payment_intent_role.role_name
     marketing                  = module.marketing.role_names["marketing"]

@@ -363,6 +363,18 @@ variable "tenant_account_invoke_arn" {
   sensitive   = false
 }
 
+variable "insights_function_name" {
+  description = "Name of the insights Lambda"
+  type        = string
+  sensitive   = false
+}
+
+variable "insights_invoke_arn" {
+  description = "Invoke ARN of the insights Lambda"
+  type        = string
+  sensitive   = false
+}
+
 variable "tenant_site_config_function_name" {
   description = "Name of the tenant-site-config Lambda"
   type        = string

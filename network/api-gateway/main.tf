@@ -1532,6 +1532,46 @@ resource "aws_lambda_permission" "tenant_account_invoke" {
 }
 
 
+# --- insights ---
+#
+# Statistik in the admin app: a restaurant's own figures for a period
+# (rolled-up days plus today). Tenant pool token - the tenant comes from the
+# token, locations are checked against it, staff see only their own
+# location and no amounts.
+
+locals {
+  insights_routes = [
+    "GET /insights",
+  ]
+}
+
+resource "aws_apigatewayv2_integration" "insights" {
+  api_id                 = aws_apigatewayv2_api.this.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = var.insights_invoke_arn
+  integration_method     = "POST" # Lambda proxy integrations always invoke via POST, regardless of the route's own method
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "insights" {
+  for_each = toset(local.insights_routes)
+
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = each.value
+  target             = "integrations/${aws_apigatewayv2_integration.insights.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_lambda_permission" "insights_invoke" {
+  statement_id  = "AllowAPIGatewayInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = var.insights_function_name
+  qualifier     = var.lambda_alias_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
+}
+
 # --- tenant-site-config ---
 #
 # Public bootstrap call every tenant website makes on load:

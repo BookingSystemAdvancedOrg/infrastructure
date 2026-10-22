@@ -128,6 +128,7 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | GET | `/tenant` | JWT | tenant-account |
 | PATCH | `/tenant` | JWT | tenant-account |
 | POST | `/tenant/stripe/account-link` | JWT | tenant-account |
+| GET | `/insights` | JWT | insights |
 | GET | `/site-config` | NONE | tenant-site-config |
 | GET | `/marketing/{proxy+}` | JWT | marketing |
 | POST | `/marketing/{proxy+}` | JWT | marketing |
