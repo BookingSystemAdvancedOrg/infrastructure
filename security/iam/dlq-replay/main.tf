@@ -1,17 +1,18 @@
 # Execution role for the DlqReplayFn Lambda - the scheduled job that drains
-# the three dead-letter queues (storage/sqs/dead-letter) and redelivers each
+# the four dead-letter queues (storage/sqs/dead-letter) and redelivers each
 # failed item to the Lambda that owns it:
 #
 #   catering-lifecycle-stream-dlq -> catering-lifecycle (records re-read from
 #                                    the catering-requests stream)
 #   notification-stream-dlq       -> notification (records re-read from the
 #                                    reservation / order / catering-requests stream)
+#   print-stream-dlq              -> print-jobs (records re-read from the order stream)
 #   scheduled-invocation-dlq      -> the function named in the failure record:
 #                                    catering-lifecycle, no-show-check,
 #                                    reactivate-menu-item or expire-layout-version
 #
 # It holds no table permissions on purpose: it never does business work
-# itself, it only redelivers. Invoke rights are limited to those five
+# itself, it only redelivers. Invoke rights are limited to those six
 # functions, so a crafted message can't make it call anything else.
 
 data "aws_caller_identity" "current" {}
@@ -58,6 +59,7 @@ resource "aws_iam_role_policy" "dlq" {
         Resource = [
           "${var.lifecycle_stream_dlq_arn}",
           "${var.notification_stream_dlq_arn}",
+          "${var.print_stream_dlq_arn}",
           "${var.scheduled_invocation_dlq_arn}",
         ]
       }
@@ -83,6 +85,8 @@ resource "aws_iam_role_policy" "invoke" {
           "${var.catering_lifecycle_function_arn}:*",
           "${var.notification_function_arn}",
           "${var.notification_function_arn}:*",
+          "${var.print_jobs_function_arn}",
+          "${var.print_jobs_function_arn}:*",
           "${var.no_show_check_function_arn}",
           "${var.no_show_check_function_arn}:*",
           "${var.reactivate_menu_item_function_arn}",

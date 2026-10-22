@@ -53,6 +53,8 @@ resource "aws_lambda_function" "this" {
       SCHEDULED_INVOCATION_DLQ_URL    = var.queue_urls["scheduled_invocation"]
       CATERING_LIFECYCLE_FUNCTION_ARN = var.catering_lifecycle_function_arn
       NOTIFICATION_FUNCTION_ARN       = var.notification_function_arn
+      PRINT_STREAM_DLQ_URL            = var.queue_urls["print_stream"]
+      PRINT_JOBS_FUNCTION_ARN         = var.print_jobs_function_arn
       REPLAYABLE_FUNCTION_ARNS        = jsonencode(var.replayable_function_arns) # allow-list for scheduled-invocation redelivery
       ALERT_TOPIC_ARN                 = var.alert_topic_arn
       MAX_REPLAY_ATTEMPTS             = "3"

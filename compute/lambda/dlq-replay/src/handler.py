@@ -1,7 +1,7 @@
 """DlqReplayFn - drains the platform's three dead-letter queues.
 
 Invoked only by the recurring EventBridge schedule (compute/lambda/dlq-replay),
-with {"queue": "all" | "lifecycle_stream" | "notification_stream" | "scheduled_invocation",
+with {"queue": "all" | "lifecycle_stream" | "notification_stream" | "print_stream" | "scheduled_invocation",
       "max": 50}.
 
 For every message it redelivers the failed work to the Lambda that owns it
@@ -12,6 +12,8 @@ and deletes the message only once that Lambda succeeded:
   notification_stream   pointer to failed records from the reservation, order
                         or catering-requests stream -> re-read them, invoke
                         NotificationFn with {"Records": [...]}
+  print_stream          pointer to failed order stream records -> re-read them,
+                        invoke print-jobs with {"Records": [...]}
   scheduled_invocation  a failed scheduled (asynchronous) run:
                           - Lambda async on-failure record (Terraform-configured on
                             catering-lifecycle, no-show-check, reactivate-menu-item,
@@ -36,7 +38,9 @@ Outcomes per message:
   stream records expired (>23h) -> lifecycle_stream: catering-lifecycle is asked
                                    to reconcile from the table, then deleted;
                                    notification_stream: escalated (a message to
-                                   a customer/owner may be missing), then deleted
+                                   a customer/owner may be missing), then deleted;
+                                   print_stream: escalated (a kitchen ticket may
+                                   be missing), then deleted
   unknown / not-allow-listed    -> escalated, then deleted
 
 Reference implementation - build and push it from the backend repo like the
@@ -64,10 +68,13 @@ QUEUES = {
     "notification_stream": os.environ["NOTIFICATION_STREAM_DLQ_URL"],
     "scheduled_invocation": os.environ["SCHEDULED_INVOCATION_DLQ_URL"],
 }
+if os.environ.get("PRINT_STREAM_DLQ_URL"):
+    QUEUES["print_stream"] = os.environ["PRINT_STREAM_DLQ_URL"]
 LIFECYCLE_ARN = os.environ["CATERING_LIFECYCLE_FUNCTION_ARN"]
 STREAM_TARGETS = {
     "lifecycle_stream": LIFECYCLE_ARN,
     "notification_stream": os.environ["NOTIFICATION_FUNCTION_ARN"],
+    "print_stream": os.environ.get("PRINT_JOBS_FUNCTION_ARN", ""),
 }
 REPLAYABLE = set(json.loads(os.environ["REPLAYABLE_FUNCTION_ARNS"]))
 ALERT_TOPIC_ARN = os.environ["ALERT_TOPIC_ARN"]
@@ -184,7 +191,10 @@ def handle_expired(name, info):
         # timers present, invoice issued, expiries applied.
         invoke(LIFECYCLE_ARN, {"action": "reconcile", "source": "dlq-replay", "window": window})
         return "reconciled"
-    # A notification record can't be rebuilt once the stream dropped it.
+    # A notification or print record can't be rebuilt once the stream dropped it.
+    if name == "print_stream":
+        alert("print_stream: records expired before replay - a kitchen ticket in this window may be missing", window)
+        return "escalated"
     alert("notification_stream: records expired before replay - a notification in this window may be missing", window)
     return "escalated"
 
