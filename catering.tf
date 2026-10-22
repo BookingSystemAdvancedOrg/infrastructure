@@ -13,7 +13,7 @@ locals {
   }
 }
 
-# The webhook answers 5xx (and logs {"signingWebhook": "failed"}) when it
+# The webhook answers 5xx (and logs SIGNING_WEBHOOK_FAILED) when it
 # could not process a provider callback it verified, so the provider retries;
 # a crash shows as a Lambda error. Either means signatures may not reach the
 # request, so someone has to look. Rejected (unverified) callbacks are not
@@ -21,7 +21,7 @@ locals {
 resource "aws_cloudwatch_log_metric_filter" "catering_signing_webhook_failed" {
   name           = "${var.env == "prod" ? "" : "${var.env}-"}catering-signing-webhook-failed"
   log_group_name = "/aws/lambda/${module.catering_signing_webhook_fn.function_name}"
-  pattern        = "{ $.signingWebhook = \"failed\" }"
+  pattern        = "SIGNING_WEBHOOK_FAILED"
 
   metric_transformation {
     name          = "CateringSigningWebhookFailed"
