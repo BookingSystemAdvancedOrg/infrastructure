@@ -28,6 +28,12 @@ variable "notification_function_arn" {
   sensitive   = false
 }
 
+variable "print_jobs_function_arn" {
+  description = "ARN of the print-jobs Lambda - target for print-stream-dlq"
+  type        = string
+  sensitive   = false
+}
+
 variable "alert_topic_arn" {
   description = "ARN of the alerts SNS topic"
   type        = string
@@ -47,7 +53,7 @@ variable "region" {
 }
 
 variable "queue_urls" {
-  description = "Map of DLQ key (lifecycle_stream, notification_stream, scheduled_invocation) to queue URL (storage/sqs/dead-letter)"
+  description = "Map of DLQ key (lifecycle_stream, notification_stream, print_stream, scheduled_invocation) to queue URL (storage/sqs/dead-letter)"
   type        = map(string)
   sensitive   = false
 }

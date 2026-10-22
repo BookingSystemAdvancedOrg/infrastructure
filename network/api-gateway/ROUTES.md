@@ -162,3 +162,11 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | POST | `/m/code` | NONE | marketing-public |
 | GET | `/m/s/{token}` | NONE | marketing-public |
 | POST | `/m/s/{token}` | NONE | marketing-public |
+| GET | `/locations/{locationId}/print` | JWT | print-jobs |
+| GET | `/locations/{locationId}/print/{proxy+}` | JWT | print-jobs |
+| POST | `/locations/{locationId}/print/{proxy+}` | JWT | print-jobs |
+| PUT | `/locations/{locationId}/print/{proxy+}` | JWT | print-jobs |
+| DELETE | `/locations/{locationId}/print/{proxy+}` | JWT | print-jobs |
+| POST | `/print/cloudprnt/{deviceId}` | NONE | print-device |
+| GET | `/print/cloudprnt/{deviceId}` | NONE | print-device |
+| DELETE | `/print/cloudprnt/{deviceId}` | NONE | print-device |

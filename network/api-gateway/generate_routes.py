@@ -41,9 +41,12 @@ PLATFORM_AUTHORIZER_RE = re.compile(r'authorizer_id\s*=\s*aws_apigatewayv2_autho
 
 
 def parse_routes():
-    text = MAIN_TF.read_text()
+    # Feature files whose sections use the same "# --- <kebab-name> ---"
+    # markers (e.g. printing-routes.tf) are read after main.tf, each on its own.
+    files = [MAIN_TF, *sorted(p for p in HERE.glob("*-routes.tf") if "# --- " in p.read_text())]
+    sections = [m for f in files for m in SECTION_RE.finditer(f.read_text())]
     routes = []
-    for m in SECTION_RE.finditer(text):
+    for m in sections:
         name = m.group("name")
         body = m.group("body")
 

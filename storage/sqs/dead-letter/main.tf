@@ -10,6 +10,8 @@
 #   notification-stream  stream batches NotificationFn failed (5 retries), from
 #                        all three streams it consumes: reservation, order and
 #                        catering-requests. Body: same kind of pointer.
+#   print-stream         order stream batches print-jobs failed (5 retries).
+#                        Body: same kind of pointer.
 #   scheduled-invocation Failed scheduled runs of catering-lifecycle,
 #                        no-show-check, reactivate-menu-item and
 #                        expire-layout-version. EventBridge Scheduler invokes
@@ -30,6 +32,7 @@ locals {
   queues = {
     lifecycle_stream     = "${local.prefix}catering-lifecycle-stream-dlq"
     notification_stream  = "${local.prefix}notification-stream-dlq"
+    print_stream         = "${local.prefix}print-stream-dlq"
     scheduled_invocation = "${local.prefix}scheduled-invocation-dlq"
   }
 }

@@ -620,6 +620,8 @@ module "dlq_replay_role" {
   order_stream_arn                   = module.order.stream_arn
   alert_topic_arn                    = module.alerts.topic_arn
   region                             = var.aws_region
+  print_stream_dlq_arn               = module.dead_letter.print_stream_dlq_arn
+  print_jobs_function_arn            = module.printing.function_arns["print-jobs"]
 }
 module "scheduler_invoke_dlq_replay_role" {
   source                = "./security/iam/scheduler-invoke-dlq-replay"
@@ -802,6 +804,8 @@ module "tenant_context_policy" {
     marketing = module.marketing.role_names["marketing"]
     # Statistik: staff see their own location only.
     insights = module.insights_role.role_name
+    # Kitchen printing: staff reprint and test on their own location.
+    print_jobs = module.printing.role_names["print-jobs"]
   }
 }
 
@@ -938,6 +942,17 @@ module "marketing_sync_ecr" {
   source      = "./storage/ecr/marketing-function"
   environment = var.env
   function    = "marketing-sync"
+}
+# Kitchen printing (printing.tf)
+module "print_jobs_ecr" {
+  source      = "./storage/ecr/print-function"
+  environment = var.env
+  function    = "print-jobs"
+}
+module "print_device_ecr" {
+  source      = "./storage/ecr/print-function"
+  environment = var.env
+  function    = "print-device"
 }
 module "catering_requests_ecr" {
   source      = "./storage/ecr/catering-requests"
@@ -1580,6 +1595,7 @@ module "dlq_replay_fn" {
   queue_urls                      = module.dead_letter.queue_urls
   catering_lifecycle_function_arn = module.catering_lifecycle_fn.alias_arn
   notification_function_arn       = module.notification_fn.alias_arn
+  print_jobs_function_arn         = module.printing.alias_arns["print-jobs"]
   replayable_function_arns = [
     module.catering_lifecycle_fn.function_arn,
     module.catering_lifecycle_fn.alias_arn,
@@ -1886,6 +1902,8 @@ module "lambda_releases" {
     (module.marketing.function_names["marketing-public"]) = { alias_name = module.marketing.alias_names["marketing-public"] }
     (module.marketing.function_names["marketing-send"])   = { alias_name = module.marketing.alias_names["marketing-send"] }
     (module.marketing.function_names["marketing-sync"])   = { alias_name = module.marketing.alias_names["marketing-sync"] }
+    (module.printing.function_names["print-jobs"])        = { alias_name = module.printing.alias_names["print-jobs"] }
+    (module.printing.function_names["print-device"])      = { alias_name = module.printing.alias_names["print-device"] }
   }
 }
 
@@ -1969,6 +1987,11 @@ module "api_gateway" {
   marketing_invoke_arn                     = module.marketing.alias_invoke_arns["marketing"]
   marketing_public_function_name           = module.marketing.function_names["marketing-public"]
   marketing_public_invoke_arn              = module.marketing.alias_invoke_arns["marketing-public"]
+  # Kitchen printing (printing-routes.tf)
+  print_jobs_function_name   = module.printing.function_names["print-jobs"]
+  print_jobs_invoke_arn      = module.printing.alias_invoke_arns["print-jobs"]
+  print_device_function_name = module.printing.function_names["print-device"]
+  print_device_invoke_arn    = module.printing.alias_invoke_arns["print-device"]
 }
 
 # Marketing (plan feature "marketing"): visit statistics, attribution and
@@ -2091,6 +2114,7 @@ locals {
     location                  = { name = module.location.table_name, arn = module.location.table_arn }
     catering_request_history  = { name = module.catering_request_history.table_name, arn = module.catering_request_history.table_arn }
     marketing                 = { name = module.marketing.table_name, arn = module.marketing.table_arn }
+    print                     = { name = module.print.table_name, arn = module.print.table_arn }
   }
 
   tenant_domain_cname_target = local.tenant_sites_enabled ? module.platform_domain[0].cname_target : ""
@@ -2145,6 +2169,8 @@ locals {
     marketing_public           = module.marketing.role_names["marketing-public"]
     marketing_send             = module.marketing.role_names["marketing-send"]
     marketing_sync             = module.marketing.role_names["marketing-sync"]
+    print_jobs                 = module.printing.role_names["print-jobs"]
+    print_device               = module.printing.role_names["print-device"]
   }
 
   # Log groups finance-rollup counts API requests in: every Lambda that

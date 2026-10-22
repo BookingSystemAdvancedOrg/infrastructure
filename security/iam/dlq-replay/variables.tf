@@ -81,3 +81,15 @@ variable "region" {
   type        = string
   sensitive   = false
 }
+
+variable "print_stream_dlq_arn" {
+  description = "ARN of print-stream-dlq"
+  type        = string
+  sensitive   = false
+}
+
+variable "print_jobs_function_arn" {
+  description = "ARN of the print-jobs Lambda - redelivery target"
+  type        = string
+  sensitive   = false
+}

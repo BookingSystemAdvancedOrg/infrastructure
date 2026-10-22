@@ -118,6 +118,8 @@ output "ecr_repository_urls" {
     marketing_public           = module.marketing_public_ecr.repository_url
     marketing_send             = module.marketing_send_ecr.repository_url
     marketing_sync             = module.marketing_sync_ecr.repository_url
+    print_jobs                 = module.print_jobs_ecr.repository_url
+    print_device               = module.print_device_ecr.repository_url
   }
 }
 
