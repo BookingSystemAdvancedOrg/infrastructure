@@ -47,6 +47,15 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | DELETE | `/locations/{locationId}/orders` | JWT | manage-order |
 | GET | `/locations/{locationId}/catering/settings` | NONE | catering-settings |
 | PUT | `/locations/{locationId}/catering/settings` | JWT | catering-settings |
+| GET | `/locations/{locationId}/catering/menu` | NONE | catering-settings |
+| GET | `/locations/{locationId}/catering/menu/dishes` | JWT | catering-settings |
+| POST | `/locations/{locationId}/catering/menu/dishes` | JWT | catering-settings |
+| PUT | `/locations/{locationId}/catering/menu/dishes/{dishId}` | JWT | catering-settings |
+| DELETE | `/locations/{locationId}/catering/menu/dishes/{dishId}` | JWT | catering-settings |
+| GET | `/locations/{locationId}/catering/menu/packages` | JWT | catering-settings |
+| POST | `/locations/{locationId}/catering/menu/packages` | JWT | catering-settings |
+| PUT | `/locations/{locationId}/catering/menu/packages/{packageId}` | JWT | catering-settings |
+| DELETE | `/locations/{locationId}/catering/menu/packages/{packageId}` | JWT | catering-settings |
 | GET | `/locations/{locationId}/catering/discount-tiers` | NONE | catering-discount-tiers |
 | POST | `/locations/{locationId}/catering/discount-tiers` | JWT | catering-discount-tiers |
 | PUT | `/locations/{locationId}/catering/discount-tiers/{tierId}` | JWT | catering-discount-tiers |

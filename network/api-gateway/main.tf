@@ -1028,6 +1028,88 @@ resource "aws_apigatewayv2_route" "catering_settings_put" {
   authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
 
+# Catering menu (issue 5): the guest reads the active dishes and packages;
+# the owner reads all of them and writes (owner checked in the Lambda).
+# --- catering-settings ---
+resource "aws_apigatewayv2_route" "catering_menu_get" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "GET /locations/{locationId}/catering/menu"
+  target             = "integrations/${aws_apigatewayv2_integration.catering_settings.id}"
+  authorization_type = "NONE"
+}
+
+# --- catering-settings ---
+resource "aws_apigatewayv2_route" "catering_menu_dishes_get" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "GET /locations/{locationId}/catering/menu/dishes"
+  target             = "integrations/${aws_apigatewayv2_integration.catering_settings.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# --- catering-settings ---
+resource "aws_apigatewayv2_route" "catering_menu_dishes_post" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "POST /locations/{locationId}/catering/menu/dishes"
+  target             = "integrations/${aws_apigatewayv2_integration.catering_settings.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# --- catering-settings ---
+resource "aws_apigatewayv2_route" "catering_menu_dishes_put" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "PUT /locations/{locationId}/catering/menu/dishes/{dishId}"
+  target             = "integrations/${aws_apigatewayv2_integration.catering_settings.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# --- catering-settings ---
+resource "aws_apigatewayv2_route" "catering_menu_dishes_delete" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "DELETE /locations/{locationId}/catering/menu/dishes/{dishId}"
+  target             = "integrations/${aws_apigatewayv2_integration.catering_settings.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# --- catering-settings ---
+resource "aws_apigatewayv2_route" "catering_menu_packages_get" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "GET /locations/{locationId}/catering/menu/packages"
+  target             = "integrations/${aws_apigatewayv2_integration.catering_settings.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# --- catering-settings ---
+resource "aws_apigatewayv2_route" "catering_menu_packages_post" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "POST /locations/{locationId}/catering/menu/packages"
+  target             = "integrations/${aws_apigatewayv2_integration.catering_settings.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# --- catering-settings ---
+resource "aws_apigatewayv2_route" "catering_menu_packages_put" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "PUT /locations/{locationId}/catering/menu/packages/{packageId}"
+  target             = "integrations/${aws_apigatewayv2_integration.catering_settings.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# --- catering-settings ---
+resource "aws_apigatewayv2_route" "catering_menu_packages_delete" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "DELETE /locations/{locationId}/catering/menu/packages/{packageId}"
+  target             = "integrations/${aws_apigatewayv2_integration.catering_settings.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
 resource "aws_lambda_permission" "catering_settings_invoke" {
   statement_id  = "AllowAPIGatewayInvokeCateringSettings"
   action        = "lambda:InvokeFunction"
