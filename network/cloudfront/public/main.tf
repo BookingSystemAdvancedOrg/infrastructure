@@ -31,9 +31,31 @@ resource "aws_cloudfront_origin_access_control" "menu_image" {
 # frame-ancestors (no clickjacking of booking and payment pages) and HSTS.
 # include_subdomains stays off: restaurants' own domains may have other
 # subdomains we don't control.
+#
+# CORS for Stripe's iframes only: the payment forms (Payment Element) load
+# the site's own self-hosted Archivo and Martian Mono from inside
+# js.stripe.com, and browsers fetch web fonts cross-origin with CORS. The
+# header is only sent when the request's Origin is Stripe's; the site
+# keeps fonts self-hosted (no Google Fonts call with the guest's IP).
 resource "aws_cloudfront_response_headers_policy" "site" {
   name    = "${var.environment == "prod" ? "" : "${var.environment}-"}restaurant-site-security-headers"
-  comment = "Restaurant websites: HSTS, no framing, nosniff"
+  comment = "Restaurant websites: HSTS, no framing, nosniff, fonts for Stripe"
+
+  cors_config {
+    access_control_allow_credentials = false
+    origin_override                  = true
+    access_control_max_age_sec       = 86400
+
+    access_control_allow_headers {
+      items = ["*"]
+    }
+    access_control_allow_methods {
+      items = ["GET", "HEAD"]
+    }
+    access_control_allow_origins {
+      items = ["https://js.stripe.com"]
+    }
+  }
 
   security_headers_config {
     content_security_policy {
