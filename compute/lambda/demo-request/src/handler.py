@@ -135,16 +135,16 @@ def build_email(f, source_ip):
     when = f"{swedish_date(f['date'])} kl. {f['time']}"
     name = f"{f['firstName']} {f['lastName']}"
     prefix = "" if ENVIRONMENT == "prod" else f"[{ENVIRONMENT}] "
-    subject = f"{prefix}Demoförfrågan: {f['company']} – {f['date'].isoformat()} {f['time']}"
+    subject = f"{prefix}Demoförfrågan: {f['company']} - {f['date'].isoformat()} {f['time']}"
 
     rows = [
         ("Önskad tid", f"{when} (svensk tid)"),
         ("Namn", name),
         ("Företag", f["company"]),
         ("E-post", f["email"]),
-        ("Telefon", f["phone"] or "–"),
+        ("Telefon", f["phone"] or "-"),
     ]
-    need = f["message"] or "–"
+    need = f["message"] or "-"
     sent = datetime.now(STOCKHOLM).strftime("%Y-%m-%d %H:%M")
 
     text = "\n".join(
