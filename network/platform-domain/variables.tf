@@ -97,3 +97,9 @@ variable "site_response_headers_policy_id" {
   type        = string
   sensitive   = false
 }
+
+variable "dmarc_report_address" {
+  description = "Mailbox for DMARC aggregate reports (rua). Empty = no reports"
+  type        = string
+  default     = ""
+}

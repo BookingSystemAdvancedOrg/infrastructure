@@ -1,6 +1,6 @@
 # Execution role for the guest-privacy Lambda (application
-# functions/guest-privacy): the owner's privacy notice and consent
-# withdrawals on a guest's behalf. The tenant-context read policy is
+# functions/guest-privacy): the owner's privacy notice, consent
+# withdrawals on a guest's behalf, and a guest's export and erasure. The tenant-context read policy is
 # attached in the root privacy-consent.tf.
 
 data "aws_caller_identity" "current" {}
@@ -51,11 +51,29 @@ resource "aws_iam_role_policy" "data" {
         Resource = var.consent_table_arn
       },
       {
-        # The subscriber list follows a withdrawal (status unsubscribed).
-        Sid      = "SubscriberStatus"
+        # The subscriber list follows a withdrawal (status unsubscribed); an
+        # erasure deletes the subscriber and welcome-offer rows, the export
+        # reads them.
+        Sid      = "SubscriberRows"
         Effect   = "Allow"
-        Action   = "dynamodb:UpdateItem"
+        Action   = ["dynamodb:GetItem", "dynamodb:UpdateItem", "dynamodb:DeleteItem", "dynamodb:Query"]
         Resource = var.marketing_table_arn
+      },
+      {
+        # Export and erasure: the restaurant's own locations (PK TENANT#<t>).
+        Sid      = "ListOwnLocations"
+        Effect   = "Allow"
+        Action   = "dynamodb:Query"
+        Resource = var.location_table_arn
+      },
+      {
+        # Export and erasure: one guest's bookings, orders and catering
+        # requests per location (Query LOCATION#<l>); erasure anonymises
+        # them with UpdateItem (receipt and invoice fields stay). No delete.
+        Sid      = "GuestRows"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query", "dynamodb:UpdateItem"]
+        Resource = var.guest_table_arns
       },
     ]
   })

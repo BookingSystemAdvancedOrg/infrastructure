@@ -30,6 +30,7 @@ locals {
   privacy_env_notification = {
     MARKETING_LINK_BASE           = "${local.admin_app_url}/api"
     MARKETING_LINK_KEY_SECRET_ARN = module.marketing.link_key_secret_arn
+    SES_CONFIGURATION_SET         = aws_sesv2_configuration_set.transactional.configuration_set_name
   }
 }
 
@@ -85,6 +86,12 @@ module "guest_privacy_role" {
   tenant_table_arn    = module.tenant.table_arn
   consent_table_arn   = module.consent_log.table_arn
   marketing_table_arn = module.marketing.table_arn
+  location_table_arn  = module.location.table_arn
+  guest_table_arns = [
+    module.reservation.table_arn,
+    module.order.table_arn,
+    module.catering_requests.table_arn,
+  ]
 }
 
 # The shared tenant-context read policy (the tenant check in for_jwt).
@@ -105,6 +112,10 @@ module "guest_privacy_fn" {
   user_table_name        = module.user.table_name
   consent_table_name     = module.consent_log.table_name
   marketing_table_name   = module.marketing.table_name
+
+  reservation_table_name       = module.reservation.table_name
+  order_table_name             = module.order.table_name
+  catering_requests_table_name = module.catering_requests.table_name
 }
 
 # --- consent log access for existing functions --------------------------------

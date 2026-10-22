@@ -4,6 +4,8 @@
 #   GET|PUT|DELETE /privacy/notice       the restaurant's privacy notice
 #   GET  /privacy/consents               one guest's consent state and history
 #   POST /privacy/consents/withdraw      withdraw on the guest's behalf
+#   GET  /privacy/guests                 one guest's data (export, JSON)
+#   POST /privacy/guests/erase           erase one guest's data
 #
 # marketing-public (no auth, HMAC-signed link that expires):
 #   GET|POST /m/w/{token}                the guest's own withdrawal page
@@ -16,6 +18,8 @@ locals {
     "DELETE /privacy/notice",
     "GET /privacy/consents",
     "POST /privacy/consents/withdraw",
+    "GET /privacy/guests",
+    "POST /privacy/guests/erase",
   ]
   consent_withdraw_routes = ["GET /m/w/{token}", "POST /m/w/{token}"]
 }
