@@ -136,6 +136,7 @@ resource "aws_iam_role_policy" "documents_read" {
         Effect = "Allow"
         Action = [
           "s3:GetObject",
+          "s3:GetObjectVersion", # the exact offer PDF version that was signed
         ]
         Resource = "${var.catering_documents_bucket_arn}/*"
       }
@@ -231,8 +232,8 @@ resource "aws_iam_role_policy" "dynamodb_catering_menu" {
 # Restaurant signing (issue 5, C2): the owner signs each offer version
 # before the customer can. Reads the signing-provider secret, creates and
 # cancels signing orders, and stores the restaurant's signature evidence
-# under <tenant>/signed/ with a per-object lock (the bucket has no default
-# lock, C7).
+# next to the offer PDF under <tenant>/offers/, unlocked: it is locked in
+# signed/ only once the contract is binding (C7).
 resource "aws_iam_role_policy" "signing" {
   name = "catering-restaurant-signing"
   role = aws_iam_role.this.id
@@ -247,10 +248,12 @@ resource "aws_iam_role_policy" "signing" {
         Resource = var.signing_provider_secret_arn
       },
       {
+        # Unlocked until the customer signs (then catering-customer / the webhook copies it
+        # into signed/ with the lock); tagged retention=offer so an unsigned one expires.
         Sid      = "StoreRestaurantSignatureEvidence"
         Effect   = "Allow"
-        Action   = ["s3:PutObject", "s3:PutObjectRetention"]
-        Resource = "${var.catering_documents_bucket_arn}/*/signed/*"
+        Action   = ["s3:PutObject", "s3:PutObjectTagging"]
+        Resource = "${var.catering_documents_bucket_arn}/*/offers/*"
       }
     ]
   })

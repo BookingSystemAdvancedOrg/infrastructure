@@ -85,6 +85,13 @@ resource "aws_apigatewayv2_stage" "this" {
     throttling_burst_limit = var.booking_throttle_burst_limit
   }
 
+  # The calculator's live price: each delivery quote can call Amazon Location.
+  route_settings {
+    route_key              = "POST /locations/{locationId}/catering/quote"
+    throttling_rate_limit  = var.booking_throttle_rate_limit
+    throttling_burst_limit = var.booking_throttle_burst_limit
+  }
+
   # Cookieless visit counter on every restaurant website: one request per
   # page view, nothing else. Its own ceiling so a flood of fake page views
   # can't eat the platform-wide default.
@@ -120,7 +127,7 @@ resource "aws_apigatewayv2_stage" "this" {
 
   # route_settings names a route by key - it has to exist first.
   depends_on = [aws_apigatewayv2_route.create_pending_reservation, aws_apigatewayv2_route.payment_intent,
-  aws_apigatewayv2_route.catering_requests_post, aws_apigatewayv2_route.marketing_public, aws_apigatewayv2_route.print_device]
+  aws_apigatewayv2_route.catering_requests_post, aws_apigatewayv2_route.catering_quote_post, aws_apigatewayv2_route.marketing_public, aws_apigatewayv2_route.print_device]
 
   tags = {
     Environment = var.environment

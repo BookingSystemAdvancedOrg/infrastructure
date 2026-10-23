@@ -98,6 +98,7 @@ resource "aws_iam_role_policy" "documents_write" {
         Effect = "Allow"
         Action = [
           "s3:GetObject",
+          "s3:GetObjectVersion", # the exact offer PDF version that was signed
         ]
         Resource = "${var.catering_documents_bucket_arn}/*/offers/*"
       },
