@@ -5,8 +5,8 @@
 # them fail; a schedule retries on a deliberate cadence and escalates after
 # MAX_REPLAY_ATTEMPTS.
 #
-# Reference implementation: src/handler.py. Like every Lambda here, the
-# deployed image is built and pushed by the backend repo's pipeline.
+# Code: application repo, functions/dlq-replay/. Like every Lambda here,
+# the deployed image is built, pushed and released by that repo's pipeline.
 
 locals {
   function_name = var.environment == "prod" ? "dlq-replay" : "${var.environment}-dlq-replay"

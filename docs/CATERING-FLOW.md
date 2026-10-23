@@ -246,8 +246,8 @@ item to the Lambda that owns it - scheduled invocations to the function in
 the record (allow-listed), stream pointers by re-reading the records
 (possible for ~24h). A message is deleted only after the owning Lambda
 succeeded; after 3 failed replays it is escalated to the `platform-alerts`
-SNS topic once and parked. Reference implementation:
-`compute/lambda/dlq-replay/src/handler.py`.
+SNS topic once and parked. Code: `functions/dlq-replay/app.py` in the
+application repo.
 
 The only DLQ setting in application code: `catering-lifecycle` passes
 `DeadLetterConfig = {"Arn": SCHEDULER_DLQ_ARN}` on every schedule it creates.

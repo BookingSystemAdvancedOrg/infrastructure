@@ -75,6 +75,13 @@ resource "aws_iam_role_policy" "data" {
         Action   = ["dynamodb:Query", "dynamodb:UpdateItem"]
         Resource = var.guest_table_arns
       },
+      {
+        # Export only: the guest's own catering events (request, signing).
+        Sid      = "CateringHistoryRead"
+        Effect   = "Allow"
+        Action   = "dynamodb:Query"
+        Resource = var.catering_history_table_arn
+      },
     ]
   })
 }

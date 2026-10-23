@@ -28,3 +28,8 @@ variable "guest_table_arns" {
   description = "Reservation, order and catering-requests table ARNs (export and erasure)"
   type        = list(string)
 }
+
+variable "catering_history_table_arn" {
+  description = "catering-request-history table ARN (export of the guest's events)"
+  type        = string
+}

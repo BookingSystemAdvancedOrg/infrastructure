@@ -92,6 +92,7 @@ module "guest_privacy_role" {
     module.order.table_arn,
     module.catering_requests.table_arn,
   ]
+  catering_history_table_arn = module.catering_request_history.table_arn
 }
 
 # The shared tenant-context read policy (the tenant check in for_jwt).
@@ -116,6 +117,7 @@ module "guest_privacy_fn" {
   reservation_table_name       = module.reservation.table_name
   order_table_name             = module.order.table_name
   catering_requests_table_name = module.catering_requests.table_name
+  catering_history_table_name  = module.catering_request_history.table_name
 }
 
 # --- consent log access for existing functions --------------------------------

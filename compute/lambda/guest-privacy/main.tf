@@ -45,6 +45,8 @@ resource "aws_lambda_function" "this" {
       RESERVATION_TABLE_NAME = var.reservation_table_name
       ORDER_TABLE_NAME       = var.order_table_name
       CATERING_TABLE_NAME    = var.catering_requests_table_name
+
+      CATERING_REQUEST_HISTORY_TABLE_NAME = var.catering_history_table_name
     }, var.retention_env)
   }
 

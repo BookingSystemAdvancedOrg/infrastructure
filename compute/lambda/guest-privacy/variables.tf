@@ -57,3 +57,7 @@ variable "order_table_name" {
 variable "catering_requests_table_name" {
   type = string
 }
+
+variable "catering_history_table_name" {
+  type = string
+}
