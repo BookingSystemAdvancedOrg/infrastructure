@@ -140,9 +140,10 @@ on `version`); read by catering-requests and catering-offer.
 
 | Key | Written by | Retention |
 |---|---|---|
-| `<tenantId>/offers/<requestId>/v<NNNN>.pdf` | catering-document | tagged `retention=offer`, expires after 13 months (lifecycle) |
-| `<tenantId>/signed/<requestId>/v<NNNN>/` `restaurant-bankid.json`, `customer-bankid.json` or `customer-acceptance.json`, `offer.pdf`, `manifest.json` (SHA-256 of every file) | catering-offer, catering-customer, catering-signing-webhook | per object: prod COMPLIANCE 7 years, dev GOVERNANCE 1 day (`DOCUMENT_LOCK_MODE` / `DOCUMENT_LOCK_DAYS`, `s3:PutObjectRetention`) |
-| `<tenantId>/invoices/<stripeInvoiceId>.pdf` | (reserved; Stripe hosts invoices today) | same as signed/ |
+| `<tenantId>/offers/<requestId>/v<NNNN>.pdf` | catering-document | tagged `retention=offer`, expires after 13 months (lifecycle); the signed S3 version is pinned (`signing.pdfVersionId`) |
+| `<tenantId>/offers/<requestId>/v<NNNN>-restaurant-bankid.json` | catering-offer | the restaurant's evidence while the contract is not yet binding: unlocked, tagged `retention=offer`, expires with the offer |
+| `<tenantId>/signed/<requestId>/v<NNNN>/` `restaurant-bankid.json` (copied in), `customer-bankid.json` or `customer-acceptance.json`, `offer.pdf`, `manifest.json` (SHA-256 of every file), written when the customer signs | catering-customer, catering-signing-webhook | per object: prod COMPLIANCE 7 years, dev GOVERNANCE 1 day (`DOCUMENT_LOCK_MODE` / `DOCUMENT_LOCK_DAYS`, `s3:PutObjectRetention`) |
+| `<tenantId>/invoices/<stripeInvoiceId>.pdf` | nothing yet: Stripe hosts the invoices; a writer must set the same per-object lock | same as signed/ |
 
 Never hand out object URLs - presigned GET only (`…/documents/{offer|signed|signature}`).
 
@@ -197,7 +198,13 @@ Lambda Errors alarm) so the provider retries.
 
 ## Abuse limits
 
-Per IP / phone / e-mail on requests, per IP on quotes (120 per 10 min),
+Per IP / phone / e-mail on requests, per IP on quotes (120 per 10 min,
+plus a route throttle); Amazon Location lookups per IP (20 per 10 min, 429)
+and per location (500 a day, then the quote leaves the delivery fee to the
+restaurant). The restaurant's origin is geocoded once on settings save
+(IntendedUse Storage, `cateringOrigin` on the location) and distances per
+address are cached in the Lambda for 15 minutes, so changing quantities
+costs no lookups.
 per request and per IP on signing starts and acceptances (10 / 20 per hour,
 each BankID order costs money), all in `shared/request_guard.py`.
 
