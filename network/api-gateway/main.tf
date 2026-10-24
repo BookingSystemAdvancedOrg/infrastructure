@@ -1551,6 +1551,8 @@ locals {
     "PATCH /platform/tenants/{tenantId}/locations/{locationId}/terminal",
     "POST /platform/tenants/{tenantId}/locations/{locationId}/terminal/readers",
     "DELETE /platform/tenants/{tenantId}/locations/{locationId}/terminal/readers/{readerId}",
+    # Every card reader across customers, with its tenant and location
+    "GET /platform/terminal/readers",
     # Operator accounts (the operator pool itself) - every operator has the
     # same rights, including managing other operators.
     "GET /platform/operators",

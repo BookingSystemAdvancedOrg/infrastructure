@@ -120,6 +120,7 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | PATCH | `/platform/tenants/{tenantId}/locations/{locationId}/terminal` | JWT (operator) | platform-tenants |
 | POST | `/platform/tenants/{tenantId}/locations/{locationId}/terminal/readers` | JWT (operator) | platform-tenants |
 | DELETE | `/platform/tenants/{tenantId}/locations/{locationId}/terminal/readers/{readerId}` | JWT (operator) | platform-tenants |
+| GET | `/platform/terminal/readers` | JWT (operator) | platform-tenants |
 | GET | `/platform/operators` | JWT (operator) | platform-tenants |
 | POST | `/platform/operators` | JWT (operator) | platform-tenants |
 | PATCH | `/platform/operators/{username}` | JWT (operator) | platform-tenants |
