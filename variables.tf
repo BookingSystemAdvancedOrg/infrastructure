@@ -133,19 +133,19 @@ variable "plans" {
     features      = map(bool)
     price_sek     = number
   }))
-  description = "Plan catalog (packages you sell). A tenant's limits are copied from its plan when the plan is assigned and can be overridden per tenant from the platform dashboard - no deploy either way. Feature keys: reservations, ordering, catering, terminal (card readers for in-person payments, managed from Booqy Console), marketing (visit statistics and email campaigns to guests who opted in). price_sek: the monthly subscription price excluding VAT, invoiced through Stripe Billing on the platform account (payments/billing creates the Stripe product and price; a changed price archives the old Stripe price and applies to a customer the next time their plan is saved in Booqy Console)."
+  description = "Plan catalog (packages you sell). A tenant's limits are copied from its plan when the plan is assigned and can be overridden per tenant from the platform dashboard - no deploy either way. Feature keys: reservations, ordering, catering, terminal (card readers for in-person payments, managed from Booqy Console), marketing (visit statistics and email campaigns to guests who opted in), kassa (the till, off by default: turn it on per tenant in Booqy Console; test mode until a certified control system is connected). price_sek: the monthly subscription price excluding VAT, invoiced through Stripe Billing on the platform account (payments/billing creates the Stripe product and price; a changed price archives the old Stripe price and applies to a customer the next time their plan is saved in Booqy Console)."
   sensitive   = false
   default = {
     starter = {
       name          = "Starter"
       max_locations = 1
-      features      = { reservations = true, ordering = true, catering = false, terminal = true, marketing = false }
+      features      = { reservations = true, ordering = true, catering = false, terminal = true, marketing = false, kassa = false }
       price_sek     = 990
     }
     growth = {
       name          = "Growth"
       max_locations = 3
-      features      = { reservations = true, ordering = true, catering = true, terminal = true, marketing = true }
+      features      = { reservations = true, ordering = true, catering = true, terminal = true, marketing = true, kassa = false }
       price_sek     = 1990
     }
   }

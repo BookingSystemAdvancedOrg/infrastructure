@@ -808,6 +808,8 @@ module "tenant_context_policy" {
     print_jobs = module.printing.role_names["print-jobs"]
     # Card payments at the till: staff charge on their own location's readers.
     terminal_payments = module.terminal.role_name
+    # Kassa: staff sell on their own location's registers.
+    kassa = module.kassa.role_name
   }
 }
 
@@ -961,6 +963,12 @@ module "terminal_payments_ecr" {
   source      = "./storage/ecr/terminal-payments"
   environment = var.env
   function    = "terminal-payments"
+}
+# Kassa, the till (kassa.tf); same repository settings
+module "kassa_ecr" {
+  source      = "./storage/ecr/terminal-payments"
+  environment = var.env
+  function    = "kassa"
 }
 module "catering_requests_ecr" {
   source      = "./storage/ecr/catering-requests"
@@ -1913,6 +1921,7 @@ module "lambda_releases" {
     (module.printing.function_names["print-jobs"])        = { alias_name = module.printing.alias_names["print-jobs"] }
     (module.printing.function_names["print-device"])      = { alias_name = module.printing.alias_names["print-device"] }
     (module.terminal.function_name)                       = { alias_name = module.terminal.alias_name }
+    (module.kassa.function_name)                          = { alias_name = module.kassa.alias_name }
   }
 }
 
@@ -2004,6 +2013,9 @@ module "api_gateway" {
   # Card payments at the till (terminal.tf, network/api-gateway/terminal-routes.tf)
   terminal_payments_function_name = module.terminal.function_name
   terminal_payments_invoke_arn    = module.terminal.alias_invoke_arn
+  # Kassa (kassa.tf, network/api-gateway/kassa-routes.tf)
+  kassa_function_name = module.kassa.function_name
+  kassa_invoke_arn    = module.kassa.alias_invoke_arn
 }
 
 # Marketing (plan feature "marketing"): visit statistics, attribution and
@@ -2185,6 +2197,7 @@ locals {
     print_jobs                 = module.printing.role_names["print-jobs"]
     print_device               = module.printing.role_names["print-device"]
     terminal_payments          = module.terminal.role_name
+    kassa                      = module.kassa.role_name
   }
 
   # Log groups finance-rollup counts API requests in: every Lambda that

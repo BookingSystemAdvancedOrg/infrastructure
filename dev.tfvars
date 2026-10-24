@@ -75,13 +75,13 @@ plans = {
   starter = {
     name          = "Starter"
     max_locations = 1
-    features      = { reservations = true, ordering = true, catering = false, terminal = true, marketing = false }
+    features      = { reservations = true, ordering = true, catering = false, terminal = true, marketing = false, kassa = false }
     price_sek     = 990
   }
   growth = {
     name          = "Growth"
     max_locations = 3
-    features      = { reservations = true, ordering = true, catering = true, terminal = true, marketing = true }
+    features      = { reservations = true, ordering = true, catering = true, terminal = true, marketing = true, kassa = false }
     price_sek     = 1990
   }
 }
