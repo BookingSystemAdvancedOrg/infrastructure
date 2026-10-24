@@ -92,6 +92,18 @@ variable "demo_request_origin_domain" {
   default     = ""
 }
 
+variable "site_analytics_enabled" {
+  description = "Serve <domain>/api/collect (the site's cookieless statistics) from the site-analytics Lambda. A plain bool for count, like demo_request_enabled."
+  type        = bool
+  default     = false
+}
+
+variable "site_analytics_origin_domain" {
+  description = "Host name of the site-analytics Lambda's function URL (used when site_analytics_enabled)"
+  type        = string
+  default     = ""
+}
+
 variable "site_response_headers_policy_id" {
   description = "Security headers policy for the restaurant websites (network/cloudfront/public)"
   type        = string

@@ -1691,6 +1691,7 @@ module "platform_tenants_fn" {
   domain_documents_bucket_name       = module.domain_documents.bucket_name
   finance_table_name                 = module.finance.table_name
   finance_rollup_alias_arn           = module.finance_rollup_fn.alias_arn
+  site_analytics_table_name          = local.platform_domain_enabled ? module.site_analytics[0].table_name : ""
   alert_topic_arn                    = module.alerts.topic_arn
   billing_tax_rate_id                = module.billing_catalog.tax_rate_id
   billing_days_until_due             = var.billing_days_until_due
@@ -2242,6 +2243,8 @@ module "platform_domain" {
   platform_admin_distribution_domain_name = module.cloudfront_platform_admin.distribution_domain_name
   demo_request_enabled                    = true
   demo_request_origin_domain              = module.demo_request_fn[0].function_url_domain
+  site_analytics_enabled                  = true
+  site_analytics_origin_domain            = module.site_analytics[0].function_url_domain
   site_response_headers_policy_id         = module.cloudfront_public.site_response_headers_policy_id
   dmarc_report_address                    = var.dmarc_report_address
 }
@@ -2408,6 +2411,19 @@ resource "aws_lambda_permission" "demo_request_invoke" {
   qualifier     = module.demo_request_fn[0].alias_name
   principal     = "cloudfront.amazonaws.com"
   source_arn    = module.platform_domain[0].landing_distribution_arn
+}
+
+# Cookieless statistics for the public page (<platform_domain>/api/collect),
+# shown on Booqy Console's Website page. Feature-scoped in site-analytics/.
+module "site_analytics" {
+  count                    = local.platform_domain_enabled ? 1 : 0
+  source                   = "./site-analytics"
+  environment              = var.env
+  region                   = var.aws_region
+  site                     = var.platform_domain
+  landing_distribution_arn = module.platform_domain[0].landing_distribution_arn
+  console_role_name        = module.platform_tenants_role.role_name
+  alert_topic_arn          = module.alerts.topic_arn
 }
 
 # The public page on <platform_domain> (booqy-website repo) - its own bucket

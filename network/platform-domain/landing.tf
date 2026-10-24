@@ -116,6 +116,19 @@ resource "aws_cloudfront_origin_access_control" "demo_request" {
   signing_protocol                  = "sigv4"
 }
 
+# Cookieless statistics (site-analytics/): GET /api/collect goes to the
+# site-analytics Lambda's function URL, OAC-signed like demo-request. GET
+# only, so no body hash is needed and the beacon works with keepalive on
+# page hide. The origin request policy also hands over CloudFront's viewer
+# country, region and city, which is all the location the statistics keep.
+resource "aws_cloudfront_origin_access_control" "site_analytics" {
+  count                             = var.site_analytics_enabled ? 1 : 0
+  name                              = "${local.prefix}landing-site-analytics-oac"
+  origin_access_control_origin_type = "lambda"
+  signing_behavior                  = "always"
+  signing_protocol                  = "sigv4"
+}
+
 resource "aws_cloudfront_distribution" "landing" {
   enabled             = true
   comment             = "${local.prefix}public page on ${var.platform_domain}"
@@ -144,6 +157,37 @@ resource "aws_cloudfront_distribution" "landing" {
         origin_protocol_policy = "https-only"
         origin_ssl_protocols   = ["TLSv1.2"]
       }
+    }
+  }
+
+  dynamic "origin" {
+    for_each = var.site_analytics_enabled ? [1] : []
+    content {
+      origin_id                = "site-analytics"
+      domain_name              = var.site_analytics_origin_domain
+      origin_access_control_id = aws_cloudfront_origin_access_control.site_analytics[0].id
+
+      custom_origin_config {
+        http_port              = 80
+        https_port             = 443
+        origin_protocol_policy = "https-only"
+        origin_ssl_protocols   = ["TLSv1.2"]
+      }
+    }
+  }
+
+  # Before /api/* (behaviours match in order).
+  dynamic "ordered_cache_behavior" {
+    for_each = var.site_analytics_enabled ? [1] : []
+    content {
+      path_pattern             = "/api/collect"
+      target_origin_id         = "site-analytics"
+      viewer_protocol_policy   = "https-only"
+      allowed_methods          = ["GET", "HEAD"]
+      cached_methods           = ["GET", "HEAD"]
+      compress                 = false
+      cache_policy_id          = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # AWS managed "CachingDisabled"
+      origin_request_policy_id = "b689b0a8-53d0-40ab-baf2-68738e2966ac" # AWS managed "AllViewerExceptHostHeader" (+ viewer location headers)
     }
   }
 

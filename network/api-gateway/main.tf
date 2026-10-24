@@ -1583,6 +1583,8 @@ locals {
     "POST /platform/tenants/{tenantId}/billing/card-link",
     "POST /platform/tenants/{tenantId}/billing/invoices/{invoiceId}/remind",
     "GET /platform/finance/invoices",
+    # Website page: booqy.se's cookieless statistics (site-analytics/)
+    "GET /platform/website",
   ]
 }
 
