@@ -163,6 +163,9 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | POST | `/m/code` | NONE | marketing-public |
 | GET | `/m/s/{token}` | NONE | marketing-public |
 | POST | `/m/s/{token}` | NONE | marketing-public |
+| GET | `/locations/{locationId}/accounting` | JWT | accounting |
+| PUT | `/locations/{locationId}/accounting` | JWT | accounting |
+| GET | `/locations/{locationId}/accounting/export` | JWT | accounting |
 | GET | `/locations/{locationId}/kassa` | JWT | kassa |
 | GET | `/locations/{locationId}/kassa/{proxy+}` | JWT | kassa |
 | POST | `/locations/{locationId}/kassa/{proxy+}` | JWT | kassa |

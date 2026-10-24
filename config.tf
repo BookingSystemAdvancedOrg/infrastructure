@@ -970,6 +970,12 @@ module "kassa_ecr" {
   environment = var.env
   function    = "kassa"
 }
+# Accounting export (accounting.tf); same repository settings
+module "accounting_ecr" {
+  source      = "./storage/ecr/terminal-payments"
+  environment = var.env
+  function    = "accounting"
+}
 module "catering_requests_ecr" {
   source      = "./storage/ecr/catering-requests"
   environment = var.env
@@ -1922,6 +1928,7 @@ module "lambda_releases" {
     (module.printing.function_names["print-device"])      = { alias_name = module.printing.alias_names["print-device"] }
     (module.terminal.function_name)                       = { alias_name = module.terminal.alias_name }
     (module.kassa.function_name)                          = { alias_name = module.kassa.alias_name }
+    (module.accounting.function_name)                     = { alias_name = module.accounting.alias_name }
   }
 }
 
@@ -2016,6 +2023,9 @@ module "api_gateway" {
   # Kassa (kassa.tf, network/api-gateway/kassa-routes.tf)
   kassa_function_name = module.kassa.function_name
   kassa_invoke_arn    = module.kassa.alias_invoke_arn
+  # Accounting export (accounting.tf, network/api-gateway/accounting-routes.tf)
+  accounting_function_name = module.accounting.function_name
+  accounting_invoke_arn    = module.accounting.alias_invoke_arn
 }
 
 # Marketing (plan feature "marketing"): visit statistics, attribution and
@@ -2198,6 +2208,7 @@ locals {
     print_device               = module.printing.role_names["print-device"]
     terminal_payments          = module.terminal.role_name
     kassa                      = module.kassa.role_name
+    accounting                 = module.accounting.role_name
   }
 
   # Log groups finance-rollup counts API requests in: every Lambda that
