@@ -174,8 +174,9 @@ resource "aws_lambda_function" "this" {
   timeout     = 60
   memory_size = 256
 
-  # Caps what a flood of fake hits can cost: excess requests are throttled
-  # (CloudFront answers 5xx, the beacon doesn't retry).
+  # Optional cap on what a flood of fake hits can cost (excess requests are
+  # throttled; the beacon doesn't retry). Off by default: an account with a
+  # low concurrency quota (dev) can't reserve any. -1 = no reservation.
   reserved_concurrent_executions = var.reserved_concurrency
 
   environment {

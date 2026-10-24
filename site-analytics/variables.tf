@@ -30,9 +30,9 @@ variable "alert_topic_arn" {
 }
 
 variable "reserved_concurrency" {
-  description = "Most hits handled at once; caps what a flood of fake hits can cost"
+  description = "Most hits handled at once, to cap what a flood of fake hits can cost; -1 = no reservation (needs spare account concurrency)"
   type        = number
-  default     = 5
+  default     = -1
 }
 
 variable "rollup_schedule" {
