@@ -120,6 +120,7 @@ output "ecr_repository_urls" {
     marketing_sync             = module.marketing_sync_ecr.repository_url
     print_jobs                 = module.print_jobs_ecr.repository_url
     print_device               = module.print_device_ecr.repository_url
+    terminal_payments          = module.terminal_payments_ecr.repository_url
   }
 }
 

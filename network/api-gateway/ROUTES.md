@@ -170,3 +170,7 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | POST | `/print/cloudprnt/{deviceId}` | NONE | print-device |
 | GET | `/print/cloudprnt/{deviceId}` | NONE | print-device |
 | DELETE | `/print/cloudprnt/{deviceId}` | NONE | print-device |
+| GET | `/locations/{locationId}/card-payments` | JWT | terminal-payments |
+| POST | `/locations/{locationId}/card-payments` | JWT | terminal-payments |
+| GET | `/locations/{locationId}/card-payments/{proxy+}` | JWT | terminal-payments |
+| POST | `/locations/{locationId}/card-payments/{proxy+}` | JWT | terminal-payments |

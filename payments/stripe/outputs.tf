@@ -38,3 +38,8 @@ output "platform_billing_webhook_secret_arn" {
   description = "ARN of the secret holding the platform billing endpoint's signing secret - read by PlatformStripeWebhookFn for /billing"
   value       = aws_secretsmanager_secret.webhook["platform-billing"].arn
 }
+
+output "terminal_webhook_secret_arn" {
+  description = "ARN of the Secrets Manager secret holding the card-reader endpoint's signing secret - read by terminal-payments"
+  value       = aws_secretsmanager_secret.webhook["terminal"].arn
+}

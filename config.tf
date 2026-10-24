@@ -806,6 +806,8 @@ module "tenant_context_policy" {
     insights = module.insights_role.role_name
     # Kitchen printing: staff reprint and test on their own location.
     print_jobs = module.printing.role_names["print-jobs"]
+    # Card payments at the till: staff charge on their own location's readers.
+    terminal_payments = module.terminal.role_name
   }
 }
 
@@ -953,6 +955,12 @@ module "print_device_ecr" {
   source      = "./storage/ecr/print-function"
   environment = var.env
   function    = "print-device"
+}
+# Card payments at the till (terminal.tf)
+module "terminal_payments_ecr" {
+  source      = "./storage/ecr/terminal-payments"
+  environment = var.env
+  function    = "terminal-payments"
 }
 module "catering_requests_ecr" {
   source      = "./storage/ecr/catering-requests"
@@ -1904,6 +1912,7 @@ module "lambda_releases" {
     (module.marketing.function_names["marketing-sync"])   = { alias_name = module.marketing.alias_names["marketing-sync"] }
     (module.printing.function_names["print-jobs"])        = { alias_name = module.printing.alias_names["print-jobs"] }
     (module.printing.function_names["print-device"])      = { alias_name = module.printing.alias_names["print-device"] }
+    (module.terminal.function_name)                       = { alias_name = module.terminal.alias_name }
   }
 }
 
@@ -1992,6 +2001,9 @@ module "api_gateway" {
   print_jobs_invoke_arn      = module.printing.alias_invoke_arns["print-jobs"]
   print_device_function_name = module.printing.function_names["print-device"]
   print_device_invoke_arn    = module.printing.alias_invoke_arns["print-device"]
+  # Card payments at the till (terminal.tf, network/api-gateway/terminal-routes.tf)
+  terminal_payments_function_name = module.terminal.function_name
+  terminal_payments_invoke_arn    = module.terminal.alias_invoke_arn
 }
 
 # Marketing (plan feature "marketing"): visit statistics, attribution and
@@ -2051,6 +2063,7 @@ module "stripe_webhooks" {
   reservation_webhook_url = module.stripe_webhook_fn.function_url
   order_webhook_url       = module.webhook_payment_intent_fn.function_url
   catering_webhook_url    = module.catering_stripe_webhook_fn.function_url
+  terminal_webhook_url    = module.terminal.webhook_url
   platform_webhook_url    = module.platform_stripe_webhook_fn.function_url
 }
 
@@ -2171,6 +2184,7 @@ locals {
     marketing_sync             = module.marketing.role_names["marketing-sync"]
     print_jobs                 = module.printing.role_names["print-jobs"]
     print_device               = module.printing.role_names["print-device"]
+    terminal_payments          = module.terminal.role_name
   }
 
   # Log groups finance-rollup counts API requests in: every Lambda that

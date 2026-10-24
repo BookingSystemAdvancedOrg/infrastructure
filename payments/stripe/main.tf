@@ -72,6 +72,20 @@ resource "stripe_webhook_endpoint" "catering" {
   enabled_events = var.catering_events
 }
 
+# Card payments at the till (Stripe Terminal readers on the restaurants'
+# accounts) - received by the terminal-payments Lambda. Its own endpoint and
+# secret, like catering, so a terminal bug can never get the food-order
+# endpoint disabled by Stripe's failure backoff. payment_intent.* and
+# charge.refunded fire for EVERY PaymentIntent of a connected account (online
+# orders too); the handler acts only on PaymentIntents whose metadata names
+# one of its card payments and answers 200 to the rest.
+resource "stripe_webhook_endpoint" "terminal" {
+  connect        = true
+  url            = var.terminal_webhook_url
+  description    = "${var.environment} card payments at the till -> terminal-payments Lambda"
+  enabled_events = var.terminal_events
+}
+
 # Platform events, both delivered to platform-stripe-webhook (one function,
 # two paths, two signing secrets):
 #
@@ -111,13 +125,14 @@ locals {
     reservation      = stripe_webhook_endpoint.reservation
     order            = stripe_webhook_endpoint.order
     catering         = stripe_webhook_endpoint.catering
+    terminal         = stripe_webhook_endpoint.terminal
     platform-connect = stripe_webhook_endpoint.platform_connect
     platform-billing = stripe_webhook_endpoint.platform_billing
   }
 }
 
 resource "aws_secretsmanager_secret" "webhook" {
-  for_each = toset(["reservation", "order", "catering", "platform-connect", "platform-billing"])
+  for_each = toset(["reservation", "order", "catering", "terminal", "platform-connect", "platform-billing"])
 
   name                    = "${local.secret_prefix}stripe/webhook/${each.key}"
   description             = "Signing secret (whsec_...) of the ${each.key} Stripe webhook endpoint - written by Terraform, read by the receiving Lambda"
