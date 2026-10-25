@@ -88,3 +88,15 @@ variable "user_table_name" {
   type        = string
   sensitive   = false
 }
+
+variable "catering_menu_table_name" {
+  description = "Name of the catering menu DynamoDB table (catering dishes and packages)"
+  type        = string
+  sensitive   = false
+}
+
+variable "extra_env" {
+  description = "More environment variables (issue 5 catering: signing, document lock, admin URL, request guard)"
+  type        = map(string)
+  default     = {}
+}

@@ -82,8 +82,9 @@ resource "aws_iam_role_policy" "documents_write" {
         Effect = "Allow"
         Action = [
           "s3:PutObject",
+          "s3:PutObjectTagging", # retention=offer: the bucket's lifecycle expires it after 13 months
         ]
-        Resource = "${var.catering_documents_bucket_arn}/*"
+        Resource = "${var.catering_documents_bucket_arn}/*/offers/*"
       }
     ]
   })

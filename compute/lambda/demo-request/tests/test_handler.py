@@ -77,7 +77,7 @@ class DemoRequestTest(unittest.TestCase):
         self.assertEqual(kw["FromEmailAddress"], "Booqy webbplats <noreply@mail.example.se>")
         content = kw["Content"]["Simple"]
         d = next_weekday().isoformat()
-        self.assertEqual(content["Subject"]["Data"], f"Demoförfrågan: Restaurang Berg AB – {d} 10:30")
+        self.assertEqual(content["Subject"]["Data"], f"Demoförfrågan: Restaurang Berg AB - {d} 10:30")
         text = content["Body"]["Text"]["Data"]
         for expected in ["Anna Berg", "Restaurang Berg AB", "anna@restaurang.se", "070-123 45 67",
                          "kl. 10:30", "onsdag", "och catering.", "203.0.113.7"]:
@@ -99,7 +99,7 @@ class DemoRequestTest(unittest.TestCase):
     def test_optional_fields(self):
         status, _ = self.call(event(payload(phone="", message="")))
         self.assertEqual(status, 200)
-        self.assertIn("Telefon:     –", self.ses.send_email.call_args.kwargs["Content"]["Simple"]["Body"]["Text"]["Data"])
+        self.assertIn("Telefon:     -", self.ses.send_email.call_args.kwargs["Content"]["Simple"]["Body"]["Text"]["Data"])
 
     def test_required_fields_and_formats(self):
         status, body = self.call(event(payload(firstName=" ", email="not-an-email", phone="abc", company="")))

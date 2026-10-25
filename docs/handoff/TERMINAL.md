@@ -31,49 +31,39 @@ Stored on the location row (location table, `TENANT#<t>` / `LOCATION#<l>`):
 }
 ```
 
-## What the backend builds (application repo) - taking a payment
+## Taking a payment (built: application functions/terminal-payments)
 
-Server-driven integration (works with smart readers S700/S710/WisePOS E from
-a web till; no native app needed). Every call: platform key +
-`Stripe-Account: <terminal.accountId>`.
+"Ta betalt" in the admin app (`/ta-betalt`), staff and owners, plan feature
+`terminal`. Server-driven integration, so no SDK and no native app: the
+admin calls our API, our API calls Stripe, Stripe drives the reader.
 
-1. Till lists the location's readers:
-   `GET /v1/terminal/readers?location=<terminal.locationId>` (show online ones).
-2. Create the payment:
-   `POST /v1/payment_intents` `amount`, `currency=sek`,
-   `payment_method_types[]=card_present`, `capture_method=automatic`,
-   `metadata[tenantId|locationId|orderId]` (+ `application_fee_amount` if the
-   platform takes a fee).
-3. Send it to the reader:
-   `POST /v1/terminal/readers/<readerId>/process_payment_intent` `payment_intent=<pi>`.
-   The guest taps / inserts the card (PIN is often required in Sweden - SCA).
-4. Result: webhook on the Connect endpoint - `terminal.reader.action_succeeded`
-   / `terminal.reader.action_failed` and `payment_intent.succeeded` (with
-   `event.account` = the restaurant). Mark the order paid on success.
-   Cancel a stuck action: `POST /v1/terminal/readers/<id>/cancel_action`.
-5. Refunds: `POST /v1/refunds` `payment_intent=<pi>` (same `Stripe-Account`).
+- `GET /locations/{id}/card-payments/readers` - the location's readers
+  (`terminal.locationId` on the restaurant's `terminal.accountId`).
+- `POST /locations/{id}/card-payments` `{checkoutId, readerId, amount | orderId, note?}`
+  creates ONE PaymentIntent per `checkoutId` (`card_present`, automatic
+  capture, öre, metadata `tenantId|locationId|paymentId|date[|orderId]`) and
+  sends it to the reader (`process_payment_intent`). Repeats of the same
+  `checkoutId` return the same payment; "Försök igen" reuses the
+  PaymentIntent, so nothing is ever charged twice.
+- Outcome: the `terminal` Connect endpoint (payments/stripe, Function URL of
+  terminal-payments): `payment_intent.succeeded|payment_failed`,
+  `terminal.reader.action_succeeded|action_failed`, `charge.refunded`. The
+  till also polls `GET .../card-payments/{paymentId}`, which asks Stripe
+  itself once a try is a few seconds old.
+- `.../cancel` (`cancel_action`), `.../retry`, `.../refund` (owner),
+  `.../receipt` (GET the Swedish receipt, POST `{email}` to e-mail it),
+  `.../simulate` (test mode only: `present_payment_method` on a simulated
+  reader).
+- An unpaid order (`pending_payment`) can be paid at the till: its online
+  Checkout Session is expired first, then the order settles exactly like an
+  online payment (confirmed, number, receipt e-mail, kitchen ticket).
 
-Tenant check as everywhere: the `locationId` must belong to the caller's
-tenant; read `terminal.accountId` from the location row - never from the
-request.
+Records: order table `CARD#<date>#<paymentId>` + pointer `CID#<paymentId>`
+(retention, guest privacy and Statistik cover them).
 
-Testing without hardware (test mode): register `simulated-wpe` in Booqy Console,
-then after step 3 call
-`POST /v1/test_helpers/terminal/readers/<readerId>/present_payment_method`.
-
-### Webhook events - add with the handler, not before
-
-`terminal.reader.action_succeeded` and `terminal.reader.action_failed` are
-**not** subscribed yet. Add them to the endpoint whose Lambda handles them
-(`payments/stripe` event lists) in the same release as the handler code -
-subscribing first makes Stripe retry events the deployed handler rejects.
-
-## Frontend (admin-front-end) - the till
-
-"Pay by card" on an order: pick a reader (online ones from step 1), show
-"Waiting for card…", then success / declined (offer retry or another
-reader). Show `payments_not_ready` / `feature_not_in_plan` errors per the
-error contract.
+Testing without hardware (test mode): register `simulated-wpe` in Booqy
+Console, take a payment in admin and press "Simulera kort" (or "Simulera
+nekat").
 
 ## Stripe dashboard (platform owner)
 

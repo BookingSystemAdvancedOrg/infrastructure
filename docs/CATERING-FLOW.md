@@ -1,4 +1,4 @@
-# Catering: request → offer → BankID signature → payment / invoice
+# Catering: request → offer → both parties sign → payment / invoice
 
 The contract between this repo's catering resources and the application
 code. Infra decides *where* each step runs and what it may touch; this
@@ -10,14 +10,34 @@ document is what the handlers must implement for that to hold.
   access is a magic link.
 - The owner can adjust an offer freely; every save is a new, immutable
   offer version. The customer signs **one specific version**.
-- The customer always signs with **BankID**: BankID's RP API v6
-  (`shared/bankid.py`, provider chosen by the `catering/signing-provider`
-  secret; a dev-only simulator for testing). The guest's page polls
-  `…/customer/sign/status` (animated QR code + hints); on completion
-  catering-customer stores the evidence (signature, OCSP response, signed
-  document) under `<tenant>/signed/` and moves the request to `signed`.
-  BankID has no callback, so catering-signing-webhook is only needed for a
-  provider that calls back.
+- **Prices come only from the server** (issue 5): `POST …/catering/quote`
+  (catering-requests) prices packages x guests, dishes x portions, the tier
+  discount by guests, the delivery band from the road distance (Amazon
+  Location v2: `geo-places` Geocode + `geo-routes` CalculateRoutes, IAM auth,
+  single-use results, nothing stored but the distance), the cleaning fee and
+  the VAT per line. The calculator only shows that answer, as an estimate.
+  An address that can't be located still gives a request, with the delivery
+  fee left to the restaurant (`deliveryFeeManual`); beyond the last band
+  there is no delivery. A request is priced again the same way and keeps the
+  snapshot (lines with `vatRate`, `distanceKm`, `ruleRefs`).
+- **VAT per line** (C5): `serviceIncluded` per offer (default from
+  `defaultServiceIncluded`); with service 12 %, food only by the takeaway
+  rule (6 % 2026-04-01 to 2027-12-31, else 12 %); delivery and cleaning
+  follow the food. Stripe gets the account's tax rate for that percentage.
+- **Both parties sign the offer PDF** (C2): catering-document renders each
+  sent version (WeasyPrint, PDF/A-3b); its SHA-256 is what is signed. The
+  **restaurant signs first** in admin, only then is the guest told and may
+  sign. The provider is behind `shared/signing.py` (secret
+  `catering/signing-provider`, field `provider`): `simulator` in dev and
+  `bankid_direct` (BankID RP API v6, `shared/bankid.py`); a contracted
+  provider (Scrive or SEB direct) is added there, see application
+  `docs/orchestrator/CATERING-SIGNING-HANDOFF.md`. A start answers either
+  `kind: bankid` (QR / app, polled through `…/status`) or `kind: redirect`
+  (the provider's page, back with `?signering=klar`).
+- **Simple acceptance** without BankID (C8), off by default per restaurant
+  (`allowSimpleAcceptance`): name, and for a company role + authority;
+  stored as locked evidence like a signature. Companies give the signatory
+  (name, role, authority) already in the request.
 - **No changes and no cancellation by the customer** after signing. Only the
   restaurant can cancel (illness/force majeure) → refund or credit note.
 - Capacity for a date is **checked** at submit and **reserved** when the
@@ -56,10 +76,12 @@ an `AUDIT#` entry in catering-request-history - in one
 | Transition | Written by | Trigger |
 |---|---|---|
 | → requested | catering-requests | `POST …/catering/requests` (Turnstile-verified) |
-| requested → offer_sent, offer_sent → offer_sent (new version) | catering-offer | `POST …/offer/send` |
+| requested (+ `reviewedAt`, "Under granskning") | catering-offer | first `PUT …/offer` (draft) |
+| requested → offer_sent, offer_sent → offer_sent (new version) | catering-offer | `POST …/offer/send` (PDF + signing order; the previous order is cancelled) |
+| offer_sent (+ `restaurantSignedAt`, notice to the guest) | catering-offer | `POST …/restaurant-sign` + `…/status` |
 | requested → declined | catering-offer | `POST …/decline` |
 | requested → expired | catering-lifecycle | timer `request-expiry` |
-| offer_sent → signed (B2C) / confirmed (B2B) | catering-signing-webhook | provider callback |
+| offer_sent → signed | catering-customer / catering-signing-webhook | the guest's signature (`…/customer/sign/status`, `…/customer/accept`) or a provider callback; a company is then invoiced by catering-lifecycle (→ confirmed) |
 | offer_sent / signed → expired | catering-lifecycle | timer `offer-expiry` (at validUntil) |
 | signed → confirmed | catering-stripe-webhook | `checkout.session.completed` (paid) / `async_payment_succeeded` |
 | confirmed → delivered | catering-offer | `POST …/delivered` |
@@ -72,18 +94,28 @@ an `AUDIT#` entry in catering-request-history - in one
 
 - `REQUEST#<requestId>` - head item: `status`, `version`, `customerType`
   (`private`/`company`), contact + company fields, `deliveryDate`,
-  `fulfilment` (`pickup`/`delivery`), `priceSnapshot`,
+  `fulfilment` (`pickup`/`delivery`), `equipmentReturn` (`cleaned`/
+  `not_cleaned`, the latest sent offer's once one is sent), `priceSnapshot`,
   `currentOfferVersion`, `validUntil`, `linkVersion`, `signedOfferVersion`,
   `signedDocHash`, `stripeCheckoutSessionId`, `stripeInvoiceId`,
-  `invoiceNumber`, `invoiceStatus`.
+  `invoiceNumber`, `invoiceStatus`, `guests`, `signatory`, `serviceIncluded`,
+  `reviewedAt`, `restaurantSignedAt`, `signedPdfKey` and `signing` for the
+  version being signed: `{offerVersion, pdfKey, pdfSha256, order (the
+  provider's signing order, shared/signing.py), signatures {restaurant,
+  customer}}`. A new version replaces it (the old order is cancelled).
 - `CAPACITY#<yyyy-mm-dd>` - `heldServings`; reserve with
   `ADD heldServings :n` + condition `heldServings + :n <= maxServingsPerDay`.
 
 **catering-request-history** (PK `REQUEST#<requestId>`, append-only -
 always `PutItem` with `attribute_not_exists(SK)`)
 
-- `OFFER#v0001` - line items, VAT per line, delivery fee, terms text,
-  `validUntil`, `pdfKey`, `pdfSha256`.
+- `OFFER#v0001` - line items with `vatRate`, `serviceIncluded`, delivery
+  fee, terms text, `validUntil`, `pdfKey`, `pdfSha256`, `equipmentReturn` and
+  `totals.cleaningFee` (öre). The cleaning fee is copied from
+  `cateringSettings.cleaningFee` (kronor, owner can change it any time) into
+  the request and each version, and is part of the signed document, so a
+  signed version keeps its price. Same 12 % VAT as the food, not discounted;
+  Stripe Checkout and the invoice get it as its own line.
 - `AUDIT#<ISO ts>#<seq>` - actor, action, from/to status, IP, user agent,
   document hash. Webhook-driven entries use `AUDIT#STRIPE#<evt id>` /
   `AUDIT#SIGNING#<event id>` instead, which doubles as the dedup key.
@@ -94,9 +126,26 @@ in catering-request-history with `attribute_not_exists(SK)`; on
 `ConditionalCheckFailed` (a redelivery), return 200 and stop. Status updates
 stay conditional on `status` + `version` as a second guard.
 
-**catering-documents** (S3, Object Lock) - `<tenantId>/offers/<requestId>/v<NNNN>.pdf`,
-`<tenantId>/signed/<requestId>/v<NNNN>.pdf`, `<tenantId>/invoices/<stripeInvoiceId>.pdf`. Never
-hand out object URLs - presigned GET only.
+**catering-menu** (PK `LOCATION#<locationId>`) - the restaurant's own
+catering menu, separate from the regular menu (`MENU#` items are never
+changed by catering). `DISH#<dishId>`: `name`, `description`,
+`pricePerPortion` (kronor incl. VAT, like menu prices), `allergens[]`,
+`dietary[]`, `active`, `sort`, `version`, optional `sourceMenuItemId` (copied
+with "Hämta från menyn", no link). `PACKAGE#<packageId>`: `name`,
+`description`, `pricePerGuest` (kronor), `dishIds[]`, optional `minGuests`,
+`active`, `sort`, `version`. Written by catering-settings (owner, conditional
+on `version`); read by catering-requests and catering-offer.
+
+**catering-documents** (S3, Object Lock enabled, **no default retention**, C7):
+
+| Key | Written by | Retention |
+|---|---|---|
+| `<tenantId>/offers/<requestId>/v<NNNN>.pdf` | catering-document | tagged `retention=offer`, expires after 13 months (lifecycle); the signed S3 version is pinned (`signing.pdfVersionId`) |
+| `<tenantId>/offers/<requestId>/v<NNNN>-restaurant-bankid.json` | catering-offer | the restaurant's evidence while the contract is not yet binding: unlocked, tagged `retention=offer`, expires with the offer |
+| `<tenantId>/signed/<requestId>/v<NNNN>/` `restaurant-bankid.json` (copied in), `customer-bankid.json` or `customer-acceptance.json`, `offer.pdf`, `manifest.json` (SHA-256 of every file), written when the customer signs | catering-customer, catering-signing-webhook | per object: prod COMPLIANCE 7 years, dev GOVERNANCE 1 day (`DOCUMENT_LOCK_MODE` / `DOCUMENT_LOCK_DAYS`, `s3:PutObjectRetention`) |
+| `<tenantId>/invoices/<stripeInvoiceId>.pdf` | nothing yet: Stripe hosts the invoices; a writer must set the same per-object lock | same as signed/ |
+
+Never hand out object URLs - presigned GET only (`…/documents/{offer|signed|signature}`).
 
 ## Magic links
 
@@ -121,11 +170,43 @@ Names are deterministic so stream retries are idempotent:
 | `owner-reminder-<requestId>` | → requested | submit + reminder hours | remind owner |
 | `request-expiry-<requestId>` | → requested | submit + expiry hours | requested → expired |
 | `offer-expiry-<requestId>` | → offer_sent (replaced per version) | validUntil | offer_sent/signed → expired, release capacity |
-| `day-before-<requestId>` | → confirmed | deliveryDate − 1 day | customer reminder |
+| `sign-reminder-<requestId>` | restaurant signed (offer_sent) | 10:00 local, `signReminderDaysBefore` days before validUntil | guest reminder (e-mail + SMS) if not signed |
+| `day-before-<requestId>` | → confirmed | 10:00 local the day before deliveryDate (`dayBeforeReminder`) | guest reminder (e-mail) |
 
-Leaving `requested` deletes the first two; leaving `offer_sent`/`signed`
-for `confirmed` deletes `offer-expiry`. A timer that fires on a request
-no longer in the expected status is a no-op (the conditional update fails).
+`owner-reminder` fires `ownerReminderHours` after the request (0 = off) and
+reminds the owner (e-mail + SMS) while it is still `requested`. Reminders
+set a notice (`catering_owner_reminder`, `catering_sign_reminder`,
+`catering_day_before`); a reminder time already passed is skipped. Local
+times use the location's time zone (zoneinfo, DST-safe). Leaving
+`requested` deletes the first two; leaving `offer_sent`/`signed` for
+`confirmed` deletes `offer-expiry`, leaving `offer_sent` deletes
+`sign-reminder`, a cancellation deletes `day-before`. A timer that fires on
+a request no longer in the expected status is a no-op.
+
+## Signing webhook
+
+`POST /webhooks/signing/catering?l=<locationId>&r=<requestId>&t=<token>`
+(catering-signing-webhook), the URL set per signing order. The request's
+current order must verify the callback (`verify_webhook`: the order's own
+random token, constant time, or the provider's signature) or it answers 401;
+an event already in the history (`AUDIT#SIGNING#<eventId>`) answers 200; the
+state is always read again from the provider (`status`) and each party that
+signed there is recorded with its evidence, conditionally on status +
+version; then the event is written. A failure answers 503 and logs
+`SIGNING_WEBHOOK_FAILED` (alarm `catering-signing-webhook-failed`, plus a
+Lambda Errors alarm) so the provider retries.
+
+## Abuse limits
+
+Per IP / phone / e-mail on requests, per IP on quotes (120 per 10 min,
+plus a route throttle); Amazon Location lookups per IP (20 per 10 min, 429)
+and per location (500 a day, then the quote leaves the delivery fee to the
+restaurant). The restaurant's origin is geocoded once on settings save
+(IntendedUse Storage, `cateringOrigin` on the location) and distances per
+address are cached in the Lambda for 15 minutes, so changing quantities
+costs no lookups.
+per request and per IP on signing starts and acceptances (10 / 20 per hour,
+each BankID order costs money), all in `shared/request_guard.py`.
 
 ## Stripe
 
@@ -165,8 +246,8 @@ item to the Lambda that owns it - scheduled invocations to the function in
 the record (allow-listed), stream pointers by re-reading the records
 (possible for ~24h). A message is deleted only after the owning Lambda
 succeeded; after 3 failed replays it is escalated to the `platform-alerts`
-SNS topic once and parked. Reference implementation:
-`compute/lambda/dlq-replay/src/handler.py`.
+SNS topic once and parked. Code: `functions/dlq-replay/app.py` in the
+application repo.
 
 The only DLQ setting in application code: `catering-lifecycle` passes
 `DeadLetterConfig = {"Arn": SCHEDULER_DLQ_ARN}` on every schedule it creates.

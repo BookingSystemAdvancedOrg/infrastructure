@@ -51,3 +51,9 @@ variable "region" {
   type        = string
   sensitive   = false
 }
+
+variable "request_guard_table_arn" {
+  description = "ARN of the request-guard table (attempt counters for signing and acceptance)"
+  type        = string
+  sensitive   = false
+}

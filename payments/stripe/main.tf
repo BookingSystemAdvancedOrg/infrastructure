@@ -72,6 +72,20 @@ resource "stripe_webhook_endpoint" "catering" {
   enabled_events = var.catering_events
 }
 
+# Card payments at the till (Stripe Terminal readers on the restaurants'
+# accounts) - received by the terminal-payments Lambda. Its own endpoint and
+# secret, like catering, so a terminal bug can never get the food-order
+# endpoint disabled by Stripe's failure backoff. payment_intent.* and
+# charge.refunded fire for EVERY PaymentIntent of a connected account (online
+# orders too); the handler acts only on PaymentIntents whose metadata names
+# one of its card payments and answers 200 to the rest.
+resource "stripe_webhook_endpoint" "terminal" {
+  connect        = true
+  url            = var.terminal_webhook_url
+  description    = "${var.environment} card payments at the till -> terminal-payments Lambda"
+  enabled_events = var.terminal_events
+}
+
 # Platform events, both delivered to platform-stripe-webhook (one function,
 # two paths, two signing secrets):
 #
@@ -79,11 +93,11 @@ resource "stripe_webhook_endpoint" "catering" {
 #             (charges_enabled), details due, or the restaurant disconnected
 #             from the platform. Keeps PROFILE.stripe.* in the tenant table
 #             truthful without anyone polling Stripe.
-#   billing - YOUR platform account's own subscriptions: the restaurant's
-#             SaaS plan (payments/billing is the catalog, Booqy Console
-#             starts the subscriptions). Subscription and invoice events
-#             keep PROFILE.billing on the tenant row truthful and write the
-#             invoice ledger and the revenue figures in the finance table.
+#   billing - YOUR platform account's own invoices to the restaurants
+#             (built by platform-tenants on the 25th for the period 25th
+#             to 24th: monthly price plus SMS). Invoice events keep the
+#             invoice ledger, the revenue figures and the past-due state
+#             on the tenant row truthful.
 resource "stripe_webhook_endpoint" "platform_connect" {
   connect        = true
   url            = "${var.platform_webhook_url}connect"
@@ -111,13 +125,14 @@ locals {
     reservation      = stripe_webhook_endpoint.reservation
     order            = stripe_webhook_endpoint.order
     catering         = stripe_webhook_endpoint.catering
+    terminal         = stripe_webhook_endpoint.terminal
     platform-connect = stripe_webhook_endpoint.platform_connect
     platform-billing = stripe_webhook_endpoint.platform_billing
   }
 }
 
 resource "aws_secretsmanager_secret" "webhook" {
-  for_each = toset(["reservation", "order", "catering", "platform-connect", "platform-billing"])
+  for_each = toset(["reservation", "order", "catering", "terminal", "platform-connect", "platform-billing"])
 
   name                    = "${local.secret_prefix}stripe/webhook/${each.key}"
   description             = "Signing secret (whsec_...) of the ${each.key} Stripe webhook endpoint - written by Terraform, read by the receiving Lambda"

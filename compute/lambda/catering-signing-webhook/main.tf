@@ -41,7 +41,7 @@ resource "aws_lambda_function" "this" {
   memory_size = 512
 
   environment {
-    variables = {
+    variables = merge({
       TENANT_TABLE_NAME                   = var.tenant_table_name
       LOCATION_TABLE_NAME                 = var.location_table_name
       LOCATION_ID_INDEX_NAME              = var.location_id_index_name
@@ -50,7 +50,7 @@ resource "aws_lambda_function" "this" {
       CATERING_REQUEST_HISTORY_TABLE_NAME = var.catering_request_history_table_name
       CATERING_DOCUMENTS_BUCKET_NAME      = var.catering_documents_bucket_name
       SIGNING_PROVIDER_SECRET_ARN         = var.signing_provider_secret_arn
-    }
+    }, var.extra_env)
   }
 
   tags = {

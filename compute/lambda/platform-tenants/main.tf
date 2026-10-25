@@ -75,6 +75,8 @@ resource "aws_lambda_function" "this" {
       # Restaurant domains bought / connected from Booqy Console
       DOMAIN_PROVISION_STATE_MACHINE_ARN = var.domain_provision_state_machine_arn
       DOMAIN_DOCUMENTS_BUCKET            = var.domain_documents_bucket_name
+      # Website page: booqy.se's cookieless statistics (site-analytics/)
+      SITE_ANALYTICS_TABLE_NAME = var.site_analytics_table_name
       # Finance: subscriptions (Stripe Billing), the Finance page, dunning
       FINANCE_TABLE_NAME          = var.finance_table_name
       FINANCE_ROLLUP_FUNCTION_ARN = var.finance_rollup_alias_arn
@@ -92,6 +94,8 @@ resource "aws_lambda_function" "this" {
       # after BILLING_TRIAL_MONTHS) or subscription (BILLING_NOTICE_MONTHS notice)
       BILLING_NOTICE_MONTHS = tostring(var.billing_notice_months)
       BILLING_TRIAL_MONTHS  = tostring(var.billing_trial_months)
+      # Invoiced in arrears on the 25th for the period 25th to 24th; SMS per part
+      BILLING_SMS_PRICE_SEK = tostring(var.sms_price_sek)
     }
   }
 
@@ -122,6 +126,33 @@ resource "aws_scheduler_schedule" "dunning" {
     arn      = aws_lambda_alias.live.arn
     role_arn = var.scheduler_invoke_role_arn
     input    = jsonencode({ financeTask = "dunning" })
+
+    retry_policy {
+      maximum_retry_attempts       = 2
+      maximum_event_age_in_seconds = 3600
+    }
+  }
+}
+
+# Invoicing: on the 25th, after the period from the 25th to the 24th has
+# ended, the function builds one Stripe invoice per restaurant for that
+# period (the monthly price pro rata by days, plus the SMS parts sent at
+# the restaurant's SMS price) and Stripe emails or charges it. Idempotent
+# per restaurant and period; a missed run is caught up by the next one or
+# by "Run invoicing" in Booqy Console.
+resource "aws_scheduler_schedule" "invoicing" {
+  name                = "${local.function_name}-invoicing"
+  group_name          = "default"
+  schedule_expression = var.invoicing_schedule_expression
+
+  flexible_time_window {
+    mode = "OFF"
+  }
+
+  target {
+    arn      = aws_lambda_alias.live.arn
+    role_arn = var.scheduler_invoke_role_arn
+    input    = jsonencode({ financeTask = "invoice" })
 
     retry_policy {
       maximum_retry_attempts       = 2

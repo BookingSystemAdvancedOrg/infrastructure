@@ -29,6 +29,7 @@ locals {
     LOCATION_TABLE_NAME    = var.location_table_name
     LOCATION_ID_INDEX_NAME = var.location_id_index_name
     MARKETING_TABLE_NAME   = aws_dynamodb_table.marketing.name
+    CONSENT_TABLE_NAME     = var.consent_table_name # consent log (privacy-variables.tf)
   }
 
   functions = {

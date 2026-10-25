@@ -17,10 +17,13 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | POST | `/locations` | JWT | create-location |
 | PUT | `/locations/{locationId}` | JWT | create-location |
 | GET | `/locations/{locationId}/menu` | NONE | get-menu |
+| GET | `/locations/{locationId}/menu/{proxy+}` | NONE | get-menu |
 | POST | `/locations/{locationId}/menu/{proxy+}` | JWT | manage-menu |
 | PUT | `/locations/{locationId}/menu/{proxy+}` | JWT | manage-menu |
 | DELETE | `/locations/{locationId}/menu/{proxy+}` | JWT | manage-menu |
 | GET | `/locations/{locationId}/availability` | NONE | get-availability |
+| GET | `/locations/{locationId}/ordering` | NONE | get-order |
+| GET | `/locations/{locationId}/order-status/{orderId}` | NONE | get-order |
 | POST | `/order` | NONE | payment-intent |
 | POST | `/locations/{locationId}/reservations/{reservationId}/cancel` | NONE | cancel-reservation |
 | POST | `/locations/{locationId}/reservations/{reservationId}/status` | JWT | mark-arrived |
@@ -47,12 +50,22 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | DELETE | `/locations/{locationId}/orders` | JWT | manage-order |
 | GET | `/locations/{locationId}/catering/settings` | NONE | catering-settings |
 | PUT | `/locations/{locationId}/catering/settings` | JWT | catering-settings |
+| GET | `/locations/{locationId}/catering/menu` | NONE | catering-settings |
+| GET | `/locations/{locationId}/catering/menu/dishes` | JWT | catering-settings |
+| POST | `/locations/{locationId}/catering/menu/dishes` | JWT | catering-settings |
+| PUT | `/locations/{locationId}/catering/menu/dishes/{dishId}` | JWT | catering-settings |
+| DELETE | `/locations/{locationId}/catering/menu/dishes/{dishId}` | JWT | catering-settings |
+| GET | `/locations/{locationId}/catering/menu/packages` | JWT | catering-settings |
+| POST | `/locations/{locationId}/catering/menu/packages` | JWT | catering-settings |
+| PUT | `/locations/{locationId}/catering/menu/packages/{packageId}` | JWT | catering-settings |
+| DELETE | `/locations/{locationId}/catering/menu/packages/{packageId}` | JWT | catering-settings |
 | GET | `/locations/{locationId}/catering/discount-tiers` | NONE | catering-discount-tiers |
 | POST | `/locations/{locationId}/catering/discount-tiers` | JWT | catering-discount-tiers |
 | PUT | `/locations/{locationId}/catering/discount-tiers/{tierId}` | JWT | catering-discount-tiers |
 | DELETE | `/locations/{locationId}/catering/discount-tiers/{tierId}` | JWT | catering-discount-tiers |
 | POST | `/locations/{locationId}/catering/requests` | NONE | catering-requests |
 | GET | `/locations/{locationId}/catering/requests` | JWT | catering-requests |
+| POST | `/locations/{locationId}/catering/quote` | NONE | catering-requests |
 | GET | `/locations/{locationId}/catering/requests/{requestId}` | JWT | catering-offer |
 | GET | `/locations/{locationId}/catering/requests/{requestId}/documents/{docId}` | JWT | catering-offer |
 | PUT | `/locations/{locationId}/catering/requests/{requestId}/offer` | JWT | catering-offer |
@@ -62,8 +75,14 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | POST | `/locations/{locationId}/catering/requests/{requestId}/delivered` | JWT | catering-offer |
 | GET | `/locations/{locationId}/catering/invoices` | JWT | catering-offer |
 | POST | `/locations/{locationId}/catering/invoices/{invoiceId}/mark-paid` | JWT | catering-offer |
+| POST | `/locations/{locationId}/catering/requests/{requestId}/restaurant-sign` | JWT | catering-offer |
+| POST | `/locations/{locationId}/catering/requests/{requestId}/restaurant-sign/status` | JWT | catering-offer |
 | GET | `/locations/{locationId}/catering/requests/{requestId}/customer` | NONE | catering-customer |
 | POST | `/locations/{locationId}/catering/requests/{requestId}/customer/sign` | NONE | catering-customer |
+| POST | `/locations/{locationId}/catering/requests/{requestId}/customer/sign/status` | NONE | catering-customer |
+| POST | `/locations/{locationId}/catering/requests/{requestId}/customer/accept` | NONE | catering-customer |
+| POST | `/locations/{locationId}/catering/requests/{requestId}/customer/change` | NONE | catering-customer |
+| POST | `/locations/{locationId}/catering/requests/{requestId}/customer/reject` | NONE | catering-customer |
 | POST | `/locations/{locationId}/catering/requests/{requestId}/customer/checkout` | NONE | catering-customer |
 | GET | `/locations/{locationId}/catering/requests/{requestId}/customer/documents/{docId}` | NONE | catering-customer |
 | POST | `/webhooks/signing/catering` | NONE | catering-signing-webhook |
@@ -101,6 +120,7 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | PATCH | `/platform/tenants/{tenantId}/locations/{locationId}/terminal` | JWT (operator) | platform-tenants |
 | POST | `/platform/tenants/{tenantId}/locations/{locationId}/terminal/readers` | JWT (operator) | platform-tenants |
 | DELETE | `/platform/tenants/{tenantId}/locations/{locationId}/terminal/readers/{readerId}` | JWT (operator) | platform-tenants |
+| GET | `/platform/terminal/readers` | JWT (operator) | platform-tenants |
 | GET | `/platform/operators` | JWT (operator) | platform-tenants |
 | POST | `/platform/operators` | JWT (operator) | platform-tenants |
 | PATCH | `/platform/operators/{username}` | JWT (operator) | platform-tenants |
@@ -125,9 +145,11 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | POST | `/platform/tenants/{tenantId}/billing/card-link` | JWT (operator) | platform-tenants |
 | POST | `/platform/tenants/{tenantId}/billing/invoices/{invoiceId}/remind` | JWT (operator) | platform-tenants |
 | GET | `/platform/finance/invoices` | JWT (operator) | platform-tenants |
+| GET | `/platform/website` | JWT (operator) | platform-tenants |
 | GET | `/tenant` | JWT | tenant-account |
 | PATCH | `/tenant` | JWT | tenant-account |
 | POST | `/tenant/stripe/account-link` | JWT | tenant-account |
+| GET | `/insights` | JWT | insights |
 | GET | `/site-config` | NONE | tenant-site-config |
 | GET | `/marketing/{proxy+}` | JWT | marketing |
 | POST | `/marketing/{proxy+}` | JWT | marketing |
@@ -142,3 +164,22 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | POST | `/m/code` | NONE | marketing-public |
 | GET | `/m/s/{token}` | NONE | marketing-public |
 | POST | `/m/s/{token}` | NONE | marketing-public |
+| GET | `/locations/{locationId}/accounting` | JWT | accounting |
+| PUT | `/locations/{locationId}/accounting` | JWT | accounting |
+| GET | `/locations/{locationId}/accounting/export` | JWT | accounting |
+| GET | `/locations/{locationId}/kassa` | JWT | kassa |
+| GET | `/locations/{locationId}/kassa/{proxy+}` | JWT | kassa |
+| POST | `/locations/{locationId}/kassa/{proxy+}` | JWT | kassa |
+| PUT | `/locations/{locationId}/kassa/{proxy+}` | JWT | kassa |
+| GET | `/locations/{locationId}/print` | JWT | print-jobs |
+| GET | `/locations/{locationId}/print/{proxy+}` | JWT | print-jobs |
+| POST | `/locations/{locationId}/print/{proxy+}` | JWT | print-jobs |
+| PUT | `/locations/{locationId}/print/{proxy+}` | JWT | print-jobs |
+| DELETE | `/locations/{locationId}/print/{proxy+}` | JWT | print-jobs |
+| POST | `/print/cloudprnt/{deviceId}` | NONE | print-device |
+| GET | `/print/cloudprnt/{deviceId}` | NONE | print-device |
+| DELETE | `/print/cloudprnt/{deviceId}` | NONE | print-device |
+| GET | `/locations/{locationId}/card-payments` | JWT | terminal-payments |
+| POST | `/locations/{locationId}/card-payments` | JWT | terminal-payments |
+| GET | `/locations/{locationId}/card-payments/{proxy+}` | JWT | terminal-payments |
+| POST | `/locations/{locationId}/card-payments/{proxy+}` | JWT | terminal-payments |

@@ -36,7 +36,7 @@ resource "aws_lambda_function" "this" {
   memory_size = 512
 
   environment {
-    variables = {
+    variables = merge({
       # Trust the viewer IP from the admin app's CloudFront (/api/*) for the
       # per-IP limits and signing evidence (shared/http.py source_ip).
       CLOUDFRONT_EDGE_SECRET               = var.cloudfront_edge_secret
@@ -55,7 +55,8 @@ resource "aws_lambda_function" "this" {
       TURNSTILE_REQUIRED                   = var.turnstile_required ? "true" : "false" # bot check on online bookings (the sites show the widget)
       TURNSTILE_SECRET_ARN                 = var.turnstile_secret_arn                  # platform Turnstile secret key {"secretKey": "..."}
       REQUEST_GUARD_TABLE_NAME             = var.request_guard_table_name              # attempt limits per IP / phone / e-mail
-    }
+      # + consent log and booking retention (root privacy-consent.tf)
+    }, var.privacy_env)
   }
 
   tags = {

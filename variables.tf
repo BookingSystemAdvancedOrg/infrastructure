@@ -133,19 +133,19 @@ variable "plans" {
     features      = map(bool)
     price_sek     = number
   }))
-  description = "Plan catalog (packages you sell). A tenant's limits are copied from its plan when the plan is assigned and can be overridden per tenant from the platform dashboard - no deploy either way. Feature keys: reservations, ordering, catering, terminal (card readers for in-person payments, managed from Booqy Console), marketing (visit statistics and email campaigns to guests who opted in). price_sek: the monthly subscription price excluding VAT, invoiced through Stripe Billing on the platform account (payments/billing creates the Stripe product and price; a changed price archives the old Stripe price and applies to a customer the next time their plan is saved in Booqy Console)."
+  description = "Plan catalog (packages you sell). A tenant's limits are copied from its plan when the plan is assigned and can be overridden per tenant from the platform dashboard - no deploy either way. Feature keys: reservations, ordering, catering, terminal (card readers for in-person payments, managed from Booqy Console), marketing (visit statistics and email campaigns to guests who opted in), kassa (the till, off by default: turn it on per tenant in Booqy Console; test mode until a certified control system is connected). price_sek: the monthly subscription price excluding VAT, invoiced through Stripe Billing on the platform account (payments/billing creates the Stripe product and price; a changed price archives the old Stripe price and applies to a customer the next time their plan is saved in Booqy Console)."
   sensitive   = false
   default = {
     starter = {
       name          = "Starter"
       max_locations = 1
-      features      = { reservations = true, ordering = true, catering = false, terminal = true, marketing = false }
+      features      = { reservations = true, ordering = true, catering = false, terminal = true, marketing = false, kassa = false }
       price_sek     = 990
     }
     growth = {
       name          = "Growth"
       max_locations = 3
-      features      = { reservations = true, ordering = true, catering = true, terminal = true, marketing = true }
+      features      = { reservations = true, ordering = true, catering = true, terminal = true, marketing = true, kassa = false }
       price_sek     = 1990
     }
   }
@@ -211,6 +211,18 @@ variable "billing_trial_months" {
   sensitive   = false
   default     = 6
 }
+variable "sms_price_sek" {
+  type        = number
+  description = "What a restaurant pays per SMS part (160 GSM-7 characters, 70 with emoji, long messages in parts of 153/67), in SEK excluding VAT, on its monthly invoice. Overridable per customer in Booqy Console (Billing tab). Counted from the deploy that introduced part counting; earlier SMS are not charged."
+  sensitive   = false
+  default     = 0.70
+}
+variable "billing_invoicing_schedule" {
+  type        = string
+  description = "EventBridge Scheduler expression (UTC) for the monthly invoicing run: on the 25th, after the period from the 25th to the 24th has ended, platform-tenants invoices every restaurant for that period (monthly price pro rata by days plus the SMS parts sent). After finance-rollup (04:30 UTC) so the figures for the 24th exist."
+  sensitive   = false
+  default     = "cron(0 5 25 * ? *)"
+}
 variable "billing_dunning_schedule" {
   type        = string
   description = "EventBridge Scheduler expression (UTC) for the dunning task: platform-tenants checks past-due subscriptions and suspends / resumes customers."
@@ -222,6 +234,12 @@ variable "finance_rollup_schedule" {
   description = "EventBridge Scheduler expression (UTC) for finance-rollup: pulls the account's cost from Cost Explorer, counts usage per customer and writes the per-day figures the Finance page reads. AWS has yesterday's cost ready a few hours after midnight UTC."
   sensitive   = false
   default     = "cron(30 4 * * ? *)"
+}
+variable "insights_rollup_schedule" {
+  type        = string
+  description = "EventBridge Scheduler expression (UTC) for insights-rollup: recomputes every restaurant location's figures for the last days (Statistik in the admin app). After midnight in Sweden, before anyone opens the admin."
+  sensitive   = false
+  default     = "cron(30 2 * * ? *)"
 }
 variable "aws_usd_to_sek" {
   type        = number

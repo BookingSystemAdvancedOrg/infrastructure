@@ -75,13 +75,13 @@ plans = {
   starter = {
     name          = "Starter"
     max_locations = 1
-    features      = { reservations = true, ordering = true, catering = false, terminal = true, marketing = false }
+    features      = { reservations = true, ordering = true, catering = false, terminal = true, marketing = false, kassa = false }
     price_sek     = 990
   }
   growth = {
     name          = "Growth"
     max_locations = 3
-    features      = { reservations = true, ordering = true, catering = true, terminal = true, marketing = true }
+    features      = { reservations = true, ordering = true, catering = true, terminal = true, marketing = true, kassa = false }
     price_sek     = 1990
   }
 }
@@ -106,3 +106,12 @@ tenant_purge_schedule      = "rate(1 hour)"
 # done for it in Booqy Console the checks run in the fallback mode: the
 # customer site's own distribution and a 404 for an unknown host.
 # smoke_test_host = "test-restaurang-2.dev.booqy.se"
+
+# Guest data retention (privacy-variables.tf). The job only logs counts per
+# data type until this is set to false, after the owner has checked them.
+# Periods: var.data_retention (defaults: bookings 395 days, contact details
+# 24 months, cancelled quotes 12 months, receipts 7 years, suppression 36 months).
+data_retention_dry_run = true
+
+# DMARC aggregate reports (privacy-variables.tf). The mailbox must exist.
+dmarc_report_address = "dmarc@booqy.se"

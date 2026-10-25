@@ -33,6 +33,7 @@ AUTH_RE = re.compile(r'authorization_type\s*=\s*"(\w+)"')
 #   locals { platform_tenants_routes = ["GET /platform/tenants", ...] }
 #   route_key = each.value
 EACH_VALUE_ROUTE_KEY_RE = re.compile(r'route_key\s*=\s*each\.value\b')
+TOSET_RE = re.compile(r'toset\(\[(?P<items>[^\]]*)\]\)')
 ROUTES_LIST_RE = re.compile(r'_routes\s*=\s*\[(?P<items>[^\]]*)\]')
 # Routes behind the operator-pool authorizer (/platform/*) are labelled
 # differently from tenant-pool JWT routes.
@@ -40,9 +41,12 @@ PLATFORM_AUTHORIZER_RE = re.compile(r'authorizer_id\s*=\s*aws_apigatewayv2_autho
 
 
 def parse_routes():
-    text = MAIN_TF.read_text()
+    # Feature files whose sections use the same "# --- <kebab-name> ---"
+    # markers (e.g. printing-routes.tf) are read after main.tf, each on its own.
+    files = [MAIN_TF, *sorted(p for p in HERE.glob("*-routes.tf") if "# --- " in p.read_text())]
+    sections = [m for f in files for m in SECTION_RE.finditer(f.read_text())]
     routes = []
-    for m in SECTION_RE.finditer(text):
+    for m in sections:
         name = m.group("name")
         body = m.group("body")
 
@@ -53,10 +57,15 @@ def parse_routes():
         if auth == "JWT" and PLATFORM_AUTHORIZER_RE.search(body):
             auth = "JWT (operator)"
 
-        route_key_match = ROUTE_KEY_RE.search(body)
-        if route_key_match:
-            method, path = route_key_match.groups()
-            routes.append({"lambda": name, "method": method, "path": path, "auth": auth})
+        # Every literal route_key in the section, plus a for_each over an
+        # inline toset([...]) of complete "METHOD /path" keys.
+        keys = ROUTE_KEY_RE.findall(body)
+        toset_match = TOSET_RE.search(body)
+        if toset_match and EACH_VALUE_ROUTE_KEY_RE.search(body):
+            keys += re.findall(r'"([A-Z]+) (\S+)"', toset_match.group("items"))
+        if keys:
+            for method, path in keys:
+                routes.append({"lambda": name, "method": method, "path": path, "auth": auth})
             continue
 
         # for_each route: one row per method in the section's `*_methods` locals list.

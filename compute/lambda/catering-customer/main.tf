@@ -42,7 +42,7 @@ resource "aws_lambda_function" "this" {
   memory_size = 512
 
   environment {
-    variables = {
+    variables = merge({
       # Trust the viewer IP from the admin app's CloudFront (/api/*) for the
       # per-IP limits and signing evidence (shared/http.py source_ip).
       CLOUDFRONT_EDGE_SECRET              = var.cloudfront_edge_secret
@@ -59,7 +59,7 @@ resource "aws_lambda_function" "this" {
       STRIPE_API_VERSION                  = var.stripe_api_version
       CUSTOMER_SITE_URL                   = var.customer_site_url
       SIGNING_WEBHOOK_URL                 = var.signing_webhook_url
-    }
+    }, var.extra_env)
   }
 
   tags = {

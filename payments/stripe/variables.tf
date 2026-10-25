@@ -86,6 +86,27 @@ variable "catering_events" {
     "charge.refunded",
   ]
 }
+variable "terminal_webhook_url" {
+  type        = string
+  description = "Function URL of the terminal-payments Lambda - registered as the card-reader endpoint"
+  sensitive   = false
+}
+variable "terminal_events" {
+  type        = list(string)
+  description = "Stripe events delivered to the card-reader webhook - must stay in sync with what the terminal-payments Lambda handler actually processes"
+  sensitive   = false
+  # payment_intent.succeeded is the payment's outcome; payment_failed and
+  # the reader's action_failed end the current try (the till offers "Försök
+  # igen"); action_succeeded is a second path to the same success;
+  # charge.refunded records refunds made from the order or the Dashboard.
+  default = [
+    "payment_intent.succeeded",
+    "payment_intent.payment_failed",
+    "terminal.reader.action_succeeded",
+    "terminal.reader.action_failed",
+    "charge.refunded",
+  ]
+}
 variable "platform_webhook_url" {
   type        = string
   description = "Function URL of the platform-stripe-webhook Lambda (with trailing slash) - registered as <url>connect and <url>billing"
@@ -102,12 +123,9 @@ variable "platform_connect_events" {
 }
 variable "platform_billing_events" {
   type        = list(string)
-  description = "Platform-account subscription events (the restaurants' SaaS plans) delivered to platform-stripe-webhook /billing"
+  description = "Platform-account invoice events (the restaurants' monthly invoices, built by platform-tenants in arrears) delivered to platform-stripe-webhook /billing"
   sensitive   = false
   default = [
-    "customer.subscription.created",
-    "customer.subscription.updated",
-    "customer.subscription.deleted",
     "invoice.finalized",
     "invoice.paid",
     "invoice.payment_failed",

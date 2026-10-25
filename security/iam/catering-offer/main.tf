@@ -136,6 +136,7 @@ resource "aws_iam_role_policy" "documents_read" {
         Effect = "Allow"
         Action = [
           "s3:GetObject",
+          "s3:GetObjectVersion", # the exact offer PDF version that was signed
         ]
         Resource = "${var.catering_documents_bucket_arn}/*"
       }
@@ -202,6 +203,57 @@ resource "aws_iam_role_policy" "logs" {
           "logs:PutLogEvents",
         ]
         Resource = "arn:aws:logs:${var.region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${local.function_name}:*"
+      }
+    ]
+  })
+}
+
+# Catering dishes and packages for pricing (issue 5, read only).
+resource "aws_iam_role_policy" "dynamodb_catering_menu" {
+  name = "catering-menu-table-read"
+  role = aws_iam_role.this.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "ReadCateringMenuTable"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:GetItem",
+          "dynamodb:Query",
+          "dynamodb:BatchGetItem",
+        ]
+        Resource = "${var.catering_menu_table_arn}"
+      }
+    ]
+  })
+}
+
+# Restaurant signing (issue 5, C2): the owner signs each offer version
+# before the customer can. Reads the signing-provider secret, creates and
+# cancels signing orders, and stores the restaurant's signature evidence
+# next to the offer PDF under <tenant>/offers/, unlocked: it is locked in
+# signed/ only once the contract is binding (C7).
+resource "aws_iam_role_policy" "signing" {
+  name = "catering-restaurant-signing"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "ReadSigningProviderSecret"
+        Effect   = "Allow"
+        Action   = "secretsmanager:GetSecretValue"
+        Resource = var.signing_provider_secret_arn
+      },
+      {
+        # Unlocked until the customer signs (then catering-customer / the webhook copies it
+        # into signed/ with the lock); tagged retention=offer so an unsigned one expires.
+        Sid      = "StoreRestaurantSignatureEvidence"
+        Effect   = "Allow"
+        Action   = ["s3:PutObject", "s3:PutObjectTagging"]
+        Resource = "${var.catering_documents_bucket_arn}/*/offers/*"
       }
     ]
   })

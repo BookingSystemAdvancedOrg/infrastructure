@@ -36,7 +36,7 @@ resource "aws_lambda_function" "this" {
   memory_size = 512
 
   environment {
-    variables = {
+    variables = merge({
       TENANT_TABLE_NAME                    = var.tenant_table_name
       LOCATION_TABLE_NAME                  = var.location_table_name
       LOCATION_ID_INDEX_NAME               = var.location_id_index_name
@@ -51,7 +51,8 @@ resource "aws_lambda_function" "this" {
       CATERING_REQUESTS_TABLE_NAME         = var.catering_requests_table_name    # routes this table's stream records
       MAIL_OUTBOX_BUCKET_NAME              = var.mail_outbox_bucket_name         # dev only: save emails here instead of SES ("" = send)
       FINANCE_TABLE_NAME                   = var.finance_table_name              # counts emails and SMS sent per restaurant and day
-    }
+      # + the consent withdrawal link in booking confirmations (root privacy-consent.tf)
+    }, var.privacy_env)
   }
 
   tags = {

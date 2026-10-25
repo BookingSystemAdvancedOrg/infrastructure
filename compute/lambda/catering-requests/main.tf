@@ -35,7 +35,7 @@ resource "aws_lambda_function" "this" {
   memory_size = 512
 
   environment {
-    variables = {
+    variables = merge({
       # Trust the viewer IP from the admin app's CloudFront (/api/*) for the
       # per-IP limits and signing evidence (shared/http.py source_ip).
       CLOUDFRONT_EDGE_SECRET              = var.cloudfront_edge_secret
@@ -44,6 +44,7 @@ resource "aws_lambda_function" "this" {
       ENVIRONMENT                         = var.environment
       CATERING_REQUESTS_TABLE_NAME        = var.catering_requests_table_name
       LOCATION_TABLE_NAME                 = var.location_table_name
+      CATERING_MENU_TABLE_NAME            = var.catering_menu_table_name
       CATERING_DISCOUNT_TIERS_TABLE_NAME  = var.catering_discount_tiers_table_name
       MENU_TABLE_NAME                     = var.menu_table_name
       CATERING_REQUEST_HISTORY_TABLE_NAME = var.catering_request_history_table_name
@@ -54,7 +55,8 @@ resource "aws_lambda_function" "this" {
       REQUEST_GUARD_TABLE_NAME            = var.request_guard_table_name
       TURNSTILE_REQUIRED                  = var.turnstile_required ? "true" : "false"
       MARKETING_TABLE_NAME                = var.marketing_table_name # statistics + "offers" opt-in
-    }
+      # + consent log (root privacy-consent.tf)
+    }, var.privacy_env)
   }
 
   tags = {

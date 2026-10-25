@@ -8,6 +8,11 @@ output "notification_stream_dlq_arn" {
   value       = aws_sqs_queue.this["notification_stream"].arn
 }
 
+output "print_stream_dlq_arn" {
+  description = "ARN of the DLQ for order stream batches print-jobs failed to process"
+  value       = aws_sqs_queue.this["print_stream"].arn
+}
+
 output "scheduled_invocation_dlq_arn" {
   description = "ARN of the DLQ for failed scheduled (asynchronous) Lambda invocations - the on-failure destination of every scheduler-invoked function"
   value       = aws_sqs_queue.this["scheduled_invocation"].arn
@@ -16,16 +21,16 @@ output "scheduled_invocation_dlq_arn" {
 # URLs, names and ARNs by key, for the replay Lambda (SQS API calls take the
 # URL), the CloudWatch alarms (QueueName dimension) and IAM policies.
 output "queue_urls" {
-  description = "Map of DLQ key (lifecycle_stream, notification_stream, scheduled_invocation) to queue URL"
+  description = "Map of DLQ key (lifecycle_stream, notification_stream, print_stream, scheduled_invocation) to queue URL"
   value       = { for k, q in aws_sqs_queue.this : k => q.url }
 }
 
 output "queue_names" {
-  description = "Map of DLQ key (lifecycle_stream, notification_stream, scheduled_invocation) to queue name"
+  description = "Map of DLQ key (lifecycle_stream, notification_stream, print_stream, scheduled_invocation) to queue name"
   value       = { for k, q in aws_sqs_queue.this : k => q.name }
 }
 
 output "queue_arns" {
-  description = "Map of DLQ key (lifecycle_stream, notification_stream, scheduled_invocation) to queue ARN"
+  description = "Map of DLQ key (lifecycle_stream, notification_stream, print_stream, scheduled_invocation) to queue ARN"
   value       = { for k, q in aws_sqs_queue.this : k => q.arn }
 }

@@ -106,6 +106,7 @@ resource "aws_iam_role_policy" "documents_read" {
         Effect = "Allow"
         Action = [
           "s3:GetObject",
+          "s3:GetObjectVersion", # the exact offer PDF version that was signed
         ]
         Resource = "${var.catering_documents_bucket_arn}/*"
       }
@@ -136,9 +137,10 @@ resource "aws_iam_role_policy" "secrets" {
   })
 }
 
-# BankID signature evidence (signature, OCSP response, the signed
-# document) - written once per signed offer version under <tenant>/signed/.
-# The bucket's Object Lock keeps it unchanged.
+# Signature evidence (signature, OCSP response, the signed offer PDF and a
+# manifest of hashes) - written once per signed offer version under
+# <tenant>/signed/, each object with its own Object Lock retention
+# (PutObjectRetention: the bucket has no default lock, issue 5 C7).
 resource "aws_iam_role_policy" "signature_evidence" {
   name = "store-signature-evidence"
   role = aws_iam_role.this.id
@@ -149,7 +151,7 @@ resource "aws_iam_role_policy" "signature_evidence" {
       {
         Sid      = "PutSignatureEvidence"
         Effect   = "Allow"
-        Action   = "s3:PutObject"
+        Action   = ["s3:PutObject", "s3:PutObjectRetention"]
         Resource = "${var.catering_documents_bucket_arn}/*/signed/*"
       }
     ]
@@ -174,6 +176,26 @@ resource "aws_iam_role_policy" "logs" {
           "logs:PutLogEvents",
         ]
         Resource = "arn:aws:logs:${var.region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${local.function_name}:*"
+      }
+    ]
+  })
+}
+
+# Attempt counters on BankID signing and simple acceptance
+# (shared/request_guard.py): each BankID order costs money. Item updates
+# only, on that one table.
+resource "aws_iam_role_policy" "request_guard" {
+  name = "count-signing-attempts"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "CountSigningAttempts"
+        Effect   = "Allow"
+        Action   = "dynamodb:UpdateItem"
+        Resource = var.request_guard_table_arn
       }
     ]
   })

@@ -240,3 +240,19 @@ variable "billing_trial_months" {
   description = "Months after which a try-out customer becomes a subscription automatically (0 = never)"
   type        = number
 }
+
+variable "sms_price_sek" {
+  description = "Default price per SMS part, SEK excluding VAT"
+  type        = number
+}
+
+variable "invoicing_schedule_expression" {
+  description = "When the monthly invoicing run happens (cron(), UTC, the 25th)"
+  type        = string
+}
+
+variable "site_analytics_table_name" {
+  description = "The site-analytics table (booqy.se statistics) the Website page reads; empty when there is no platform domain"
+  type        = string
+  default     = ""
+}

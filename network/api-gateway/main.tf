@@ -85,6 +85,13 @@ resource "aws_apigatewayv2_stage" "this" {
     throttling_burst_limit = var.booking_throttle_burst_limit
   }
 
+  # The calculator's live price: each delivery quote can call Amazon Location.
+  route_settings {
+    route_key              = "POST /locations/{locationId}/catering/quote"
+    throttling_rate_limit  = var.booking_throttle_rate_limit
+    throttling_burst_limit = var.booking_throttle_burst_limit
+  }
+
   # Cookieless visit counter on every restaurant website: one request per
   # page view, nothing else. Its own ceiling so a flood of fake page views
   # can't eat the platform-wide default.
@@ -107,9 +114,20 @@ resource "aws_apigatewayv2_stage" "this" {
     throttling_burst_limit = var.booking_throttle_burst_limit
   }
 
+  # Kitchen printers (printing-routes.tf): their own ceiling, so a flood of
+  # fake polls can't eat the platform-wide default.
+  dynamic "route_settings" {
+    for_each = toset(local.print_device_routes)
+    content {
+      route_key              = route_settings.value
+      throttling_rate_limit  = var.print_device_throttle_rate_limit
+      throttling_burst_limit = var.print_device_throttle_burst_limit
+    }
+  }
+
   # route_settings names a route by key - it has to exist first.
   depends_on = [aws_apigatewayv2_route.create_pending_reservation, aws_apigatewayv2_route.payment_intent,
-  aws_apigatewayv2_route.catering_requests_post, aws_apigatewayv2_route.marketing_public]
+  aws_apigatewayv2_route.catering_requests_post, aws_apigatewayv2_route.catering_quote_post, aws_apigatewayv2_route.marketing_public, aws_apigatewayv2_route.print_device]
 
   tags = {
     Environment = var.environment
@@ -1028,6 +1046,88 @@ resource "aws_apigatewayv2_route" "catering_settings_put" {
   authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
 
+# Catering menu (issue 5): the guest reads the active dishes and packages;
+# the owner reads all of them and writes (owner checked in the Lambda).
+# --- catering-settings ---
+resource "aws_apigatewayv2_route" "catering_menu_get" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "GET /locations/{locationId}/catering/menu"
+  target             = "integrations/${aws_apigatewayv2_integration.catering_settings.id}"
+  authorization_type = "NONE"
+}
+
+# --- catering-settings ---
+resource "aws_apigatewayv2_route" "catering_menu_dishes_get" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "GET /locations/{locationId}/catering/menu/dishes"
+  target             = "integrations/${aws_apigatewayv2_integration.catering_settings.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# --- catering-settings ---
+resource "aws_apigatewayv2_route" "catering_menu_dishes_post" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "POST /locations/{locationId}/catering/menu/dishes"
+  target             = "integrations/${aws_apigatewayv2_integration.catering_settings.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# --- catering-settings ---
+resource "aws_apigatewayv2_route" "catering_menu_dishes_put" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "PUT /locations/{locationId}/catering/menu/dishes/{dishId}"
+  target             = "integrations/${aws_apigatewayv2_integration.catering_settings.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# --- catering-settings ---
+resource "aws_apigatewayv2_route" "catering_menu_dishes_delete" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "DELETE /locations/{locationId}/catering/menu/dishes/{dishId}"
+  target             = "integrations/${aws_apigatewayv2_integration.catering_settings.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# --- catering-settings ---
+resource "aws_apigatewayv2_route" "catering_menu_packages_get" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "GET /locations/{locationId}/catering/menu/packages"
+  target             = "integrations/${aws_apigatewayv2_integration.catering_settings.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# --- catering-settings ---
+resource "aws_apigatewayv2_route" "catering_menu_packages_post" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "POST /locations/{locationId}/catering/menu/packages"
+  target             = "integrations/${aws_apigatewayv2_integration.catering_settings.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# --- catering-settings ---
+resource "aws_apigatewayv2_route" "catering_menu_packages_put" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "PUT /locations/{locationId}/catering/menu/packages/{packageId}"
+  target             = "integrations/${aws_apigatewayv2_integration.catering_settings.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# --- catering-settings ---
+resource "aws_apigatewayv2_route" "catering_menu_packages_delete" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "DELETE /locations/{locationId}/catering/menu/packages/{packageId}"
+  target             = "integrations/${aws_apigatewayv2_integration.catering_settings.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
 resource "aws_lambda_permission" "catering_settings_invoke" {
   statement_id  = "AllowAPIGatewayInvokeCateringSettings"
   action        = "lambda:InvokeFunction"
@@ -1129,6 +1229,17 @@ resource "aws_apigatewayv2_route" "catering_requests_get" {
   target             = "integrations/${aws_apigatewayv2_integration.catering_requests.id}"
   authorization_type = "JWT"
   authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# --- catering-requests ---
+# The calculator's live price (issue 5, M2): the server is the only source of
+# prices, the site only shows this answer. Per-IP limits in the handler
+# (shared/request_guard.py); each delivery quote calls Amazon Location.
+resource "aws_apigatewayv2_route" "catering_quote_post" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "POST /locations/{locationId}/catering/quote"
+  target             = "integrations/${aws_apigatewayv2_integration.catering_requests.id}"
+  authorization_type = "NONE"
 }
 
 resource "aws_lambda_permission" "catering_requests_invoke" {
@@ -1253,6 +1364,22 @@ resource "aws_apigatewayv2_route" "catering_offer_invoice_mark_paid" {
   authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
 
+# --- catering-offer ---
+# The restaurant signs each offer version first (issue 5, C2): start the
+# signing and poll it (BankID QR / app) or return from the provider's page.
+resource "aws_apigatewayv2_route" "catering_offer_restaurant_sign" {
+  for_each = toset([
+    "POST /locations/{locationId}/catering/requests/{requestId}/restaurant-sign",
+    "POST /locations/{locationId}/catering/requests/{requestId}/restaurant-sign/status",
+  ])
+
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = each.value
+  target             = "integrations/${aws_apigatewayv2_integration.catering_offer.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
 resource "aws_lambda_permission" "catering_offer_invoke" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
@@ -1298,10 +1425,12 @@ resource "aws_apigatewayv2_route" "catering_customer_sign" {
 }
 
 # The guest's other steps (magic-link token checked in the Lambda):
-# polling the BankID signing, asking for changes, declining the offer.
+# polling the signing, simple acceptance without BankID (when the restaurant
+# allows it), asking for changes, declining the offer.
 resource "aws_apigatewayv2_route" "catering_customer_steps" {
   for_each = toset([
     "POST /locations/{locationId}/catering/requests/{requestId}/customer/sign/status",
+    "POST /locations/{locationId}/catering/requests/{requestId}/customer/accept",
     "POST /locations/{locationId}/catering/requests/{requestId}/customer/change",
     "POST /locations/{locationId}/catering/requests/{requestId}/customer/reject",
   ])
@@ -1422,6 +1551,8 @@ locals {
     "PATCH /platform/tenants/{tenantId}/locations/{locationId}/terminal",
     "POST /platform/tenants/{tenantId}/locations/{locationId}/terminal/readers",
     "DELETE /platform/tenants/{tenantId}/locations/{locationId}/terminal/readers/{readerId}",
+    # Every card reader across customers, with its tenant and location
+    "GET /platform/terminal/readers",
     # Operator accounts (the operator pool itself) - every operator has the
     # same rights, including managing other operators.
     "GET /platform/operators",
@@ -1452,6 +1583,8 @@ locals {
     "POST /platform/tenants/{tenantId}/billing/card-link",
     "POST /platform/tenants/{tenantId}/billing/invoices/{invoiceId}/remind",
     "GET /platform/finance/invoices",
+    # Website page: booqy.se's cookieless statistics (site-analytics/)
+    "GET /platform/website",
   ]
 }
 
@@ -1531,6 +1664,46 @@ resource "aws_lambda_permission" "tenant_account_invoke" {
   source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
 }
 
+
+# --- insights ---
+#
+# Statistik in the admin app: a restaurant's own figures for a period
+# (rolled-up days plus today). Tenant pool token - the tenant comes from the
+# token, locations are checked against it, staff see only their own
+# location and no amounts.
+
+locals {
+  insights_routes = [
+    "GET /insights",
+  ]
+}
+
+resource "aws_apigatewayv2_integration" "insights" {
+  api_id                 = aws_apigatewayv2_api.this.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = var.insights_invoke_arn
+  integration_method     = "POST" # Lambda proxy integrations always invoke via POST, regardless of the route's own method
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "insights" {
+  for_each = toset(local.insights_routes)
+
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = each.value
+  target             = "integrations/${aws_apigatewayv2_integration.insights.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_lambda_permission" "insights_invoke" {
+  statement_id  = "AllowAPIGatewayInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = var.insights_function_name
+  qualifier     = var.lambda_alias_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
+}
 
 # --- tenant-site-config ---
 #

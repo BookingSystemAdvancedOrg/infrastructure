@@ -100,3 +100,9 @@ variable "cloudfront_edge_secret" {
   type        = string
   sensitive   = true
 }
+
+variable "extra_env" {
+  description = "More environment variables (issue 5 catering: signing, document lock, admin URL, request guard)"
+  type        = map(string)
+  default     = {}
+}
