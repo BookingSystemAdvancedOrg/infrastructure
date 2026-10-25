@@ -84,3 +84,15 @@ variable "certified" {
   type        = bool
   default     = false
 }
+
+variable "control_system" {
+  description = "simulator or fiskaly (shared/control_system.py)"
+  type        = string
+  default     = "simulator"
+}
+
+variable "fiskaly_secret_name" {
+  description = "Name of the fiskaly SIGN SE secret (created by hand); empty grants nothing"
+  type        = string
+  default     = ""
+}

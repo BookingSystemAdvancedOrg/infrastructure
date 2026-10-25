@@ -228,6 +228,24 @@ resource "aws_iam_role_policy" "fn" {
   })
 }
 
+# fiskaly SIGN SE (the certified control system): read only its own key, the
+# one secret, created by hand (never by Terraform, so no value is in state).
+# "-??????" is the random suffix Secrets Manager adds to a secret's ARN.
+resource "aws_iam_role_policy" "fiskaly" {
+  count = var.fiskaly_secret_name == "" ? 0 : 1
+  name  = "${local.function}-fiskaly-secret"
+  role  = aws_iam_role.fn.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "ReadFiskalySecret"
+      Effect   = "Allow"
+      Action   = "secretsmanager:GetSecretValue"
+      Resource = "arn:aws:secretsmanager:${var.region}:${local.account}:secret:${var.fiskaly_secret_name}-??????"
+    }]
+  })
+}
+
 resource "aws_iam_role_policy" "logs" {
   name = "cloudwatch-logs"
   role = aws_iam_role.fn.id
@@ -285,6 +303,9 @@ resource "aws_lambda_function" "fn" {
       # "true" only with a certified control system connected; the simulator
       # ignores it. Until then every screen and receipt says "Testläge".
       KASSA_CERTIFIED = var.certified ? "true" : "false"
+      # simulator or fiskaly; fiskaly reads its key from FISKALY_SECRET_ID.
+      KASSA_CONTROL_SYSTEM = var.control_system
+      FISKALY_SECRET_ID    = var.fiskaly_secret_name
     }
   }
 

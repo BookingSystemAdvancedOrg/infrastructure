@@ -115,3 +115,10 @@ data_retention_dry_run = true
 
 # DMARC aggregate reports (privacy-variables.tf). The mailbox must exist.
 dmarc_report_address = "dmarc@booqy.se"
+
+# Kassa's control system. The fiskaly SIGN SE TEST key lives in this secret
+# (created by hand: JSON {"api_key", "api_secret", "env": "TEST"}); the kassa
+# function may read only it. Set kassa_control_system = "fiskaly" once the
+# secret exists; until then dev runs the simulator.
+kassa_fiskaly_secret_name = "booqy/dev/fiskaly-sign-se"
+kassa_control_system      = "simulator"
