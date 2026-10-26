@@ -127,9 +127,10 @@ data_retention_dry_run = true
 # DMARC aggregate reports (privacy-variables.tf). The mailbox must exist.
 dmarc_report_address = "dmarc@booqy.se"
 
-# Kassa's control system. The fiskaly SIGN SE TEST key lives in this secret
-# (created by hand: JSON {"api_key", "api_secret", "env": "TEST"}); the kassa
-# function may read only it. Set kassa_control_system = "fiskaly" once the
-# secret exists; until then dev runs the simulator.
+# Kassa's control system: fiskaly SIGN SE, TEST environment. Booqy's GROUP
+# key lives in this secret (created by hand: JSON {"api_key", "api_secret",
+# "env": "TEST"}); each restaurant's own key is created by the kassa function
+# in booqy/dev/fiskaly-unit/<tenantId>. Checked end to end against fiskaly
+# TEST on 2026-10-26. Registers made under the simulator show "inte kopplad".
 kassa_fiskaly_secret_name = "booqy/dev/fiskaly-sign-se"
-kassa_control_system      = "simulator"
+kassa_control_system      = "fiskaly"
