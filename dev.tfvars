@@ -56,7 +56,10 @@ sms_monthly_spend_limit_usd = 50
 # SMS delivery status in CloudWatch (sns/eu-north-1/<account>/
 # DirectPublishToPhoneNumber and .../Failure, 14 days) and an alert e-mail
 # for every SMS that isn't delivered. Dev logs every delivered SMS too.
-sms_delivery_logging               = true
+# Off until the deploy role dev-infra-oidc-role may pass
+# dev-sns-sms-delivery-logs to SNS (iam:PassRole, iam:PassedToService
+# sns.amazonaws.com) - SetSMSAttributes fails with 403 without it.
+sms_delivery_logging               = false
 sms_delivery_success_sampling_rate = 100
 
 # Both Cognito pools email through SES instead of Cognito's built-in sender -
