@@ -71,10 +71,11 @@ sms_delivery_success_sampling_rate = 100
 # which both apps accept. While this account's SES is in the sandbox,
 # Cognito's emails then only reach verified addresses/domains.
 cognito_invites_via_ses = false
-# Until booqy.se is verified in SES, emails are saved to a private S3
-# outbox instead of sent - read them in Booqy Console under "Mail outbox".
-# Switch off (false) once mail.dev.booqy.se is verified to send for real.
-mail_outbox = true
+# Emails go out through SES for real (mail.dev.booqy.se verified). This
+# account's SES is still in the sandbox, so they only reach addresses
+# verified in SES; mail to any other address is rejected. true = save
+# emails to a private S3 outbox instead (Booqy Console, "Mail outbox").
+mail_outbox = false
 
 # Subscription prices (SEK per month, excluding VAT) invoiced through Stripe
 # Billing on the platform account (sandbox mode). PLACEHOLDERS: set the real
