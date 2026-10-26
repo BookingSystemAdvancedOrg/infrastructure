@@ -21,6 +21,8 @@ locals {
   account  = data.aws_caller_identity.current.account_id
   function = "kassa"
   name     = "${local.prefix}${local.function}"
+  # One secret per restaurant with its fiskaly API key (shared/control_system_fiskaly.py).
+  fiskaly_unit_prefix = "booqy/${var.environment}/fiskaly-unit/"
 }
 
 # --- tables --------------------------------------------------------------------------
@@ -246,6 +248,25 @@ resource "aws_iam_role_policy" "fiskaly" {
   })
 }
 
+# Each restaurant (fiskaly UNIT) has its own fiskaly API key, created by
+# the kassa function when the restaurant's first register is enrolled and
+# kept in one secret per tenant: booqy/<env>/fiskaly-unit/<tenantId>.
+# Create, read and update only; tenant-purge deletes it at offboarding.
+resource "aws_iam_role_policy" "fiskaly_units" {
+  count = var.fiskaly_secret_name == "" ? 0 : 1
+  name  = "${local.function}-fiskaly-unit-keys"
+  role  = aws_iam_role.fn.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "FiskalyUnitKeys"
+      Effect   = "Allow"
+      Action   = ["secretsmanager:CreateSecret", "secretsmanager:GetSecretValue", "secretsmanager:PutSecretValue"]
+      Resource = "arn:aws:secretsmanager:${var.region}:${local.account}:secret:${local.fiskaly_unit_prefix}*"
+    }]
+  })
+}
+
 resource "aws_iam_role_policy" "logs" {
   name = "cloudwatch-logs"
   role = aws_iam_role.fn.id
@@ -306,6 +327,7 @@ resource "aws_lambda_function" "fn" {
       # simulator or fiskaly; fiskaly reads its key from FISKALY_SECRET_ID.
       KASSA_CONTROL_SYSTEM = var.control_system
       FISKALY_SECRET_ID    = var.fiskaly_secret_name
+      FISKALY_UNIT_PREFIX  = local.fiskaly_unit_prefix
     }
   }
 
