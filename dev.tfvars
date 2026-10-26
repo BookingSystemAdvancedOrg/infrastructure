@@ -50,7 +50,14 @@ turnstile_site_key = "1x00000000000000000000AA"
 
 # The account's monthly SMS spend limit (USD), alarmed at 80% - check the
 # current value first: aws sns get-sms-attributes --region eu-north-1
-sms_monthly_spend_limit_usd = 1
+# AWS raised this account's SMS quota to 50 USD (support case, 2026-10-25).
+sms_monthly_spend_limit_usd = 50
+
+# SMS delivery status in CloudWatch (sns/eu-north-1/<account>/
+# DirectPublishToPhoneNumber and .../Failure, 14 days) and an alert e-mail
+# for every SMS that isn't delivered. Dev logs every delivered SMS too.
+sms_delivery_logging               = true
+sms_delivery_success_sampling_rate = 100
 
 # Both Cognito pools email through SES instead of Cognito's built-in sender -
 # needed for the "forgot password" LINK emails (Cognito only sends a custom

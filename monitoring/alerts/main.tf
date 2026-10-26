@@ -133,6 +133,113 @@ resource "aws_sns_sms_preferences" "this" {
 
   monthly_spend_limit = var.sms_monthly_spend_limit_usd
   default_sms_type    = "Transactional"
+
+  # Delivery status logs: SNS writes one CloudWatch line per SMS (failures
+  # always, successes at the sampling rate) to the two log groups below.
+  # A Publish that succeeds only means SNS accepted the message - the
+  # carrier's answer (delivered, blocked, spend limit, unknown number) is
+  # only in these logs.
+  delivery_status_iam_role_arn          = var.sms_delivery_logging ? aws_iam_role.sms_delivery_logs[0].arn : null
+  delivery_status_success_sampling_rate = var.sms_delivery_logging ? tostring(var.sms_delivery_success_sampling_rate) : null
+}
+
+# SNS picks these names itself; creating them here sets the retention. The
+# lines hold the guest's phone number, so they're kept 14 days only.
+resource "aws_cloudwatch_log_group" "sms_delivery" {
+  for_each = var.sms_delivery_logging && var.sms_monthly_spend_limit_usd != null ? toset(["", "/Failure"]) : toset([])
+
+  name              = "sns/${var.region}/${data.aws_caller_identity.current.account_id}/DirectPublishToPhoneNumber${each.key}"
+  retention_in_days = 14
+
+  tags = {
+    Environment = var.environment
+  }
+}
+
+# The role SNS assumes to write those logs - only for SNS in this account,
+# and only into the two delivery log groups.
+resource "aws_iam_role" "sms_delivery_logs" {
+  count = var.sms_delivery_logging && var.sms_monthly_spend_limit_usd != null ? 1 : 0
+
+  name = "${local.prefix}sns-sms-delivery-logs"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = "sns.amazonaws.com" }
+      Action    = "sts:AssumeRole"
+      Condition = {
+        StringEquals = { "aws:SourceAccount" = data.aws_caller_identity.current.account_id }
+      }
+    }]
+  })
+
+  tags = {
+    Environment = var.environment
+  }
+}
+
+resource "aws_iam_role_policy" "sms_delivery_logs" {
+  count = length(aws_iam_role.sms_delivery_logs)
+
+  name = "write-sms-delivery-logs"
+  role = aws_iam_role.sms_delivery_logs[0].id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents",
+        "logs:PutMetricFilter",
+        "logs:PutRetentionPolicy",
+      ]
+      Resource = [
+        "arn:aws:logs:${var.region}:${data.aws_caller_identity.current.account_id}:log-group:sns/${var.region}/${data.aws_caller_identity.current.account_id}/DirectPublishToPhoneNumber*",
+      ]
+    }]
+  })
+}
+
+# Any SMS the carrier didn't deliver raises the platform alert (e-mail).
+resource "aws_cloudwatch_log_metric_filter" "sms_failed" {
+  count = length(aws_iam_role.sms_delivery_logs)
+
+  name           = "${local.prefix}sms-delivery-failed"
+  log_group_name = aws_cloudwatch_log_group.sms_delivery["/Failure"].name
+  pattern        = "{ $.status = \"FAILURE\" }"
+
+  metric_transformation {
+    name          = "SmsDeliveryFailed"
+    namespace     = "Booqy/${var.environment}"
+    value         = "1"
+    default_value = "0"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "sms_failed" {
+  count = length(aws_iam_role.sms_delivery_logs)
+
+  alarm_name        = "${local.prefix}sms-delivery-failed"
+  alarm_description = "An SMS was not delivered. The reason (providerResponse) is in the log group sns/${var.region}/<account>/DirectPublishToPhoneNumber/Failure."
+  namespace         = "Booqy/${var.environment}"
+  metric_name       = "SmsDeliveryFailed"
+
+  statistic           = "Sum"
+  period              = 300
+  evaluation_periods  = 1
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  threshold           = 1
+  treat_missing_data  = "notBreaching"
+
+  alarm_actions = ["${aws_sns_topic.alerts.arn}"]
+
+  tags = {
+    Environment = var.environment
+  }
 }
 
 resource "aws_cloudwatch_metric_alarm" "sms_spend" {

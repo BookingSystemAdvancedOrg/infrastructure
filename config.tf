@@ -1832,7 +1832,9 @@ module "alerts" {
   replay_function_name    = module.dlq_replay_fn.function_name
   replay_interval_minutes = var.dlq_replay_interval_minutes
 
-  sms_monthly_spend_limit_usd = var.sms_monthly_spend_limit_usd
+  sms_monthly_spend_limit_usd        = var.sms_monthly_spend_limit_usd
+  sms_delivery_logging               = var.sms_delivery_logging
+  sms_delivery_success_sampling_rate = var.sms_delivery_success_sampling_rate
 
   # Front door: API Gateway 5xx rate and p99 latency, CloudFront 5xx rate on
   # the admin, customer and (when on) tenant-sites distributions, and the
