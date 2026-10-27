@@ -80,10 +80,13 @@ resource "aws_lambda_function" "this" {
       # Finance: subscriptions (Stripe Billing), the Finance page, dunning
       FINANCE_TABLE_NAME          = var.finance_table_name
       FINANCE_ROLLUP_FUNCTION_ARN = var.finance_rollup_alias_arn
-      ALERT_TOPIC_ARN             = var.alert_topic_arn
-      BILLING_TAX_RATE_ID         = var.billing_tax_rate_id
-      BILLING_DAYS_UNTIL_DUE      = tostring(var.billing_days_until_due)
-      BILLING_SUSPEND_AFTER_DAYS  = tostring(var.billing_suspend_after_days)
+      # Website tab: the restaurant's site repo (site-repo function)
+      SITE_REPO_FUNCTION_ARN     = var.site_repo_function_arn
+      SITE_REPOS_ENABLED         = var.site_repos_enabled ? "true" : "false"
+      ALERT_TOPIC_ARN            = var.alert_topic_arn
+      BILLING_TAX_RATE_ID        = var.billing_tax_rate_id
+      BILLING_DAYS_UNTIL_DUE     = tostring(var.billing_days_until_due)
+      BILLING_SUSPEND_AFTER_DAYS = tostring(var.billing_suspend_after_days)
       # Reminders, late fee and interest on unpaid invoices (dunning task)
       BILLING_REMINDER_INTERVAL_DAYS = tostring(var.billing_reminder_interval_days)
       BILLING_LATE_FEE_SEK           = tostring(var.billing_late_fee_sek)

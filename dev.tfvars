@@ -134,3 +134,13 @@ dmarc_report_address = "dmarc@booqy.se"
 # TEST on 2026-10-26. Registers made under the simulator show "inte kopplad".
 kassa_fiskaly_secret_name = "booqy/dev/fiskaly-sign-se"
 kassa_control_system      = "fiskaly"
+
+# Restaurant websites, one private repo site-<slug> per customer (sites.tf,
+# docs/CUSTOMER-SITE-RUNBOOK.md). Off until the "Booqy Sites" GitHub App's
+# key is stored by hand in this secret (JSON {"app_id", "private_key"}):
+# uncomment, push, and new customers get their repo at onboarding.
+# github_app_sites_secret_name = "booqy/dev/github-app-sites"
+# Then, once every active restaurant with a domain has a deployed site repo
+# (Website tab), serve each domain from its own site instead of the shared
+# customer-front-end build:
+# per_tenant_sites = true

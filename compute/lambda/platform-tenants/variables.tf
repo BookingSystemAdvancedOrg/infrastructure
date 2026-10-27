@@ -256,3 +256,13 @@ variable "site_analytics_table_name" {
   type        = string
   default     = ""
 }
+
+variable "site_repo_function_arn" {
+  description = "Live alias of the site-repo function (Website tab), passed as an environment variable"
+  type        = string
+}
+
+variable "site_repos_enabled" {
+  description = "Website repo per restaurant on (the GitHub App key is configured)"
+  type        = bool
+}

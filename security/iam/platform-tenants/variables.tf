@@ -134,3 +134,8 @@ variable "alert_topic_arn" {
   description = "Operator alert topic: the dunning task reports suspensions and resumptions there"
   type        = string
 }
+
+variable "site_repo_function_arn" {
+  description = "Live alias of the site-repo function (Website tab)"
+  type        = string
+}

@@ -150,8 +150,10 @@ resource "aws_cloudfront_multitenant_distribution" "tenant_sites" {
   web_acl_id          = var.web_acl_arn != "" ? var.web_acl_arn : null
 
   # Each distribution tenant carries its tenantId (the workflows set it and
-  # check it on resume). The site itself is one shared build: it finds its
-  # restaurant with GET /site-config?host=<the domain it was opened on>.
+  # check it on resume). It picks the restaurant's own site folder
+  # (sites/<tenantId>/, origin "tenant-site"); with var.per_tenant_sites off
+  # every domain still gets the one shared build, which finds its restaurant
+  # with GET /site-config?host=<the domain it was opened on>.
   tenant_config {
     parameter_definition {
       name = "tenantId"
@@ -176,11 +178,26 @@ resource "aws_cloudfront_multitenant_distribution" "tenant_sites" {
     origin_access_control_id = aws_cloudfront_origin_access_control.tenant_sites_menu_image[0].id
   }
 
-  # CachingOptimized honours the object's Cache-Control: the customer-front-end
-  # deploy uploads index.html as no-cache and hashed assets as immutable, so a
-  # deploy is live on every restaurant domain without invalidating them.
+  # One site per restaurant (repo site-<slug>, deployed by its own role to
+  # sites/<tenantId>/ in the sites bucket). The tenant parameter in the
+  # origin path routes each distribution tenant to its own folder, so no
+  # function and no per-tenant behaviour is needed. Same OAC: it signs for
+  # any S3 origin; the sites bucket policy admits this distribution.
+  dynamic "origin" {
+    for_each = var.sites_bucket_regional_domain_name == "" ? [] : [1]
+    content {
+      id                       = "tenant-site"
+      domain_name              = var.sites_bucket_regional_domain_name
+      origin_path              = "/sites/{{tenantId}}"
+      origin_access_control_id = aws_cloudfront_origin_access_control.tenant_sites[0].id
+    }
+  }
+
+  # CachingOptimized honours the object's Cache-Control: every site deploy
+  # (shared build and site-<slug> repos alike) uploads index.html as no-cache
+  # and hashed assets as immutable, so a deploy is live without invalidating.
   default_cache_behavior {
-    target_origin_id           = "customer-site"
+    target_origin_id           = var.per_tenant_sites ? "tenant-site" : "customer-site"
     viewer_protocol_policy     = "redirect-to-https"
     cache_policy_id            = "658327ea-f89d-4fab-a63d-7e88639e58f6" # AWS managed "CachingOptimized"
     response_headers_policy_id = var.site_response_headers_policy_id

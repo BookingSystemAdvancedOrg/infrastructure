@@ -187,3 +187,15 @@ variable "tenant_data_retention_days" {
   description = "Days an offboarded tenant's data is kept before the tenant-purge Lambda deletes it. Offboarding writes purgeAt = offboarded + this."
   type        = number
 }
+
+variable "site_repos_enabled" {
+  description = "Website repo per restaurant on (the GitHub App key is configured). Off: onboarding and offboarding skip the website step."
+  type        = bool
+  default     = false
+}
+
+variable "site_repo_function_arn" {
+  description = "Live alias ARN of the site-repo function"
+  type        = string
+  default     = ""
+}

@@ -1,5 +1,5 @@
 {
-  "Comment": "Tenant offboarding. Started by platform-tenants (POST /platform/tenants/{tenantId}/offboard). Blocks the tenant immediately (status offboarding - every Lambda's tenant check then refuses it), disables and signs out all of its users, detaches all of its domains, and marks it offboarded with purgeAt = now + ${retention_days} days. Data is NOT deleted here: the tenant-purge Lambda deletes it once purgeAt has passed (docs/TENANT-ONBOARDING.md, Offboarding). Catering documents (7-year Object Lock) and the restaurant's Stripe account are kept.",
+  "Comment": "Tenant offboarding. Started by platform-tenants (POST /platform/tenants/{tenantId}/offboard). Blocks the tenant immediately (status offboarding - every Lambda's tenant check then refuses it), disables and signs out all of its users, detaches all of its domains, marks it offboarded and archives its website repo (removing this environment's deploy role) with purgeAt = now + ${retention_days} days. Data is NOT deleted here: the tenant-purge Lambda deletes it once purgeAt has passed (docs/TENANT-ONBOARDING.md, Offboarding). Catering documents (7-year Object Lock) and the restaurant's Stripe account are kept.",
   "QueryLanguage": "JSONata",
   "TimeoutSeconds": 21600,
   "StartAt": "Init",
@@ -14,6 +14,7 @@
         "detachFailures": [],
         "failure": {},
         "failedState": "{% '' %}",
+        "websiteFailure": "{% '' %}",
         "purgeAt": "{% $fromMillis($toMillis($now()) + ${retention_days} * 86400000, '[Y0001]-[M01]-[D01]T[H01]:[m01]:[s01]Z') %}"
       },
       "Next": "MarkOffboarding"
@@ -240,6 +241,44 @@
           "Next": "NotifyFailure"
         }
       ],
+      "Next": "SiteReposEnabled"
+    },
+    "SiteReposEnabled": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Condition": "{% ${site_repos_enabled} %}",
+          "Next": "ArchiveWebsite"
+        }
+      ],
+      "Default": "NotifyOffboarded"
+    },
+    "ArchiveWebsite": {
+      "Type": "Task",
+      "Comment": "site-repo removes this environment's deploy role and repo variables, and archives site-<slug> once no other environment uses it. Never deletes the repo. A failure is reported in the closing alert and doesn't stop offboarding.",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Arguments": {
+        "FunctionName": "${site_repo_function_arn}",
+        "Payload": {
+          "action": "archive",
+          "tenantId": "{% $tenantId %}"
+        }
+      },
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException", "Lambda.TooManyRequestsException"],
+          "IntervalSeconds": 5,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Assign": { "websiteFailure": "{% ' Website repo NOT archived (' & $string($states.errorOutput.Error) & ') - press Archive on the Website tab.' %}" },
+          "Next": "NotifyOffboarded"
+        }
+      ],
       "Next": "NotifyOffboarded"
     },
     "NotifyOffboarded": {
@@ -248,7 +287,7 @@
       "Arguments": {
         "TopicArn": "${alert_topic_arn}",
         "Subject": "${environment}: tenant offboarded",
-        "Message": "{% 'Tenant ' & $tenantId & ' is offboarded: ' & $string($count($users)) & ' user(s) disabled, ' & $string($count($domains)) & ' domain(s) detached' & ($count($detachFailures) > 0 ? ' (FAILED: ' & $join($detachFailures, ', ') & ' - start domain-detach for these manually)' : '') & '.\\n\\nIts data is deleted automatically on ' & $substring($purgeAt, 0, 10) & ' (Booqy Console shows the date). Export it before then if the customer asked for it. Kept: catering documents and the Stripe account of the restaurant.' %}"
+        "Message": "{% 'Tenant ' & $tenantId & ' is offboarded: ' & $string($count($users)) & ' user(s) disabled, ' & $string($count($domains)) & ' domain(s) detached' & ($count($detachFailures) > 0 ? ' (FAILED: ' & $join($detachFailures, ', ') & ' - start domain-detach for these manually)' : '') & '.' & $websiteFailure & '\\n\\nIts data is deleted automatically on ' & $substring($purgeAt, 0, 10) & ' (Booqy Console shows the date). Export it before then if the customer asked for it. Kept: catering documents and the Stripe account of the restaurant.' %}"
       },
       "Catch": [
         {
