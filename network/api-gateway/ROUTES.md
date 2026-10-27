@@ -97,6 +97,11 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | POST | `/platform/tenants/{tenantId}/offboard` | JWT (operator) | platform-tenants |
 | POST | `/platform/tenants/{tenantId}/purge` | JWT (operator) | platform-tenants |
 | POST | `/platform/tenants/{tenantId}/onboarding/retry` | JWT (operator) | platform-tenants |
+| GET | `/platform/tenants/{tenantId}/site` | JWT (operator) | platform-tenants (-> site-repo) |
+| POST | `/platform/tenants/{tenantId}/site/retry` | JWT (operator) | platform-tenants (-> site-repo) |
+| POST | `/platform/tenants/{tenantId}/site/invite` | JWT (operator) | platform-tenants (-> site-repo) |
+| POST | `/platform/tenants/{tenantId}/site/redeploy` | JWT (operator) | platform-tenants (-> site-repo) |
+| POST | `/platform/tenants/{tenantId}/site/archive` | JWT (operator) | platform-tenants (-> site-repo) |
 | GET | `/platform/tenants/{tenantId}/users` | JWT (operator) | platform-tenants |
 | POST | `/platform/tenants/{tenantId}/owners` | JWT (operator) | platform-tenants |
 | GET | `/platform/tenants/{tenantId}/locations` | JWT (operator) | platform-tenants |
