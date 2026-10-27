@@ -22,6 +22,11 @@ module "sites" {
   stripe_publishable_key = var.stripe_publishable_key
   turnstile_site_key     = var.turnstile_site_key
   alert_topic_arn        = module.alerts.topic_arn
+  # A repo is born in prod; prod sets up the dev side through one narrow
+  # role in dev (sites/main.tf, booqy-sites-prod-link).
+  link_prod_account_id       = var.env == "prod" ? "" : var.site_link_prod_account_id
+  link_dev_account_id        = var.env == "prod" ? var.site_link_dev_account_id : ""
+  platform_tenants_alias_arn = "arn:aws:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:${var.env == "prod" ? "platform-tenants" : "${var.env}-platform-tenants"}:live"
 }
 
 variable "github_app_sites_secret_name" {
@@ -41,4 +46,16 @@ variable "per_tenant_sites" {
   description = "Serve every restaurant domain from its own site (sites/<tenantId>/, repo site-<slug>) instead of the shared customer-front-end build. Turn on once every active restaurant with a domain has a deployed site repo."
   type        = bool
   default     = false
+}
+
+variable "site_link_prod_account_id" {
+  description = "Dev: the prod account allowed to set up the dev side of restaurant sites (role booqy-sites-prod-link). Empty: none."
+  type        = string
+  default     = ""
+}
+
+variable "site_link_dev_account_id" {
+  description = "Prod: the dev account whose booqy-sites-prod-link role prod's site-repo assumes for the dev side of a new site. Empty: prod sets up prod only."
+  type        = string
+  default     = ""
 }

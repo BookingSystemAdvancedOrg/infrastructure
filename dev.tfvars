@@ -144,3 +144,6 @@ kassa_control_system      = "fiskaly"
 # (Website tab), serve each domain from its own site instead of the shared
 # customer-front-end build:
 # per_tenant_sites = true
+# A site repo is born in the prod console, which also sets up its dev side
+# through the dev account's booqy-sites-prod-link role (sites/main.tf).
+site_link_prod_account_id = "343695380960"

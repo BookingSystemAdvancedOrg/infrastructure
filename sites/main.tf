@@ -16,6 +16,13 @@
 #
 # The per-site deploy roles are created at runtime (one per customer per
 # account), never here, and never touch the platform's own OIDC roles.
+#
+# A repo is born in the PROD console. Prod reaches dev only through
+# booqy-sites-prod-link (in the dev account, below): prod's site-repo may
+# assume it, and it may only invoke dev platform-tenants, whose site task
+# creates or adopts the restaurant's empty dev tenant (its onboarding then
+# sets up the dev side of the repo) or archives that side. Dev never gets
+# any right in prod.
 
 data "aws_caller_identity" "current" {}
 
@@ -28,6 +35,10 @@ locals {
   # "-??????" is the random suffix Secrets Manager adds to a secret's ARN.
   app_secret_arn = "arn:aws:secretsmanager:${var.region}:${local.account}:secret:${var.github_app_secret_name}-??????"
   enabled        = var.github_app_secret_name != ""
+  link_role_name = "booqy-sites-prod-link"
+  # prod: the dev account's link role and platform-tenants alias
+  dev_link_role_arn        = var.link_dev_account_id == "" ? "" : "arn:aws:iam::${var.link_dev_account_id}:role/${local.link_role_name}"
+  dev_platform_tenants_arn = var.link_dev_account_id == "" ? "" : "arn:aws:lambda:${var.region}:${var.link_dev_account_id}:function:dev-platform-tenants:live"
 }
 
 # --- sites bucket ----------------------------------------------------------------
@@ -235,6 +246,14 @@ resource "aws_iam_role_policy" "fn" {
         Action   = ["iam:DeleteRolePermissionsBoundary", "iam:PutRolePermissionsBoundary", "iam:AttachRolePolicy"]
         Resource = "arn:aws:iam::${local.account}:role${local.role_path}*"
       },
+      ], local.dev_link_role_arn == "" ? [] : [
+      {
+        # prod -> dev: the dev side of a new restaurant's site (see the top).
+        Sid      = "DevSideOfSites"
+        Effect   = "Allow"
+        Action   = "sts:AssumeRole"
+        Resource = local.dev_link_role_arn
+      },
       ], local.enabled ? [
       {
         # The GitHub App's private key (JSON {app_id, private_key}), created
@@ -304,6 +323,9 @@ resource "aws_lambda_function" "fn" {
       PREVIEW_DOMAIN         = var.preview_domain
       STRIPE_PUBLISHABLE_KEY = var.stripe_publishable_key
       TURNSTILE_SITE_KEY     = var.turnstile_site_key
+      # prod only: the dev side of a new restaurant's site
+      DEV_LINK_ROLE_ARN                 = local.dev_link_role_arn
+      DEV_PLATFORM_TENANTS_FUNCTION_ARN = local.dev_platform_tenants_arn
     }
   }
 
@@ -343,4 +365,51 @@ resource "aws_cloudwatch_metric_alarm" "errors" {
   tags = {
     Environment = var.environment
   }
+}
+
+# --- prod -> dev link (dev account only) -------------------------------------------
+#
+# Assumable only by the prod account's site-repo role; may only invoke this
+# account's platform-tenants live alias (its {"siteTask"} entry point: create
+# or adopt a restaurant's dev tenant by slug, archive its dev site).
+resource "aws_iam_role" "prod_link" {
+  count = var.link_prod_account_id == "" ? 0 : 1
+
+  name                 = local.link_role_name
+  description          = "Prod site-repo sets up a restaurant's dev side through dev platform-tenants (site task) only"
+  max_session_duration = 3600
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      # The account as principal plus the exact role ARN as a condition:
+      # as narrow, and valid before prod's site-repo role exists.
+      Principal = { AWS = "arn:aws:iam::${var.link_prod_account_id}:root" }
+      Action    = "sts:AssumeRole"
+      Condition = {
+        ArnEquals = { "aws:PrincipalArn" = "arn:aws:iam::${var.link_prod_account_id}:role/site-repo-role" }
+      }
+    }]
+  })
+
+  tags = {
+    Environment = var.environment
+  }
+}
+
+resource "aws_iam_role_policy" "prod_link" {
+  count = var.link_prod_account_id == "" ? 0 : 1
+
+  name = "dev-side-of-sites"
+  role = aws_iam_role.prod_link[0].id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "SiteTaskOnly"
+      Effect   = "Allow"
+      Action   = "lambda:InvokeFunction"
+      Resource = var.platform_tenants_alias_arn
+    }]
+  })
 }

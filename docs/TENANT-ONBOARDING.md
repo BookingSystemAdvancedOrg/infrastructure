@@ -24,9 +24,11 @@ The onboarding workflow then, in about a minute:
 - gives it `<slug>.<platform domain>` (only with `tenant_subdomains_enabled`
   - off: restaurants are reached on their own domain, step 5);
 - sets the tenant `active`;
-- creates (dev) or finds (prod, same slug) the restaurant's website repo
-  `site-<slug>`, with this environment's deploy role and settings, and in
-  dev deploys it (when site repos are on; `docs/CUSTOMER-SITE-RUNBOOK.md`).
+- in prod: creates the restaurant's website repo `site-<slug>` and its prod
+  deploy role, and an empty dev tenant with the same slug whose own
+  onboarding sets up and deploys the dev side; in dev: only a dry run
+  (except `test-` slugs). When site repos are on;
+  `docs/CUSTOMER-SITE-RUNBOOK.md`.
   A failure there leaves the tenant active, emails an alert and shows on
   the **Website** tab with **Retry**.
 
@@ -73,11 +75,12 @@ is theirs, not routed through you.
 
 Every restaurant gets its own private repo `site-<slug>` (created at step 1
 when site repos are on), designed in Figma and coded on top of the shared
-kit; the **Website** tab has the repo, its deploys, local setup, **Give
-access** for a developer, Redeploy and Archive. Create the customer in the
-dev console first; the prod customer (same slug) reuses the repo, and its
-site only goes live once its own domain (step 5) is verified. Restaurant
-data is never copied between dev and prod. Full flow:
+kit; the **Website** tab (prod console) has the repo, its deploys, local
+setup, **Give access** for a developer, Redeploy and Archive; the dev
+console shows the same repo read-only. Create the customer in the **prod**
+console: that also creates its empty dev twin. The site goes live in prod
+only once its own domain (step 5) is verified. Restaurant data is never
+copied between dev and prod. Full flow:
 `docs/CUSTOMER-SITE-RUNBOOK.md`.
 
 Until `per_tenant_sites` is on in an environment, every domain there still

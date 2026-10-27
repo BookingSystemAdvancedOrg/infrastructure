@@ -7,14 +7,15 @@ restaurant's own domain. Plan and decisions:
 `application/docs/orchestrator/CUSTOMER-SITES-PLAN.md`.
 
 ```
-dev console "New customer" ──> site-repo (dev) ──> repo site-<slug> from site-template
-                                                    booqy.json (dev), DEV_* variables,
-                                                    role /booqy-sites/dev-site-<slug>
-push to dev  ──> Deploy ──> dev account  sites/<tenantId>/ ──> <slug>.dev.booqy.se (noindex)
-prod console "New customer", same slug ──> site-repo (prod) finds the repo:
-                                                    booqy.json (prod), PROD_* variables,
-                                                    role /booqy-sites/site-<slug>
+prod console "New customer" ──> site-repo (prod) ──> repo site-<slug> from site-template (the only place a repo is born)
+                                                    booqy.json (prod), PROD_* variables, role /booqy-sites/site-<slug> (main only)
+                                  └─ assume dev booqy-sites-prod-link ──> dev platform-tenants (site task)
+                                       ──> empty dev tenant, same slug ──> dev onboarding ──> site-repo (dev):
+                                           <slug>.dev.booqy.se, booqy.json (dev), DEV_* variables,
+                                           role /booqy-sites/dev-site-<slug> (dev only), first deploy
+push to dev       ──> Deploy ──> dev account  sites/<devTenantId>/ ──> <slug>.dev.booqy.se (noindex)
 merge dev -> main ──> Deploy ──> gate: own domain verified? ──> prod sites/<tenantId>/ ──> restaurant.se
+dev console "New customer" ──> dry run only (shows what prod would create); slugs test-* are real (testing)
 ```
 
 | Piece | Where |
@@ -27,9 +28,14 @@ merge dev -> main ──> Deploy ──> gate: own domain verified? ──> prod
 | Deploy roles | `/booqy-sites/<env->site-<slug>`, one per customer per account, created at runtime |
 | Console | customer page, tab **Website** |
 
-Restaurant data is never copied between environments: the restaurant enters
-its menu and everything else in the admin app, in dev (test data) and in
-prod separately.
+Restaurant data is never copied between environments: the dev tenant starts
+empty, and the restaurant and developers enter test data in the dev admin
+app; real data goes into prod's admin app.
+
+GitHub plan Free: no deployment approvals in private repos, so the deploy
+workflow picks repo-level `DEV_*` / `PROD_*` variables by branch, and each
+deploy role's OIDC trust allows only its branch (dev role: `dev`, prod role:
+`main`). No approval button before prod; the own-domain gate is the check.
 
 ---
 
@@ -37,24 +43,20 @@ prod separately.
 
 ### 1. Register the GitHub App "Booqy Sites"
 
-GitHub -> BookingSystemAdvancedOrg -> Settings -> Developer settings ->
-GitHub Apps -> **New GitHub App**:
+Open this link (signed in as an org owner); every setting is filled in:
 
-- Name: `Booqy Sites`. Homepage URL: `https://booqy.se`.
-- Webhook: **untick Active** (none is used).
-- Repository permissions:
-  - Administration: **Read and write** (create from the template, default
-    branch, archive and unarchive, invite collaborators)
-  - Contents: **Read and write** (`booqy.json`)
-  - Actions: **Read and write** (OIDC subject per repo, start and read deploys)
-  - Variables: **Read and write** (the `DEV_*` / `PROD_*` repo variables)
-  - Workflows: **Read and write** (the generated repo contains `.github/workflows`)
-  - Metadata: Read (required)
-- Organization permissions: none. Account permissions: none.
-- Where can this GitHub App be installed: **Only on this account**.
-- Create. Note the **App ID** at the top of the page.
-- **Generate a private key** (bottom of the page). A `.pem` file downloads.
-  Never paste it anywhere else, never commit it, never send it in chat.
+<https://github.com/organizations/BookingSystemAdvancedOrg/settings/apps/new?name=Booqy%20Sites&description=Creates%20and%20manages%20the%20restaurant%20site%20repos%20(site-*)%20for%20Booqy&url=https%3A%2F%2Fbooqy.se&public=false&webhook_active=false&administration=write&contents=write&actions=write&variables=write&workflows=write&metadata=read>
+
+Check before **Create GitHub App**:
+
+- Webhook: Active **unticked**.
+- Repository permissions: Administration, Contents, Actions, Variables and
+  Workflows **Read and write**; Metadata Read. Nothing else, no
+  organization or account permissions.
+- Where can it be installed: **Only on this account**.
+
+Then on the App page: note the **App ID**; **Generate a private key** (a
+`.pem` downloads). Never paste it anywhere else, commit it or send it in chat.
 
 ### 2. Install it on the site repos only
 
@@ -65,25 +67,30 @@ creates later are added to the installation by GitHub automatically.
 
 ### 3. Store the key in both accounts
 
-Secrets Manager, region eu-north-1, in the **dev** account and again in the
-**prod** account, the same way as the fiskaly key: Store a new secret ->
-Other type of secret -> Plaintext, name `booqy/dev/github-app-sites` (prod:
-`booqy/prod/github-app-sites`), value:
+Same key, two secrets: `booqy/dev/github-app-sites` in the **dev** account
+(877653167825) and `booqy/prod/github-app-sites` in the **prod** account
+(343695380960), region eu-north-1. Easiest from AWS CloudShell, so the key
+never touches a terminal history or the screen:
 
-```json
-{"app_id": "<App ID>", "private_key": "-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----\n"}
-```
-
-(the PEM with each line break written as `\n`). Or from a terminal signed
-in to that account, without the key ever appearing on screen:
+1. AWS console, dev account, region Stockholm (eu-north-1) -> CloudShell.
+2. Actions -> Upload file -> the `.pem`.
+3. Run (put in the App ID):
 
 ```bash
-jq -n --arg id "<App ID>" --rawfile key ~/Downloads/booqy-sites.*.private-key.pem '{app_id:$id, private_key:$key}' > /tmp/gh-app.json && aws secretsmanager create-secret --region eu-north-1 --name booqy/dev/github-app-sites --secret-string file:///tmp/gh-app.json && rm /tmp/gh-app.json
+jq -n --arg id "<App ID>" --rawfile key ~/*.private-key.pem '{app_id:$id, private_key:$key}' > ~/gh-app.json && aws secretsmanager create-secret --region eu-north-1 --name booqy/dev/github-app-sites --description "Booqy Sites GitHub App (site-repo)" --secret-string file://$HOME/gh-app.json && rm ~/gh-app.json ~/*.private-key.pem
 ```
 
-Then delete the downloaded `.pem`. Only the `site-repo` role can read the
-secret. Rotate yearly: generate a new key on the App page, update both
-secrets, delete the old key on the App page.
+4. The same in the prod account, with the name `booqy/prod/github-app-sites`:
+
+```bash
+jq -n --arg id "<App ID>" --rawfile key ~/*.private-key.pem '{app_id:$id, private_key:$key}' > ~/gh-app.json && aws secretsmanager create-secret --region eu-north-1 --name booqy/prod/github-app-sites --description "Booqy Sites GitHub App (site-repo)" --secret-string file://$HOME/gh-app.json && rm ~/gh-app.json ~/*.private-key.pem
+```
+
+5. Delete the downloaded `.pem` from your computer.
+
+Only the `site-repo` role of each account can read its secret. Rotate
+yearly: generate a new key on the App page, `put-secret-value` in both
+accounts, delete the old key on the App page.
 
 ### 4. Let the site repos read the kit
 
@@ -105,49 +112,51 @@ Then: site-template -> Actions -> **Lockfile** -> Run workflow on `dev`
 
 ### 5. Switch it on
 
-`dev.tfvars`: uncomment `github_app_sites_secret_name`, push. New dev
-customers now get their repo. For customers created before: their Website
-tab says "No site repo yet" with **Set up**.
+`dev.tfvars` and `prod.tfvars`: uncomment `github_app_sites_secret_name`;
+push dev (prod follows with the merge to main). Prod onboarding creates
+repos only once prod has it and the link (`site_link_dev_account_id`, set).
+Until then the dev console shows a dry run for new customers; slugs starting
+with `test-` create real `site-test-<slug>` repos from dev, for testing.
 
-When every active dev restaurant with a domain has a deployed site,
-uncomment `per_tenant_sites = true` in `dev.tfvars` so their domains serve
-their own site instead of the shared customer-front-end build. Same two
-lines in `prod.tfvars` when production moves over.
+When every active restaurant with a domain in an environment has a deployed
+site, uncomment `per_tenant_sites = true` there so domains serve their own
+site instead of the shared customer-front-end build.
 
 ---
 
 ## Per customer
 
 1. Booqy designs the site in Figma (duplicated from "Booqy site - start").
-2. Dev console -> **New customer** (the slug becomes the repo name:
+2. **Prod** console -> **New customer** (the slug becomes the repo name
    `site-<slug>`).
-3. Onboarding creates the restaurant, then the repo from `site-template`
-   (branches `dev` and `main`, default `dev`), its deploy role, repo
-   variables and `booqy.json`, and deploys. About 2 minutes.
-4. Website tab: status **Ready**, Dev **Live**; **Open dev preview**
-   (`https://<slug>.dev.booqy.se`).
-5. The restaurant owner enters menu, hours and the rest in the admin app
-   (dev, test data).
-6. **Give access** to the developer's GitHub username (write on this repo only).
-7. The developer: **Get started locally** (clone, `npm install`, `npm run dev`).
-8. Code the design on `dev` with Claude and the kit's components.
-9. Every push to `dev` deploys to the dev preview; the restaurant reviews it there.
-10. Restaurant approves the preview.
-11. Prod console -> **New customer** with **the same slug**.
-12. Prod onboarding finds `site-<slug>`, adds the prod part of `booqy.json`
-    and the `PROD_*` variables, creates the prod role. Nothing deploys yet.
-13. The restaurant enters its real menu and settings in the prod admin app.
-14. Prod console -> Domains: buy or connect the restaurant's domain; wait
+3. Prod onboarding creates the restaurant, then the repo from
+   `site-template` (branches `dev` and `main`, default `dev`), the prod
+   deploy role, the `PROD_*` variables and `booqy.json`'s prod section.
+4. Through the link role it creates the same restaurant, empty, in dev
+   (same slug; an existing dev customer with that slug is reused). The owner
+   gets a dev admin invitation too.
+5. Dev onboarding of that tenant: `<slug>.dev.booqy.se`, the dev deploy
+   role, `DEV_*` variables, `booqy.json`'s dev section, first deploy. A few
+   minutes in all.
+6. Prod console -> Website: status **Ready**, Dev **Live**. The dev console
+   shows the same repo read-only.
+7. The restaurant and the developer enter test data in the **dev** admin.
+8. **Give access** (prod console) to the developer's GitHub username: write
+   on this repo only.
+9. The developer: **Get started locally** (clone, `npm install`, `npm run dev`).
+10. Code the design on `dev` with Claude and the kit's components.
+11. Every push to `dev` deploys to `https://<slug>.dev.booqy.se`; the
+    restaurant reviews it there and approves.
+12. Meanwhile the restaurant enters its real menu and settings in the prod admin.
+13. Prod console -> Domains: buy or connect the restaurant's domain; wait
     for **Live** (certificate issued).
-15. Prod console -> Website -> **Run setup again** (writes the domain into
+14. Prod console -> Website -> **Run setup again** (writes the domain into
     `booqy.json`, so the dev preview's canonical link names it).
-16. PR `dev` -> `main` in the site repo, review, merge.
-17. Deploy (main): the go-live gate asks the prod API for the verified
-    domain; with it, the site goes live on the restaurant's domain.
-18. Check the site on its domain (booking, order, catering).
-
-A customer created directly in prod (no dev repo) gets its repo the same
-way; its first deploy waits for step 16.
+15. PR `dev` -> `main` in the site repo, review.
+16. Merge. Deploy (main): the gate asks the prod API for the verified own
+    domain, then deploys to the prod account.
+17. Check the site on its domain: booking, order, catering.
+18. Kit updates arrive as Dependabot PRs to `dev` from now on.
 
 ### Deploys and rollback
 
@@ -170,9 +179,12 @@ for a person. Releasing the kit: `site-kit/README.md`, Release.
 
 ### Offboarding
 
-Offboarding a customer (Danger zone) also runs `site-repo archive` for that
-environment: its deploy role and `DEV_*`/`PROD_*` variables are removed; the
-repo is archived (read-only, never deleted) once no environment uses it.
+Offboarding a customer in **prod** (Danger zone) also runs `site-repo
+archive`: the prod deploy role and `PROD_*` variables are removed, prod asks
+dev (link role) to remove the dev role and `DEV_*` variables, then the repo
+is archived (read-only, never deleted). The dev tenant stays as test data;
+offboard it in the dev console if wanted. Offboarding in dev removes only
+the dev side.
 The Website tab has the same as **Archive**. **Set up** (or onboarding in
 the other environment) unarchives it. The site's files stay in
 `sites/<tenantId>/`; the domain is detached by offboarding, so nothing
@@ -185,24 +197,47 @@ serves them.
 Owner-approved 2026-10-27. Nothing here touches the platform's own OIDC
 roles (`dev-infra-oidc-role`, the front-end and back-end deploy roles).
 
-- `/booqy-sites/<env->booqy-sites-deploy-boundary` (Terraform, `sites/`):
-  permissions boundary; S3 Put/Get/Delete on `sites/${aws:PrincipalTag/tenantId}/*`
-  and ListBucket with that prefix, in the sites bucket only.
-- `/booqy-sites/<env->site-<slug>` (created by `site-repo`, one per
-  customer per account): that boundary, tag `tenantId`, inline policy
+- `/booqy-sites/<env->booqy-sites-deploy-boundary` (Terraform, `sites/`,
+  each account): permissions boundary; S3 Put/Get/Delete on
+  `sites/${aws:PrincipalTag/tenantId}/*` and ListBucket with that prefix, in
+  that account's sites bucket only.
+- `/booqy-sites/site-<slug>` (prod account) and
+  `/booqy-sites/dev-site-<slug>` (dev account), created by each account's
+  own `site-repo`: that boundary, tag `tenantId`, inline policy
   `deploy-own-site` with the same rights for its literal tenant. Trust: the
   account's existing GitHub OIDC provider, audience `sts.amazonaws.com`,
   subject exactly
-  `repository_owner_id:<org id>:repository_id:<repo id>:ref:refs/heads/dev`
-  (dev) or `.../main` (prod). Site repos use that custom OIDC subject (set
-  by `site-repo`), so their tokens never match a platform role's
-  `repo:...` pattern; repo ids also survive renames.
-- `<env->site-repo-role` (Terraform): CreateRole and PutRolePolicy only on
-  `role/booqy-sites/*` and only with the boundary attached; Get/Tag/
-  UpdateAssumeRolePolicy/ListRolePolicies/DeleteRolePolicy/DeleteRole/
-  SimulatePrincipalPolicy on `role/booqy-sites/*`; explicit Deny on removing
-  or swapping the boundary and on AttachRolePolicy; tenant table
-  Get/Put/UpdateItem; the App secret.
+  `repository_owner_id:<org id>:repository_id:<repo id>:ref:refs/heads/main`
+  (prod) or `...:ref:refs/heads/dev` (dev). This is the requested
+  `repo:BookingSystemAdvancedOrg/site-<slug>:ref:...` condition expressed with
+  ids: `site-repo` sets that OIDC subject on every site repo, so a site
+  repo's token can never match a platform role's `repo:...` pattern (outside
+  developers get write access to site repos), and a deleted and re-created
+  repo with the same name can't inherit the role.
+- `<env->site-repo-role` (Terraform, each account): CreateRole and
+  PutRolePolicy only on `role/booqy-sites/*` and only with the boundary;
+  Get/Tag/UpdateAssumeRolePolicy/ListRolePolicies/DeleteRolePolicy/
+  DeleteRole/SimulatePrincipalPolicy on `role/booqy-sites/*`; explicit Deny
+  on removing or swapping the boundary and on AttachRolePolicy; tenant table
+  Get/Put/UpdateItem; the App secret. Prod only: `sts:AssumeRole` on
+  `arn:aws:iam::877653167825:role/booqy-sites-prod-link`.
+- `booqy-sites-prod-link` (Terraform, **dev account only**), the prod ->
+  dev link:
+
+  ```json
+  Trust: {"Effect": "Allow", "Principal": {"AWS": "arn:aws:iam::343695380960:root"},
+          "Action": "sts:AssumeRole",
+          "Condition": {"ArnEquals": {"aws:PrincipalArn": "arn:aws:iam::343695380960:role/site-repo-role"}}}
+  Policy: {"Sid": "SiteTaskOnly", "Effect": "Allow", "Action": "lambda:InvokeFunction",
+           "Resource": "arn:aws:lambda:eu-north-1:877653167825:function:dev-platform-tenants:live"}
+  ```
+
+  dev `platform-tenants` accepts only `{"siteTask": {"action": "mirror" |
+  "archive", "slug", ...}}` from it, and refuses site tasks in prod. Mirror
+  creates (through the normal New customer path, no data copied) or adopts
+  the dev tenant with that slug; its onboarding creates the dev distribution
+  tenant and, through dev `site-repo`, the `/booqy-sites/` role. Archive
+  removes that dev side. Dev has no role or right in prod.
 - Onboarding and offboarding state machine roles, platform-tenants role:
   `lambda:InvokeFunction` on the `site-repo` live alias.
 
@@ -222,11 +257,15 @@ refused.
 | Setup failed: `refused: ... not a site-* repository name` | Slug not usable as a repo name; never bypass |
 | Deploy: `403 Forbidden ... read_package` | The repo can't read the kit: step 4 above |
 | Deploy: "No own domain attached and verified" | Prod gate: attach the domain in the prod console first |
-| Deploy: "No dev customer for this repo yet" | No `DEV_*` variables: Website tab -> Run setup again |
+| Deploy: "No dev customer for this repo yet" | No `DEV_*` variables: the dev tenant's onboarding hasn't finished; prod Website tab -> Run setup again |
+| Setup failed: `dev side: ...` | The prod -> dev link failed (dev API or the dev tenant); fix, then Run setup again in prod |
+| Dev console: "Dry run" | Expected: repos are born in prod. Use a `test-` slug to test in dev |
 | Deploy: Isolation check failed | Stop. The role can write elsewhere: check the role's boundary and policy in IAM |
 
 ## End-to-end test (dev)
 
-Use slugs starting with `test-` (repos `site-test-<slug>`): create two
-customers in the dev console, check both deploy, both Isolation checks
-pass, then Archive both on the Website tab (or offboard them).
+Use slugs starting with `test-` (repos `site-test-<slug>`): in the dev
+console they create real repos (everything else there is a dry run). Create
+two, check both deploy and both Isolation checks pass, try a plain slug (dry
+run, nothing created), then Archive both test repos on the Website tab.
+After the prod merge: one real prod customer to check the prod -> dev link.

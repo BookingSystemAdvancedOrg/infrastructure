@@ -80,3 +80,21 @@ variable "alert_topic_arn" {
   description = "Operator alerts"
   type        = string
 }
+
+variable "link_prod_account_id" {
+  description = "Dev only: the prod account whose site-repo role may assume booqy-sites-prod-link. Empty: no link role."
+  type        = string
+  default     = ""
+}
+
+variable "link_dev_account_id" {
+  description = "Prod only: the dev account whose booqy-sites-prod-link role prod's site-repo assumes. Empty: no dev side."
+  type        = string
+  default     = ""
+}
+
+variable "platform_tenants_alias_arn" {
+  description = "This account's platform-tenants live alias (the only thing the link role may invoke)"
+  type        = string
+  default     = ""
+}
