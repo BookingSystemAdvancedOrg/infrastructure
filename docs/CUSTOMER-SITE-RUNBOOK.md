@@ -207,13 +207,16 @@ roles (`dev-infra-oidc-role`, the front-end and back-end deploy roles).
   `deploy-own-site` with the same rights for its literal tenant. Trust: the
   account's existing GitHub OIDC provider, audience `sts.amazonaws.com`,
   subject exactly
-  `repository_owner_id:<org id>:repository_id:<repo id>:ref:refs/heads/main`
-  (prod) or `...:ref:refs/heads/dev` (dev). This is the requested
-  `repo:BookingSystemAdvancedOrg/site-<slug>:ref:...` condition expressed with
-  ids: `site-repo` sets that OIDC subject on every site repo, so a site
-  repo's token can never match a platform role's `repo:...` pattern (outside
-  developers get write access to site repos), and a deleted and re-created
-  repo with the same name can't inherit the role.
+  `repo:BookingSystemAdvancedOrg@<org id>/site-<slug>@<repo id>:ref:refs/heads/main`
+  (prod) or `...:ref:refs/heads/dev` (dev): GitHub's default subject, which
+  in this organisation is the immutable one (ids in it), so a deleted and
+  re-created repo with the same name can't use the role. A site repo's
+  token has the same `repo:BookingSystemAdvancedOrg@...` shape as every
+  other repo's: **any platform role that trusts the whole organisation
+  (`repo:BookingSystemAdvancedOrg@*/*`) is reachable from a site repo**, and
+  outside developers get write access to site repos. Every platform role
+  must trust only its own repo (check `dev-infra-oidc-role` and
+  `prod-infra-oidc-role`).
 - `<env->site-repo-role` (Terraform, each account): CreateRole and
   PutRolePolicy only on `role/booqy-sites/*` and only with the boundary;
   Get/Tag/UpdateAssumeRolePolicy/ListRolePolicies/DeleteRolePolicy/
