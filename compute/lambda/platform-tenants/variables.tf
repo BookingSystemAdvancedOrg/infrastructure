@@ -176,7 +176,7 @@ variable "finance_rollup_alias_arn" {
 }
 
 variable "alert_topic_arn" {
-  description = "Operator alert topic the dunning task reports to, passed as an environment variable"
+  description = "Operator alert topic the invoicing and dunning tasks report to (environment variable) and the errors alarm notifies"
   type        = string
 }
 
@@ -247,7 +247,7 @@ variable "sms_price_sek" {
 }
 
 variable "invoicing_schedule_expression" {
-  description = "When the monthly invoicing run happens (cron(), UTC, the 25th)"
+  description = "When the invoicing run happens (cron(), UTC): daily, it invoices every period that has ended and is not invoiced yet (on the 25th, the period just ended)"
   type        = string
 }
 
