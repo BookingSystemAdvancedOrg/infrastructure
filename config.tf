@@ -1530,6 +1530,7 @@ module "catering_offer_fn" {
     SIGNING_PROVIDER_SECRET_ARN = module.catering_secrets.signing_provider_secret_arn
     SIGNING_WEBHOOK_URL         = local.catering_signing_webhook_url
     ADMIN_DASHBOARD_URL         = local.admin_app_url
+    CUSTOMER_SITE_URL           = local.customer_site_url
   })
 }
 module "catering_customer_fn" {
