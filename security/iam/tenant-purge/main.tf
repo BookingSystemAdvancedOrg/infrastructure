@@ -103,6 +103,13 @@ resource "aws_iam_role_policy" "data" {
         Resource = var.alert_topic_arn
       },
       {
+        # The restaurant's fiskaly API key (Kassa), one secret per tenant.
+        Sid      = "DeleteFiskalyUnitKey"
+        Effect   = "Allow"
+        Action   = "secretsmanager:DeleteSecret"
+        Resource = "arn:aws:secretsmanager:${var.region}:${data.aws_caller_identity.current.account_id}:secret:booqy/${var.environment}/fiskaly-unit/*"
+      },
+      {
         # Carries on in a new invocation when a run gets close to its timeout.
         Sid      = "ContinueItself"
         Effect   = "Allow"

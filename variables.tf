@@ -336,6 +336,20 @@ variable "sms_monthly_spend_limit_usd" {
   default     = null
 }
 
+variable "sms_delivery_logging" {
+  type        = bool
+  description = "SNS SMS delivery status logs in CloudWatch (failures always, successes sampled, 14-day retention) and an alarm on every failed SMS. Adds an IAM role that only SNS can assume, limited to the two delivery log groups. Needs sms_monthly_spend_limit_usd set."
+  sensitive   = false
+  default     = false
+}
+
+variable "sms_delivery_success_sampling_rate" {
+  type        = number
+  description = "Percent of delivered SMS that also get a log line (0-100). Failures are always logged."
+  sensitive   = false
+  default     = 0
+}
+
 variable "refresh_token_rotation_enabled" {
   description = "Staff app client: rotate refresh tokens on every use. Turn on only after the manage-auth release that uses GetTokensFromRefreshToken is live (docs/COOKIES.md, step 4)."
   type        = bool

@@ -4,7 +4,8 @@
 #
 #   tenant-onboarding     first owner (Cognito) -> Stripe connected account
 #                         + VAT rates (Stripe HTTP tasks) -> <slug> subdomain
-#                         (CloudFront distribution tenant) -> active
+#                         (CloudFront distribution tenant) -> active ->
+#                         website repo site-<slug> (site-repo function)
 #   tenant-domain-attach  customer's own domain: claim it, distribution
 #                         tenant with a CloudFront-managed certificate, poll
 #                         until issued
@@ -19,8 +20,9 @@
 #
 # No Lambda code of their own: every step is a direct AWS SDK integration
 # (DynamoDB, Cognito, CloudFront, S3, SNS) or an HTTP task to the Stripe API
-# through an EventBridge connection that holds the platform key - except
-# domain-provision, whose waiting/DNS steps are tasks in the platform-tenants
+# through an EventBridge connection that holds the platform key - except the
+# website repo steps of onboarding and offboarding (the site-repo function:
+# GitHub App calls and the per-site deploy roles) and domain-provision, whose waiting/DNS steps are tasks in the platform-tenants
 # Lambda (Route 53 Domains only exists in us-east-1, and the name server
 # check is a public DNS lookup). The definitions are
 # JSONata ASL files in definitions/ - open them in Workflow Studio to see the
@@ -61,6 +63,8 @@ locals {
     distribution_id         = var.multitenant_distribution_id
     connection_group_id     = var.connection_group_id
     cname_target            = var.cname_target
+    site_repos_enabled      = var.site_repos_enabled ? "true" : "false"
+    site_repo_function_arn  = var.site_repo_function_arn
   }
 
   cloudfront_tenant_resources = var.platform_domain_enabled ? [
@@ -216,6 +220,15 @@ data "aws_iam_policy_document" "onboarding" {
   }
 
   dynamic "statement" {
+    for_each = var.site_repos_enabled ? [1] : []
+    content {
+      sid       = "SetUpWebsiteRepo"
+      actions   = ["lambda:InvokeFunction"]
+      resources = [var.site_repo_function_arn]
+    }
+  }
+
+  dynamic "statement" {
     for_each = var.platform_domain_enabled && var.tenant_subdomains_enabled ? [1] : []
     content {
       sid       = "CreateSubdomainTenant"
@@ -299,6 +312,15 @@ data "aws_iam_policy_document" "offboarding" {
     sid       = "RunDomainDetach"
     actions   = ["states:StartExecution"]
     resources = [local.state_machine_arns.domain_detach]
+  }
+
+  dynamic "statement" {
+    for_each = var.site_repos_enabled ? [1] : []
+    content {
+      sid       = "ArchiveWebsiteRepo"
+      actions   = ["lambda:InvokeFunction"]
+      resources = [var.site_repo_function_arn]
+    }
   }
 
   statement {

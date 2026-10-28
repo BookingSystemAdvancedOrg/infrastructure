@@ -476,3 +476,21 @@ resource "aws_iam_role_policy" "finance" {
     ]
   })
 }
+
+# Website tab: status, Retry, Ge åtkomst, Redeploy and Archive of the
+# restaurant's site repo all go through the site-repo function (it holds
+# the GitHub App key; this role never sees it).
+resource "aws_iam_role_policy" "site_repo" {
+  name = "site-repo"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "WebsiteRepoActions"
+      Effect   = "Allow"
+      Action   = "lambda:InvokeFunction"
+      Resource = var.site_repo_function_arn
+    }]
+  })
+}

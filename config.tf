@@ -731,6 +731,7 @@ module "platform_tenants_role" {
   finance_table_arn                  = module.finance.table_arn
   finance_rollup_lambda_arn          = module.finance_rollup_fn.function_arn
   alert_topic_arn                    = module.alerts.topic_arn
+  site_repo_function_arn             = module.sites.alias_arn
 }
 module "tenant_account_role" {
   source             = "./security/iam/tenant-account"
@@ -969,6 +970,12 @@ module "kassa_ecr" {
   source      = "./storage/ecr/terminal-payments"
   environment = var.env
   function    = "kassa"
+}
+# Restaurant site repos (sites.tf); same repository settings
+module "site_repo_ecr" {
+  source      = "./storage/ecr/terminal-payments"
+  environment = var.env
+  function    = "site-repo"
 }
 # Accounting export (accounting.tf); same repository settings
 module "accounting_ecr" {
@@ -1691,6 +1698,8 @@ module "platform_tenants_fn" {
   domain_documents_bucket_name       = module.domain_documents.bucket_name
   finance_table_name                 = module.finance.table_name
   finance_rollup_alias_arn           = module.finance_rollup_fn.alias_arn
+  site_repo_function_arn             = module.sites.alias_arn
+  site_repos_enabled                 = var.github_app_sites_secret_name != ""
   site_analytics_table_name          = local.platform_domain_enabled ? module.site_analytics[0].table_name : ""
   alert_topic_arn                    = module.alerts.topic_arn
   billing_tax_rate_id                = module.billing_catalog.tax_rate_id
@@ -1832,7 +1841,9 @@ module "alerts" {
   replay_function_name    = module.dlq_replay_fn.function_name
   replay_interval_minutes = var.dlq_replay_interval_minutes
 
-  sms_monthly_spend_limit_usd = var.sms_monthly_spend_limit_usd
+  sms_monthly_spend_limit_usd        = var.sms_monthly_spend_limit_usd
+  sms_delivery_logging               = var.sms_delivery_logging
+  sms_delivery_success_sampling_rate = var.sms_delivery_success_sampling_rate
 
   # Front door: API Gateway 5xx rate and p99 latency, CloudFront 5xx rate on
   # the admin, customer and (when on) tenant-sites distributions, and the
@@ -1930,6 +1941,7 @@ module "lambda_releases" {
     (module.terminal.function_name)                       = { alias_name = module.terminal.alias_name }
     (module.kassa.function_name)                          = { alias_name = module.kassa.alias_name }
     (module.accounting.function_name)                     = { alias_name = module.accounting.alias_name }
+    (module.sites.function_name)                          = { alias_name = module.sites.alias_name }
   }
 }
 
@@ -2246,6 +2258,8 @@ module "platform_domain" {
   site_analytics_enabled                  = true
   site_analytics_origin_domain            = module.site_analytics[0].function_url_domain
   site_response_headers_policy_id         = module.cloudfront_public.site_response_headers_policy_id
+  sites_bucket_regional_domain_name       = module.sites.bucket_regional_domain_name
+  per_tenant_sites                        = var.per_tenant_sites
   dmarc_report_address                    = var.dmarc_report_address
 }
 
@@ -2291,6 +2305,8 @@ module "tenant_workflows" {
   # The function's live alias, by name: the function's environment holds
   # this module's state machine ARNs, so referencing it would be a cycle.
   tenant_data_retention_days    = var.tenant_data_retention_days
+  site_repos_enabled            = var.github_app_sites_secret_name != ""
+  site_repo_function_arn        = module.sites.alias_arn
   platform_tenants_function_arn = "arn:aws:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:${var.env == "prod" ? "platform-tenants" : "${var.env}-platform-tenants"}:live"
 }
 

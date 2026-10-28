@@ -1,5 +1,5 @@
 {
-  "Comment": "Tenant onboarding. Started by platform-tenants after it has written the tenant's PROFILE row (status provisioning). Invites the first owner, creates the restaurant's Stripe connected account and VAT rates, gives the tenant its <slug> subdomain (when subdomains are on), then marks it active. Every step is idempotent, so a failed run is simply started again (POST /platform/tenants/{tenantId}/onboarding/retry).",
+  "Comment": "Tenant onboarding. Started by platform-tenants after it has written the tenant's PROFILE row (status provisioning). Invites the first owner, creates the restaurant's Stripe connected account and VAT rates, gives the tenant its <slug> subdomain (when subdomains are on), marks it active, then sets up its website repo site-<slug> (when site repos are on; a failure there is alerted but leaves the tenant active). Every step is idempotent, so a failed run is simply started again (POST /platform/tenants/{tenantId}/onboarding/retry).",
   "QueryLanguage": "JSONata",
   "TimeoutSeconds": 3600,
   "StartAt": "Init",
@@ -598,12 +598,66 @@
       "Catch": [
         {
           "ErrorEquals": ["DynamoDB.ConditionalCheckFailedException"],
-          "Next": "Done"
+          "Next": "SiteReposEnabled"
         },
         {
           "ErrorEquals": ["States.ALL"],
           "Assign": { "failure": "{% $states.errorOutput %}", "failedState": "{% $states.context.State.Name %}" },
           "Next": "MarkFailed"
+        }
+      ],
+      "Next": "SiteReposEnabled"
+    },
+    "SiteReposEnabled": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Condition": "{% ${site_repos_enabled} %}",
+          "Next": "SetUpWebsite"
+        }
+      ],
+      "Default": "Done"
+    },
+    "SetUpWebsite": {
+      "Type": "Task",
+      "Comment": "The restaurant's own website repo site-<slug> (site-repo function): created from site-template, or found when another environment created it; this environment's deploy role, repo variables and booqy.json section; in dev the first deploy. After ActivateTenant on purpose: a GitHub or IAM problem never keeps the restaurant from going live. site-repo records the outcome on the tenant's SITE row, and the Website tab in Booqy Console has Retry.",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Arguments": {
+        "FunctionName": "${site_repo_function_arn}",
+        "Payload": {
+          "action": "provision",
+          "tenantId": "{% $tenantId %}"
+        }
+      },
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException", "Lambda.TooManyRequestsException"],
+          "IntervalSeconds": 5,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Assign": { "failure": "{% $states.errorOutput %}" },
+          "Next": "NotifyWebsiteFailure"
+        }
+      ],
+      "Next": "Done"
+    },
+    "NotifyWebsiteFailure": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::sns:publish",
+      "Arguments": {
+        "TopicArn": "${alert_topic_arn}",
+        "Subject": "${environment}: restaurant website setup failed",
+        "Message": "{% 'The restaurant ' & $tenantId & ' is active, but its website repo could not be set up.\n\n' & $string($failure) & '\n\nFix the cause, then press Retry on the Website tab in Booqy Console. Execution: ' & $states.context.Execution.Id %}"
+      },
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "Done"
         }
       ],
       "Next": "Done"

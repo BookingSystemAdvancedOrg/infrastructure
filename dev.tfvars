@@ -50,7 +50,17 @@ turnstile_site_key = "1x00000000000000000000AA"
 
 # The account's monthly SMS spend limit (USD), alarmed at 80% - check the
 # current value first: aws sns get-sms-attributes --region eu-north-1
-sms_monthly_spend_limit_usd = 1
+# AWS raised this account's SMS quota to 50 USD (support case, 2026-10-25).
+sms_monthly_spend_limit_usd = 50
+
+# SMS delivery status in CloudWatch (sns/eu-north-1/<account>/
+# DirectPublishToPhoneNumber and .../Failure, 14 days) and an alert e-mail
+# for every SMS that isn't delivered. Dev logs every delivered SMS too.
+# Off until the deploy role dev-infra-oidc-role may pass
+# dev-sns-sms-delivery-logs to SNS (iam:PassRole, iam:PassedToService
+# sns.amazonaws.com) - SetSMSAttributes fails with 403 without it.
+sms_delivery_logging               = false
+sms_delivery_success_sampling_rate = 100
 
 # Both Cognito pools email through SES instead of Cognito's built-in sender -
 # needed for the "forgot password" LINK emails (Cognito only sends a custom
@@ -61,10 +71,11 @@ sms_monthly_spend_limit_usd = 1
 # which both apps accept. While this account's SES is in the sandbox,
 # Cognito's emails then only reach verified addresses/domains.
 cognito_invites_via_ses = false
-# Until booqy.se is verified in SES, emails are saved to a private S3
-# outbox instead of sent - read them in Booqy Console under "Mail outbox".
-# Switch off (false) once mail.dev.booqy.se is verified to send for real.
-mail_outbox = true
+# Emails go out through SES for real (mail.dev.booqy.se verified). This
+# account's SES is still in the sandbox, so they only reach addresses
+# verified in SES; mail to any other address is rejected. true = save
+# emails to a private S3 outbox instead (Booqy Console, "Mail outbox").
+mail_outbox = false
 
 # Subscription prices (SEK per month, excluding VAT) invoiced through Stripe
 # Billing on the platform account (sandbox mode). PLACEHOLDERS: set the real
@@ -115,3 +126,24 @@ data_retention_dry_run = true
 
 # DMARC aggregate reports (privacy-variables.tf). The mailbox must exist.
 dmarc_report_address = "dmarc@booqy.se"
+
+# Kassa's control system: fiskaly SIGN SE, TEST environment. Booqy's GROUP
+# key lives in this secret (created by hand: JSON {"api_key", "api_secret",
+# "env": "TEST"}); each restaurant's own key is created by the kassa function
+# in booqy/dev/fiskaly-unit/<tenantId>. Checked end to end against fiskaly
+# TEST on 2026-10-26. Registers made under the simulator show "inte kopplad".
+kassa_fiskaly_secret_name = "booqy/dev/fiskaly-sign-se"
+kassa_control_system      = "fiskaly"
+
+# Restaurant websites, one private repo site-<slug> per customer (sites.tf,
+# docs/CUSTOMER-SITE-RUNBOOK.md). Off until the "Booqy Sites" GitHub App's
+# key is stored by hand in this secret (JSON {"app_id", "private_key"}):
+# uncomment, push, and new customers get their repo at onboarding.
+github_app_sites_secret_name = "booqy/dev/github-app-sites"
+# Then, once every active restaurant with a domain has a deployed site repo
+# (Website tab), serve each domain from its own site instead of the shared
+# customer-front-end build:
+per_tenant_sites = true
+# A site repo is born in the prod console, which also sets up its dev side
+# through the dev account's booqy-sites-prod-link role (sites/main.tf).
+site_link_prod_account_id = "343695380960"

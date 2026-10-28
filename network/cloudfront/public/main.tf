@@ -80,6 +80,20 @@ resource "aws_cloudfront_response_headers_policy" "site" {
       override                   = true
     }
   }
+
+  # Outside prod every restaurant site is a preview (<slug>.dev.<domain>):
+  # never indexed. The site's own canonical link names the restaurant's
+  # real domain (site-template, booqy.json).
+  dynamic "custom_headers_config" {
+    for_each = var.environment == "prod" ? [] : [1]
+    content {
+      items {
+        header   = "X-Robots-Tag"
+        value    = "noindex, nofollow"
+        override = true
+      }
+    }
+  }
 }
 
 resource "aws_cloudfront_distribution" "this" {

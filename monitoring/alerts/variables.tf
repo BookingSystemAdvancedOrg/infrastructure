@@ -41,6 +41,20 @@ variable "sms_monthly_spend_limit_usd" {
   default     = null
 }
 
+variable "sms_delivery_logging" {
+  description = "SNS SMS delivery status logs in CloudWatch (failures always, successes sampled) plus an alarm on every failed SMS. Needs sms_monthly_spend_limit_usd set."
+  type        = bool
+  sensitive   = false
+  default     = false
+}
+
+variable "sms_delivery_success_sampling_rate" {
+  description = "Percent of delivered SMS that also get a log line (0-100). Failures are always logged."
+  type        = number
+  sensitive   = false
+  default     = 0
+}
+
 # --- front-door alarms and uptime check (front-door.tf, uptime.tf) ----------
 
 variable "api_id" {

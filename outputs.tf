@@ -123,6 +123,7 @@ output "ecr_repository_urls" {
     terminal_payments          = module.terminal_payments_ecr.repository_url
     kassa                      = module.kassa_ecr.repository_url
     accounting                 = module.accounting_ecr.repository_url
+    site_repo                  = module.site_repo_ecr.repository_url
   }
 }
 

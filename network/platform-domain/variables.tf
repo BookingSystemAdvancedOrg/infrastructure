@@ -115,3 +115,19 @@ variable "dmarc_report_address" {
   type        = string
   default     = ""
 }
+
+variable "sites_bucket_regional_domain_name" {
+  description = "Regional domain of the per-restaurant sites bucket (sites/<tenantId>/, the site-<slug> repos deploy there). Empty: no tenant-site origin."
+  type        = string
+  default     = ""
+}
+
+variable "per_tenant_sites" {
+  description = "Serve every distribution tenant from its own folder sites/<tenantId>/ (true) instead of the shared customer-front-end build (false). Turn on once every active restaurant with a domain has a deployed site repo."
+  type        = bool
+  default     = false
+  validation {
+    condition     = !var.per_tenant_sites || var.sites_bucket_regional_domain_name != ""
+    error_message = "per_tenant_sites needs sites_bucket_regional_domain_name."
+  }
+}
