@@ -25,9 +25,18 @@ platform_domain_zone_id = "Z04764661GIIKO8677SYH"
 
 # Restaurant websites on each restaurant's own domain (e.g. www.arya.se),
 # attached from Booqy Console: the restaurant adds one CNAME, CloudFront
-# issues the certificate. No <slug>.<domain> sites - booqy.se itself never
-# hosts a restaurant site (tenant_subdomains_enabled stays false).
+# issues the certificate.
 tenant_sites_enabled = true
+
+# Every restaurant also gets <slug>.booqy.se at onboarding, so its site is
+# live before (and keeps working after) its own domain is attached (owner's
+# decision 2026-10-28; was off). A *.booqy.se CNAME to the connection group:
+# every fixed name in the zone (apex, www., restaurang., restaurant.,
+# admin., mail., dev.) has its own records, and those names are reserved
+# slugs, so the wildcard never captures them. Adds the same
+# cloudfront:CreateDistributionTenant / GetDistributionTenant statement to
+# the onboarding role that dev has had since 2026-10-20 (owner-approved).
+tenant_subdomains_enabled = true
 
 # dev.booqy.se is answered by the dev account's zone (Z0571042RSRT4D1DDZ1L).
 # The NS record was created by hand first so dev could go live before prod;

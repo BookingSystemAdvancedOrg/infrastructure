@@ -2,8 +2,11 @@
 
 Every restaurant has its own private website repo `site-<slug>` in
 BookingSystemAdvancedOrg, designed in Figma by Booqy and coded with Claude
-on top of `@bookingsystemadvancedorg/site-kit`. Guests only ever see the
-restaurant's own domain. Plan and decisions:
+on top of `@bookingsystemadvancedorg/site-kit`. Every site is live on its
+slug address from the first deploy (`<slug>.booqy.se`, dev
+`<slug>.dev.booqy.se`); the restaurant's own domain is added when it is
+ready and never blocks a deploy (owner's decision 2026-10-28). Plan and
+decisions:
 `application/docs/orchestrator/CUSTOMER-SITES-PLAN.md`.
 
 ```
@@ -13,8 +16,10 @@ prod console "New customer" ──> site-repo (prod) ──> repo site-<slug> fr
                                        ──> empty dev tenant, same slug ──> dev onboarding ──> site-repo (dev):
                                            <slug>.dev.booqy.se, booqy.json (dev), DEV_* variables,
                                            role /booqy-sites/dev-site-<slug> (dev only), first deploy
+                                  └─ first prod deploy of main ──> <slug>.booqy.se
 push to dev       ──> Deploy ──> dev account  sites/<devTenantId>/ ──> <slug>.dev.booqy.se (noindex)
-merge dev -> main ──> Deploy ──> gate: own domain verified? ──> prod sites/<tenantId>/ ──> restaurant.se
+merge dev -> main ──> Deploy ──> prod sites/<tenantId>/ ──> <slug>.booqy.se (+ www.restaurant.se once mounted)
+Website tab "Mount" ──> prod: domain-attach www.<domain>   dev (link): domain-attach dev.<domain>
 dev console "New customer" ──> dry run only (shows what prod would create); slugs test-* are real (testing)
 ```
 
@@ -35,7 +40,21 @@ app; real data goes into prod's admin app.
 GitHub plan Free: no deployment approvals in private repos, so the deploy
 workflow picks repo-level `DEV_*` / `PROD_*` variables by branch, and each
 deploy role's OIDC trust allows only its branch (dev role: `dev`, prod role:
-`main`). No approval button before prod; the own-domain gate is the check.
+`main`). No approval button before prod: a merge to `main` is the release.
+
+**Addresses.** Sites are served by each account's one multi-tenant
+CloudFront distribution, which has no `*.cloudfront.net` address per site:
+a site is reached only by a hostname on it. So every restaurant gets a
+platform hostname at onboarding (`<slug>.booqy.se` in prod, since
+2026-10-28; `<slug>.dev.booqy.se` in dev), and its own domain is a second
+hostname on the same site. One hostname can be on only one CloudFront
+distribution in the world, so production gets `www.<domain>` (and the apex
+when Booqy runs the DNS) and dev gets `dev.<domain>`.
+
+**Caveat:** while `per_tenant_sites` is off in an environment (prod today),
+every hostname there serves the shared customer-front-end build, not the
+repo's site: prod deploys succeed and land in `sites/<tenantId>/`, and show
+on the addresses once `per_tenant_sites = true` in `prod.tfvars`.
 
 ---
 
@@ -135,11 +154,15 @@ site instead of the shared customer-front-end build.
 4. Through the link role it creates the same restaurant, empty, in dev
    (same slug; an existing dev customer with that slug is reused). The owner
    gets a dev admin invitation too.
+   The dev invitation goes to the owner's address; when that address
+   already signs in to another dev customer, to `<local>+<slug>@<domain>`
+   (same mailbox with most providers).
 5. Dev onboarding of that tenant: `<slug>.dev.booqy.se`, the dev deploy
-   role, `DEV_*` variables, `booqy.json`'s dev section, first deploy. A few
-   minutes in all.
-6. Prod console -> Website: status **Ready**, Dev **Live**. The dev console
-   shows the same repo read-only.
+   role, `DEV_*` variables, `booqy.json`'s dev section, first deploy. Prod
+   deploys `main` once (live on `<slug>.booqy.se`). A few minutes in all.
+6. Prod console -> Website: status **Ready**, Dev **Live**, Production
+   **Live**; "Where the site answers" lists both slug addresses as
+   **Slug address only**. The dev console shows the same repo read-only.
 7. The restaurant and the developer enter test data in the **dev** admin.
 8. **Give access** (prod console) to the developer's GitHub username: write
    on this repo only.
@@ -148,21 +171,33 @@ site instead of the shared customer-front-end build.
 11. Every push to `dev` deploys to `https://<slug>.dev.booqy.se`; the
     restaurant reviews it there and approves.
 12. Meanwhile the restaurant enters its real menu and settings in the prod admin.
-13. Prod console -> Domains: buy or connect the restaurant's domain; wait
-    for **Live** (certificate issued).
-14. Prod console -> Website -> **Run setup again** (writes the domain into
+13. Whenever the restaurant is ready (never needed for a deploy): prod
+    console -> Domains: buy or connect the restaurant's domain (or a bare
+    CNAME); wait for **Live** (certificate issued). That already mounts it
+    on production (`<domain>` and `www.<domain>`).
+14. Prod console -> Website -> "Where the site answers": Production shows
+    **Live** on `www.<domain>` (**Mount** / **Retry** if it is missing or
+    failed). Dev: **Mount dev.<domain>** runs dev's domain-attach through
+    the link. When Booqy runs the domain's DNS (bought or connected) the
+    console writes the `dev.<domain>` CNAME itself; with a bare CNAME the
+    restaurant adds **one more record**, `dev.<domain>` CNAME to the dev
+    target the tab shows. Dev shows **Waiting for DNS**, **Issuing
+    certificate**, then **Live**; **Failed** has **Retry**. The slug
+    addresses keep working.
+15. Prod console -> Website -> **Run setup again** (writes the domain into
     `booqy.json`, so the dev preview's canonical link names it).
-15. PR `dev` -> `main` in the site repo, review.
-16. Merge. Deploy (main): the gate asks the prod API for the verified own
-    domain, then deploys to the prod account.
-17. Check the site on its domain: booking, order, catering.
+16. PR `dev` -> `main` in the site repo, review, merge: deploys to the prod
+    account, live on the slug address and the own domain.
+17. Check the site on each address: booking, order, catering.
 18. Kit updates arrive as Dependabot PRs to `dev` from now on.
 
 ### Deploys and rollback
 
-- `dev` -> dev account, `main` -> prod account. The prod deploy refuses
-  while the restaurant has no attached, verified own domain (GitHub Free
-  has no branch protection on private repos, so the rule is in the deploy).
+- `dev` -> dev account, `main` -> prod account. A prod deploy needs the
+  restaurant to be active in prod (site-config answers 200); an own domain
+  is optional (until 2026-10-28 it was required, and every first prod
+  deploy failed). Repos generated before that keep the old gate in their
+  own `deploy.yml` until it is updated the same way as site-template's.
 - index.html is uploaded no-cache, hashed files immutable: no CloudFront
   invalidation.
 - **Rollback**: site repo -> Actions -> Deploy -> Run workflow on the
@@ -236,13 +271,22 @@ roles (`dev-infra-oidc-role`, the front-end and back-end deploy roles).
   ```
 
   dev `platform-tenants` accepts only `{"siteTask": {"action": "mirror" |
-  "archive", "slug", ...}}` from it, and refuses site tasks in prod. Mirror
+  "archive" | "domain", "slug", ...}}` from it, and refuses site tasks in
+  prod. Mirror
   creates (through the normal New customer path, no data copied) or adopts
   the dev tenant with that slug; its onboarding creates the dev distribution
   tenant and, through dev `site-repo`, the `/booqy-sites/` role. Archive
   removes that dev side. Dev has no role or right in prod.
 - Onboarding and offboarding state machine roles, platform-tenants role:
   `lambda:InvokeFunction` on the `site-repo` live alias.
+- Slug addresses: `tenant_subdomains_enabled = true` adds
+  `cloudfront:CreateDistributionTenant` / `GetDistributionTenant` (the
+  account's multi-tenant distribution only) to the onboarding role, plus
+  the `*.<platform domain>` CNAME. Dev since 2026-10-20, prod since
+  2026-10-28 (owner-approved). Mounting a domain adds no IAM: prod uses
+  platform-tenants' existing domain-attach and restaurant-zone rights; dev
+  uses the same link role (site task `domain`, op `status` or `mount`,
+  which only runs dev's domain-attach for that slug's dev tenant).
 
 Isolation is checked twice: at setup with the IAM policy simulator
 (own folder allowed, another tenant's folder and the bucket root denied;
@@ -259,9 +303,12 @@ refused.
 | Setup failed: `GitHub POST .../generate: 403` | The App is not installed on `site-template`, or lacks Administration write |
 | Setup failed: `refused: ... not a site-* repository name` | Slug not usable as a repo name; never bypass |
 | Deploy: `403 Forbidden ... read_package` | The repo can't read the kit: step 4 above |
-| Deploy: "No own domain attached and verified" | Prod gate: attach the domain in the prod console first |
+| Deploy: "No own domain attached and verified" | A repo generated before 2026-10-28 with the old gate: give its `deploy.yml` site-template's "Restaurant is active" step (both branches), then Redeploy main |
+| Website tab: slug address "not made yet" | The tenant was onboarded before its environment had slug addresses (prod before 2026-10-28): Domains tab -> **Re-run setup** |
+| Website tab: Dev "Unknown" | The prod -> dev link failed (message under it); Refresh |
+| Website tab: Dev own domain **Waiting for DNS** | `dev.<domain>` CNAME is missing at the restaurant's DNS provider (bare CNAME domains only) |
 | Deploy: "No dev customer for this repo yet" | No `DEV_*` variables: the dev tenant's onboarding hasn't finished; prod Website tab -> Run setup again |
-| Setup failed: `dev side: ...` | The prod -> dev link failed (dev API or the dev tenant); fix, then Run setup again in prod |
+| Setup failed: `dev side: ...` | The prod -> dev link failed (dev API or the dev tenant); the message names the field dev refused. Fix, then Run setup again in prod |
 | Dev console: "Dry run" | Expected: repos are born in prod. Use a `test-` slug to test in dev |
 | Deploy: Isolation check failed | Stop. The role can write elsewhere: check the role's boundary and policy in IAM |
 
