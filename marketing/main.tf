@@ -41,6 +41,7 @@ locals {
         MENU_TABLE_NAME             = var.menu_table_name
         MENU_IMAGE_BASE_URL         = var.menu_image_base_url
         CUSTOMER_SITE_URL           = var.customer_site_url
+        SITE_DOMAIN                 = var.site_domain
         USER_TABLE_NAME             = var.user_table_name
         NO_REPLY_EMAIL_ADDRESS      = var.from_address
         MARKETING_CONFIGURATION_SET = aws_sesv2_configuration_set.marketing.configuration_set_name
@@ -58,6 +59,7 @@ locals {
         NO_REPLY_EMAIL_ADDRESS        = var.from_address
         MARKETING_CONFIGURATION_SET   = aws_sesv2_configuration_set.marketing.configuration_set_name
         CUSTOMER_SITE_URL             = var.customer_site_url
+        SITE_DOMAIN                   = var.site_domain
         TURNSTILE_REQUIRED            = var.turnstile_required ? "true" : "false"
         TURNSTILE_SECRET_ARN          = var.turnstile_secret_arn
         REQUEST_GUARD_TABLE_NAME      = var.request_guard_table_name

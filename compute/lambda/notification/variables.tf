@@ -99,3 +99,9 @@ variable "finance_table_name" {
   description = "The finance table whose per-day counters (emails, sms) this function bumps, passed as an environment variable"
   type        = string
 }
+
+variable "site_domain" {
+  description = "Zone of the restaurants' slug addresses (<slug>.<site_domain>), the guest link base without an own domain; \"\" = off"
+  type        = string
+  default     = ""
+}

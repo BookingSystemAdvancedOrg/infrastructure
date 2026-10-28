@@ -158,3 +158,9 @@ variable "finance_table_arn" {
   description = "ARN of the finance table (marketing-send: UpdateItem on the counters)"
   type        = string
 }
+
+variable "site_domain" {
+  description = "Zone of the restaurants' slug addresses (<slug>.<site_domain>), the guest link base without an own domain; \"\" = off"
+  type        = string
+  default     = ""
+}

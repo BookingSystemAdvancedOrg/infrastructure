@@ -1265,6 +1265,7 @@ module "payment_intent_fn" {
   location_table_name             = module.location.table_name
   location_id_index_name          = module.location.location_id_index_name
   customer_site_url               = local.customer_site_url
+  site_domain                     = local.site_domain
   reservation_link_key_secret_arn = module.reservation_secrets.link_signing_key_secret_arn
   # Bot check on the order form only once the sites show the widget.
   turnstile_required       = var.turnstile_site_key != ""
@@ -1335,6 +1336,7 @@ module "manage_order_fn" {
   ecr_repository_url              = module.manage_order_ecr.manage_order_ecr_repository_url
   order_table_name                = module.order.table_name
   customer_site_url               = local.customer_site_url
+  site_domain                     = local.site_domain
   user_table_name                 = module.user.table_name
   region                          = var.aws_region
   tenant_table_name               = module.tenant.table_name
@@ -1399,6 +1401,7 @@ module "notification_fn" {
   region                 = var.aws_region
 
   customer_site_url                    = local.customer_site_url
+  site_domain                          = local.site_domain
   catering_link_signing_key_secret_arn = module.catering_secrets.link_signing_key_secret_arn
   tenant_table_name                    = module.tenant.table_name
   location_table_name                  = module.location.table_name
@@ -1531,6 +1534,7 @@ module "catering_offer_fn" {
     SIGNING_WEBHOOK_URL         = local.catering_signing_webhook_url
     ADMIN_DASHBOARD_URL         = local.admin_app_url
     CUSTOMER_SITE_URL           = local.customer_site_url
+    SITE_DOMAIN                 = local.site_domain
   })
 }
 module "catering_customer_fn" {
@@ -1547,6 +1551,7 @@ module "catering_customer_fn" {
   stripe_secret_arn                   = module.platform_secrets.stripe_secret_arn
   stripe_api_version                  = var.stripe_api_version
   customer_site_url                   = local.customer_site_url
+  site_domain                         = local.site_domain
   signing_webhook_url                 = local.catering_signing_webhook_url
   region                              = var.aws_region
   tenant_table_name                   = module.tenant.table_name
@@ -2068,6 +2073,7 @@ module "marketing" {
   # imageKey already starts with menu-images/, served by the public distribution.
   menu_image_base_url     = local.customer_site_url
   customer_site_url       = local.customer_site_url
+  site_domain             = local.site_domain
   admin_app_url           = local.admin_app_url
   reservation_table_name  = module.reservation.table_name
   reservation_stream_arn  = module.reservation.stream_arn
@@ -2122,6 +2128,8 @@ locals {
   # that is var.tenant_subdomains_enabled.
   tenant_sites_enabled      = local.platform_domain_enabled && var.tenant_sites_enabled
   tenant_subdomains_enabled = local.tenant_sites_enabled && var.tenant_subdomains_enabled
+  # <slug>.<domain>: where guest links point without an own domain (shared/site.py).
+  site_domain = local.tenant_subdomains_enabled ? var.platform_domain : ""
 
   # restaurang.<domain> = restaurant admin app, admin.<domain> = Booqy Console.
   # restaurant.<domain> was the admin app's first name: it stays an alias of
