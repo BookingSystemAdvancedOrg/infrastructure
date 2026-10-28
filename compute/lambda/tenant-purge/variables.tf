@@ -91,3 +91,9 @@ variable "protected_zone_ids" {
   type        = list(string)
   default     = []
 }
+
+variable "site_repo_function_arn" {
+  description = "site-repo live alias ARN: the purge deletes the restaurant's website repo through it. Empty: site repos are off"
+  type        = string
+  default     = ""
+}

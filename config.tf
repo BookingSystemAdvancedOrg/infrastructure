@@ -648,6 +648,7 @@ module "tenant_purge_role" {
   menu_image_bucket_arn  = module.menu_image.bucket_arn
   alert_topic_arn        = module.alerts.topic_arn
   protected_zone_ids     = local.platform_domain_enabled ? [module.platform_domain[0].zone_id] : []
+  site_repo_function_arn = module.sites.enabled ? module.sites.alias_arn : ""
 }
 module "scheduler_invoke_tenant_purge_role" {
   source                  = "./security/iam/scheduler-invoke-tenant-purge"
@@ -1665,6 +1666,7 @@ module "tenant_purge_fn" {
   menu_image_bucket_name              = module.menu_image.bucket_name
   alert_topic_arn                     = module.alerts.topic_arn
   protected_zone_ids                  = local.platform_domain_enabled ? [module.platform_domain[0].zone_id] : []
+  site_repo_function_arn              = module.sites.enabled ? module.sites.alias_arn : ""
 }
 module "platform_tenants_fn" {
   source                             = "./compute/lambda/platform-tenants"
