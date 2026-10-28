@@ -37,7 +37,7 @@ tenant_sites_enabled = true
 # (dev., www., restaurang., restaurant., admin., mail.) has its own records,
 # so the wildcard never captures them. Adds cloudfront:CreateDistributionTenant
 # / GetDistributionTenant to the onboarding workflow role (owner-approved
-# 2026-10-20). Whether prod should do the same is still open.
+# 2026-10-20). Prod does the same (<slug>.booqy.se) since 2026-10-28.
 tenant_subdomains_enabled = true
 
 # Public keys handed to restaurant websites by GET /site-config - not

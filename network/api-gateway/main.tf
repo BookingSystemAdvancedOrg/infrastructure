@@ -1531,6 +1531,7 @@ locals {
     "POST /platform/tenants/{tenantId}/site/invite",
     "POST /platform/tenants/{tenantId}/site/redeploy",
     "POST /platform/tenants/{tenantId}/site/archive",
+    "POST /platform/tenants/{tenantId}/site/mount",
     "GET /platform/tenants/{tenantId}/users",
     "POST /platform/tenants/{tenantId}/owners",
     "GET /platform/tenants/{tenantId}/locations",
