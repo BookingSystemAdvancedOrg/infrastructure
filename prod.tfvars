@@ -115,3 +115,8 @@ github_app_sites_secret_name = "booqy/prod/github-app-sites"
 # A site repo is born in the prod console, which also sets up its dev side
 # through the dev account's booqy-sites-prod-link role (sites/main.tf).
 site_link_dev_account_id = "877653167825"
+
+# The account's monthly SMS spend limit (USD), alarmed at 80%. AWS raised
+# this account's SMS quota to 50 USD and moved it out of the SMS sandbox
+# (support case, 2026-10-27). Ask for more once usage passes half of it.
+sms_monthly_spend_limit_usd = 50
