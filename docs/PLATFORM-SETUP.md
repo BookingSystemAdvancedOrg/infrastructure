@@ -167,7 +167,11 @@ apps run on `*.cloudfront.net` and restaurants have no website URL yet.
     rm signing.json
     ```
     The Lambdas cache the secret for 5 minutes. Prod refuses the testbed
-    URL. Prod: the same with `catering/signing-provider` and
+    URL. Until Scrive has switched on Swedish BankID for the account
+    (their API log says `authentication_to_sign_method_disabled`), dev
+    can add `"signMethod": "standard"` to the secret (in the console:
+    Retrieve secret value, Edit, Plaintext) so both parties sign with a
+    click; remove it once BankID works. Prod refuses it. Prod: the same with `catering/signing-provider` and
     `https://scrive.com`, only after the dev end-to-end test.
   - **Quick dev test, no BankID at all** - the simulator (refused in
     production): signs as "Test Testsson" on the second status poll:
