@@ -1524,6 +1524,7 @@ locals {
     "POST /platform/tenants/{tenantId}/resume",
     "POST /platform/tenants/{tenantId}/offboard",
     "POST /platform/tenants/{tenantId}/purge",
+    "POST /platform/tenants/{tenantId}/restore",
     "POST /platform/tenants/{tenantId}/onboarding/retry",
     # Website tab: the restaurant's site repo (site-repo function)
     "GET /platform/tenants/{tenantId}/site",

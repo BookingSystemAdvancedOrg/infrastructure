@@ -264,6 +264,30 @@ resource "aws_cloudwatch_metric_alarm" "sms_spend" {
   }
 }
 
+# AWS only raises the SMS quota once spend stays at 50% of it or more:
+# this one says it is time to open the support case, well before 80%.
+resource "aws_cloudwatch_metric_alarm" "sms_spend_half" {
+  count = var.sms_monthly_spend_limit_usd == null ? 0 : 1
+
+  alarm_name        = "${local.prefix}sms-spend-half-limit"
+  alarm_description = "SMS spend this month has passed 50% of the account's monthly limit (${var.sms_monthly_spend_limit_usd} USD). AWS now accepts a higher quota: open a support case (SMS Spend Limit Increase) with this month's usage, then raise sms_monthly_spend_limit_usd."
+  namespace         = "AWS/SNS"
+  metric_name       = "SMSMonthToDateSpentUSD"
+
+  statistic           = "Maximum"
+  period              = 3600
+  evaluation_periods  = 1
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  threshold           = var.sms_monthly_spend_limit_usd * 0.5
+  treat_missing_data  = "notBreaching"
+
+  alarm_actions = ["${aws_sns_topic.alerts.arn}"]
+
+  tags = {
+    Environment = var.environment
+  }
+}
+
 # AWS reviews an account at 5 % bounces / 0.1 % complaints and may pause
 # sending at 10 % / 0.5 %. These fire well before the review level.
 resource "aws_cloudwatch_metric_alarm" "ses_bounce_rate" {

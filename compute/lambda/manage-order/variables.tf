@@ -75,3 +75,9 @@ variable "customer_site_url" {
   type        = string
   sensitive   = false
 }
+
+variable "site_domain" {
+  description = "Zone of the restaurants' slug addresses (<slug>.<site_domain>), the guest link base without an own domain; \"\" = off"
+  type        = string
+  default     = ""
+}

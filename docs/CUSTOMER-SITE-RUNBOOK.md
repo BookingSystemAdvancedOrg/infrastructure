@@ -217,13 +217,30 @@ for a person. Releasing the kit: `site-kit/README.md`, Release.
 Offboarding a customer in **prod** (Danger zone) also runs `site-repo
 archive`: the prod deploy role and `PROD_*` variables are removed, prod asks
 dev (link role) to remove the dev role and `DEV_*` variables, then the repo
-is archived (read-only, never deleted). The dev tenant stays as test data;
-offboard it in the dev console if wanted. Offboarding in dev removes only
-the dev side.
+is archived (read-only). The dev tenant stays as test data; offboard it in
+the dev console if wanted. Offboarding in dev removes only the dev side.
 The Website tab has the same as **Archive**. **Set up** (or onboarding in
 the other environment) unarchives it. The site's files stay in
 `sites/<tenantId>/`; the domain is detached by offboarding, so nothing
 serves them.
+
+**Restore customer** (Danger zone, until `purgeAt`) re-runs onboarding:
+the slug address comes back and `site-repo provision` unarchives the repo
+and sets up the deploy role and variables again; in prod the link restores
+the offboarded dev tenant the same way. Own domains are re-added by hand.
+
+**Delete customer** (Danger zone, offboarded customers only) and the
+automatic purge after the retention period run `site-repo delete`: archive
+first (prod also asks dev to drop its side), then `DELETE /repos/...` once
+no `*_TENANT_ID` variable is left. Dev deletes only its own `test-` repos
+(no `prod` section in `booqy.json`); a prod-born repo is deleted by prod.
+The result goes to the activity log (`site_repo_deleted`,
+`site_repo_not_deleted` or `site_repo_delete_failed`) and, at the purge, to
+the summary email. A refusal never stops the data deletion; delete the
+archived repo by hand on GitHub then. Afterwards the slug is free: **New
+customer** with it takes over the purged customer's `SLUG#` claim and
+onboarding generates a fresh repo from `site-template` (new repo id, so
+the old deploy role's OIDC subject can't match it).
 
 ---
 
@@ -273,12 +290,16 @@ roles (`dev-infra-oidc-role`, the front-end and back-end deploy roles).
   dev `platform-tenants` accepts only `{"siteTask": {"action": "mirror" |
   "archive" | "domain", "slug", ...}}` from it, and refuses site tasks in
   prod. Mirror
-  creates (through the normal New customer path, no data copied) or adopts
-  the dev tenant with that slug; its onboarding creates the dev distribution
+  creates (through the normal New customer path, no data copied), adopts or
+  restores (offboarded, before its `purgeAt`) the dev tenant with that slug
+  (a purged one is replaced); its onboarding creates the dev distribution
   tenant and, through dev `site-repo`, the `/booqy-sites/` role. Archive
   removes that dev side. Dev has no role or right in prod.
-- Onboarding and offboarding state machine roles, platform-tenants role:
-  `lambda:InvokeFunction` on the `site-repo` live alias.
+- Onboarding and offboarding state machine roles, platform-tenants role,
+  and the `tenant-purge` role (statement `DeleteWebsiteRepo`, only while
+  site repos are on): `lambda:InvokeFunction` on the `site-repo` live alias.
+- GitHub App: deleting a repo needs Repository permission
+  **Administration: Read and write** (already part of step 1).
 - Slug addresses: `tenant_subdomains_enabled = true` adds
   `cloudfront:CreateDistributionTenant` / `GetDistributionTenant` (the
   account's multi-tenant distribution only) to the onboarding role, plus
@@ -301,6 +322,7 @@ refused.
 |---|---|
 | Website tab: "Site repos aren't switched on" | `github_app_sites_secret_name` not set in that environment's tfvars |
 | Setup failed: `GitHub POST .../generate: 403` | The App is not installed on `site-template`, or lacks Administration write |
+| Activity log `site_repo_delete_failed`: "GitHub refused" | The App lacks Administration write (org settings, GitHub Apps, Booqy Sites, Permissions; then accept the new permission under Installed GitHub Apps). Delete the archived repo by hand meanwhile |
 | Setup failed: `refused: ... not a site-* repository name` | Slug not usable as a repo name; never bypass |
 | Deploy: `403 Forbidden ... read_package` | The repo can't read the kit: step 4 above |
 | Deploy: "No own domain attached and verified" | A repo generated before 2026-10-28 with the old gate: give its `deploy.yml` site-template's "Restaurant is active" step (both branches), then Redeploy main |

@@ -58,6 +58,7 @@ resource "aws_lambda_function" "this" {
       STRIPE_SECRET_ARN                   = var.stripe_secret_arn
       STRIPE_API_VERSION                  = var.stripe_api_version
       CUSTOMER_SITE_URL                   = var.customer_site_url
+      SITE_DOMAIN                         = var.site_domain
       SIGNING_WEBHOOK_URL                 = var.signing_webhook_url
     }, var.extra_env)
   }

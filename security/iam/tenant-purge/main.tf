@@ -43,7 +43,7 @@ resource "aws_iam_role_policy" "data" {
 
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
+    Statement = concat([
       {
         # Lists tenants (GSI1), reads/writes the PROFILE (purgeAt, tombstone),
         # deletes the tenant's own rows and released domain claims.
@@ -116,7 +116,15 @@ resource "aws_iam_role_policy" "data" {
         Action   = "lambda:InvokeFunction"
         Resource = [local.function_arn, "${local.function_arn}:*"]
       },
-    ]
+      ], var.site_repo_function_arn == "" ? [] : [
+      {
+        # site-repo "delete": the restaurant's website repo goes with its data.
+        Sid      = "DeleteWebsiteRepo"
+        Effect   = "Allow"
+        Action   = "lambda:InvokeFunction"
+        Resource = var.site_repo_function_arn
+      },
+    ])
   })
 }
 

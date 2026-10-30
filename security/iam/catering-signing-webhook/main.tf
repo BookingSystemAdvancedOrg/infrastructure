@@ -103,6 +103,15 @@ resource "aws_iam_role_policy" "documents_write" {
         Resource = "${var.catering_documents_bucket_arn}/*/offers/*"
       },
       {
+        # The callback can be first to see the restaurant's signature: its evidence
+        # is stored unlocked next to the offer (as catering-offer does), tagged
+        # retention=offer so an unsigned one expires.
+        Sid      = "StoreRestaurantSignatureEvidence"
+        Effect   = "Allow"
+        Action   = ["s3:PutObject", "s3:PutObjectTagging"]
+        Resource = "${var.catering_documents_bucket_arn}/*/offers/*"
+      },
+      {
         Sid    = "ArchiveSignedAgreement"
         Effect = "Allow"
         Action = [

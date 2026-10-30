@@ -1,5 +1,5 @@
 {
-  "Comment": "Tenant offboarding. Started by platform-tenants (POST /platform/tenants/{tenantId}/offboard). Blocks the tenant immediately (status offboarding - every Lambda's tenant check then refuses it), disables and signs out all of its users, detaches all of its domains, marks it offboarded and archives its website repo (removing this environment's deploy role) with purgeAt = now + ${retention_days} days. Data is NOT deleted here: the tenant-purge Lambda deletes it once purgeAt has passed (docs/TENANT-ONBOARDING.md, Offboarding). Catering documents (7-year Object Lock) and the restaurant's Stripe account are kept.",
+  "Comment": "Tenant offboarding. Started by platform-tenants (POST /platform/tenants/{tenantId}/offboard). Blocks the tenant immediately (status offboarding - every Lambda's tenant check then refuses it), disables and signs out all of its users, detaches all of its domains, marks it offboarded and archives its website repo (removing this environment's deploy role) with purgeAt = now + ${retention_days} days. Data is NOT deleted here: until purgeAt the operator can Restore the customer (Booqy Console); afterwards (or at once with Delete customer) the tenant-purge Lambda deletes the data and the website repo (docs/TENANT-ONBOARDING.md, Offboarding). Catering documents (7-year Object Lock) and the restaurant's Stripe account are kept.",
   "QueryLanguage": "JSONata",
   "TimeoutSeconds": 21600,
   "StartAt": "Init",
@@ -255,7 +255,7 @@
     },
     "ArchiveWebsite": {
       "Type": "Task",
-      "Comment": "site-repo removes this environment's deploy role and repo variables, and archives site-<slug> once no other environment uses it. Never deletes the repo. A failure is reported in the closing alert and doesn't stop offboarding.",
+      "Comment": "site-repo removes this environment's deploy role and repo variables, and archives site-<slug> once no other environment uses it. The repo is deleted later, with the data (tenant-purge), so Restore can unarchive it until then. A failure is reported in the closing alert and doesn't stop offboarding.",
       "Resource": "arn:aws:states:::lambda:invoke",
       "Arguments": {
         "FunctionName": "${site_repo_function_arn}",

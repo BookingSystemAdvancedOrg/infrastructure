@@ -133,20 +133,20 @@ variable "plans" {
     features      = map(bool)
     price_sek     = number
   }))
-  description = "Plan catalog (packages you sell). A tenant's limits are copied from its plan when the plan is assigned and can be overridden per tenant from the platform dashboard - no deploy either way. Feature keys: reservations, ordering, catering, terminal (card readers for in-person payments, managed from Booqy Console), marketing (visit statistics and email campaigns to guests who opted in), kassa (the till, off by default: turn it on per tenant in Booqy Console; test mode until a certified control system is connected). price_sek: the monthly subscription price excluding VAT, invoiced through Stripe Billing on the platform account (payments/billing creates the Stripe product and price; a changed price archives the old Stripe price and applies to a customer the next time their plan is saved in Booqy Console)."
+  description = "Plan catalog (packages you sell). A tenant's limits are copied from its plan when the plan is assigned and can be overridden per tenant from the platform dashboard - no deploy either way. Feature keys: reservations, ordering, catering, terminal (card readers for in-person payments, managed from Booqy Console), marketing (visit statistics and email campaigns to guests who opted in), kassa (the till, off by default: turn it on per tenant in Booqy Console; test mode until a certified control system is connected). price_sek: the monthly price excluding VAT, invoiced in arrears on the 25th through Stripe on the platform account; a changed price applies to customers on the plan's price from the next billing period (a customer's own price is not affected)."
   sensitive   = false
   default = {
     starter = {
       name          = "Starter"
       max_locations = 1
       features      = { reservations = true, ordering = true, catering = false, terminal = true, marketing = false, kassa = false }
-      price_sek     = 990
+      price_sek     = 3950
     }
     growth = {
       name          = "Growth"
       max_locations = 3
       features      = { reservations = true, ordering = true, catering = true, terminal = true, marketing = true, kassa = false }
-      price_sek     = 1990
+      price_sek     = 8295
     }
   }
 
@@ -219,9 +219,9 @@ variable "sms_price_sek" {
 }
 variable "billing_invoicing_schedule" {
   type        = string
-  description = "EventBridge Scheduler expression (UTC) for the monthly invoicing run: on the 25th, after the period from the 25th to the 24th has ended, platform-tenants invoices every restaurant for that period (monthly price pro rata by days plus the SMS parts sent). After finance-rollup (04:30 UTC) so the figures for the 24th exist."
+  description = "EventBridge Scheduler expression (UTC) for the invoicing run. Daily: on the 25th, after the period from the 25th to the 24th has ended, platform-tenants invoices every restaurant for that period (monthly price pro rata by days plus the SMS parts sent); on other days it only catches up what a failed or unfinished run left. After finance-rollup (04:30 UTC) and the dunning task (05:00 UTC)."
   sensitive   = false
-  default     = "cron(0 5 25 * ? *)"
+  default     = "cron(30 5 * * ? *)"
 }
 variable "billing_dunning_schedule" {
   type        = string

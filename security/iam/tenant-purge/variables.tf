@@ -58,3 +58,9 @@ variable "protected_zone_ids" {
   sensitive   = false
   default     = []
 }
+
+variable "site_repo_function_arn" {
+  description = "site-repo live alias ARN (deletes the restaurant's website repo). Empty: no permission"
+  type        = string
+  default     = ""
+}

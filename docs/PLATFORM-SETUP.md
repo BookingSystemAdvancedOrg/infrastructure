@@ -154,7 +154,25 @@ apps run on `*.cloudfront.net` and restaurants have no website URL yet.
 
 - [ ] **BankID signing** (catering offers) - the secret
       `<env->catering/signing-provider` picks the provider
-      (application `shared/bankid.py`):
+      (application `shared/bankid.py`, `shared/signing.py`). **Chosen
+      provider: Scrive** (2026-10-28, `shared/signing_scrive.py`):
+  - **Scrive** (testbed in dev, production in prod). In Scrive (testbed:
+    api-testbed.scrive.com) open Account, Integrations (API), and create
+    personal access credentials: four values (client credentials
+    identifier and secret, token credentials identifier and secret).
+    Store them without them landing in the shell history:
+    ```bash
+    python3 -c 'import getpass,json;f=lambda n:getpass.getpass(n+": ");print(json.dumps({"provider":"scrive","baseUrl":input("baseUrl (https://api-testbed.scrive.com or https://scrive.com): ").strip(),"apiToken":f("client credentials identifier"),"apiSecret":f("client credentials secret"),"accessToken":f("token credentials identifier"),"accessSecret":f("token credentials secret")}))' > signing.json
+    aws secretsmanager put-secret-value --region eu-north-1 --secret-id dev-catering/signing-provider --secret-string file://signing.json
+    rm signing.json
+    ```
+    The Lambdas cache the secret for 5 minutes. Prod refuses the testbed
+    URL. Until Scrive has switched on Swedish BankID for the account
+    (their API log says `authentication_to_sign_method_disabled`), dev
+    can add `"signMethod": "standard"` to the secret (in the console:
+    Retrieve secret value, Edit, Plaintext) so both parties sign with a
+    click; remove it once BankID works. Prod refuses it. Prod: the same with `catering/signing-provider` and
+    `https://scrive.com`, only after the dev end-to-end test.
   - **Quick dev test, no BankID at all** - the simulator (refused in
     production): signs as "Test Testsson" on the second status poll:
     `aws secretsmanager put-secret-value --region eu-north-1 --secret-id dev-catering/signing-provider --secret-string '{"provider":"simulator"}'`

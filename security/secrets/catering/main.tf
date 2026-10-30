@@ -58,8 +58,10 @@ resource "aws_secretsmanager_secret_version" "link_signing_key" {
 #   { "provider": "simulator" }                       dev only
 #   { "provider": "bankid_direct", "environment": "test" | "prod",
 #     "certPem": "...", "keyPem": "...", "caPem": "..." }
-# A contracted provider (Scrive or SEB direct, see application
-# docs/orchestrator/CATERING-SIGNING-HANDOFF.md) adds its own fields here.
+#   { "provider": "scrive", "baseUrl": "https://api-testbed.scrive.com"
+#     (prod: "https://scrive.com"), "apiToken": "...", "apiSecret": "...",
+#     "accessToken": "...", "accessSecret": "..." }   Scrive personal access
+#     credentials (application shared/signing_scrive.py); the chosen provider.
 resource "aws_secretsmanager_secret" "signing_provider" {
   name                    = "${local.prefix}catering/signing-provider"
   description             = "BankID signing provider API credentials and webhook secret (JSON) - set by hand"

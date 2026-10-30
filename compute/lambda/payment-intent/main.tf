@@ -49,6 +49,7 @@ resource "aws_lambda_function" "this" {
       STRIPE_API_VERSION              = var.stripe_api_version
       MENU_TABLE_NAME                 = var.menu_table_name
       CUSTOMER_SITE_URL               = var.customer_site_url
+      SITE_DOMAIN                     = var.site_domain
       RESERVATION_LINK_KEY_SECRET_ARN = var.reservation_link_key_secret_arn # status token in the answer
       TURNSTILE_REQUIRED              = var.turnstile_required ? "true" : "false"
       TURNSTILE_SECRET_ARN            = var.turnstile_secret_arn

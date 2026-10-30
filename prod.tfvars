@@ -55,23 +55,23 @@ platform_subdomain_delegations = {
 # stripe_publishable_key = "pk_live_..."
 # turnstile_site_key     = "0x..."
 
-# Subscription prices (SEK per month, excluding VAT) invoiced through Stripe
-# Billing on the platform account (live mode). PLACEHOLDERS: set the real
-# prices before the first subscription is started. Changing a price creates
-# a new Stripe price; a customer moves to it the next time their plan is
-# saved in Booqy Console.
+# Monthly prices (SEK, excluding VAT), invoiced in arrears on the 25th
+# through Stripe on the platform account (live mode). Growth = 3 x Starter
+# with 30 % off (3950 x 3 x 0.7). A changed price applies to customers on
+# the plan's price from the next billing period (the daily task records
+# it); a customer's own price in Booqy Console is not affected.
 plans = {
   starter = {
     name          = "Starter"
     max_locations = 1
     features      = { reservations = true, ordering = true, catering = false, terminal = true, marketing = false, kassa = false }
-    price_sek     = 990
+    price_sek     = 3950
   }
   growth = {
     name          = "Growth"
     max_locations = 3
     features      = { reservations = true, ordering = true, catering = true, terminal = true, marketing = true, kassa = false }
-    price_sek     = 1990
+    price_sek     = 8295
   }
 }
 
@@ -115,3 +115,8 @@ github_app_sites_secret_name = "booqy/prod/github-app-sites"
 # A site repo is born in the prod console, which also sets up its dev side
 # through the dev account's booqy-sites-prod-link role (sites/main.tf).
 site_link_dev_account_id = "877653167825"
+
+# The account's monthly SMS spend limit (USD), alarmed at 80%. AWS raised
+# this account's SMS quota to 50 USD and moved it out of the SMS sandbox
+# (support case, 2026-10-27). Ask for more once usage passes half of it.
+sms_monthly_spend_limit_usd = 50

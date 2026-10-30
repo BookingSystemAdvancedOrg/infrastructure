@@ -205,10 +205,20 @@ pay.
 with a final prorated invoice, users disabled and signed out,
 custom and platform domains detached from CloudFront (certificates
 deleted), the website repo's deploy role and variables for this
-environment removed (the repo is archived once no environment uses it,
-never deleted), tenant marked `offboarded` with
+environment removed (the repo is archived once no environment uses it),
+tenant marked `offboarded` with
 `purgeAt = offboarded + tenant_data_retention_days` (90 in production, 1 in
-dev). Export their data before that date if they ask for it.
+dev). Export their data before that date if they ask for it. For unpaid
+invoices use **Suspend** instead: nothing is archived or deleted.
+
+**Restore customer** (Danger zone, while `purgeAt` hasn't passed and the
+purge hasn't started; the customer page shows "Restorable until ..."):
+status back to active, `purgeAt` cleared, users whose profile is active
+enabled again, and onboarding re-run, which recreates the `<slug>` address
+and sets the website repo up again (unarchived, deploy role, variables).
+Own domains are re-added on the Domains tab and the subscription is started
+again on the Billing tab. Offboarding the same customer again later starts
+a new workflow execution (`offboard-<tenantId>-<n>`).
 
 **Deletion** is automatic: the `tenant-purge` Lambda runs on
 `tenant_purge_schedule` (nightly in production, hourly in dev) and deletes
@@ -217,16 +227,21 @@ orders, menus, layouts, catering requests and history, marketing,
 locations, users (DynamoDB and Cognito), menu images, its audit rows and
 domain orders. Domains we registered get auto-renew switched off; a hosted
 zone is deleted once the domain no longer points at it (otherwise it is
-kept and listed in the email). One email per run that did something.
-Booqy Console shows the date and has **Delete data now** (moves `purgeAt`
-to now; the next run deletes). Tenants offboarded before this existed get
+kept and listed in the email). The website repo `site-<slug>` is deleted
+too (`site-repo delete`, recorded in the activity log; a refusal is
+reported and doesn't stop the purge). One email per run that did
+something. Booqy Console shows the date and has **Delete customer** for
+offboarded customers: deletes the website repo at once and moves `purgeAt`
+to now (Restore is then gone; the next run deletes the data). Tenants offboarded before this existed get
 a date on the first run, never sooner than 7 days later.
 
 Kept on purpose:
 
 - a tombstone PROFILE (`status = purged`: company name, org. and VAT
-  number, slug, plan, dates, Stripe account id; no personal data) and the
-  `SLUG#` claim, so an old address never moves to another restaurant;
+  number, slug, plan, dates, Stripe account id; no personal data), one
+  activity log row about the website repo, and the `SLUG#` claim until a
+  **New customer** with the same slug takes it over (a fresh repo from
+  `site-template`; the old customer's record stays as it is);
 - catering documents - 7-year Object Lock (bookkeeping law), can't be
   deleted before expiry;
 - their Stripe account - it's theirs; they can disconnect the platform in

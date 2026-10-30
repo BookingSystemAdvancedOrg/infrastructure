@@ -42,8 +42,11 @@ resource "aws_lambda_function" "this" {
   architectures = ["arm64"]
 
   # API calls are cut by API Gateway at 29 s regardless; the longer timeout
-  # is for the scheduled dunning task and the Stripe invoice import.
-  timeout     = 60
+  # is for the scheduled tasks: the invoicing run makes about five Stripe
+  # calls per restaurant (some 2 s), so 300 s covers well over 100
+  # restaurants. It stops starting restaurants 30 s before the end and the
+  # next daily run takes the rest.
+  timeout     = 300
   memory_size = 512
 
   environment {
@@ -140,9 +143,12 @@ resource "aws_scheduler_schedule" "dunning" {
 # Invoicing: on the 25th, after the period from the 25th to the 24th has
 # ended, the function builds one Stripe invoice per restaurant for that
 # period (the monthly price pro rata by days, plus the SMS parts sent at
-# the restaurant's SMS price) and Stripe emails or charges it. Idempotent
-# per restaurant and period; a missed run is caught up by the next one or
-# by "Run invoicing" in Booqy Console.
+# the restaurant's SMS price) and Stripe emails or charges it. It runs
+# every day: on any other day it only invoices what a failed or unfinished
+# run left (a period ended and not invoiced), so a Stripe outage on the
+# 25th is caught up the next morning. Idempotent per restaurant and period
+# (the ledger, PROFILE.billing and a look-up in Stripe before anything is
+# created); "Run invoicing" in Booqy Console does the same by hand.
 resource "aws_scheduler_schedule" "invoicing" {
   name                = "${local.function_name}-invoicing"
   group_name          = "default"
@@ -161,5 +167,28 @@ resource "aws_scheduler_schedule" "invoicing" {
       maximum_retry_attempts       = 2
       maximum_event_age_in_seconds = 3600
     }
+  }
+}
+
+# Any failed invocation (an exception or a timeout) of the scheduled tasks
+# above: the invoicing and dunning runs email their own summary when they
+# finish, so this catches the runs that never got that far. API requests
+# answer errors themselves and do not count here.
+resource "aws_cloudwatch_metric_alarm" "errors" {
+  alarm_name          = "${local.function_name}-errors"
+  alarm_description   = "platform-tenants failed (invoicing, dunning or an API request crashed or timed out). Check its logs; a missed invoicing run is caught up by the next daily run or Run invoicing in Booqy Console."
+  namespace           = "AWS/Lambda"
+  metric_name         = "Errors"
+  dimensions          = { FunctionName = aws_lambda_function.this.function_name }
+  statistic           = "Sum"
+  period              = 300
+  evaluation_periods  = 1
+  threshold           = 1
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [var.alert_topic_arn]
+
+  tags = {
+    Environment = var.environment
   }
 }

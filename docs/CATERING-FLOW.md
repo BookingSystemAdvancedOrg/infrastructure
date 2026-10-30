@@ -29,9 +29,12 @@ document is what the handlers must implement for that to hold.
   **restaurant signs first** in admin, only then is the guest told and may
   sign. The provider is behind `shared/signing.py` (secret
   `catering/signing-provider`, field `provider`): `simulator` in dev and
-  `bankid_direct` (BankID RP API v6, `shared/bankid.py`); a contracted
-  provider (Scrive or SEB direct) is added there, see application
-  `docs/orchestrator/CATERING-SIGNING-HANDOFF.md`. A start answers either
+  `bankid_direct` (BankID RP API v6, `shared/bankid.py`) and **`scrive`**,
+  the chosen provider (2026-10-28, `shared/signing_scrive.py`, Document
+  API v2): one Scrive document per offer version, the restaurant
+  (sign_order 1) then the guest (2), both with `se_bankid` on Scrive's
+  page, Scrive sends no e-mails of its own, the sealed PDF goes into the
+  locked package. A start answers either
   `kind: bankid` (QR / app, polled through `…/status`) or `kind: redirect`
   (the provider's page, back with `?signering=klar`).
 - **Simple acceptance** without BankID (C8), off by default per restaurant
@@ -142,7 +145,7 @@ on `version`); read by catering-requests and catering-offer.
 |---|---|---|
 | `<tenantId>/offers/<requestId>/v<NNNN>.pdf` | catering-document | tagged `retention=offer`, expires after 13 months (lifecycle); the signed S3 version is pinned (`signing.pdfVersionId`) |
 | `<tenantId>/offers/<requestId>/v<NNNN>-restaurant-bankid.json` | catering-offer | the restaurant's evidence while the contract is not yet binding: unlocked, tagged `retention=offer`, expires with the offer |
-| `<tenantId>/signed/<requestId>/v<NNNN>/` `restaurant-bankid.json` (copied in), `customer-bankid.json` or `customer-acceptance.json`, `offer.pdf`, `manifest.json` (SHA-256 of every file), written when the customer signs | catering-customer, catering-signing-webhook | per object: prod COMPLIANCE 7 years, dev GOVERNANCE 1 day (`DOCUMENT_LOCK_MODE` / `DOCUMENT_LOCK_DAYS`, `s3:PutObjectRetention`) |
+| `<tenantId>/signed/<requestId>/v<NNNN>/` `restaurant-<bankid\|scrive>.json` (copied in), `customer-<bankid\|scrive>.json` or `customer-acceptance.json`, `offer.pdf`, `scrive-sealed.pdf` (Scrive's sealed copy with its evidence attachments; `manifest-sealed.json` when it came later), `manifest.json` (SHA-256 of every file), written when the customer signs | catering-customer, catering-signing-webhook | per object: prod COMPLIANCE 7 years rounded up to 31 December of that year (Bokföringslagen), dev GOVERNANCE 1 day (`DOCUMENT_LOCK_MODE` / `DOCUMENT_LOCK_DAYS` / `DOCUMENT_LOCK_YEAR_END`, `s3:PutObjectRetention`) |
 | `<tenantId>/invoices/<stripeInvoiceId>.pdf` | nothing yet: Stripe hosts the invoices; a writer must set the same per-object lock | same as signed/ |
 
 Never hand out object URLs - presigned GET only (`…/documents/{offer|signed|signature}`).
@@ -195,6 +198,22 @@ signed there is recorded with its evidence, conditionally on status +
 version; then the event is written. A failure answers 503 and logs
 `SIGNING_WEBHOOK_FAILED` (alarm `catering-signing-webhook-failed`, plus a
 Lambda Errors alarm) so the provider retries.
+
+Scrive's callbacks are unsigned: only the `t` token counts, the form body
+(`document_id`, `document_json`) only names the event (its hash) and a
+callback about another document is refused. Scrive seals the PDF after the
+last signature; until it is ready the request is `signed` with
+`signing.sealPending` and the webhook answers 503 `seal_pending` (no audit
+entry, so Scrive's retry is processed), alarming only after 30 minutes.
+If Scrive gave up retrying, trigger the callback again from Scrive (API
+`POST /api/v2/documents/<documentId>/callback`, the id is
+`signing.order.documentId` on the request). `signed` downloads the sealed
+PDF (`sealedPdfKey`) once it is there, else our locked copy.
+
+Alarms: `catering-signing-unavailable` (Scrive down or credentials refused:
+`SIGNING_UNAVAILABLE` in catering-offer or catering-customer) and
+`<fn>-errors` for catering-offer, -customer, -document, -lifecycle and
+-stripe-webhook (catering.tf).
 
 ## Abuse limits
 

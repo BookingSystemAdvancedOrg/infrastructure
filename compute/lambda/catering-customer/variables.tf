@@ -106,3 +106,9 @@ variable "extra_env" {
   type        = map(string)
   default     = {}
 }
+
+variable "site_domain" {
+  description = "Zone of the restaurants' slug addresses (<slug>.<site_domain>), the guest link base without an own domain; \"\" = off"
+  type        = string
+  default     = ""
+}
