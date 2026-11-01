@@ -132,8 +132,9 @@ variable "plans" {
     max_locations = number
     features      = map(bool)
     price_sek     = number
+    limits        = optional(map(number), {})
   }))
-  description = "Plan catalog (packages you sell). A tenant's limits are copied from its plan when the plan is assigned and can be overridden per tenant from the platform dashboard - no deploy either way. Feature keys: reservations, ordering, catering, terminal (card readers for in-person payments, managed from Booqy Console), marketing (visit statistics and email campaigns to guests who opted in), kassa (the till, off by default: turn it on per tenant in Booqy Console; test mode until a certified control system is connected). price_sek: the monthly price excluding VAT, invoiced in arrears on the 25th through Stripe on the platform account; a changed price applies to customers on the plan's price from the next billing period (a customer's own price is not affected)."
+  description = "Plan catalog (packages you sell). A tenant's limits are copied from its plan when the plan is assigned and can be overridden per tenant from the platform dashboard - no deploy either way. Feature keys: reservations, ordering, catering, terminal (card readers for in-person payments, managed from Booqy Console), marketing (visit statistics and email campaigns to guests who opted in), kassa (the till, off by default: turn it on per tenant in Booqy Console; test mode until a certified control system is connected); metaAds, siteBuilder, guestCrm, googleBusiness, giftCards, waitlist, socialPosting, personalliggare, accountingSync, dishMargin (the Run 0 features, false until each ships). limits: numeric plan limits, today only siteBuilderAiEditsPerMonth (0-1000, missing = 0). price_sek: the monthly price excluding VAT, invoiced in arrears on the 25th through Stripe on the platform account; a changed price applies to customers on the plan's price from the next billing period (a customer's own price is not affected)."
   sensitive   = false
   default = {
     starter = {
@@ -153,6 +154,14 @@ variable "plans" {
   validation {
     condition     = alltrue([for p in var.plans : p.price_sek >= 0 && floor(p.price_sek) == p.price_sek])
     error_message = "price_sek must be a whole number of SEK per month (0 or more)."
+  }
+
+  validation {
+    condition = alltrue(flatten([for p in var.plans : [
+      for name, value in p.limits :
+      contains(["siteBuilderAiEditsPerMonth"], name) && value >= 0 && value <= 1000 && floor(value) == value
+    ]]))
+    error_message = "limits: only siteBuilderAiEditsPerMonth, a whole number from 0 to 1000."
   }
 }
 

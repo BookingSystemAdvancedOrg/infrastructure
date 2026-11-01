@@ -451,3 +451,12 @@ variable "visit_throttle_burst_limit" {
   default     = 100
 }
 
+
+variable "feature_integrations" {
+  description = "Run 0 feature API Lambdas (root local.feature_api_integrations): feature id => live alias function name and invoke ARN. Empty until a feature ships; feature-routes.tf creates one integration and permission per entry."
+  type = map(object({
+    function_name = string
+    invoke_arn    = string
+  }))
+  default = {}
+}

@@ -125,9 +125,20 @@ resource "aws_apigatewayv2_stage" "this" {
     }
   }
 
+  # Run 0 feature routes with throttle = "public" (feature-routes.tf): the
+  # same low limit as the public booking and order forms.
+  dynamic "route_settings" {
+    for_each = toset(local.feature_public_throttled_routes)
+    content {
+      route_key              = route_settings.value
+      throttling_rate_limit  = var.booking_throttle_rate_limit
+      throttling_burst_limit = var.booking_throttle_burst_limit
+    }
+  }
+
   # route_settings names a route by key - it has to exist first.
   depends_on = [aws_apigatewayv2_route.create_pending_reservation, aws_apigatewayv2_route.payment_intent,
-  aws_apigatewayv2_route.catering_requests_post, aws_apigatewayv2_route.catering_quote_post, aws_apigatewayv2_route.marketing_public, aws_apigatewayv2_route.print_device]
+  aws_apigatewayv2_route.catering_requests_post, aws_apigatewayv2_route.catering_quote_post, aws_apigatewayv2_route.marketing_public, aws_apigatewayv2_route.print_device, aws_apigatewayv2_route.feature]
 
   tags = {
     Environment = var.environment

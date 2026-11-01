@@ -64,14 +64,24 @@ plans = {
   starter = {
     name          = "Starter"
     max_locations = 1
-    features      = { reservations = true, ordering = true, catering = false, terminal = true, marketing = false, kassa = false }
-    price_sek     = 3950
+    features = {
+      reservations = true, ordering = true, catering = false, terminal = true, marketing = false, kassa = false,
+      metaAds      = false, siteBuilder = false, guestCrm = false, googleBusiness = false, giftCards = false,
+      waitlist     = false, socialPosting = false, personalliggare = false, accountingSync = false, dishMargin = false,
+    }
+    price_sek = 3950
+    limits    = { siteBuilderAiEditsPerMonth = 0 }
   }
   growth = {
     name          = "Growth"
     max_locations = 3
-    features      = { reservations = true, ordering = true, catering = true, terminal = true, marketing = true, kassa = false }
-    price_sek     = 8295
+    features = {
+      reservations = true, ordering = true, catering = true, terminal = true, marketing = true, kassa = false,
+      metaAds      = false, siteBuilder = false, guestCrm = false, googleBusiness = false, giftCards = false,
+      waitlist     = false, socialPosting = false, personalliggare = false, accountingSync = false, dishMargin = false,
+    }
+    price_sek = 8295
+    limits    = { siteBuilderAiEditsPerMonth = 0 }
   }
 }
 
