@@ -36,6 +36,9 @@ locals {
     }
   ]...)
 
+  # Every listed key, before merge() collapses duplicates (checked below).
+  feature_route_keys = flatten([for routes in values(local.feature_route_lists) : [for r in routes : r.route_key]])
+
   feature_public_throttled_routes = [for key, r in local.feature_routes : key if r.throttle == "public"]
 }
 
@@ -81,6 +84,10 @@ resource "aws_apigatewayv2_route" "feature" {
       condition     = contains(keys(var.feature_integrations), each.value.feature)
       error_message = "Route ${each.key}: feature ${each.value.feature} lists jwt or public routes but has no api_integrations entry in its wiring output."
     }
+    precondition {
+      condition     = length(local.feature_route_keys) == length(distinct(local.feature_route_keys))
+      error_message = "Feature route keys must be unique across all <feature-id>-routes.tf files."
+    }
   }
 }
 
@@ -95,4 +102,11 @@ resource "aws_apigatewayv2_route" "feature_operator" {
   target             = "integrations/${aws_apigatewayv2_integration.platform_tenants.id}"
   authorization_type = "JWT"
   authorizer_id      = aws_apigatewayv2_authorizer.platform.id
+
+  lifecycle {
+    precondition {
+      condition     = length(local.feature_route_keys) == length(distinct(local.feature_route_keys))
+      error_message = "Feature route keys must be unique across all <feature-id>-routes.tf files."
+    }
+  }
 }
