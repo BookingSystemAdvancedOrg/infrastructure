@@ -785,7 +785,7 @@ module "tenant_context_policy" {
   # Functions where staff_user may act: they read the caller's own user
   # profile to keep staff on their assigned location.
   user_table_arn = module.user.table_arn
-  staff_check_role_names = {
+  staff_check_role_names = merge({
     get_location          = module.get_location_role.role_name
     get_menu              = module.get_menu_role.role_name
     manage_menu           = module.manage_menu_role.role_name
@@ -812,6 +812,28 @@ module "tenant_context_policy" {
     terminal_payments = module.terminal.role_name
     # Kassa: staff sell on their own location's registers.
     kassa = module.kassa.role_name
+  }, local.feature_staff_check_role_names)
+}
+
+# Feature hooks (CONTRACTS.md 9 and 14): existing callers may invoke the
+# feature API Lambdas' live aliases. IAM change: owner to approve (Run 0).
+module "feature_hooks" {
+  source      = "./security/iam/feature-hooks"
+  environment = var.env
+  region      = var.aws_region
+  account_id  = data.aws_caller_identity.current.account_id
+  role_names = {
+    guest_privacy          = module.guest_privacy_role.role_name
+    tenant_purge           = module.tenant_purge_role.role_name
+    stripe_webhook         = module.stripe_webhook_role.role_name
+    payment_intent         = module.payment_intent_role.role_name
+    webhook_payment_intent = module.webhook_payment_intent_role.role_name
+    kassa                  = module.kassa.role_name
+    accounting             = module.accounting.role_name
+    insights               = module.insights_role.role_name
+    marketing              = module.marketing.role_names["marketing"]
+    marketing_send         = module.marketing.role_names["marketing-send"]
+    platform_tenants       = module.platform_tenants_role.role_name
   }
 }
 
@@ -983,6 +1005,78 @@ module "accounting_ecr" {
   source      = "./storage/ecr/terminal-payments"
   environment = var.env
   function    = "accounting"
+}
+# Run 0 feature functions (CONTRACTS.md 12.2): created ahead so CI's
+# bootstrap pushes their placeholder images; same repository settings.
+module "meta_ads_ecr" {
+  source      = "./storage/ecr/terminal-payments"
+  environment = var.env
+  function    = "meta-ads"
+}
+module "meta_ads_jobs_ecr" {
+  source      = "./storage/ecr/terminal-payments"
+  environment = var.env
+  function    = "meta-ads-jobs"
+}
+module "site_builder_ecr" {
+  source      = "./storage/ecr/terminal-payments"
+  environment = var.env
+  function    = "site-builder"
+}
+module "site_builder_render_ecr" {
+  source      = "./storage/ecr/terminal-payments"
+  environment = var.env
+  function    = "site-builder-render"
+}
+module "guest_crm_ecr" {
+  source      = "./storage/ecr/terminal-payments"
+  environment = var.env
+  function    = "guest-crm"
+}
+module "guest_crm_sync_ecr" {
+  source      = "./storage/ecr/terminal-payments"
+  environment = var.env
+  function    = "guest-crm-sync"
+}
+module "google_business_ecr" {
+  source      = "./storage/ecr/terminal-payments"
+  environment = var.env
+  function    = "google-business"
+}
+module "google_business_jobs_ecr" {
+  source      = "./storage/ecr/terminal-payments"
+  environment = var.env
+  function    = "google-business-jobs"
+}
+module "gift_cards_ecr" {
+  source      = "./storage/ecr/terminal-payments"
+  environment = var.env
+  function    = "gift-cards"
+}
+module "waitlist_ecr" {
+  source      = "./storage/ecr/terminal-payments"
+  environment = var.env
+  function    = "waitlist"
+}
+module "social_posting_ecr" {
+  source      = "./storage/ecr/terminal-payments"
+  environment = var.env
+  function    = "social-posting"
+}
+module "personalliggare_ecr" {
+  source      = "./storage/ecr/terminal-payments"
+  environment = var.env
+  function    = "personalliggare"
+}
+module "accounting_sync_ecr" {
+  source      = "./storage/ecr/terminal-payments"
+  environment = var.env
+  function    = "accounting-sync"
+}
+module "dish_margin_ecr" {
+  source      = "./storage/ecr/terminal-payments"
+  environment = var.env
+  function    = "dish-margin"
 }
 module "catering_requests_ecr" {
   source      = "./storage/ecr/catering-requests"
@@ -1892,7 +1986,7 @@ module "lambda_releases" {
   traffic_shift_interval_minutes = 5
   rollback_alarms_enabled        = var.env == "prod"
 
-  functions = {
+  functions = merge({
     (module.activate_layout_version_fn.function_name)     = { alias_name = module.activate_layout_version_fn.alias_name }
     (module.block_table_fn.function_name)                 = { alias_name = module.block_table_fn.alias_name }
     (module.cancel_reservation_fn.function_name)          = { alias_name = module.cancel_reservation_fn.alias_name }
@@ -1950,7 +2044,7 @@ module "lambda_releases" {
     (module.kassa.function_name)                          = { alias_name = module.kassa.alias_name }
     (module.accounting.function_name)                     = { alias_name = module.accounting.alias_name }
     (module.sites.function_name)                          = { alias_name = module.sites.alias_name }
-  }
+  }, local.feature_lambda_releases)
 }
 
 
@@ -2047,6 +2141,8 @@ module "api_gateway" {
   # Accounting export (accounting.tf, network/api-gateway/accounting-routes.tf)
   accounting_function_name = module.accounting.function_name
   accounting_invoke_arn    = module.accounting.alias_invoke_arn
+  # Run 0 features (network/api-gateway/feature-routes.tf)
+  feature_integrations = local.feature_api_integrations
 }
 
 # Marketing (plan feature "marketing"): visit statistics, attribution and
@@ -2183,7 +2279,7 @@ locals {
   # pre-token-generation (no data access), manage-auth (login proxy),
   # dlq-replay (re-delivers events to the owners below), scheduler and
   # GitHub deploy roles.
-  tenant_aware_role_names = {
+  tenant_aware_role_names = merge({
     activate_layout_version    = module.activate_layout_version_role.role_name
     block_table                = module.block_table_role.role_name
     cancel_reservation         = module.cancel_reservation_role.role_name
@@ -2233,7 +2329,27 @@ locals {
     terminal_payments          = module.terminal.role_name
     kassa                      = module.kassa.role_name
     accounting                 = module.accounting.role_name
-  }
+  }, local.feature_tenant_aware_role_names)
+
+  # The ten Run 0 feature modules (<feature-id>.tf) report what they add to
+  # the shared wiring above and to the API (CONTRACTS.md 12.2); empty until
+  # a feature has functions.
+  feature_wiring = [
+    module.meta_ads.wiring,
+    module.site_builder.wiring,
+    module.guest_crm.wiring,
+    module.google_business.wiring,
+    module.gift_cards.wiring,
+    module.waitlist.wiring,
+    module.social_posting.wiring,
+    module.personalliggare.wiring,
+    module.accounting_sync.wiring,
+    module.dish_margin.wiring,
+  ]
+  feature_lambda_releases         = merge([for w in local.feature_wiring : w.lambda_releases]...)
+  feature_tenant_aware_role_names = merge([for w in local.feature_wiring : w.tenant_aware_role_names]...)
+  feature_staff_check_role_names  = merge([for w in local.feature_wiring : w.staff_check_role_names]...)
+  feature_api_integrations        = merge([for w in local.feature_wiring : w.api_integrations]...)
 
   # Log groups finance-rollup counts API requests in: every Lambda that
   # resolves a tenant (shared/tenant.py logs one line per request).

@@ -38,6 +38,12 @@ ROUTES_LIST_RE = re.compile(r'_routes\s*=\s*\[(?P<items>[^\]]*)\]')
 # Routes behind the operator-pool authorizer (/platform/*) are labelled
 # differently from tenant-pool JWT routes.
 PLATFORM_AUTHORIZER_RE = re.compile(r'authorizer_id\s*=\s*aws_apigatewayv2_authorizer\.platform\.id')
+# Run 0 feature route files (<feature-id>-routes.tf, created by
+# feature-routes.tf): entries { route_key = "METHOD /path", auth = "..." }.
+FEATURE_ENTRY_RE = re.compile(r'\{[^{}]*\}')
+FEATURE_KEY_RE = re.compile(r'route_key\s*=\s*"([A-Z]+) (\S+)"')
+FEATURE_AUTH_RE = re.compile(r'\bauth\s*=\s*"(\w+)"')
+FEATURE_AUTH_LABELS = {"jwt": "JWT", "public": "NONE", "operator": "JWT (operator)"}
 
 
 def parse_routes():
@@ -86,6 +92,25 @@ def parse_routes():
             continue
 
         # No shape matched - not a route section, skip.
+
+    # Feature route files have no section markers; operator routes are
+    # served by platform-tenants, which forwards to the feature.
+    for f in sorted(HERE.glob("*-routes.tf")):
+        text = f.read_text()
+        if "# --- " in text:
+            continue
+        text = re.sub(r"#.*", "", text)  # the stubs' comments show an example entry
+        for entry in FEATURE_ENTRY_RE.findall(text):
+            key, auth = FEATURE_KEY_RE.search(entry), FEATURE_AUTH_RE.search(entry)
+            if not (key and auth):
+                continue
+            feature = f.name[: -len("-routes.tf")]
+            routes.append({
+                "lambda": "platform-tenants" if auth.group(1) == "operator" else feature,
+                "method": key.group(1),
+                "path": key.group(2),
+                "auth": FEATURE_AUTH_LABELS[auth.group(1)],
+            })
     return routes
 
 
