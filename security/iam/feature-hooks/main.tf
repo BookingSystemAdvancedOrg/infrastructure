@@ -1,6 +1,6 @@
 # IAM change: owner to approve before merge (Run 0).
 #
-# Adds one inline policy "feature-hooks" to eleven EXISTING execution roles:
+# Adds one inline policy "feature-hooks" to twelve EXISTING execution roles:
 # lambda:InvokeFunction on the exact live alias ARN of the feature API
 # Lambdas each caller sends a feature hook to (CONTRACTS.md sections 9 and
 # 14, rows 1-10). Nothing else: no feature table names or other actions on
@@ -25,6 +25,7 @@ locals {
     stripe_webhook         = [{ sid = "StripeEventHook", targets = ["gift-cards"] }]
     payment_intent         = [{ sid = "CheckoutGiftcardReserveHook", targets = ["gift-cards"] }]
     webhook_payment_intent = [{ sid = "CheckoutGiftcardReverseHook", targets = ["gift-cards"] }]
+    manage_order           = [{ sid = "CheckoutGiftcardRefundHook", targets = ["gift-cards"] }]
     kassa                  = [{ sid = "KassaGiftcardHook", targets = ["gift-cards"] }]
     accounting             = [{ sid = "AccountingEventsHook", targets = ["gift-cards"] }]
     insights               = [{ sid = "InsightsDishCostsHook", targets = ["dish-margin"] }]

@@ -828,6 +828,7 @@ module "feature_hooks" {
     stripe_webhook         = module.stripe_webhook_role.role_name
     payment_intent         = module.payment_intent_role.role_name
     webhook_payment_intent = module.webhook_payment_intent_role.role_name
+    manage_order           = module.manage_order_role.role_name
     kassa                  = module.kassa.role_name
     accounting             = module.accounting.role_name
     insights               = module.insights_role.role_name
