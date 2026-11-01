@@ -18,7 +18,7 @@ Last updated: 2026-11-01 (Run 0 resumed).
 | 5 | `docs/build/OWNERSHIP.md` | done (48 scaffolding tasks, hotspot extension points) |
 | 6 | Shared scaffolding (entitlements, plan matrix, sidebar slots, Terraform stubs, contract types, two-tenant fixtures, mock clients) | done: application phase 1 done (`d03c92f`, `e7a99cb`, `0849a0a`; 3545 tests pass); infrastructure done (`c0a7723`, fmt + validate + unit suites pass); application phase 2 committed (16 commits, 3726 passed, 1 skipped); fix loop round 1 done (`616405d` AP3 site-config features, `349c093` hook calls gated by entitlement so no existing path needs the IN7 IAM; 3734 passed, 1 skipped); admin done (`7cd2355`, `d172dd8`; 657 tests pass, segment audience typed without a cast); console done (`546c198`; api 173 passed, web 103 passed, build ok); customer done (`5843cc8`, `8b8c6d1`, `7707f93`; 349 + 9 tests pass) |
 | 7 | This ledger, filled in for A-J | done |
-| 8 | Fresh reviewer, fix loop (max 3 rounds) | reviewing (round 1) |
+| 8 | Fresh reviewer, fix loop (max 3 rounds) | round 1: not clean (2 high, 2 medium, 3 low); fixes committed (application `2c395be`, `47dfbd1`, `6a914c6`, `0fbf36a`; console `1950284`, `a4799fa`; infrastructure `3a6a18c`, `ea51214`; admin `fb44e75`; customer `d0f1af9`); round 2 reviewing |
 | 8b | Brand guardian builder (`docs/design/INVENTORY.md`, `DESIGN.md`, brand ADR, `packages/brand`, brand lint, one pilot per app) | done on `build/run-0-brand`: customer-front-end `d0a3736` (packages/brand, 82 tests, brand-lint), admin `fac91b1`, console `1b2ac11`, booqy-website `aa5a7fb`, infrastructure `cdd694a` (INVENTORY.md, DESIGN.md, ADR-BRAND-sharing.md). To review: hand-edited console lockfile; Kontakt button pilot now restaurant-coloured (15 px font, was 17 px); package publishes as `@bookingsystemadvancedorg/brand` aliased to `@booqy/brand` |
 | 9 | Commit, merge `build/run-0-brand` into `build/run-0-foundations`, open PRs | todo |
 
@@ -128,13 +128,26 @@ Brand guardian worktrees, branch `build/run-0-brand`, under
   resolve to the owner's checkout; the customer worktree now has a local,
   git-excluded `node_modules` of per-package links. Reviewers need the same.
 
+## Review round 1 findings and actions
+
+| # | Sev | Finding | Action |
+|---|---|---|---|
+| 1 | high | Gift card amounts ignored in order self-heal, staff cancel/refund, fully covered cancel | application builder: charged amount in `session_matches`, `checkout.giftcard op: refund`, skip Stripe refund when nothing charged |
+| 2 | high | Hooks gated on "on now" lose erase/export/SIE/gift card events after a feature is turned off | contract: "on or ever on" (`entitlements.featuresEver`, stamped by the console); application + console builders |
+| 3 | medium | Brand branch edits files outside its ownership | OWNERSHIP.md: brand guardian Run 0 pilot files listed (done) |
+| 4 | medium | Segment campaign stuck "sending" when guestCrm off | application builder: pause with reason |
+| 5 | low | Duplicate feature route keys merged silently | infrastructure builder: precondition |
+| 6 | low | CONTRACTS 12.3 operator scope text out of date | fixed in CONTRACTS.md (no scope, separate route resource) |
+| 7 | low | tenant.purge invokes 10 targets per purged tenant | accepted (contract allows; nothing deployed until Runs 1-3) |
+
 ## Owner approvals needed before Run 0 merges
 
 - **IAM change (IN7, commit `c0a7723`):** one inline policy `feature-hooks`
   per role allowing only `lambda:InvokeFunction` on
   `function:<prefix><target>:live`. Roles and targets: guest-privacy
   (guest-crm, google-business, gift-cards, waitlist); tenant-purge (all ten);
-  stripe-webhook, payment-intent, webhook-payment-intent, kassa, accounting
+  stripe-webhook, payment-intent, webhook-payment-intent, manage-order
+  (added in review round 1, commit `ea51214`), kassa, accounting
   (gift-cards); insights (dish-margin); marketing, marketing-send
   (guest-crm); platform-tenants (meta-ads, site-builder, google-business,
   personalliggare). No OIDC/deploy role or permissions boundary touched.

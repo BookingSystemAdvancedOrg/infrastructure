@@ -574,15 +574,27 @@ rules. Helper: `shared/feature_hooks.py` (Run 0).
 
 ### 9.2 Hook table
 
+**Gating rule ("on or ever on", decided in the Run 0 review).** A hook for
+feature X is invoked for a tenant only when X is on now **or has ever been
+on** for that tenant. The console stamps every feature key that is turned on
+into the tenant row's `entitlements.featuresEver` (a string set, only ever
+grows; written by `create_tenant` and `set_plan` in the same update as
+`entitlements`). `shared/tenant.ever_on(tenant_row, key)` is true when the key
+is on or in `featuresEver`. "always" below means "on or ever on". So existing
+tenants (no feature ever on) never invoke a Lambda, and turning a feature off
+still lets erase, export, SIE history and gift card events reach its data.
+`tenant.purge` is the exception: it calls every target (offboarding).
+
+
 | Hook | Caller (hotspot, built in Run 0) | Targets | Called when | Request fields | Response fields |
 |---|---|---|---|---|---|
-| `privacy.export` | guest-privacy `GET /privacy/guests` | guest-crm, google-business, gift-cards, waitlist | always (not gated) | `email?`, `phone?`, `subjects{email?, sms?}` | `items: list` (added to the export as `features.<feature-id>`) |
-| `privacy.erase` | guest-privacy `POST /privacy/guests/erase` | same four | always | same | `erased{kind: count}`, `kept{kind: count}` (counts only) |
+| `privacy.export` | guest-privacy `GET /privacy/guests` | guest-crm, google-business, gift-cards, waitlist | on or ever on | `email?`, `phone?`, `subjects{email?, sms?}` | `items: list` (added to the export as `features.<feature-id>`) |
+| `privacy.erase` | guest-privacy `POST /privacy/guests/erase` | same four | on or ever on | same | `erased{kind: count}`, `kept{kind: count}` (counts only) |
 | `tenant.purge` | tenant-purge, per purged tenant per round | all ten | always | `locationIds[]`, `round` | `done: bool`, `counts{}`; not done -> called again next round |
-| `stripe.event` | stripe-webhook, when `metadata.kind = giftcard` | gift-cards | always | `type`, `account`, `object` | `result: string` |
-| `checkout.giftcard` | payment-intent (`op: reserve`); webhook-payment-intent on `checkout.session.expired` / payment failed (`op: reverse`) | gift-cards | `giftCards` on and `giftCardCode` present (reserve); order carries `giftCard` (reverse) | `op`, `locationId`, `orderId`, `code?`, `totalOre?` | reserve: `debitedOre`, `cardId`, `cardLast4`; reverse: `reversedOre` |
+| `stripe.event` | stripe-webhook, when `metadata.kind = giftcard` | gift-cards | on or ever on | `type`, `account`, `object` | `result: string` |
+| `checkout.giftcard` | payment-intent (`op: reserve`); webhook-payment-intent on `checkout.session.expired` / payment failed (`op: reverse`) | gift-cards | `giftCards` on and `giftCardCode` present (reserve); order carries `giftCard` (reverse, refund: regardless of the flag) | `op` (`reserve`, `reverse`, `refund`), `locationId`, `orderId`, `code?`, `totalOre?` | reserve: `debitedOre`, `cardId`, `cardLast4`; reverse and refund: `reversedOre` |
 | `kassa.giftcard` | kassa bill payment `kind: giftcard` (`op: verify`), undo before receipt (`op: reverse`) | gift-cards | `giftCards` and `kassa` on | `op`, `locationId`, `billId`, `paymentId` | `amountOre`, `cardId`, `cardLast4`, `balanceAfterOre` |
-| `accounting.events` | `shared/accounting.location_events` (accounting export and accounting-sync) | gift-cards | always | `locationId`, `first`, `last` | `events[{day, postings[{role, amount, text}], warnings[]}]` (shape of `shared.accounting.Event`) |
+| `accounting.events` | `shared/accounting.location_events` (accounting export and accounting-sync) | gift-cards | on or ever on | `locationId`, `first`, `last` | `events[{day, postings[{role, amount, text}], warnings[]}]` (shape of `shared.accounting.Event`) |
 | `insights.dishCosts` | insights `GET /insights?locationId=` | dish-margin | `dishMargin` on and caller is owner | `locationIds[]`, `first`, `last` | `targetMarginPct`, `costs{menuItemId: [{validFrom, costOre}]}` |
 | `marketing.segment` | marketing (campaign save, `op: describe`), marketing-send (`op: page`) | guest-crm | audience `{type: "segment", exportId}` | `op`, `exportId`, `cursor?` | describe: `count`; page: `subscriberIds[]`, `cursor?` |
 | `platform` | platform-tenants feature modules (operator routes) | meta-ads, site-builder, google-business, personalliggare | operator route hit | `op`, `body`, `query`, `operator{sub, email}` | `status`, `body` |
@@ -718,7 +730,10 @@ locals {
 
 `auth`: `jwt` -> `cognito` authorizer, feature integration; `public` -> no
 authorizer, feature integration; `operator` -> `platform` authorizer with
-`platform/admin` scope, existing platform-tenants integration.
+no scope (like the existing platform-tenants routes, whose console tokens
+do not carry `platform/admin`; the handler checks the `platform_admin`
+group), existing platform-tenants integration, in a separate route
+resource (`feature_operator`) to avoid a dependency cycle.
 `throttle = "public"` applies the same `route_settings` as the existing
 public guest routes. A plan fails (precondition) if a feature lists jwt or
 public routes without an `api_integrations` entry. `ROUTES.md` is

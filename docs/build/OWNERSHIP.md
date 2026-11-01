@@ -160,6 +160,22 @@ under two features.
 | Owner (human) | every `.github/**` in every repo (agents give a snippet or `sed` line), OIDC/deploy roles, `sites/main.tf` `deploy_boundary`, `prod.tfvars` values beyond Run 0's additions |
 | Orchestrator / integrator | `infrastructure/docs/build/**`, `infrastructure/docs/adr/**`, every shared hotspot below, `ROUTES.md` regeneration, merges |
 
+### Brand guardian, Run 0 only (branch `build/run-0-brand`)
+
+Besides `customer-front-end/packages/brand/**` and `infrastructure/docs/design/**`
+plus `infrastructure/docs/adr/ADR-BRAND-sharing.md`, the brand guardian may
+edit in Run 0, for the one-screen pilots and the package wiring:
+customer-front-end root `package.json` and `package-lock.json` and the
+Kontakt pilot (`src/features/kontakt/KontaktPage.tsx`); admin-front-end
+`package.json`, `package-lock.json`, `vendor/booqy-brand-*.tgz`,
+`src/main.tsx`, `src/shared/motion/BusyBar.tsx`, `src/shared/brand.css`;
+booqy-console/web `package.json`, `package-lock.json`,
+`vendor/booqy-brand-*.tgz`, `src/main.tsx`, `src/components/BusyBar.tsx`,
+`src/styles.css`; booqy-website `site/assets/brand/**`, the tour progress
+markup in the six pages that have the tour and `site/assets/booqy.{css,js}`.
+In Runs 1-3 only a single brand guardian builder on `build/brand-additions`
+edits `packages/brand`; Run 3 consolidation agents own their app.
+
 ## 3. Shared hotspots (orchestrator only; changed in Run 0 only)
 
 After Run 0 these are frozen for Runs 1-3. A needed change is reported,
