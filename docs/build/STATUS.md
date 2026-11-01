@@ -192,6 +192,33 @@ the pilots, real Meta/Google/Fortnox/Visma/Bedrock (simulators only).
   no `platform/admin` scope (matches existing console routes, whose tokens
   lack it; CONTRACTS.md 12.3 said otherwise); operator routes are a separate
   route resource to avoid a dependency cycle.
+- **Do not turn the ten new feature keys on for a paying restaurant** before
+  that feature's run is merged. The console already offers them as
+  checkboxes; switched on today they only show placeholder pages ("Den här
+  delen är på väg") in admin and on the guest site, and a gift card code at
+  checkout answers 503 `gift_card_unavailable`.
+
+## Independent review (round 3) and fixes
+
+A fresh reviewer re-ran every gate and read the six PRs against RULES.md,
+CONTRACTS.md, OWNERSHIP.md and the ADRs. Verdicts: infrastructure and
+website merge as they were; application, admin, console and customer merge
+after these fixes, all applied on the Run 0 branches:
+
+1. `stripe.event`: the contract (CONTRACTS.md 9.2, ADR-E point 2,
+   `booqy.yaml`) now requires gift-cards to ignore an event whose `account`
+   is not the card's own `stripeAccountId`; the webhook forwards any
+   connected account's `metadata.tenantId`.
+2. Brand lint is blocking for feature folders: `brand-lint.config.json` in
+   admin, console/web and customer-front-end, `npm run brand-lint` in each
+   (DESIGN.md 7, RULES.md gates).
+3. Kassa refuses a gift card payment up front (501
+   `gift_card_receipt_not_supported`) while the control system port has no
+   voucher payment means (`ControlSystem.VOUCHER_METHOD`), so no card is
+   debited on a bill that cannot be closed.
+4. RULES.md gate: the reviewer runs `gen_contracts.py --check` with the
+   sibling worktrees present.
+5. The note above about not turning the ten keys on.
 
 ## Feature ledger
 

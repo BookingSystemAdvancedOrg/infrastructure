@@ -162,21 +162,21 @@ never the only signal: chart and meter values are text.
 (also the package bin `brand-lint`). Rules: colour, spacing, radius,
 duration, keyframes, bar, duplicate. Report-only by default (counts per app,
 exit 0); files matching a `--block` glob fail the run (exit 1) with
-`file:line`. Default block list is empty; OWNERSHIP.md lists the globs for
-each feature's new code. Report-only counts today: INVENTORY.md.
+`file:line`. Globs are relative to each scanned path. Each app has a
+`brand-lint.config.json` (`{"paths": [...], "block": [...]}`) that blocks
+every feature folder of OWNERSHIP.md (`features/<feature-id>/**`), and
+`npm run brand-lint` runs it: admin and console through the vendored
+package, customer-front-end over `src` and `packages/site-kit/src`. A
+feature's new code must leave it at exit 0; existing code stays
+report-only. Report-only counts today: INVENTORY.md.
 
 CI snippet for the owner (each frontend's workflow, after `npm ci`; not
 added to `.github` by the builder):
 
 ```yaml
       - name: Brand lint (blocking for new feature code)
-        run: >
-          npx --no-install brand-lint src
-          --block 'src/features/<feature>/**'
+        run: npm run brand-lint
 ```
-
-In customer-front-end use `node packages/brand/scripts/brand-lint.mjs src packages/site-kit/src --block ...`
-(`npm run brand-lint` runs the report).
 
 ## 8. Pilots (Run 0)
 

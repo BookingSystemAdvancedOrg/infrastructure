@@ -17,6 +17,11 @@ Scope
 Quality gates (all must pass before a feature can be "verified")
 - Lint, typecheck, unit tests for every touched package; terraform fmt + validate (+ tflint/
   checkov if configured); build of every touched frontend.
+- Contracts: the reviewer runs `python scripts/gen_contracts.py --check` in the application
+  worktree with the admin, console and customer worktrees checked out beside it. CI only checks
+  application's own copy (`tests/test_contracts.py` skips the siblings when they are absent), so
+  this is the only place a hand-edited generated file is caught.
+- Brand: `npm run brand-lint` exits 0 in every touched frontend (feature folders are blocking).
 - Every new endpoint: happy path, validation error, wrong role, foreign tenant -> 404,
   entitlement off -> refused, idempotent retry.
 - Every workflow/scheduled job: idempotent and resumable test.

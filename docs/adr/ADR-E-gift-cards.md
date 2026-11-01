@@ -30,6 +30,13 @@ supplies at different rates.
    through the `stripe.event` hook (CONTRACTS.md section 9, built in Run 0),
    which creates the card in one transaction (CARD +
    CODE + issue TX, all `attribute_not_exists` keyed by `purchaseId`).
+   The handler first checks that the event's `account` is the
+   `stripeAccountId` the purchase was created on and ignores it otherwise
+   (`result: ignored:account_mismatch`): the webhook forwards whatever
+   connected account sent `metadata.kind=giftcard`, so another
+   restaurant's account must never issue, refund or dispute this
+   restaurant's cards. Required test: same event from a foreign account
+   changes nothing.
 3. **Code**: 16 characters Crockford base32 (80 bits) shown as
    `XXXX-XXXX-XXXX-XXXX`, stored only as HMAC-SHA256 with a pepper secret
    (`<prefix>gift-cards/code-pepper`) plus `last4`. Sent once by email to the
