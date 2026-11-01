@@ -166,7 +166,8 @@ Besides `customer-front-end/packages/brand/**` and `infrastructure/docs/design/*
 plus `infrastructure/docs/adr/ADR-BRAND-sharing.md`, the brand guardian may
 edit in Run 0, for the one-screen pilots and the package wiring:
 customer-front-end root `package.json` and `package-lock.json` and the
-Kontakt pilot (`src/features/kontakt/KontaktPage.tsx`); admin-front-end
+Kontakt pilot (`src/features/kontakt/KontaktPage.tsx`) and `src/main.tsx`
+(imports `@booqy/brand/styles.css`); admin-front-end
 `package.json`, `package-lock.json`, `vendor/booqy-brand-*.tgz`,
 `src/main.tsx`, `src/shared/motion/BusyBar.tsx`, `src/shared/brand.css`;
 booqy-console/web `package.json`, `package-lock.json`,

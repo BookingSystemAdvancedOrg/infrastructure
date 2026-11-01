@@ -592,7 +592,7 @@ still lets erase, export, SIE history and gift card events reach its data.
 | `privacy.erase` | guest-privacy `POST /privacy/guests/erase` | same four | on or ever on | same | `erased{kind: count}`, `kept{kind: count}` (counts only) |
 | `tenant.purge` | tenant-purge, per purged tenant per round | all ten | always | `locationIds[]`, `round` | `done: bool`, `counts{}`; not done -> called again next round |
 | `stripe.event` | stripe-webhook, when `metadata.kind = giftcard` | gift-cards | on or ever on | `type`, `account`, `object` | `result: string` |
-| `checkout.giftcard` | payment-intent (`op: reserve`); webhook-payment-intent on `checkout.session.expired` / payment failed (`op: reverse`) | gift-cards | `giftCards` on and `giftCardCode` present (reserve); order carries `giftCard` (reverse, refund: regardless of the flag) | `op` (`reserve`, `reverse`, `refund`), `locationId`, `orderId`, `code?`, `totalOre?` | reserve: `debitedOre`, `cardId`, `cardLast4`; reverse and refund: `reversedOre` |
+| `checkout.giftcard` | payment-intent (`op: reserve`); webhook-payment-intent on `checkout.session.expired` / payment failed (`op: reverse`); manage-order staff cancel (`op: refund`, after the Stripe refund) | gift-cards | `giftCards` on and `giftCardCode` present (reserve); order carries `giftCard` (reverse, refund: regardless of the flag) | `op` (`reserve`, `reverse`, `refund`), `locationId`, `orderId`, `code?`, `totalOre?` | reserve: `debitedOre`, `cardId`, `cardLast4`; reverse and refund: `reversedOre` |
 | `kassa.giftcard` | kassa bill payment `kind: giftcard` (`op: verify`), undo before receipt (`op: reverse`) | gift-cards | `giftCards` and `kassa` on | `op`, `locationId`, `billId`, `paymentId` | `amountOre`, `cardId`, `cardLast4`, `balanceAfterOre` |
 | `accounting.events` | `shared/accounting.location_events` (accounting export and accounting-sync) | gift-cards | on or ever on | `locationId`, `first`, `last` | `events[{day, postings[{role, amount, text}], warnings[]}]` (shape of `shared.accounting.Event`) |
 | `insights.dishCosts` | insights `GET /insights?locationId=` | dish-margin | `dishMargin` on and caller is owner | `locationIds[]`, `first`, `last` | `targetMarginPct`, `costs{menuItemId: [{validFrom, costOre}]}` |
@@ -779,6 +779,7 @@ sites bucket policy.
 | 3 | stripe-webhook | invoke gift-cards | `stripe.event` |
 | 4 | payment-intent | invoke gift-cards | `checkout.giftcard` reserve |
 | 5 | webhook-payment-intent | invoke gift-cards | `checkout.giftcard` reverse |
+| 5b | manage-order | invoke gift-cards | `checkout.giftcard` refund (added in review round 1) |
 | 6 | kassa | invoke gift-cards | `kassa.giftcard` |
 | 7 | accounting | invoke gift-cards | `accounting.events` (replaces Query on `byLocationDay`) |
 | 8 | insights | invoke dish-margin | `insights.dishCosts` (replaces Query on the dish-margin table) |

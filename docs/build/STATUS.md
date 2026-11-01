@@ -3,11 +3,11 @@
 Ledger for the multi-agent build in `docs/build/PROMPTS.md`. Read this
 first when a run starts or resumes; skip anything already verified or merged.
 
-Last updated: 2026-11-01 (Run 0 resumed).
+Last updated: 2026-11-01 (Run 0 complete).
 
 ## Run 0: Foundations
 
-**State: running (resumed 2026-11-01 on the owner's instruction).**
+**State: done. Run 0 complete on 2026-11-01; PRs open against `dev` (not merged). Do not start Run 1 until the owner has merged Run 0.**
 
 | Step | What | State |
 |---|---|---|
@@ -18,9 +18,9 @@ Last updated: 2026-11-01 (Run 0 resumed).
 | 5 | `docs/build/OWNERSHIP.md` | done (48 scaffolding tasks, hotspot extension points) |
 | 6 | Shared scaffolding (entitlements, plan matrix, sidebar slots, Terraform stubs, contract types, two-tenant fixtures, mock clients) | done: application phase 1 done (`d03c92f`, `e7a99cb`, `0849a0a`; 3545 tests pass); infrastructure done (`c0a7723`, fmt + validate + unit suites pass); application phase 2 committed (16 commits, 3726 passed, 1 skipped); fix loop round 1 done (`616405d` AP3 site-config features, `349c093` hook calls gated by entitlement so no existing path needs the IN7 IAM; 3734 passed, 1 skipped); admin done (`7cd2355`, `d172dd8`; 657 tests pass, segment audience typed without a cast); console done (`546c198`; api 173 passed, web 103 passed, build ok); customer done (`5843cc8`, `8b8c6d1`, `7707f93`; 349 + 9 tests pass) |
 | 7 | This ledger, filled in for A-J | done |
-| 8 | Fresh reviewer, fix loop (max 3 rounds) | round 1: not clean (2 high, 2 medium, 3 low); fixes committed (application `2c395be`, `47dfbd1`, `6a914c6`, `0fbf36a`; console `1950284`, `a4799fa`; infrastructure `3a6a18c`, `ea51214`; admin `fb44e75`; customer `d0f1af9`); round 2 reviewing |
+| 8 | Fresh reviewer, fix loop (max 3 rounds) | done: round 1 not clean (2 high, 2 medium, 3 low), all fixed; round 2 **clean** (3 low: two doc gaps fixed in CONTRACTS/OWNERSHIP, gift card cancel order fixed in `668d098`: Stripe refund first, then the card once) |
 | 8b | Brand guardian builder (`docs/design/INVENTORY.md`, `DESIGN.md`, brand ADR, `packages/brand`, brand lint, one pilot per app) | done on `build/run-0-brand`: customer-front-end `d0a3736` (packages/brand, 82 tests, brand-lint), admin `fac91b1`, console `1b2ac11`, booqy-website `aa5a7fb`, infrastructure `cdd694a` (INVENTORY.md, DESIGN.md, ADR-BRAND-sharing.md). To review: hand-edited console lockfile; Kontakt button pilot now restaurant-coloured (15 px font, was 17 px); package publishes as `@bookingsystemadvancedorg/brand` aliased to `@booqy/brand` |
-| 9 | Commit, merge `build/run-0-brand` into `build/run-0-foundations`, open PRs | todo |
+| 9 | Commit, merge `build/run-0-brand` into `build/run-0-foundations`, open PRs | done: brand merged in infrastructure, admin, customer, console, booqy-website (no conflicts); all gates green on the merged branches; branches pushed, PRs opened (see below) |
 
 `docs/build/PROMPTS.md` was saved unchanged (byte-identical to the owner's
 `booqy-multi-agent-build-prompts_1.md`).
@@ -139,6 +139,22 @@ Brand guardian worktrees, branch `build/run-0-brand`, under
 | 5 | low | Duplicate feature route keys merged silently | infrastructure builder: precondition |
 | 6 | low | CONTRACTS 12.3 operator scope text out of date | fixed in CONTRACTS.md (no scope, separate route resource) |
 | 7 | low | tenant.purge invokes 10 targets per purged tenant | accepted (contract allows; nothing deployed until Runs 1-3) |
+
+## Final gates on merged `build/run-0-foundations`
+
+| Gate | Result |
+|---|---|
+| application pytest | 3745 passed, 1 skipped (existing fiskaly live test) |
+| gen_contracts --check (5 targets) | in sync |
+| terraform fmt / validate | clean / "Success! The configuration is valid." |
+| admin lint, tsc, test, build | 0 errors, ok, 657 passed, built |
+| console web typecheck, test, build (placeholder env from .env.example) | ok, 103 passed, built |
+| console api pytest | 176 passed |
+| customer lint, site-kit typecheck, test, build | ok, ok, site-kit + app tests passed, built |
+| brand package test, typecheck, build; brand-lint report-only | 82 passed, ok, built; exit 0 |
+
+Not verified here: Terraform plan (CI only), Safari audio and VoiceOver on
+the pilots, real Meta/Google/Fortnox/Visma/Bedrock (simulators only).
 
 ## Owner approvals needed before Run 0 merges
 
