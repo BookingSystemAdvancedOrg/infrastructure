@@ -140,6 +140,20 @@ Brand guardian worktrees, branch `build/run-0-brand`, under
 | 6 | low | CONTRACTS 12.3 operator scope text out of date | fixed in CONTRACTS.md (no scope, separate route resource) |
 | 7 | low | tenant.purge invokes 10 targets per purged tenant | accepted (contract allows; nothing deployed until Runs 1-3) |
 
+## Run 0 pull requests (against `dev`, not merged)
+
+Merge in this order (RELEASES.md):
+
+1. infrastructure: https://github.com/BookingSystemAdvancedOrg/infrastructure/pull/36 (IAM change and 14 ECR repos need the owner's approval)
+2. application: https://github.com/BookingSystemAdvancedOrg/application/pull/68
+3. admin-front-end: https://github.com/BookingSystemAdvancedOrg/admin-front-end/pull/21
+4. booqy-console: https://github.com/BookingSystemAdvancedOrg/booqy-console/pull/11
+5. customer-front-end: https://github.com/BookingSystemAdvancedOrg/customer-front-end/pull/13
+6. booqy-website: https://github.com/BookingSystemAdvancedOrg/booqy-website/pull/11
+
+The local `dev` of admin-front-end, booqy-console and customer-front-end has
+one unpushed owner commit each; until `dev` is pushed those PRs also show it.
+
 ## Final gates on merged `build/run-0-foundations`
 
 | Gate | Result |
