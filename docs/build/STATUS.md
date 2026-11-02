@@ -3,11 +3,11 @@
 Ledger for the multi-agent build in `docs/build/PROMPTS.md`. Read this
 first when a run starts or resumes; skip anything already verified or merged.
 
-Last updated: 2026-11-01 (Run 0 complete).
+Last updated: 2026-11-02 (Run 0 merged to dev; Run 0 addendum K and L started).
 
 ## Run 0: Foundations
 
-**State: done. Run 0 complete on 2026-11-01; PRs open against `dev` (not merged). Do not start Run 1 until the owner has merged Run 0.**
+**State: done and MERGED TO DEV (2026-11-01/02). All six Run 0 PRs merged by the owner: infrastructure#36, application#68, admin-front-end#21, booqy-console#11, customer-front-end#13, booqy-website#11. Run 0 addendum (K, L) in progress before Run 1.**
 
 | Step | What | State |
 |---|---|---|
@@ -140,7 +140,7 @@ Brand guardian worktrees, branch `build/run-0-brand`, under
 | 6 | low | CONTRACTS 12.3 operator scope text out of date | fixed in CONTRACTS.md (no scope, separate route resource) |
 | 7 | low | tenant.purge invokes 10 targets per purged tenant | accepted (contract allows; nothing deployed until Runs 1-3) |
 
-## Run 0 pull requests (against `dev`, not merged)
+## Run 0 pull requests (against `dev`, all merged 2026-11-01/02)
 
 Merge in this order (RELEASES.md):
 
