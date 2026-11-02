@@ -3,10 +3,12 @@
 # Adds one inline policy "feature-hooks" to twelve EXISTING execution roles:
 # lambda:InvokeFunction on the exact live alias ARN of the feature API
 # Lambdas each caller sends a feature hook to (CONTRACTS.md sections 9 and
-# 14, rows 1-10). Nothing else: no feature table names or other actions on
-# the callers, and no OIDC/deploy role, deploy_boundary or sites bucket
-# policy is touched. Invoking a feature that is not deployed yet fails with
-# ResourceNotFoundException, which shared/feature_hooks.py skips.
+# 14, rows 1-10; the Run 0 addendum adds rows 11-16, events-tickets and
+# phone-agent, IAM change: owner to approve). Nothing else: no feature
+# table names or other actions on the callers, and no OIDC/deploy role,
+# deploy_boundary or sites bucket policy is touched. Invoking a feature
+# that is not deployed yet fails with ResourceNotFoundException, which
+# shared/feature_hooks.py skips.
 
 locals {
   prefix = var.environment == "prod" ? "" : "${var.environment}-"
@@ -14,25 +16,36 @@ locals {
   all_features = [
     "meta-ads", "site-builder", "guest-crm", "google-business", "gift-cards",
     "waitlist", "social-posting", "personalliggare", "accounting-sync", "dish-margin",
+    "events-tickets", "phone-agent", # Run 0 addendum (row 12)
   ]
 
   # caller key (var.role_names) => [{ sid, targets }]
   grants = {
     guest_privacy = [
-      { sid = "PrivacyExportEraseHooks", targets = ["guest-crm", "google-business", "gift-cards", "waitlist"] },
+      {
+        sid     = "PrivacyExportEraseHooks"
+        targets = ["guest-crm", "google-business", "gift-cards", "waitlist", "events-tickets", "phone-agent"] # + row 11
+      },
     ]
     tenant_purge           = [{ sid = "TenantPurgeHook", targets = local.all_features }]
-    stripe_webhook         = [{ sid = "StripeEventHook", targets = ["gift-cards"] }]
+    stripe_webhook         = [{ sid = "StripeEventHook", targets = ["gift-cards", "events-tickets"] }] # + row 13
     payment_intent         = [{ sid = "CheckoutGiftcardReserveHook", targets = ["gift-cards"] }]
     webhook_payment_intent = [{ sid = "CheckoutGiftcardReverseHook", targets = ["gift-cards"] }]
     manage_order           = [{ sid = "CheckoutGiftcardRefundHook", targets = ["gift-cards"] }]
     kassa                  = [{ sid = "KassaGiftcardHook", targets = ["gift-cards"] }]
-    accounting             = [{ sid = "AccountingEventsHook", targets = ["gift-cards"] }]
-    insights               = [{ sid = "InsightsDishCostsHook", targets = ["dish-margin"] }]
-    marketing              = [{ sid = "MarketingSegmentHook", targets = ["guest-crm"] }]
-    marketing_send         = [{ sid = "MarketingSegmentHook", targets = ["guest-crm"] }]
+    accounting             = [{ sid = "AccountingEventsHook", targets = ["gift-cards", "events-tickets"] }] # + row 14
+    insights = [
+      { sid = "InsightsDishCostsHook", targets = ["dish-margin"] },
+      { sid = "InsightsEventsHook", targets = ["events-tickets"] }, # row 15
+    ]
+    marketing      = [{ sid = "MarketingSegmentHook", targets = ["guest-crm"] }]
+    marketing_send = [{ sid = "MarketingSegmentHook", targets = ["guest-crm"] }]
     platform_tenants = [
-      { sid = "PlatformForwardHook", targets = ["meta-ads", "site-builder", "google-business", "personalliggare"] },
+      {
+        sid     = "PlatformForwardHook"
+        targets = ["meta-ads", "site-builder", "google-business", "personalliggare", "phone-agent"] # + row 16
+      },
+      { sid = "BillingUsageHook", targets = ["phone-agent"] }, # row 16
     ]
   }
 }
