@@ -484,10 +484,12 @@ Lean setup for one person. One cloud routine does the engineering; Jarvis is a C
 **3. GitHub mobile app** on the iPhone, notifications on for the six repos. Approve PRs to main there after testing on dev.
 
 ## The approval flow (the only place you're needed)
-1. Feature merged to `dev`, deployed by CI.
-2. Orchestrator opens a draft PR `dev → main` whose description is the feature brief (what it is, BR-* rows, how to test on dev, decisions, unverified, rollout/rollback, cost). You get a GitHub notification; Jarvis can summarise it on request.
-3. You test on dev, then approve the PR on GitHub or leave review comments. Telling Jarvis "the QR page is slow on mobile" also works; it relays it as feedback.
-4. Approved + CI green → Fable 5.1 final review → merge to `main` → production deploy and smoke test watched, auto-revert on failure.
+1. Feature merged to `dev`, deployed by CI, smoke test passed.
+2. Orchestrator marks it "on dev, awaiting owner go-ahead" in STATUS.md, sends the push notification "<feature> is ready on dev. Test it, then tell Jarvis to open the PR to main." and puts the dev test steps in PIPELINE.md under "Needs owner". No PR yet; Jarvis can give you the steps on request.
+3. You test on dev. Telling Jarvis "the QR page is slow on mobile" relays it as feedback; it gets fixed on dev and the test steps are updated.
+4. When you're happy, tell Jarvis "open the PR to main for X". Orchestrator opens the PR `dev → main` whose description is the feature brief (what it is, BR-* rows, how to test on dev, decisions, unverified, rollout/rollback, cost) and requests your review.
+5. You approve the PR on GitHub or leave review comments.
+6. Approved + CI green → Fable 5.1 final review → merge to `main` → production deploy and smoke test watched, auto-revert on failure.
 
 ## JARVIS PROMPT (project instructions)
 
@@ -518,9 +520,12 @@ How to handle what I say:
   PROMPTS.md Addendum C (destroying production data, enabling features for paying tenants,
   touching live keys), say so and ask me to confirm explicitly first.
 - Feedback on a feature → fire as "Feedback on <feature>: <my words>".
+- "Open the PR to main for X" → this is my go-ahead for feature X: fire as "Open the PR to main
+  for X", confirm "Passed to the Orchestrator: <sentence>". Merging still needs my GitHub approval.
 - "Approve X" → I must approve on GitHub myself; give me the PR link.
-- "Brief me" / "status" → one screen: in production, on dev awaiting my test (with PR links),
-  building, blocked (why), human actions open.
+- "Brief me" / "status" → one screen: in production, on dev awaiting my go-ahead (with test steps
+  from PIPELINE.md), PRs to main awaiting my approval (with PR links), building, blocked (why),
+  human actions open.
 Swedish or English, matching me.
 
 You are reply-only: you answer when I message you and never start a conversation. The Orchestrator
@@ -557,8 +562,9 @@ INSTRUCTIONS FROM JARVIS (API trigger with text): the text is the owner's instru
 by Jarvis. Record it in PIPELINE.md under "Owner instructions" with the date, then act on it in
 this and following runs, ahead of the pipeline step unless it says otherwise. If it conflicts
 with a hard rule, do not do it; write why in PIPELINE.md under "Needs owner" so Jarvis can tell
-the owner. Feedback on a feature ("Feedback on X: ...") is a review
-finding for X's dev→main PR: fix on dev, update the brief, reply on that PR.
+the owner. Feedback on a feature ("Feedback on X: ...") is a review finding for X: fix on dev. If
+X's dev→main PR is open, update the brief and reply on that PR; if not, update X's test steps in
+PIPELINE.md under "Needs owner".
 
 FINAL PRE-PRODUCTION REVIEW (before any dev→main merge): once the owner has approved a dev→main
 PR, spawn a FRESH Fable 5.1 (medium) reviewer with the Independent reviewer brief scoped to the
@@ -675,7 +681,7 @@ reply-only and does not relay these.
 
 ## What the owner does
 
-- Read Jarvis's message, test the feature on dev, approve the PR on GitHub (or comment / tell Jarvis).
+- Read the push notification, test the feature on dev, tell Jarvis to open the PR to main, approve the PR on GitHub (or comment / tell Jarvis).
 - Turn entitlements on for restaurants in the console when a feature is in production.
 - Handle the outside world: Meta Business Verification/App Review, Google API access, voice/SIP provider accounts, accountant and legal checks. The briefs say when each is needed.
 
