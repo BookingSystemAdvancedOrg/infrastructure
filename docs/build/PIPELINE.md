@@ -15,6 +15,11 @@ Run 0 addendum (K, L) is MERGED TO DEV by the owner (infrastructure#37 at 20:21 
 DECISION: Run 1 is held. Merging new work to dev would change the diff of the six open dev->main PRs after the owner started reviewing them. Resume Run 1 once those PRs are merged or closed (or an owner instruction says to proceed). The 3 OWNERSHIP.md rows and the cosmetic contracts wording note above remain as hygiene items.
 Next run: if any of the six PRs has an owner approval, run the FINAL PRE-PRODUCTION REVIEW (fresh Fable, whole dev->main diff, all repos in rollout order infrastructure, application, admin, console, customer, website). Otherwise exit quietly.
 
+## Position update 2026-11-02 (22:35Z run)
+infrastructure#38 (dev->main) was MERGED TO MAIN BY THE OWNER (Lamo2real) at 22:23Z, without the final pre-production review (no approving review recorded; owner is the author). Prod Terraform CI/CD run 41536821111 finished SUCCESS (52 add / 2 change / 0 destroy per the plan comment). Infra is therefore ahead of the app repos in production: events/tickets/phone-agent infra (IAM invoke rows, 4 empty ECR repos) is live, no code behind it, all features off.
+Still open and unreviewed (no owner approval): application#70, admin-front-end#23, booqy-console#13, customer-front-end#15, booqy-website#12. Not merged by me. Run 1 stays held until they resolve.
+Next run: if an owner approval appears on any of them, run the FINAL PRE-PRODUCTION REVIEW (fresh Fable, rollout order application, admin, console, customer, website), then merge. STATUS.md for infra should become production once the owner confirms smoke test (no smoke test job exists in the prod workflow; unverified).
+
 ## Owner instructions
 - 2026-11-02 (via Jarvis): Close the four old PRs to main (application#67, admin-front-end#20, booqy-console#10, customer-front-end#12) with a comment that they predate the build programme and will be replaced by the go-ahead flow. Then update STATUS.md to show Run 0 as merged to dev, and continue with the Run 0 addendum.
   - Done 2026-11-02: four PRs commented and closed. STATUS.md updated. Run 0 addendum started.
