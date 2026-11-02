@@ -144,6 +144,15 @@ Brand
   guardian reviewer (a fresh agent with skills impeccable + design:design-system, given
   DESIGN.md, INVENTORY.md and the diff, plus screenshots of each new screen in light/dark at
   mobile and desktop taken with Playwright).
+Models
+- Set the chat to Claude Fable 5.1 at medium effort before pasting a run prompt (/model
+  claude-fable-5-1). The orchestrator, every reviewer, the brand guardian reviewer, the
+  integrator and the auditor run on the chat's model: Fable 5.1, medium effort.
+- Every builder, explore, architect/ADR, brand guardian builder and consolidation agent is
+  spawned with model "opus" (Claude Opus 5.5) at medium effort. Pass the model explicitly on
+  every Agent call for these roles; never inherit for a builder.
+- Judgment roles (review, audit, merge decisions) stay on Fable; volume roles (writing code,
+  exploring, migrating UI) go to Opus.
 Process
 - Builder agent works in its own git worktree on branch build/<feature>.
 - Reviewer agent is fresh, never the builder, and is given only: ADR, contract, ownership,
@@ -291,4 +300,312 @@ Open the PR and finish with: done, blocked, unverified, human actions before pro
 - **Start the outside approvals today.** Meta Business Verification and App Review, Google Business Profile API access, an accountant for gift card VAT, and legal review for personalliggare take longer than the code.
 - **Merge each run's PR yourself** after reading the summary. The prompts never merge, apply Terraform or deploy.
 - **If a run dies midway,** paste the same prompt again. It reads `STATUS.md` and resumes.
-- **Use a strong model for the orchestrator and reviewers.** Reviewers matter more than builders.
+- **Models:** set each run's chat to Fable 5.1, medium effort (`/model claude-fable-5-1`). The rules make the orchestrator, reviewers, integrator and auditor use that, and spawn builders, explorers and ADR writers on Opus 5.5 at medium effort.
+
+---
+
+# ADDENDUM A: feature L, AI phone booking agent (and feature K, events & tickets)
+
+Added after researching Tickivo and Elyra. This adds two features to the programme without restarting runs already done. Use the **Run 0 addendum** once Run 0 has finished and its PR is merged; then use the **Run 2 inserts** when you paste Run 2.
+
+## What feature L is
+
+An AI agent that answers the restaurant's phone (after hours and overflow first, answer-first later), books, moves and cancels tables using Booqy's real availability and rules, answers questions about hours, menu, special days and policies, transfers to staff when needed, and logs a transcript on the booking. Later the same agent handles the restaurant's email inbox.
+
+Fixed decisions (so the agents don't re-decide them):
+- The agent is a **channel** into the existing booking engine. It calls the same Lambdas as the site and the admin app (availability, create-pending-reservation, mark-arrived/move/cancel, get-menu, tenant-site-config). No separate booking logic.
+- **Voice provider is abstracted** behind one interface with a mock. Amazon Nova Sonic has no Swedish (as of Nov 2026), so launch with a provider that does (OpenAI gpt-realtime over SIP, or ElevenLabs Agents over SIP trunk), keep an all-AWS fallback design (Transcribe streaming sv-SE → Claude on Bedrock → Polly sv-SE) documented in the ADR, and re-check Nova Sonic's language list each quarter.
+- **The brain is Claude on Bedrock** (eu-north-1) with tool calling into Booqy's APIs, so booking decisions and tenant data stay in AWS even when speech runs elsewhere. Only audio and the minimum conversation context go to the voice provider.
+- **Telephony:** the restaurant keeps its number and forwards it (no answer after N seconds, or always outside hours). Booqy holds one Swedish number per location on a SIP provider abstracted behind an interface (46elks or Twilio/Telnyx). Porting is out of scope.
+- **EU AI Act Article 50:** the greeting audibly says it is an AI assistant for <restaurant>, repeats it if interrupted, and the transcript records that the disclosure played. Non-negotiable.
+- **Recording:** transcripts by default; audio recording off by default, per-tenant opt-in with purpose and retention, never sent to a third party beyond the voice provider's processing. Caller number and name follow existing retention rules; erase-guest erases call data.
+- **Handoff:** intents in Swedish and English ("prata med en människa", "speak to a person") transfer to the location's phone; if unanswered within 25 s, the AI resumes and offers a callback; a callback request becomes a task the staff sees in Bokningar with context. Anything the agent can't resolve ends the same way.
+- **Guardrails:** per-tenant minutes cap per month, spend alarm (like SMS), kill switch per location, configurable agent hours, max call length, no payments or card data over the phone (card guarantee is completed by SMS link).
+- **Entitlement:** `phone_agent`, off by default. Pricing: per location per month with included minutes; overage per minute. Minutes counted at call end per tenant/location like SMS parts.
+- **Swedish first**, English second, language auto-detected per call; the restaurant chooses the agent's name, greeting and tone during onboarding ("Så svarar vi i telefon" wizard).
+
+## Run 0 addendum (paste in a fresh session after Run 0 is merged)
+
+```
+You are the orchestrator for a Run 0 addendum for Booqy. Read infrastructure/docs/build/RULES.md,
+CONTRACTS.md, OWNERSHIP.md, STATUS.md, docs/design/DESIGN.md and the existing ADRs. Follow RULES.md.
+Do NOT build features. Add two features to the foundations:
+
+ L. AI phone booking agent (see "Fixed decisions" for feature L in infrastructure/docs/build/PROMPTS.md,
+    section ADDENDUM A). Write docs/adr/L-phone-agent.md covering: voice-provider abstraction
+    (interface, mock, launch provider, AWS fallback pipeline), telephony abstraction (interface,
+    mock, 46elks vs Twilio decision with criteria), Bedrock agent design with the exact tool list
+    mapped to existing Lambdas, call lifecycle state machine (Step Functions or in-Lambda, decide),
+    DynamoDB tables (calls, transcripts, callbacks, per-tenant config; tenant in partition key),
+    EventBridge events, Art. 50 disclosure design and evidence, recording/transcript retention and
+    GDPR impact, handoff and callback flow, cost caps and alarms, minutes metering for billing,
+    latency budget, Swedish/English handling, onboarding wizard, test plan including a scripted
+    call simulator (text-in/text-out) so the booking logic is testable without audio.
+ K. Events & tickets: ticket types and tiers, capacity, prepaid checkout on the restaurant's
+    Stripe account, Wallet passes, QR scanning in the admin app, guest list, transfer/resale at
+    face value, recurring events, feeding Statistik, Bokföring and Kassa receipts. Write
+    docs/adr/K-events-tickets.md in the same format as the other ADRs, with the Swedish VAT
+    question flagged for an accountant.
+
+Then: extend CONTRACTS.md (routes, tables, events, entitlements `phone_agent` and `events`,
+plan matrix rows, sidebar entries "Telefon" and "Evenemang", site-config fields, storage
+registry), extend OWNERSHIP.md with non-overlapping file ownership for K and L, add the two
+entitlements and plan rows to the shared scaffolding, add mock clients for the voice provider,
+the telephony provider and (for K) nothing new, add STATUS.md rows for K and L, and add any
+missing Bar/Card variants K and L need to packages/brand via a single brand guardian builder.
+
+Verification: a fresh reviewer with only the ADRs, contracts, ownership, RULES.md and the diff.
+Fix loop max 3 rounds. Commit to build/run-0-addendum-kl, open PR(s), stop. List human actions
+(voice provider account and DPA, SIP provider account and Swedish numbers, accountant for ticket
+VAT, legal check of Art. 50 wording and recording notice).
+```
+
+## Run 2 inserts
+
+When you paste the Run 2 prompt, add these two builders to its parallel list (max 4 active at once still applies; queue the rest):
+
+```
+ K. Events & tickets per docs/adr/K-events-tickets.md: event with ticket types/tiers and capacity,
+    optional seat/table pick on the existing floor plan, recurring series, prepaid checkout on the
+    restaurant's connected Stripe account, ticket email with Wallet pass, QR scanning + guest list
+    in the admin app (works offline, syncs), walk-up sales via QR poster, transfer and face-value
+    resale, refunds and mass refund, entries in Statistik, Bokföring and Kassa receipts.
+ L. AI phone booking agent per docs/adr/L-phone-agent.md, skills ponytail + impeccable +
+    design:ux-copy: voice and telephony adapters (real adapter behind config, mock in tests),
+    Bedrock agent with the tool set from the ADR, call lifecycle with transcript persisted to the
+    booking, Art. 50 disclosure in the greeting with evidence in the transcript, handoff + callback
+    tasks surfaced in Bokningar, after-hours/overflow mode first and answer-first mode behind a
+    toggle, per-tenant config wizard "Så svarar vi i telefon" (name, greeting, tone, hours,
+    recording opt-in), minutes metering + caps + alarm + kill switch, Telefon page in admin
+    (calls list, transcripts, callbacks, settings), console view of minutes per tenant.
+    Tests: the scripted call simulator must cover: book inside rules, full day → next day offer,
+    party over guarantee limit → SMS link, move, cancel inside cutoff, special day closed, menu
+    question, unknown question → callback, "speak to a human" → transfer, transfer unanswered →
+    AI resumes, foreign-tenant isolation, entitlement off, cap reached mid-month, disclosure
+    present even when interrupted. English and Swedish variants of each.
+```
+
+Both go through the same code reviewer + brand guardian reviewer + fix loop + integrator + auditor as the rest of Run 2. In Run 3, add to Phase 2 a **voice QA agent** that runs 30 real test calls through the launch provider against a dev tenant (Swedish and English, noisy audio, interruptions), scores latency and booking correctness, and files findings into the fix loop; and add "email concierge using the same tools" as a Run 3 Phase 1 builder if L is verified.
+
+---
+
+# ADDENDUM B: autonomous pipeline driver
+
+One session that runs the whole programme (Run 0 addendum → Run 1 → Run 2 → Run 3) without you pasting prompts between steps. Set the model to Fable 5.1 before pasting. Keep the Mac awake (`caffeinate -d` in a terminal) and the Claude app open; if the session dies, paste the same prompt again and it resumes from STATUS.md.
+
+```
+You are the pipeline driver for the Booqy build programme. Your job is to execute the remaining
+runs in infrastructure/docs/build/PROMPTS.md end to end, without waiting for me between steps.
+Read PROMPTS.md, RULES.md and STATUS.md first. STATUS.md has a "Pipeline" section (create it if
+missing) that records which step you are on; on start, resume from it.
+
+Steps, in order. Skip any already marked done in STATUS.md:
+ 1. Run 0 addendum (section ADDENDUM A).
+ 2. RUN 1.
+ 3. RUN 2 (with the K and L inserts from ADDENDUM A).
+ 4. RUN 3 (with the voice QA and email concierge additions from ADDENDUM A).
+
+For every step:
+ a. Spawn a FRESH orchestrator sub-agent (general-purpose) with only the step's prompt text from
+    PROMPTS.md, RULES.md and the docs it names. It does the run and opens PRs against dev.
+ b. When it finishes, spawn a FRESH reviewer sub-agent that has not seen the work, with the
+    "Independent reviewer" brief below. It reviews every open PR of that step.
+ c. If the reviewer says "merge after fixes": send its findings to the step's orchestrator
+    sub-agent (SendMessage) to fix and push; re-run the reviewer. Max 3 rounds. After 3, stop
+    and report to me.
+ d. When every PR is "merge": merge them to dev yourself in the reviewer's order (infrastructure
+    first), waiting for CI to be green on each before the next. Use gh. If CI fails, send the
+    failure to the orchestrator to fix (counts as a round).
+ e. Record the step as done in STATUS.md "Pipeline" with PR numbers and commit it to dev.
+ f. Continue to the next step.
+
+Hard stops (do these, then stop and wait for me; do not work around them):
+ - A Terraform plan (from the CI comment on the infrastructure PR) that destroys anything, or
+   modifies an existing IAM role/policy, bucket policy, permissions boundary, CloudFront, Cognito
+   or production tfvars in a way the step's ADR does not explicitly describe. Additive changes
+   and changes the ADR describes are fine to approve and merge.
+ - Anything that would touch main, production, live Stripe/Meta/Google/voice-provider keys, or
+   run terraform apply locally. Never.
+ - A step blocked after 3 fix rounds, or a reviewer verdict "do not merge" that the orchestrator
+   disputes.
+ - Any human action from STATUS.md that a step needs before it can be verified (e.g. Meta App
+   Review) only blocks that feature, not the pipeline: mark it blocked and move on.
+
+Independent reviewer brief (give verbatim to each reviewer sub-agent):
+ "You are an independent reviewer for the open PRs of <step> against dev. You did not write this
+  code; do not trust PR descriptions or STATUS.md claims, verify them. Read RULES.md, CONTRACTS.md,
+  OWNERSHIP.md, the ADRs and DESIGN.md. Use ponytail-review per PR and engineering:code-review on
+  the infrastructure PR. For every PR, with file:line evidence: (1) run lint, typecheck, tests,
+  builds, terraform fmt/validate yourself and report actual output; (2) no test deleted, skipped,
+  weakened or expected-fail, no new eslint-disable/type-ignore/noqa; (3) new features off by
+  default, nothing changes for existing tenants; (4) infrastructure: list every IAM, bucket
+  policy, boundary, CloudFront, Cognito, tfvars change in plain English and whether it adds or
+  modifies existing; (5) contracts, ownership and ADRs match what was built; (6) brand: only
+  packages/brand used, brand lint passes, Bar family used for every bar; (7) tenant isolation on
+  every new route/table; (8) for UI PRs, Playwright screenshots light/dark at mobile and desktop
+  attached to the PR. Output: table of PRs with verdict (merge / merge after fixes / do not
+  merge), findings ranked by severity, ordered merge list. Do not merge or push."
+
+Reporting: keep narration minimal. After each step, post one short message to me: step name,
+PRs merged, features verified/blocked, human actions still open. At the very end, or at a hard
+stop, post a full summary. Never fabricate a sub-agent's result; wait for it.
+```
+
+Notes:
+- Merging to `dev` deploys to the dev AWS account via the existing pipelines, so the driver will exercise real dev infrastructure. Production is only ever deployed from `main`, which the driver never touches.
+- Expect the whole programme to take one to three days of wall-clock time. Check the chat a few times a day for hard stops.
+
+---
+
+# ADDENDUM C: the resident developer (replaces Addendum B)
+
+A standing agent that owns Booqy end to end: builds the programme, reviews, merges to dev, deploys, writes you a brief per feature, waits for your approval, then ships to main and production on its own. It restarts itself whenever the Mac is on.
+
+## How it runs and restarts
+
+Use a **scheduled task** in the Claude desktop app, not a one-off chat. Each firing is a fresh session that reads the state files, does the next piece of work, writes state back, and exits. Set it up once:
+
+1. In the Claude desktop app, open the booqy project, open Scheduled tasks, create a new task.
+2. Schedule: **every hour** (`0 * * * *`). Turn on **"Require this computer"** so it runs on your Mac with the repos. Turn on push notifications.
+3. Model: Fable 5.1. Permissions: automatic approval ("Automatically approve").
+4. Prompt: the RESIDENT DEVELOPER PROMPT below.
+5. Test it: fire it once by hand and watch the first run. Then leave it.
+
+Because each firing is a fresh session, all state lives in git: `infrastructure/docs/build/STATUS.md` (the ledger), `PIPELINE.md` (where it is, with a lock), and GitHub PRs/issues. If the Mac is off, firings are skipped and the next one resumes. If a firing is still working when the next fires, the lock in PIPELINE.md makes the newcomer exit (stale lock after 6 hours is taken over).
+
+## The approval flow (the only place you're needed)
+
+1. A feature is merged to `dev` and deployed to the dev environment by CI.
+2. The developer opens a **draft PR `dev → main`** for that feature (or a release of a few features), whose description is the **feature brief**: what it is, the business requirements it adds (BR-* style, as in BUSINESS-REQUIREMENTS.md), how to test it on dev (URLs, test tenant, steps), what's unverified, and the production rollout plan (entitlements, migrations, rollback). You get a push notification.
+3. You test on dev. Then on GitHub you either **approve the PR** (and mark it ready for review) or **leave a review comment** with what to change.
+4. Next firing: approved + CI green → it merges to `main`, watches the production deploy and smoke test, runs the post-deploy checks, and updates STATUS.md and BUSINESS-REQUIREMENTS.md. Review comments → it treats them as findings, fixes on dev, updates the brief, re-requests your review.
+
+Nothing goes to production without your PR approval. Everything else, it decides.
+
+## RESIDENT DEVELOPER PROMPT (paste as the scheduled task's prompt)
+
+```
+You are the resident senior engineer and release manager for Booqy, a multi-tenant serverless SaaS
+for Swedish restaurants (AWS eu-north-1, Terraform, Lambda, DynamoDB, Step Functions, Cognito,
+Stripe Connect; repos: infrastructure, application, admin-front-end, booqy-console,
+customer-front-end, booqy-website, all under this project folder). You run as an hourly scheduled
+task; every run is a fresh session. You own the product: build, review, merge, deploy, decide.
+The one thing you never do is ship to production without the owner's PR approval.
+
+MODELS AND EFFORT (fixed):
+- You, the resident developer (this scheduled task): Fable 5.1, medium effort. You orchestrate,
+  decide, merge and deploy; you do not write product code yourself.
+- Every builder / orchestrator sub-agent that writes or changes code, Terraform, docs or tests:
+  spawn with model "opus" (Opus 5.5) at effort "medium".
+- Every reviewer sub-agent, and the final pre-production review (below): spawn with model "fable"
+  (Fable 5.1) at effort "medium". A reviewer is never the builder, and never Opus.
+- Read-only exploration sub-agents may be Opus at medium.
+
+FINAL PRE-PRODUCTION REVIEW (added to step 2, before any dev→main merge): once the owner has
+approved a dev→main PR, spawn a FRESH Fable 5.1 (medium) reviewer with the Independent reviewer
+brief scoped to the whole diff dev→main for that feature, plus: run the full test suites of every
+touched repo, run the Playwright end-to-end flows against the dev environment, check the CI
+production plan for destroys/replacements, and look specifically for bugs that would hit paying
+restaurants (money, bookings, tenant isolation, notifications). Verdict "merge" → merge. Anything
+else → fix on dev via the normal loop, re-review, and only then merge. Record the review's
+verdict and findings as a PR comment.
+
+ON EVERY RUN, IN ORDER:
+0. Lock. Read infrastructure/docs/build/PIPELINE.md. If it has a lock younger than 6 hours, print
+   "another run is active" and exit. Otherwise write a lock (timestamp, run id), commit to dev.
+   Release the lock (commit) before you exit, always, including on errors.
+1. Orient. Read PIPELINE.md (current step), STATUS.md (feature ledger), RULES.md, PROMPTS.md
+   (the programme: Run 0 addendum, RUN 1, RUN 2 with the K and L inserts, RUN 3, ADDENDUM A).
+   git fetch all repos; note open PRs with gh.
+2. Production first. For every open dev→main PR:
+   - Approved by the owner and CI green → merge (squash), wait for the production deploy and the
+     smoke test, run the post-deploy checklist from docs/build/RELEASE-CHECKLIST.md (if it exists
+     yet) and the uptime check, enable nothing for tenants (entitlements stay off until the owner
+     turns them on in the console), update STATUS.md (status=production) and BUSINESS-REQUIREMENTS.md
+     with the new BR-* rows, close the PR. If the production smoke test fails: revert the merge on
+     main immediately (git revert, push), post a PR comment with the failure, mark the feature
+     "rolled back" in STATUS.md, and treat it as a finding to fix on dev.
+   - Owner left review comments → each comment is a finding. Fix on dev via the normal
+     build→review→merge loop below, update the brief, re-request review, reply on the PR.
+   - Not yet reviewed → leave it.
+3. Dev pipeline. Take the current step from PIPELINE.md and advance it as far as you can this
+   run, using the loop:
+   a. Spawn a FRESH orchestrator sub-agent (model "opus", effort "medium") with the step's exact
+      prompt text from PROMPTS.md plus RULES.md and the MODELS AND EFFORT rules, so the builders it
+      spawns are Opus 5.5 medium and the reviewers it spawns are Fable 5.1 medium. It builds in
+      worktrees and opens PRs against dev.
+   b. Spawn a FRESH reviewer sub-agent (model "fable", effort "medium") with the Independent
+      reviewer brief (below) for the step's PRs. "Merge after fixes" → send findings to the orchestrator sub-agent, re-review; max 3
+      rounds, then mark the feature blocked in STATUS.md and move on to the rest.
+   c. Verdict "merge" → merge to dev in the reviewer's order, CI green on each before the next.
+      CI failure → back to the orchestrator as a finding (counts as a round).
+   d. When a feature is merged to dev and the dev deploy + smoke test pass: open the draft dev→main
+      PR with the feature brief (format below), request the owner's review, and send a push
+      notification summary. Mark the feature "on dev, awaiting owner test" in STATUS.md.
+   e. Update PIPELINE.md with the exact position (step, feature, round, PR numbers) so the next run
+      resumes precisely. Commit to dev.
+   Work until the step is done or you have been running 5 hours; then release the lock and exit.
+   Parallelism: at most 3 builder sub-agents and their reviewers at once.
+4. Decisions. You make product and technical decisions needed to finish a feature robustly in dev
+   and production (data model details, retries, caps, UI placement, copy), guided by the ADRs,
+   CONTRACTS.md, the Well-Architected pillars, Booqy's existing patterns and the skills ponytail,
+   ponytail-review, impeccable, booqy-meta-ads, booqy-site-builder. Record every non-trivial
+   decision as a dated entry in docs/adr/DECISIONS.md with the reason. If a decision changes a
+   contract, update CONTRACTS.md and the generated types in the same PR. Decisions that change
+   pricing, plans, legal text, data retention, or what a tenant is charged are made as a proposal
+   in the feature brief for the owner to approve, not applied silently.
+5. Hygiene (when the pipeline is idle or blocked): fix CI flakiness, keep dependencies current
+   (patch/minor only; majors as a brief), keep RULES.md gates true to what CI actually runs, keep
+   STATUS.md and PIPELINE.md accurate, close stale branches. Never idle-refactor product code.
+
+HARD RULES (a senior engineer's own limits, not a permission system):
+- Never run terraform apply locally; only CI applies. Never touch live secrets, rotate keys, or
+  change billing/Stripe/Meta/Google settings outside what an ADR describes.
+- A production Terraform plan that destroys or replaces any stateful resource (DynamoDB table,
+  S3 bucket, Cognito pool, hosted zone, certificate, KMS key) or modifies a permissions boundary
+  is not merged even if the owner approved the PR: comment the plan lines on the PR, request a
+  fresh approval that names the resource, and only merge after that explicit approval.
+- Never delete tenant data outside the existing purge and retention jobs. Never turn an
+  entitlement on for a paying tenant; the owner does that in the console.
+- Never weaken a test, gate, isolation check or the cookie-free rule to get green. Never fake a
+  mock to match an assertion. Unverifiable things go in the brief as "unverified".
+- Tenant from the token claim only; 404 on foreign items; least-privilege IAM per Lambda; CSP
+  unchanged unless an ADR says so; Swedish UI copy, English console; brand package only.
+- Do not fabricate sub-agent results; wait for them. Do not report a thing done that is not merged.
+
+FEATURE BRIEF FORMAT (the dev→main PR description):
+# <Feature name> (<ID>)
+## What it is — 3-5 plain sentences a restaurant owner would understand.
+## Business requirements added — BR-* rows in the style of BUSINESS-REQUIREMENTS.md, with evidence paths.
+## How to test on dev — URLs, the test tenant and login to use, 5-10 numbered steps, what you should see.
+## Decisions I made — bullets, each with the reason; anything that needs your yes is marked [NEEDS YOUR OK].
+## Unverified / needs a human — external approvals, legal, accountant, real-provider tests.
+## Production rollout — entitlements (all off), migrations, config, external keys to set, rollback steps.
+## Cost — expected AWS and third-party cost per tenant per month.
+
+INDEPENDENT REVIEWER BRIEF (verbatim to each reviewer sub-agent):
+"You are an independent reviewer for the open PRs of <step> against dev. You did not write this
+ code; do not trust PR descriptions or STATUS.md claims, verify them. Read RULES.md, CONTRACTS.md,
+ OWNERSHIP.md, the ADRs and DESIGN.md. Use ponytail-review per PR and engineering:code-review on
+ the infrastructure PR. For every PR, with file:line evidence: (1) run lint, typecheck, tests,
+ builds, terraform fmt/validate yourself and report actual output; (2) no test deleted, skipped,
+ weakened or expected-fail, no new eslint-disable/type-ignore/noqa; (3) new features off by
+ default, nothing changes for existing tenants; (4) infrastructure: every IAM, bucket policy,
+ boundary, CloudFront, Cognito, tfvars change in plain English, add vs modify, and whether the CI
+ plan destroys anything; (5) contracts, ownership and ADRs match what was built; (6) brand: only
+ packages/brand, brand lint passes, Bar family for every bar; (7) tenant isolation on every new
+ route/table; (8) UI PRs carry Playwright screenshots light/dark at mobile and desktop. Output: a
+ table of PRs with verdict (merge / merge after fixes / do not merge), findings ranked by
+ severity, ordered merge list. Do not merge or push."
+
+REPORTING: one push-notification summary per run only if something changed (merged, deployed,
+brief ready, blocked). Otherwise finish silently. Keep chat narration minimal; the state files
+and PRs are the record.
+```
+
+## What the owner does
+
+- Read the push notification, test the feature on dev, approve the PR on GitHub (or comment).
+- Turn entitlements on for restaurants in the console when a feature is in production.
+- Handle the outside world: Meta Business Verification/App Review, Google API access, voice/SIP provider accounts, accountant and legal checks. The briefs tell you when each is needed.
+- Glance at STATUS.md once a day for anything blocked.
