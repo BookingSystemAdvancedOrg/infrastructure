@@ -51,7 +51,7 @@ the components use at 4.5:1 and every bar fill at 3:1 in both modes.
 | Type | `--bq-font-sans display serif mono`, `--bq-text-xs..4xl` | Plus Jakarta Sans (UI), Bricolage Grotesque (headings, figures), Athelas/Newsreader (eyebrows), Martian Mono (printed things); 12 13 15 17 20 24 32 46 px |
 | Space | `--bq-space-0..16` | 0 4 8 12 16 20 24 32 40 48 64 px |
 | Radius | `--bq-radius-inner card panel pill round` | 14, 22, 28, 9999, 50 % (the unified corner scale) |
-| Shadow | `--bq-shadow-sm md lg pill rim` | per mode |
+| Shadow | `--bq-shadow-sm md lg pill rim drop` | per mode; drop is a filter value (drop-shadow) for shapes cut by a mask, such as Card ticket |
 | Motion | `--bq-duration-press fast base slow bar glide drop theme ripple done count fill print creep`, `--bq-ease-out glide std sweep creep` | 90 160 200 360 500 520 640 700 820 900 1100 1500 2600 9000 ms |
 | Layers | `--bq-z-bar modal toast ripple`, `--bq-bar-hairline thin regular` | 30 100 150 200; 1 4 8 px |
 
@@ -100,6 +100,7 @@ with very different colours. Nothing else was changed now.
 | Press ripple, squeeze | `installPress(options)` | every press, all apps | squeeze 90 ms, ripple 420/820 ms | ripple off, short blink |
 | Click sound | `playClick`, `setSound`, `setSoundVolume`, `useSound`, `useSoundVolume` | with press; settings toggle and volume | 80 ms pre-rendered AudioBuffer, one gain node | unchanged (sound is not motion) |
 | Modal and toast entry | built in | dialogs, toasts | 640 / 360 ms ease-out | none |
+| Live pulse | `Bar variant="live"` | a call or recording in progress | 1500 ms (`--bq-duration-fill`) ease-out, infinite | static dot |
 
 The click sound must stay a pre-rendered buffer played through one gain
 node: live oscillator or filter graphs were silent in Safari. The engine keeps
@@ -122,6 +123,7 @@ One component, `<Bar variant=...>`, root class `bq-bar bq-bar--<variant>`.
 | `nav` | `label`, `items {href,current}`, `orientation`, `linkAs?` (router Link) | `<nav>` + list, `aria-current="page"` | top nav, sidebar, chapter bar |
 | `action` | `children`, `status?`, `sticky?`, `label?` | group when labelled | submit bar under forms, toolbars |
 | `banner` | `tone` `info/success/warning/danger`, `action?`, `onDismiss?`, `dismissLabel` | status, or alert for danger | inline notices; every toast |
+| `live` | `kind` `call/recording`, `label?`, `detail?` | polite status "Pågående samtal" / "Spelas in"; `detail` (elapsed time) outside the live region; pulsing dot, static with reduced motion | call in progress, recording indicator (phone agent) |
 
 Need another bar? Ask the brand guardian for a variant; do not add classes.
 
@@ -130,7 +132,8 @@ Need another bar? Ask the brand guardian for a variant; do not add classes.
 | Component | Props (main) | Notes |
 |---|---|---|
 | `Button`, `LinkButton` | `variant` `primary/secondary/ghost/danger`, `size` `md/sm`, `wide`, `busy`, `busyLabel` | pills; 44 px (md) / 32 px (sm) targets; busy = disabled + `aria-busy` |
-| `Card` | `title`, `level`, `actions`, `surface` `paper/glass/receipt`, `tone` | receipt = white paper, tan rail, torn edge, mono, light print in both modes |
+| `Card` | `title`, `level`, `actions`, `surface` `paper/glass/receipt/ticket`, `tone`, `qr?`, `code?` | receipt = white paper, tan rail, torn edge, mono, light print in both modes; ticket = event ticket following the theme: mono details, notches and dashed perforation, stub with `qr` on a white plate (dark on white in both modes) and the typed `code` in mono |
+| `Chip` | `tone` `neutral/info/success/warning/danger`, `icon?`, `children` (text) | a status as text on the banner tone pairs; colour is never the only signal; ticket status, call outcome |
 | `Modal` | `open`, `title`, `onClose`, `footer`, `closeLabel`, `size` | native `<dialog>` + `showModal`: focus trap, Esc, inert page, focus return |
 | `Field`, `Input` | `label`, `hint`, `error`, `required` | wires `id`, `aria-describedby`, `aria-invalid`; focus the first invalid control after a refused save |
 | `Select` | native `<select>` props | always native; `appearance: base-select` where supported |
@@ -142,7 +145,7 @@ Need another bar? Ask the brand guardian for a variant; do not add classes.
 | `CountUp` | `children` (formatted text), `reveal`, `delayMs` | |
 
 Not in the package yet (INVENTORY 3): line/area charts, heatmap, chart
-tooltip, trend pop, date and phone inputs, status chip, save stamp. Run 3
+tooltip, trend pop, date and phone inputs, save stamp. Run 3
 adds them before migrating the screens that use them.
 
 Copy: components take every visible string as a prop with a Swedish default

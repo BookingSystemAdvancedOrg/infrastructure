@@ -126,7 +126,7 @@ in TS. Durations are inline everywhere. Brand: `--bq-ease-*`, `--bq-duration-*`.
 | Field | console `components/ui.tsx` `Field`; admin per page labels; kit form CSS; guest `site.css` `.contact-form-field` | x3 | `Field`, `Input` |
 | Select | admin `shared/select.css` (`appearance: base-select`); console `--select-chevron` data URI; guest `site.css` select | x3 | `Select` (native) |
 | Notice / inline message | console `ui.tsx` `Notice`, `ErrorNotice`; admin `.notice`; guest `.notice` | x3 | Bar `banner` |
-| Status chip | console `ui.tsx` `Status` | none | not yet |
+| Status chip | console `ui.tsx` `Status` | none | `Chip` |
 | Stat tile / KPI | admin `shared/motion/StatTile.tsx` (re-export `features/oversikt/StatTile.tsx`), `oversikt/MonthCard.tsx`; console `.kpi`, `.kpi--hero` (`styles.css` l. 627) | x2 | `StatTile` |
 | Charts | admin `features/statistik/charts.tsx` (`ColumnChart`, `BarChart`, `Ring`, `Heatmap`, `Sparkline`, `Delta`, `ChartTable`); console `components/charts.tsx` (`BarLineChart`, `LineChart`, `HBarChart`), `Ring.tsx`; tooltips admin `ChartTip.tsx` + `chartTipState.ts`, console `ChartTip.tsx` + `chartTipState.ts` | x2 each | `BarChart`, `ColumnChart` (chart Bars), meter `ring`; line, heatmap and tooltip not yet |
 | Trend badge | admin `shared/TrendBadge.tsx`, `trend.ts`; console `trend.ts`, `motion.tsx` `Delta` | x2 | StatTile `trend`, `delta` |

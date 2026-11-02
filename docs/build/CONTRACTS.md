@@ -1117,7 +1117,7 @@ hooks:                          # changed and new entries only
   tenant.purge:    {caller: tenant-purge, targets: [<all twelve feature ids>], gate: always}
   stripe.event:    {caller: stripe-webhook, targets: [gift-cards, events-tickets], gate: ever_on}   # target chosen by metadata.kind: giftcard | ticket
   accounting.events: {caller: accounting, targets: [gift-cards, events-tickets], gate: ever_on}
-  insights.events: {caller: insights, targets: [events-tickets], gate: on_owner}
+  insights.events: {caller: insights, targets: [events-tickets], gate: ever_on}   # staff see it too; without_money strips revenueOre (8.2, 9.2; DECISIONS.md 2026-11-02)
   billing.usage:   {caller: platform-tenants, targets: [phone-agent], gate: ever_on}
   platform:        {caller: platform-tenants, targets: [meta-ads, site-builder, google-business, personalliggare, phone-agent], gate: operator}
 
@@ -1136,7 +1136,7 @@ slots:
     statistik.events:            {feature: events, ownerOnly: false, host: StatistikPage}
   console:
     tenant.integrations.phoneAgent: {feature: phoneAgent, host: TenantPage}
-    settings.phoneAgent:            {feature: phoneAgent, host: SettingsPage}
+    settings.phoneAgent:            {feature: null, host: SettingsPage}   # platform-wide page, no tenant features (same as settings.metaAds)
 
 storage:
   siteKit:

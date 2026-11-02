@@ -3,7 +3,7 @@
 Ledger for the multi-agent build in `docs/build/PROMPTS.md`. Read this
 first when a run starts or resumes; skip anything already verified or merged.
 
-Last updated: 2026-11-02 (Run 0 merged to dev; Run 0 addendum K and L: docs done on `build/run-0-addendum-kl`, scaffolding todo).
+Last updated: 2026-11-02 (Run 0 merged to dev; Run 0 addendum K and L: docs, backend scaffolding, brand BRK1 and the four frontend/console scaffolding sets done on `build/run-0-addendum-kl`, awaiting fresh review).
 
 ## Run 0: Foundations
 
@@ -226,8 +226,40 @@ Branch `build/run-0-addendum-kl` (infrastructure, from `origin/dev`),
 docs part done 2026-11-02: `docs/adr/ADR-K-events-tickets.md`,
 `docs/adr/ADR-L-phone-agent.md`, CONTRACTS.md addendum rows and section
 17 (exact `booqy.yaml` additions), OWNERSHIP.md sections K, L and 6
-(25 scaffolding tasks), this ledger. Not done: the scaffolding code in the
-five repos (OWNERSHIP.md 6), the brand variants (6.6), the fresh review.
+(25 scaffolding tasks), this ledger.
+
+Scaffolding done 2026-11-02 on `build/run-0-addendum-kl` in every repo
+(not yet reviewed, not merged):
+
+- application AK1-AK7 (contract, three client ports with simulators,
+  tenant and site-config tests, stripe-webhook `kind: ticket` routing,
+  OpenAPI fragment expectations).
+- infrastructure IK1-IK6 (client variables, plan validation and rows,
+  two zero-resource modules with empty route lists, four ECR modules,
+  hook-caller IAM rows 11-16). **IAM rows 11-16 need owner approval**
+  (CONTRACTS.md 14) before `terraform apply`.
+- brand BRK1 (`packages/brand`, merged from `build/run-0-addendum-kl-brand`):
+  `Bar variant="live"`, `Chip`, `Card surface="ticket"`, contrast tests,
+  DESIGN.md and INVENTORY.md rows. **Open item:** the transcript list
+  style for the phone agent (ADR-L admin "Bokad via telefon" transcript)
+  is NOT built; it is a Run 2 brand task.
+- admin-front-end ADK1-ADK5 (Telefon and Evenemang hidden while off,
+  placeholder pages, three slots, guide steps, event scan storage entry).
+- booqy-console COK1-COK3 (regenerated contracts, `phone_agent` feature
+  module, Integrations tab with `phoneAgent`, slots
+  `tenant.integrations.phoneAgent` and `settings.phoneAgent`, generic
+  `LIMITS` inputs).
+- customer-front-end CUK1-CUK3 (guest events routes and nav link gated on
+  `events`, `TICKET_PURCHASE_KEY` and registry entry).
+
+Contract/doc fix pass 2026-11-02 (docs/adr/DECISIONS.md): slot
+`settings.phoneAgent` is `feature: null` like `settings.metaAds`;
+`insights.events` gate is `ever_on` (staff see the slot, money removed),
+CONTRACTS.md 17 now agrees with 8.2 and 9.2; brand-lint blocking globs
+cover `features/phone-agent/**`, `features/events-tickets/**` (admin) and
+`features/evenemang/**` (customer).
+
+Still open: the fresh review of all five repos' addendum commits.
 Open owner decisions are marked **[NEEDS YOUR OK]** in the ADRs and
 CONTRACTS.md: plans and prices for both features, included minutes,
 retention periods, provider contracts (ElevenLabs, 46elks), art. 50 and
@@ -251,5 +283,5 @@ merged.
 | H. Personalliggare | todo | | 0 | | | Legal review |
 | I. Fortnox and Visma posting | todo | | 0 | | | Fortnox and Visma developer access |
 | J. Margin per dish | todo | | 0 | | | |
-| K. Events and tickets (addendum, Run 2) | todo | | 0 | ADR-K and contracts on `build/run-0-addendum-kl` (docs only); scaffolding tasks OWNERSHIP.md 6 not started | Wallet pass signing against real Apple/Google accounts | Accountant: VAT rate list and BAS accounts for tickets (needs accountant review); lawyer: receipt by email, withdrawal-right text, resale terms; Apple Developer Pass Type ID and Google Wallet issuer; owner: plan rows, per-ticket fee or none [NEEDS YOUR OK] |
-| L. AI phone agent (addendum, Run 2) | todo | | 0 | ADR-L and contracts on `build/run-0-addendum-kl` (docs only); scaffolding tasks OWNERSHIP.md 6 not started; 46elks SIP-forward capability to verify in sandbox week 1 of Run 2 | Real voice latency and Swedish quality (Run 3 voice QA); Nova Sonic language list (quarterly) | Voice provider account, EU residency and DPA (ElevenLabs proposed); SIP provider account, KYC and Swedish numbers (46elks proposed); Bedrock model access for `phone_agent_model_id`; lawyer: art. 50 wording, recording notice and basis, privacy notice paragraph; accountant: VAT on per-location and per-minute lines; owner: plans, included minutes, prices, retention options, default agent name, reserved concurrency [NEEDS YOUR OK]; IAM rows 11-16 approval |
+| K. Events and tickets (addendum, Run 2) | reviewing (scaffolding) | `build/run-0-addendum-kl` (all repos) | 1 | ADR-K, contracts, scaffolding AK1-7, IK1-6, ADK1-5, COK1-3, CUK1-3 and brand BRK1 (Chip, Card ticket) done, awaiting fresh review; IAM rows 11-16 need owner approval; feature code itself is Run 2 | Wallet pass signing against real Apple/Google accounts | Accountant: VAT rate list and BAS accounts for tickets (needs accountant review); lawyer: receipt by email, withdrawal-right text, resale terms; Apple Developer Pass Type ID and Google Wallet issuer; owner: plan rows, per-ticket fee or none [NEEDS YOUR OK] |
+| L. AI phone agent (addendum, Run 2) | reviewing (scaffolding) | `build/run-0-addendum-kl` (all repos) | 1 | ADR-L, contracts, scaffolding AK1-7, IK1-6, ADK1-5, COK1-3 and brand BRK1 (Bar live, Chip) done, awaiting fresh review; transcript list style not built (open brand item, Run 2); `settings.phoneAgent` fixed to `feature: null` (DECISIONS.md); IAM rows 11-16 need owner approval; 46elks SIP-forward capability to verify in sandbox week 1 of Run 2 | Real voice latency and Swedish quality (Run 3 voice QA); Nova Sonic language list (quarterly) | Voice provider account, EU residency and DPA (ElevenLabs proposed); SIP provider account, KYC and Swedish numbers (46elks proposed); Bedrock model access for `phone_agent_model_id`; lawyer: art. 50 wording, recording notice and basis, privacy notice paragraph; accountant: VAT on per-location and per-minute lines; owner: plans, included minutes, prices, retention options, default agent name, reserved concurrency [NEEDS YOUR OK]; IAM rows 11-16 approval |
