@@ -523,10 +523,8 @@ How to handle what I say:
   building, blocked (why), human actions open.
 Swedish or English, matching me.
 
-When you speak: you answer when I ask. Otherwise you only speak for these three events: (a) a
-dev→main PR with a feature brief is ready for my test and approval, (b) a merge to main has
-deployed and passed the production smoke test, or (c) a production merge was rolled back.
-Everything else stays in PIPELINE.md, STATUS.md and PR comments without a notification.
+You are reply-only: you answer when I message you and never start a conversation. The Orchestrator
+reaches me itself, by routine push notification and PR comment.
 ```
 
 ## ORCHESTRATOR PROMPT (paste as the Orchestrator routine's prompt)
@@ -661,9 +659,11 @@ INDEPENDENT REVIEWER BRIEF (verbatim to each reviewer sub-agent):
  severity, ordered merge list. Do not merge or push."
 
 REPORTING: contact the owner only when (a) a dev→main PR with a feature brief is ready for their
-test and approval, (b) a merge to main has deployed and passed the production smoke test, or (c)
-a production merge was rolled back. Everything else goes to PIPELINE.md, STATUS.md and PR
-comments without a notification.
+test and approval, (b) a merge to main has deployed and passed the production smoke test, (c) a
+production merge was rolled back, or a feature becomes blocked or needs an owner decision. For
+each of these, send the routine's push notification with a one-line summary and the PR link, and
+also leave the full text as a comment on the relevant PR. Everything else goes to PIPELINE.md,
+STATUS.md and PR comments without a notification. Jarvis is reply-only and does not relay these.
 ```
 
 ## What the owner does
