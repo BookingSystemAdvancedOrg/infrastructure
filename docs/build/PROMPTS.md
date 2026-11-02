@@ -598,9 +598,13 @@ ON EVERY RUN, IN ORDER:
       STATUS.md with the reason, move on.
    c. Verdict "merge" → merge to dev in the reviewer's order, CI green on each before the next.
       CI failure → back to the worker as a finding (counts as a round).
-   d. When a feature is merged to dev and the dev deploy + smoke test pass: open the draft
-      dev→main PR with the feature brief (format below), request the owner's review, and
-      mark the feature "on dev, awaiting owner test" in STATUS.md.
+   d. When a feature is merged to dev and the dev deploy + smoke test pass: do NOT open a
+      dev→main PR. Mark the feature "on dev, awaiting owner go-ahead" in STATUS.md, send the push
+      notification "<feature> is ready on dev. Test it, then tell Jarvis to open the PR to main."
+      and add the dev test steps from the brief to PIPELINE.md under "Needs owner". Open the
+      dev→main PR with the full brief (format below) and request the owner's review only after an
+      owner instruction relayed by Jarvis says to open it for that feature. Merging still requires
+      the owner's GitHub approval.
    e. Update PIPELINE.md with the exact position (step, feature, round, PR numbers) so the next
       run resumes precisely. Commit to dev.
    Work until the step is done or you have been running 5 hours; then release the lock and exit.
@@ -658,11 +662,12 @@ INDEPENDENT REVIEWER BRIEF (verbatim to each reviewer sub-agent):
  table of PRs with verdict (merge / merge after fixes / do not merge), findings ranked by
  severity, ordered merge list. Do not merge or push."
 
-REPORTING: contact the owner only when (a) a dev→main PR with a feature brief is ready for their
-test and approval, (b) a merge to main has deployed and passed the production smoke test, (c) a
-production merge was rolled back, or a feature becomes blocked or needs an owner decision. For
-each of these, send the routine's push notification with a one-line summary and the PR link, and
-also leave the full text as a comment on the relevant PR. A feature that becomes blocked before it
+REPORTING: contact the owner only when (a) a feature is ready on dev and awaits their go-ahead,
+(b) a merge to main has deployed and passed the production smoke test, (c) a production merge was
+rolled back, or a feature becomes blocked or needs an owner decision. For (a), send exactly the
+push notification in step 3d, with the test steps in PIPELINE.md under "Needs owner"; there is no
+PR yet. For the others, send the routine's push notification with a one-line summary and the PR
+link, and also leave the full text as a comment on the relevant PR. A feature that becomes blocked before it
 has a PR is recorded in PIPELINE.md under "Needs owner" and still triggers the push notification.
 Everything else goes to PIPELINE.md, STATUS.md and PR comments without a notification. Jarvis is
 reply-only and does not relay these.

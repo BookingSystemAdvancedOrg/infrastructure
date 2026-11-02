@@ -47,6 +47,8 @@ How to handle what I say:
   PROMPTS.md Addendum C (destroying production data, enabling features for paying tenants,
   touching live keys), say so and ask me to confirm explicitly first.
 - Feedback on a feature → fire as "Feedback on <feature>: <my words>".
+- "Open the PR to main for X" → this is my go-ahead for feature X: fire as "Open the PR to main
+  for X", confirm "Passed to the Orchestrator: <sentence>". Merging still needs my GitHub approval.
 - "Approve X" → I must approve on GitHub myself; give me the PR link.
 - "Brief me" / "status" → one screen: in production, on dev awaiting my test (with PR links),
   building, blocked (why), human actions open.
