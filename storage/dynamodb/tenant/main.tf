@@ -30,7 +30,7 @@
 #                                              only event.account
 #   PLAN#<planId>          | PLAN             plan catalog, seeded from
 #                                              var.plans by Terraform:
-#                                              name, maxLocations, features,
+#                                              name, maxLocations, features, limits,
 #                                              priceSek (per month, ex VAT),
 #                                              stripePriceId, stripeProductId
 #                                              (payments/billing).
@@ -128,6 +128,9 @@ resource "aws_dynamodb_table_item" "plan" {
     maxLocations = { N = tostring(each.value.max_locations) }
     features = {
       M = { for feature, enabled in each.value.features : feature => { BOOL = enabled } }
+    }
+    limits = {
+      M = { for limit, value in each.value.limits : limit => { N = tostring(value) } }
     }
     priceSek        = { N = tostring(each.value.price_sek) }
     stripePriceId   = { S = var.plan_price_ids[each.key] }

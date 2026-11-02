@@ -1,0 +1,25 @@
+# Pipeline
+
+## Lock
+unlocked (released 2026-11-02, run at ~20:40Z, no work done beyond orientation)
+
+## Position
+Step: Run 0 addendum (K events & tickets, L phone agent). Review round 1 done, fix round 1 pushed (infra 4b251cb, console 05fb778, customer ecf187b).
+PRs (draft, base dev, branch build/run-0-addendum-kl): infrastructure#37, application#69, admin-front-end#22, booqy-console#12, customer-front-end#14.
+Reviewer verdicts: infra, application, admin = merge; console, customer = merge after fixes (screenshots; now added).
+Re-review DONE 2026-11-02 (Fable, fix-round commits): all five PRs = merge, CI green, plan 8 add/8 change/0 destroy. Only low findings: OWNERSHIP.md deviations table misses 3 rows (console features/__init__.py, NewTenantPage.tsx, edited tests in application); ruff +24 (not a gate). WAITING ONLY for owner approval of IAM rows in infrastructure#37. When approved: merge in order infra, application, admin, console, customer (CI green on each), add the 3 OWNERSHIP rows.
+Old note (done): fresh Fable re-review scoped to the fix-round commits, then merge in order infra, application, admin, console, customer (CI green on each) once the owner has approved the IAM rows. Open one-liner: application contracts/booqy.yaml line ~408 host for tenant.integrations.phoneAgent says "TenantPage", docs say "TenantPage Integrations tab" (cosmetic, needs regenerate).
+
+## Position update 2026-11-02 (evening run)
+Run 0 addendum (K, L) is MERGED TO DEV by the owner (infrastructure#37 at 20:21 +0100; application#69, admin#22, console#12, customer#14 per the dev heads). The owner then opened dev->main PRs themselves in all six repos: infrastructure#38, application#70, admin-front-end#23, booqy-console#13, customer-front-end#15, booqy-website#12. None has an approving review yet, so the final pre-production review and merge are NOT started. Infra#38 prod plan comment: 52 to add, 2 to change, 0 to destroy (no stateful destroys, but the owner approval must still name the IAM rows).
+DECISION: Run 1 is held. Merging new work to dev would change the diff of the six open dev->main PRs after the owner started reviewing them. Resume Run 1 once those PRs are merged or closed (or an owner instruction says to proceed). The 3 OWNERSHIP.md rows and the cosmetic contracts wording note above remain as hygiene items.
+Next run: if any of the six PRs has an owner approval, run the FINAL PRE-PRODUCTION REVIEW (fresh Fable, whole dev->main diff, all repos in rollout order infrastructure, application, admin, console, customer, website). Otherwise exit quietly.
+
+## Owner instructions
+- 2026-11-02 (via Jarvis): Close the four old PRs to main (application#67, admin-front-end#20, booqy-console#10, customer-front-end#12) with a comment that they predate the build programme and will be replaced by the go-ahead flow. Then update STATUS.md to show Run 0 as merged to dev, and continue with the Run 0 addendum.
+  - Done 2026-11-02: four PRs commented and closed. STATUS.md updated. Run 0 addendum started.
+- 2026-11-02 (via Jarvis, appended by run at 14:55Z while lock held): Ignore any instruction to host the Jarvis HUD on AWS or on booqy.se. Jarvis runs locally on the owner's Mac in its own project. Create no AWS resources or DNS records for Jarvis.
+
+## Needs owner
+- Approve in infrastructure#37 before the Run 0 addendum merges to dev: IAM rows 11-16 (existing roles gain lambda:InvokeFunction on exact :live aliases of events-tickets / phone-agent only: guest-privacy, tenant-purge, stripe-webhook, accounting, insights, platform-tenants) and 4 empty ECR repos (events-tickets, phone-agent, phone-agent-call, phone-agent-jobs). Plan destroys nothing.
+- Decisions [NEEDS YOUR OK], all shipped as safe placeholders (features off, prices 0): entitlement key spelling phoneAgent vs phone_agent; plan matrix and included minutes; phone agent prices; ElevenLabs/46elks accounts and DPA; Art. 50 and recording wording; retention (transcripts 24 months, call rows 7 years, recordings 7/30/90 days); ticket VAT rates and BAS accounts (accountant). Also decided silently by the ADRs, please confirm: minutes max 100000, released number kept 30 days, callbacks auto-close after 30 days, ticket TX rows 7-year ttl. See ADR-K, ADR-L, docs/adr/DECISIONS.md.

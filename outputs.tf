@@ -124,6 +124,24 @@ output "ecr_repository_urls" {
     kassa                      = module.kassa_ecr.repository_url
     accounting                 = module.accounting_ecr.repository_url
     site_repo                  = module.site_repo_ecr.repository_url
+    meta_ads                   = module.meta_ads_ecr.repository_url
+    meta_ads_jobs              = module.meta_ads_jobs_ecr.repository_url
+    site_builder               = module.site_builder_ecr.repository_url
+    site_builder_render        = module.site_builder_render_ecr.repository_url
+    guest_crm                  = module.guest_crm_ecr.repository_url
+    guest_crm_sync             = module.guest_crm_sync_ecr.repository_url
+    google_business            = module.google_business_ecr.repository_url
+    google_business_jobs       = module.google_business_jobs_ecr.repository_url
+    gift_cards                 = module.gift_cards_ecr.repository_url
+    waitlist                   = module.waitlist_ecr.repository_url
+    social_posting             = module.social_posting_ecr.repository_url
+    personalliggare            = module.personalliggare_ecr.repository_url
+    accounting_sync            = module.accounting_sync_ecr.repository_url
+    dish_margin                = module.dish_margin_ecr.repository_url
+    events_tickets             = module.events_tickets_ecr.repository_url
+    phone_agent                = module.phone_agent_ecr.repository_url
+    phone_agent_call           = module.phone_agent_call_ecr.repository_url
+    phone_agent_jobs           = module.phone_agent_jobs_ecr.repository_url
   }
 }
 

@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JARVIS · Booqy command</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#070302; --bg2:#120603;
+    --o:#ff6a1a; --o2:#ff9a3c; --r:#ff2e1a; --dim:#7a3b14; --dim2:#3a1a0a;
+    --txt:#ffd9b8; --mute:#b57a4a; --ok:#ffb347; --bad:#ff3b2e; --panel:rgba(255,106,26,.06);
+    --line:rgba(255,106,26,.35);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;background:var(--bg);color:var(--txt);font-family:"Share Tech Mono",monospace;overflow:hidden}
+  body{background:
+    radial-gradient(1200px 700px at 32% 48%, rgba(255,90,20,.18), transparent 60%),
+    radial-gradient(900px 500px at 80% 20%, rgba(255,40,20,.10), transparent 60%),
+    linear-gradient(var(--bg2), var(--bg));}
+  .scan{position:fixed;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(0,0,0,.18) 0 2px,transparent 2px 4px);mix-blend-mode:multiply;opacity:.6}
+  .vignette{position:fixed;inset:0;pointer-events:none;box-shadow:inset 0 0 180px #000}
+  #grid{display:grid;height:100%;padding:14px;gap:12px;
+    grid-template-columns:300px 1fr 320px;grid-template-rows:54px 1fr 175px;
+    grid-template-areas:"top top top" "left core right" "bl bc br";}
+  .panel{position:relative;background:var(--panel);border:1px solid var(--line);padding:10px 12px;overflow:hidden;
+    clip-path:polygon(0 10px,10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%);}
+  .panel:before{content:"";position:absolute;left:0;top:0;height:2px;width:46px;background:var(--o)}
+  .panel h3{font-family:Orbitron,sans-serif;font-weight:500;font-size:11px;letter-spacing:.22em;color:var(--o2);margin-bottom:8px}
+  .top{grid-area:top;display:flex;align-items:center;justify-content:space-between;padding:0 16px}
+  .top .brand{font-family:Orbitron,sans-serif;font-weight:700;font-size:22px;letter-spacing:.35em;color:var(--o);text-shadow:0 0 18px rgba(255,106,26,.7)}
+  .top .meta{display:flex;gap:22px;font-size:12px;color:var(--mute)}
+  .top .meta b{color:var(--txt)}
+  .tag{display:inline-block;padding:1px 6px;border:1px solid var(--line);font-size:10px;letter-spacing:.15em;color:var(--o2)}
+  .tag.live{border-color:var(--ok);color:var(--ok);box-shadow:0 0 8px rgba(255,179,71,.5)}
+  .tag.demo{border-color:var(--bad);color:var(--bad)}
+  .left{grid-area:left}.right{grid-area:right}.core{grid-area:core;position:relative}
+  .bl{grid-area:bl}.bc{grid-area:bc}.br{grid-area:br}
+  ul{list-style:none}
+  .row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px dashed rgba(255,106,26,.15);font-size:12px;gap:8px}
+  .row .n{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .st{font-size:10px;letter-spacing:.12em;padding:1px 6px;border:1px solid}
+  .st.production{color:var(--ok);border-color:var(--ok)}
+  .st.dark{color:var(--ok);border-color:var(--ok);border-style:dashed}
+  .st.dev{color:var(--o2);border-color:var(--o2)}
+  .st.building{color:var(--o);border-color:var(--o);animation:blink 1.6s infinite}
+  .st.blocked{color:var(--bad);border-color:var(--bad)}
+  .st.todo{color:var(--mute);border-color:var(--dim)}
+  @keyframes blink{50%{opacity:.35}}
+  .bar{height:6px;background:var(--dim2);margin-top:4px;position:relative}
+  .bar i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,var(--r),var(--o2));box-shadow:0 0 10px var(--o)}
+  a{color:var(--o2);text-decoration:none}a:hover{text-decoration:underline}
+  /* core */
+  .core svg{width:100%;height:100%}
+  .ring{transform-origin:50% 50%}
+  .spin1{animation:spin 24s linear infinite}.spin2{animation:spin 16s linear infinite reverse}.spin3{animation:spin 9s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .pulse{animation:pulse 2.4s ease-in-out infinite}
+  @keyframes pulse{50%{opacity:.45}}
+  .corelabel{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none}
+  .corelabel .big{font-family:Orbitron,sans-serif;font-size:30px;line-height:1;font-weight:700;color:#fff;text-shadow:0 0 22px var(--o),0 0 40px var(--r)}
+  .corelabel .sub{position:absolute;left:50%;top:100%;transform:translate(-50%,64px);white-space:nowrap;font-size:11px;letter-spacing:.3em;color:var(--o2);text-shadow:0 0 8px #000}
+  .hud-stat{position:absolute;font-size:11px;color:var(--mute);line-height:1.5}
+  .hud-stat b{display:block;font-family:Orbitron,sans-serif;font-size:18px;color:var(--txt)}
+  .hs1{left:18px;top:18px}.hs2{right:18px;top:18px;text-align:right}.hs3{left:18px;bottom:18px}.hs4{right:18px;bottom:18px;text-align:right}
+  .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--o);box-shadow:0 0 8px var(--o);margin-right:6px}
+  .dot.bad{background:var(--bad);box-shadow:0 0 8px var(--bad)}
+  .ticker{white-space:nowrap;overflow:hidden;font-size:11px;color:var(--mute);border-top:1px solid var(--line);margin-top:6px;padding-top:6px}
+  .ticker span{display:inline-block;padding-left:100%;animation:tick 40s linear infinite}
+  @keyframes tick{to{transform:translateX(-100%)}}
+  .gauges{display:flex;justify-content:space-around;align-items:center;height:calc(100% - 34px)}
+  .gauge{position:relative;width:96px;height:96px}
+  .gauge svg{width:96px;height:96px;transform:rotate(-90deg)}
+  .gauge .v{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:10px;color:var(--mute);letter-spacing:.1em}
+  .gauge .v b{font-family:Orbitron,sans-serif;font-size:16px;color:var(--txt)}
+  .cmd{display:flex;gap:8px;margin-top:6px}
+  .cmd input{flex:1;background:rgba(0,0,0,.4);border:1px solid var(--line);color:var(--txt);font:inherit;padding:6px 8px;outline:none}
+  .cmd button{background:var(--o);color:#1a0800;border:0;font-family:Orbitron,sans-serif;font-size:10px;letter-spacing:.2em;padding:0 12px;cursor:pointer}
+  .hint{font-size:10px;color:var(--mute);margin-top:4px}
+  @media (max-width:1100px){#grid{height:auto;grid-template-columns:minmax(0,1fr);grid-template-rows:auto 420px auto auto auto auto auto;grid-template-areas:"top" "core" "right" "left" "bl" "bc" "br"}html,body{height:auto;overflow:auto}
+    .top{flex-wrap:wrap;gap:6px 16px;padding:10px 16px}.top .meta{flex-wrap:wrap;gap:4px 14px}.cmd input{min-width:0;font-size:16px}}
+</style>
+</head>
+<body>
+<div class="scan"></div><div class="vignette"></div>
+<div id="grid">
+  <div class="panel top">
+    <div class="brand">JARVIS</div>
+    <div class="meta">
+      <span>ENV <b id="env">dev + production</b></span>
+      <span>PIPELINE <b id="pstep">…</b></span>
+      <span>LOCK <b id="lock">…</b></span>
+      <span>DATA <span id="datatag" class="tag">…</span></span>
+      <span id="clock">00:00:00</span>
+    </div>
+  </div>
+
+  <div class="panel left">
+    <h3>FEATURE LEDGER</h3>
+    <ul id="features"></ul>
+    <div style="margin-top:10px;font-size:11px;color:var(--mute)">PROGRAMME <span id="progpct" style="color:var(--txt)">0%</span></div>
+    <div class="bar"><i id="progbar" style="width:0%"></i></div>
+  </div>
+
+  <div class="panel core">
+    <svg viewBox="0 0 600 600" preserveAspectRatio="xMidYMid meet">
+      <defs>
+        <filter id="glow"><feGaussianBlur stdDeviation="2.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <linearGradient id="g1" x1="0" x2="1"><stop offset="0" stop-color="#ff2e1a"/><stop offset="1" stop-color="#ff9a3c"/></linearGradient>
+      </defs>
+      <!-- circuit traces -->
+      <g stroke="#ff6a1a" stroke-opacity=".35" fill="none" stroke-width="1.2">
+        <path d="M300 300 L300 60 L420 60 L420 20"/><path d="M300 300 L540 300 L540 120 L590 120"/>
+        <path d="M300 300 L300 540 L180 540 L180 590"/><path d="M300 300 L60 300 L60 480 L10 480"/>
+        <path d="M300 300 L470 130 L560 130"/><path d="M300 300 L130 470 L40 470"/>
+        <path d="M300 300 L470 470 L470 560"/><path d="M300 300 L130 130 L130 40"/>
+      </g>
+      <g fill="#ff9a3c" class="pulse" filter="url(#glow)">
+        <circle cx="420" cy="20" r="3"/><circle cx="590" cy="120" r="3"/><circle cx="180" cy="590" r="3"/><circle cx="10" cy="480" r="3"/>
+        <circle cx="560" cy="130" r="3"/><circle cx="40" cy="470" r="3"/><circle cx="470" cy="560" r="3"/><circle cx="130" cy="40" r="3"/>
+      </g>
+      <!-- outer ring: ticks -->
+      <g class="ring spin1" stroke="#ff6a1a" stroke-opacity=".7" fill="none">
+        <circle cx="300" cy="300" r="250" stroke-width="1"/>
+        <circle cx="300" cy="300" r="238" stroke-width="10" stroke-dasharray="3 9" stroke-opacity=".35"/>
+      </g>
+      <g class="ring spin2" fill="none" stroke="url(#g1)">
+        <circle cx="300" cy="300" r="205" stroke-width="2" stroke-dasharray="120 40 20 40 300 40"/>
+        <circle cx="300" cy="300" r="190" stroke-width="14" stroke-opacity=".25" stroke-dasharray="40 14"/>
+      </g>
+      <g class="ring spin3" fill="none" stroke="#ff9a3c" filter="url(#glow)">
+        <circle cx="300" cy="300" r="150" stroke-width="3" stroke-dasharray="60 30 10 30"/>
+        <circle cx="300" cy="300" r="132" stroke-width="1" stroke-dasharray="6 6" stroke-opacity=".7"/>
+      </g>
+      <g class="ring spin1" fill="none" stroke="#ff2e1a" stroke-width="18" stroke-opacity=".5">
+        <circle cx="300" cy="300" r="105" stroke-dasharray="20 10 60 10"/>
+      </g>
+      <circle cx="300" cy="300" r="82" fill="none" stroke="#ffd9b8" stroke-width="1" stroke-opacity=".8"/>
+      <circle cx="300" cy="300" r="70" fill="#ff6a1a" fill-opacity=".12" class="pulse"/>
+      <circle cx="300" cy="300" r="44" fill="#ff9a3c" fill-opacity=".9" filter="url(#glow)"/>
+      <circle cx="300" cy="300" r="26" fill="#fff5e8"/>
+      <!-- crosshair -->
+      <g stroke="#ffd9b8" stroke-opacity=".5" stroke-width="1">
+        <line x1="300" y1="30" x2="300" y2="90"/><line x1="300" y1="510" x2="300" y2="570"/>
+        <line x1="30" y1="300" x2="90" y2="300"/><line x1="510" y1="300" x2="570" y2="300"/>
+      </g>
+    </svg>
+    <div class="corelabel"><div class="big" id="coreval">-</div><div class="sub" id="coresub">AWAITING YOU</div></div>
+    <div class="hud-stat hs1">PRODUCTION<b id="prodn">0</b>features live</div>
+    <div class="hud-stat hs2">ON DEV<b id="devn">0</b>awaiting test</div>
+    <div class="hud-stat hs3">BUILDING<b id="buildn">0</b>in progress</div>
+    <div class="hud-stat hs4">BLOCKED<b id="blockn">0</b>need action</div>
+  </div>
+
+  <div class="panel right">
+    <h3>PULL REQUESTS · YOUR MOVE</h3>
+    <ul id="prs"></ul>
+    <h3 style="margin-top:12px">CI · LATEST</h3>
+    <ul id="ci"></ul>
+  </div>
+
+  <div class="panel bl">
+    <h3>HUMAN ACTIONS</h3>
+    <ul id="actions"></ul>
+  </div>
+
+  <div class="panel bc">
+    <div class="gauges">
+      <div class="gauge"><svg viewBox="0 0 96 96"><circle cx="48" cy="48" r="40" stroke="#3a1a0a" stroke-width="7" fill="none"/><circle id="gu" cx="48" cy="48" r="40" stroke="#ff9a3c" stroke-width="7" fill="none" stroke-dasharray="251" stroke-dashoffset="251" style="filter:drop-shadow(0 0 6px #ff6a1a)"/></svg><div class="v">UPTIME<b id="gut">-</b></div></div>
+      <div class="gauge"><svg viewBox="0 0 96 96"><circle cx="48" cy="48" r="40" stroke="#3a1a0a" stroke-width="7" fill="none"/><circle id="gc" cx="48" cy="48" r="40" stroke="#ff6a1a" stroke-width="7" fill="none" stroke-dasharray="251" stroke-dashoffset="251" style="filter:drop-shadow(0 0 6px #ff6a1a)"/></svg><div class="v">CI PASS<b id="gct">-</b></div></div>
+      <div class="gauge"><svg viewBox="0 0 96 96"><circle cx="48" cy="48" r="40" stroke="#3a1a0a" stroke-width="7" fill="none"/><circle id="ga" cx="48" cy="48" r="40" stroke="#ff2e1a" stroke-width="7" fill="none" stroke-dasharray="251" stroke-dashoffset="251" style="filter:drop-shadow(0 0 6px #ff2e1a)"/></svg><div class="v">ALARMS<b id="gat">-</b></div></div>
+    </div>
+    <div class="ticker"><span id="ticker">…</span></div>
+  </div>
+
+  <div class="panel br">
+    <h3>COMMAND</h3>
+    <div class="cmd"><input id="cmdin" placeholder="e.g. pause production merges"><button id="cmdbtn">SEND</button></div>
+    <div class="hint" id="cmdhint">Copies a ready-to-paste "/jarvis …" line. Send it in the booqy project chat.</div>
+    <div style="margin-top:8px;font-size:11px;color:var(--mute)">LAST UPDATE <b id="updated" style="color:var(--txt)">-</b></div>
+  </div>
+</div>
+
+<script>
+const DEMO = {
+  generatedAt: new Date().toISOString(), demo: true,
+  pipeline: { step: "Run 0 addendum (K, L)", feature: "L · phone agent ADR", round: 1, lock: "free" },
+  features: [
+    {id:"A",name:"Meta ads",status:"todo"},{id:"B",name:"Site builder",status:"todo"},{id:"C",name:"Guest CRM",status:"todo"},
+    {id:"D",name:"Google Business",status:"todo"},{id:"E",name:"Gift cards",status:"todo"},{id:"F",name:"Waitlist",status:"todo"},
+    {id:"G",name:"Social posting",status:"todo"},{id:"H",name:"Personalliggare",status:"todo"},{id:"I",name:"Fortnox/Visma",status:"todo"},
+    {id:"J",name:"Margin per dish",status:"todo"},{id:"K",name:"Events & tickets",status:"building"},{id:"L",name:"AI phone agent",status:"building"}],
+  prs: [{repo:"infrastructure",number:37,title:"Run 0 addendum: ADRs K + L",state:"ci_running",url:"#"}],
+  ci: [{repo:"infrastructure",status:"pass"},{repo:"application",status:"pass"},{repo:"admin-front-end",status:"pass"},{repo:"booqy-console",status:"pass"},{repo:"customer-front-end",status:"pass"},{repo:"booqy-website",status:"pass"}],
+  actions: ["Meta Business Verification + App Review","Google Business Profile API access","Voice + SIP provider accounts","Accountant: gift card VAT","Legal: personalliggare, Art. 50 wording"],
+  uptime: 99.98, ciPass: 100, alarms: 0,
+  log: ["Run 0 merged to dev and deployed","PROMPTS.md updated with Orchestrator + Jarvis","Orchestrator started Run 0 addendum"]
+};
+const STATE_URL = (window.JARVIS_STATE_URL || "./state.json");
+const $ = id => document.getElementById(id);
+const esc = s => String(s??"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+const stClass = s => /dark/.test(s) ? "dark" : ({production:"production",dev:"dev","on dev":"dev",awaiting:"dev",building:"building",reviewing:"building",fixing:"building",blocked:"blocked"})[String(s).toLowerCase().split(" ")[0]] || (/dev/.test(s)?"dev":"todo");
+const stLabel = s => /dark/.test(s) ? "prod, dark" : /^on dev/i.test(s) ? "on dev" : s;
+
+function render(d){
+  $("datatag").textContent = d.demo ? "DEMO" : "LIVE"; $("datatag").className = "tag " + (d.demo?"demo":"live");
+  $("pstep").textContent = d.pipeline?.step || "idle"; $("lock").textContent = d.pipeline?.lock || "free";
+  $("updated").textContent = new Date(d.generatedAt).toLocaleString("sv-SE");
+  const f = d.features||[]; const cnt = k => f.filter(x=>stClass(x.status)===k).length;
+  const prod = cnt("production")+cnt("dark"); $("prodn").textContent=prod; $("devn").textContent=cnt("dev"); $("buildn").textContent=cnt("building"); $("blockn").textContent=cnt("blocked");
+  const pct = f.length? Math.round(100*(prod+cnt("dev")*0.7+cnt("building")*0.3)/f.length):0;
+  $("progpct").textContent=pct+"%"; $("progbar").style.width=pct+"%";
+  $("features").innerHTML = f.map(x=>`<li class="row"><span class="n">${esc(x.id)} · ${esc(x.name)}</span><span class="st ${stClass(x.status)}" title="${esc(x.status).replace(/"/g,"&quot;")}">${esc(stLabel(x.status))}</span></li>`).join("");
+  const prs=(d.prs||[]); const mine=prs.filter(p=>/awaiting|review/.test(p.state));
+  $("coreval").textContent = mine.length; $("coresub").textContent = mine.length? "PR"+(mine.length>1?"S":"")+" AWAITING YOUR APPROVAL" : "NOTHING AWAITS YOU";
+  $("prs").innerHTML = prs.length? prs.map(p=>`<li class="row"><span class="n"><a href="${esc(p.url)}">${esc(p.repo)}#${esc(p.number)}</a> ${esc(p.title)}</span><span class="st ${/awaiting|review/.test(p.state)?"dev":"building"}">${esc(p.state.replace("_"," "))}</span></li>`).join("") : `<li class="row"><span class="n">no open PRs</span></li>`;
+  $("ci").innerHTML=(d.ci||[]).map(c=>`<li class="row"><span class="n"><span class="dot ${c.status==="pass"?"":"bad"}"></span>${esc(c.repo)}</span><span class="st ${c.status==="pass"?"production":"blocked"}">${esc(c.status)}</span></li>`).join("");
+  $("actions").innerHTML=(d.actions||[]).map(a=>`<li class="row"><span class="n">${esc(a)}</span><span class="st todo">OPEN</span></li>`).join("")||`<li class="row">none</li>`;
+  const g=(id,t,v,max)=>{ $(id).style.strokeDashoffset = 251-251*Math.min(1,v/max); $(t).textContent = v; };
+  g("gu","gut",d.uptime??0,100); g("gc","gct",d.ciPass??0,100); g("ga","gat",d.alarms??0,10);
+  $("ticker").textContent=(d.log||[]).join("   ◆   ");
+}
+async function load(){
+  try{ const r=await fetch(STATE_URL,{cache:"no-store"}); if(!r.ok) throw 0; render(await r.json()); }
+  catch(e){ render(DEMO); }
+}
+load(); setInterval(load,60000);
+setInterval(()=>{ $("clock").textContent=new Date().toLocaleTimeString("sv-SE"); },1000);
+$("cmdbtn").onclick=async()=>{ const t=$("cmdin").value.trim(); if(!t) return; const line="/jarvis "+t;
+  try{ await navigator.clipboard.writeText(line); $("cmdhint").textContent="Copied: "+line; }catch(e){ $("cmdhint").textContent="Paste this in the booqy chat: "+line; } };
+$("cmdin").addEventListener("keydown",e=>{ if(e.key==="Enter") $("cmdbtn").click(); });
+</script>
+</body>
+</html>

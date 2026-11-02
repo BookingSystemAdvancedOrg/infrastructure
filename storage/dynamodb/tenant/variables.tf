@@ -5,12 +5,13 @@ variable "environment" {
 }
 
 variable "plans" {
-  description = "Plan catalog written to the table as PLAN#<id> rows - max_locations and feature flags per package"
+  description = "Plan catalog written to the table as PLAN#<id> rows - max_locations, feature flags and numeric limits per package"
   type = map(object({
     name          = string
     max_locations = number
     features      = map(bool)
     price_sek     = number
+    limits        = optional(map(number), {})
   }))
   sensitive = false
 }
