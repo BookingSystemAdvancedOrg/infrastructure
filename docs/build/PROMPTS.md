@@ -662,8 +662,10 @@ REPORTING: contact the owner only when (a) a dev→main PR with a feature brief 
 test and approval, (b) a merge to main has deployed and passed the production smoke test, (c) a
 production merge was rolled back, or a feature becomes blocked or needs an owner decision. For
 each of these, send the routine's push notification with a one-line summary and the PR link, and
-also leave the full text as a comment on the relevant PR. Everything else goes to PIPELINE.md,
-STATUS.md and PR comments without a notification. Jarvis is reply-only and does not relay these.
+also leave the full text as a comment on the relevant PR. A feature that becomes blocked before it
+has a PR is recorded in PIPELINE.md under "Needs owner" and still triggers the push notification.
+Everything else goes to PIPELINE.md, STATUS.md and PR comments without a notification. Jarvis is
+reply-only and does not relay these.
 ```
 
 ## What the owner does
