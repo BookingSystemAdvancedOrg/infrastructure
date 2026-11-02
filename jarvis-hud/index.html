@@ -41,6 +41,7 @@
   .row .n{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .st{font-size:10px;letter-spacing:.12em;padding:1px 6px;border:1px solid}
   .st.production{color:var(--ok);border-color:var(--ok)}
+  .st.dark{color:var(--ok);border-color:var(--ok);border-style:dashed}
   .st.dev{color:var(--o2);border-color:var(--o2)}
   .st.building{color:var(--o);border-color:var(--o);animation:blink 1.6s infinite}
   .st.blocked{color:var(--bad);border-color:var(--bad)}
@@ -197,17 +198,18 @@ const DEMO = {
 const STATE_URL = (window.JARVIS_STATE_URL || "./state.json");
 const $ = id => document.getElementById(id);
 const esc = s => String(s??"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
-const stClass = s => ({production:"production",dev:"dev","on dev":"dev",awaiting:"dev",building:"building",reviewing:"building",fixing:"building",blocked:"blocked"})[String(s).toLowerCase().split(" ")[0]] || (/dev/.test(s)?"dev":"todo");
+const stClass = s => /dark/.test(s) ? "dark" : ({production:"production",dev:"dev","on dev":"dev",awaiting:"dev",building:"building",reviewing:"building",fixing:"building",blocked:"blocked"})[String(s).toLowerCase().split(" ")[0]] || (/dev/.test(s)?"dev":"todo");
+const stLabel = s => /dark/.test(s) ? "prod, dark" : /^on dev/i.test(s) ? "on dev" : s;
 
 function render(d){
   $("datatag").textContent = d.demo ? "DEMO" : "LIVE"; $("datatag").className = "tag " + (d.demo?"demo":"live");
   $("pstep").textContent = d.pipeline?.step || "idle"; $("lock").textContent = d.pipeline?.lock || "free";
   $("updated").textContent = new Date(d.generatedAt).toLocaleString("sv-SE");
   const f = d.features||[]; const cnt = k => f.filter(x=>stClass(x.status)===k).length;
-  $("prodn").textContent=cnt("production"); $("devn").textContent=cnt("dev"); $("buildn").textContent=cnt("building"); $("blockn").textContent=cnt("blocked");
-  const pct = f.length? Math.round(100*(cnt("production")+cnt("dev")*0.7+cnt("building")*0.3)/f.length):0;
+  const prod = cnt("production")+cnt("dark"); $("prodn").textContent=prod; $("devn").textContent=cnt("dev"); $("buildn").textContent=cnt("building"); $("blockn").textContent=cnt("blocked");
+  const pct = f.length? Math.round(100*(prod+cnt("dev")*0.7+cnt("building")*0.3)/f.length):0;
   $("progpct").textContent=pct+"%"; $("progbar").style.width=pct+"%";
-  $("features").innerHTML = f.map(x=>`<li class="row"><span class="n">${esc(x.id)} · ${esc(x.name)}</span><span class="st ${stClass(x.status)}">${esc(x.status)}</span></li>`).join("");
+  $("features").innerHTML = f.map(x=>`<li class="row"><span class="n">${esc(x.id)} · ${esc(x.name)}</span><span class="st ${stClass(x.status)}" title="${esc(x.status).replace(/"/g,"&quot;")}">${esc(stLabel(x.status))}</span></li>`).join("");
   const prs=(d.prs||[]); const mine=prs.filter(p=>/awaiting|review/.test(p.state));
   $("coreval").textContent = mine.length; $("coresub").textContent = mine.length? "PR"+(mine.length>1?"S":"")+" AWAITING YOUR APPROVAL" : "NOTHING AWAITS YOU";
   $("prs").innerHTML = prs.length? prs.map(p=>`<li class="row"><span class="n"><a href="${esc(p.url)}">${esc(p.repo)}#${esc(p.number)}</a> ${esc(p.title)}</span><span class="st ${/awaiting|review/.test(p.state)?"dev":"building"}">${esc(p.state.replace("_"," "))}</span></li>`).join("") : `<li class="row"><span class="n">no open PRs</span></li>`;
