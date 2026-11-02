@@ -145,18 +145,60 @@ and only reads the other repos.
 | booqy-console | nothing |
 | customer-front-end | nothing |
 
+### K. Events and tickets (`events-tickets`, addendum)
+
+| Repo | Owns |
+|---|---|
+| application | `functions/events-tickets/**`, `shared/features/events_tickets/**` (incl. `passes.py` for Apple/Google Wallet signing, `qr.py`, `series.py`), `docs/openapi/events-tickets.yaml`, `docs/features/events-tickets.md`, `tests/test_events_tickets*.py`, `tests/fixtures/events_tickets/**` (test pass certificate) |
+| infrastructure | `events-tickets/**`, `events-tickets.tf`, `network/api-gateway/events-tickets-routes.tf` |
+| admin-front-end | `src/features/events-tickets/**` (`EvenemangPage.tsx`, `EventEditor.tsx`, `InslappPage.tsx` (scanner and guest list, IndexedDB queue), `EventsStats.tsx`, `posterPrint.ts`, API client) |
+| booqy-console | nothing (generic checkbox and the generic limits input) |
+| customer-front-end | `packages/site-kit/src/features/evenemang/**` (`EvenemangPage.tsx`, `EvenemangDetaljPage.tsx`, `BiljettPage.tsx`, `TaEmotPage.tsx`) |
+
+Stripe webhook routing for `metadata.kind = ticket`, the `insights.events`
+call site, the `BokforingCard` "Biljetter" group and the `ticketSales*`
+roles in `shared/accounting.py` are hotspot work batched for the Run 2
+hotspot window; K implements the hook answers only. K reuses
+`layout-editor` components read-only for table pick (as F does). K adds no
+dependency to admin without the orchestrator's approval (scanner uses the
+browser `BarcodeDetector` API with a typed fallback).
+
+### L. AI phone agent (`phone-agent`, addendum)
+
+| Repo | Owns |
+|---|---|
+| application | `functions/phone-agent/**`, `functions/phone-agent-call/**` (incl. its Dockerfile with the Lambda Web Adapter for the streaming turn endpoint), `functions/phone-agent-jobs/**`, `shared/features/phone_agent/**` (`agent.py` loop, `tools.py`, `copy.py` fixed Swedish/English sentences and the art. 50 text, `simulator.py` text-in/text-out harness, `calls.py` state machine, `metering.py`), `shared/voice_provider_real.py`, `shared/telephony_real.py`, `shared/agent_model_real.py`, `docs/openapi/phone-agent.yaml`, `docs/features/phone-agent.md`, `tests/test_phone_agent*.py` |
+| infrastructure | `phone-agent/**` (table, bucket, three Lambdas, Function URL, alarms, secrets), `phone-agent.tf`, `network/api-gateway/phone-agent-routes.tf` |
+| admin-front-end | `src/features/phone-agent/**` (`TelefonPage.tsx`, `CallsTab.tsx`, `CallDetail.tsx`, `CallbacksTab.tsx`, `SettingsWizard.tsx` ("Så svarar vi i telefon"), `SimulatorPanel.tsx`, `CallbacksPanel.tsx`, `CallBadge.tsx`, API client) |
+| booqy-console | `api/src/app/features/phone_agent.py`, `api/tests/test_feature_phone_agent.py`, `web/src/features/phone-agent/**` (`PhoneAgentTenantSection.tsx`, `PhoneAgentSettingsCard.tsx`) |
+| customer-front-end | nothing |
+
+L may not edit A's `shared/bedrock.py` or `shared/bedrock_real.py`; the
+agent loop uses its own `AgentModel` port. L invokes the existing
+reservation, menu and site-config Lambdas (ADR-L tool table) and never
+edits them; a needed change there (for example a `phone=` filter on the
+reservation list, or a `source` field on created reservations) is reported
+to the orchestrator for the Run 2 hotspot window. The `billing.usage`
+caller in platform-tenants and the two invoice lines are hotspot work; L
+answers the hook. The privacy notice paragraph "Telefonassistent" is a
+hotspot (`shared/privacy_notice.py`), wording **[NEEDS YOUR OK]**.
+
 ### Overlap check
 
 Every owned path above contains the feature's own id or snake name, except
 the client real files (one owner each: meta and bedrock A, google_business
-D, fortnox and visma I) and `shared/dish_margin.py` (J). No path appears
-under two features.
+D, fortnox and visma I, voice_provider, telephony and agent_model L) and
+`shared/dish_margin.py` (J). No path appears under two features. K and L
+share no path: K never touches `phone-agent*` or `phone_agent*`, L never
+touches `events-tickets*` or `events_tickets*`; the two new admin slots on
+`BokningarPage` are L's and the one on `StatistikPage` is K's; the
+console files are L's only.
 
 ## 2. Non-feature owners
 
 | Owner | Paths |
 |---|---|
-| Brand guardian | `customer-front-end/packages/brand/**`; `infrastructure/docs/design/**` (INVENTORY.md, DESIGN.md, brand ADR); the brand lint config and script files it creates (named in DESIGN.md). In Runs 1-2 only the single brand guardian builder on `build/brand-additions` edits them. |
+| Brand guardian | `customer-front-end/packages/brand/**`; `infrastructure/docs/design/**` (INVENTORY.md, DESIGN.md, brand ADR); the brand lint config and script files it creates (named in DESIGN.md). In Runs 1-2 only the single brand guardian builder on `build/brand-additions` edits them. Addendum: the same single builder adds the variants K and L need (section 6.6) on `build/run-0-addendum-kl` in customer-front-end. |
 | Owner (human) | every `.github/**` in every repo (agents give a snippet or `sed` line), OIDC/deploy roles, `sites/main.tf` `deploy_boundary`, `prod.tfvars` values beyond Run 0's additions |
 | Orchestrator / integrator | `infrastructure/docs/build/**`, `infrastructure/docs/adr/**`, every shared hotspot below, `ROUTES.md` regeneration, merges |
 
@@ -186,7 +228,8 @@ batched by the orchestrator and made between runs, never by a feature.
 
 | Path | Run 0 change |
 |---|---|
-| `contracts/booqy.yaml`, `scripts/gen_contracts.py`, `shared/contracts.py` (generated), `tests/test_contracts.py` | new (task AP1) |
+| `contracts/booqy.yaml`, `scripts/gen_contracts.py`, `shared/contracts.py` (generated), `tests/test_contracts.py` | new (task AP1); addendum additions (section 6.1) |
+| `shared/voice_provider.py`, `shared/telephony.py`, `shared/agent_model.py` and the three `*_real.py` skeletons (then owned by L) | new in the addendum (section 6.1) |
 | `shared/tenant.py` | FEATURES, limits, any-of features (AP2) |
 | `shared/events.py`, `shared/feature_hooks.py`, `tests/hooks_fake.py` | new (AP4, AP5) |
 | `shared/meta_graph.py`, `shared/google_business.py`, `shared/fortnox.py`, `shared/visma.py`, `shared/bedrock.py`, `shared/external_client.py` and the five `*_real.py` skeletons (then owned per section 1) | new (AP6) |
@@ -213,7 +256,7 @@ batched by the orchestrator and made between runs, never by a feature.
 | `variables.tf`, `dev.tfvars`, `prod.tfvars`, `storage/dynamodb/tenant/**` | IN2 |
 | `external-clients.tf` | IN1 |
 | `events.tf`, `events/**` | IN3 |
-| the ten `<id>/` stubs and `<id>.tf` (then owned per section 1) | IN4 |
+| the ten `<id>/` stubs and `<id>.tf` (then owned per section 1) | IN4; addendum adds `events-tickets/`, `phone-agent/` and their root files (section 6.2) |
 | `config.tf`, `outputs.tf` | IN5 |
 | `network/api-gateway/main.tf`, `variables.tf`, `outputs.tf`, `feature-routes.tf`, the ten `<id>-routes.tf` stubs (then owned), `generate_routes.py`, `ROUTES.md` | IN6 |
 | `security/iam/feature-hooks/**` | IN7 |
@@ -226,8 +269,8 @@ batched by the orchestrator and made between runs, never by a feature.
 |---|---|
 | `src/shared/contracts.ts` (generated), `src/shared/tenant.ts`, `src/shared/slots.tsx` | AD1, AD2, AD5 |
 | `src/shared/AdminLayout.tsx`, `src/App.tsx`, `src/pages.ts` | AD3, AD4 |
-| `src/shared/storageRegistry.ts` | none (frozen) |
-| `src/features/guide/steps.ts` | AD8 |
+| `src/shared/storageRegistry.ts` | none in Run 0; addendum adds `EVENT_SCAN_KEY_PREFIX` (section 6.3), then frozen again |
+| `src/features/guide/steps.ts` | AD8; addendum adds two steps |
 | host pages: `src/features/marknadsforing/{MarknadsforingPage,OverviewTab,SubscribersTab,CampaignsTab}.tsx`, `src/features/installningar/{InstallningarPage,BokforingCard}.tsx`, `src/features/installningar/accountingApi.ts`, `src/features/bokningar/BokningarPage.tsx`, `src/features/kassa/KassaPage.tsx`, `src/features/meny/{MenyPage,DishModal}.tsx`, `src/features/statistik/{StatistikPage.tsx,insights.ts}` | AD6, AD7 |
 
 ### booqy-console
@@ -239,11 +282,16 @@ batched by the orchestrator and made between runs, never by a feature.
 | `web/src/pages/{TenantPage,NewTenantPage,SettingsPage}.tsx`, `web/src/components/WebsiteTab.tsx` | CO5, CO6 |
 | `web/src/storageRegistry.ts` | none (frozen) |
 
+Addendum console hotspot changes: `web/src/pages/TenantPage.tsx`
+Integrations tab condition gains `phoneAgent`; `web/src/slots.tsx` two
+slot ids; `api/src/app/features/phone_agent.py` stub with `ROUTES = {}`
+(then owned by L); `_forward.py` unchanged (section 6.4).
+
 ### customer-front-end
 
 | Path | Run 0 change |
 |---|---|
-| `packages/site-kit/src/shared/{site.ts,contracts.ts,slots.tsx,storageRegistry.ts}` | CU1, CU2, CU3, CU5 |
+| `packages/site-kit/src/shared/{site.ts,contracts.ts,slots.tsx,storageRegistry.ts}` | CU1, CU2, CU3, CU5; addendum: regenerated contracts, `TICKET_PURCHASE_KEY` (section 6.5) |
 | `packages/site-kit/src/pages.ts`, `packages/site-kit/src/index.ts`, `src/App.tsx`, the site nav layout file (`CustomerLayout.tsx`) | CU4 |
 | `packages/site-kit/src/features/boka/**` and `packages/site-kit/src/features/bestall/**` host files | CU5 (slot insertion only) |
 | root `package.json`, `package-lock.json` | frozen |
@@ -376,3 +424,105 @@ the console Plan tab).
 | Site routes and slots | `pages.ts`, `App.tsx`, `slots.tsx` | its own site-kit feature folder |
 | `/site-config` fields | `tenant-site-config` (pass-through of `PROFILE.site`, location `waitlist`) | the one attribute it writes |
 | Storage keys | both registries (done) | imports of the constants |
+
+## 6. Run 0 addendum scaffolding work order (features K and L)
+
+Same rules as section 4: one implementer per repo, application first
+(generator), then the others in parallel; nothing changes behaviour for any
+tenant (both keys false, limit 0, every hook gated "on or ever on" or finds
+no deployed target, every new UI hidden); every existing test passes
+unchanged; the gates of section 4 before hand-off. Branch
+`build/run-0-addendum-kl` in every repo it touches, one PR per repo. Paths
+listed here are the only ones the addendum builders may edit; after the
+addendum merges they return to their section 1 or section 3 owner.
+
+### 6.1 application (7 tasks)
+
+| # | Files | Behaviour | Tests |
+|---|---|---|---|
+| AK1 | `contracts/booqy.yaml`, `scripts/gen_contracts.py`, the five generated targets | exactly CONTRACTS.md section 17: two features, one limit, five enums, two event sources, hook target changes and two new hooks, three clients, `siteConfig.tenantFeatures` + `events`, three admin and two console slots, the `storage.admin` map (generator emits `STORAGE_KEYS` into the admin contracts file), four console forward ops; `--check` clean in all five | `test_contracts.py` self-consistency (18 keys, 12 new, twelve purge targets, new storage map), regenerate-equals-file |
+| AK2 | new `shared/voice_provider.py`, `shared/telephony.py`, `shared/agent_model.py` (port + Simulated + `client()` via `shared/external_client.mode`), `shared/voice_provider_real.py`, `shared/telephony_real.py`, `shared/agent_model_real.py` skeletons raising `NotImplementedError` | per CONTRACTS.md 13 (addendum rows): simulator idempotent agents by name, numbers in order and `number_unavailable`, scripted intent table in Swedish and English, `responses=`, `delay_ms`, `fail=` injection, webhook auth rules | factory picks simulator, refuses it in prod, refuses unknown; each simulator behaviour row; intent table covers every ADR-L scenario sentence in both languages |
+| AK3 | `shared/tenant.py` | nothing to change (keys and limits come from the contract); confirm `limit()` handles the new name | existing tests plus one for the new limit default |
+| AK4 | `functions/tenant-site-config/app.py` | `tenant.features.events` present (from `SITE_CONFIG_FEATURES`), nothing else | field present/absent |
+| AK5 | `functions/stripe-webhook/app.py` | `metadata.kind == "ticket"` goes to `stripe.event` with target events-tickets (kind -> target map, `giftcard` unchanged) | fake hook receives it; `giftcard` path unchanged; unknown kind untouched |
+| AK6 | `tests/tenant_support.py` | `NEW_FEATURES` twelve keys; `tenant_row(limits=)` accepts the new limit | helpers used by AK3/AK4 tests |
+| AK7 | `docs/openapi/README.md`, `tests/test_openapi.py` | fragments `events-tickets.yaml`, `phone-agent.yaml` expected once the handlers exist (skip-if-absent like the others); `/site-config` documents `tenant.features.events` | merged doc valid |
+
+Not in the addendum (Run 2 hotspot window, orchestrator): `insights.events`
+call site, `billing.usage` call site and the invoice lines in
+platform-tenants, `ticketSales*` roles in `shared/accounting.py`,
+`privacy_notice.py` paragraph, the `events` group in `BokforingCard`.
+
+### 6.2 infrastructure (6 tasks)
+
+| # | Files | Behaviour | Check |
+|---|---|---|---|
+| IK1 | `external-clients.tf` | `voice_client`, `telephony_client`, `agent_model_client` (`simulator` default, validated), `phone_agent_model_id` (`""`) | validate |
+| IK2 | `variables.tf`, `dev.tfvars`, `prod.tfvars` | `plans` validation accepts `phoneAgentMinutesPerMonth` 0-100000; both plan rows gain `events = false`, `phoneAgent = false`, `limits.phoneAgentMinutesPerMonth = 0`; new `phone_agent_location_price_sek`, `phone_agent_minute_price_sek` (default 0, **[NEEDS YOUR OK]** values stay 0 until set) | plan item shape; fmt |
+| IK3 | new `events-tickets/{main,variables,outputs}.tf` + `README.md`, `phone-agent/{...}` + `README.md`, `events-tickets.tf`, `phone-agent.tf` | zero resources, `wiring` output of CONTRACTS.md 12.2, README names ADR, run and "no resources until Run 2" | validate; plan unchanged |
+| IK4 | `config.tf`, `outputs.tf` | four ECR modules (`events_tickets_ecr`, `phone_agent_ecr`, `phone_agent_call_ecr`, `phone_agent_jobs_ecr`) and their `ecr_repository_urls` entries; `local.feature_wiring` merges twelve | validate; CI ECR guard |
+| IK5 | `network/api-gateway/feature-routes.tf`, new `events-tickets-routes.tf`, `phone-agent-routes.tf`, `generate_routes.py` | two more empty route locals concatenated; generator reads them | validate; `generate_routes.py` output unchanged |
+| IK6 | `security/iam/feature-hooks/**` | rows 11-16 of CONTRACTS.md 14 (guest-privacy, tenant-purge, stripe-webhook, accounting, insights, platform-tenants -> `events-tickets:live` / `phone-agent:live`); **IAM change: owner to approve** | validate; plan diff reviewed |
+
+### 6.3 admin-front-end (5 tasks)
+
+| # | Files | Behaviour | Tests |
+|---|---|---|---|
+| ADK1 | `src/shared/contracts.ts` | regenerated (`--only admin`), incl. `STORAGE_KEYS` | typecheck |
+| ADK2 | `src/shared/AdminLayout.tsx`, `src/pages.ts`, `src/App.tsx`, placeholder pages `src/features/phone-agent/TelefonPage.tsx`, `src/features/events-tickets/EvenemangPage.tsx` | items "Telefon" (passet, after Personalliggare) and "Evenemang" (restaurangen, after Webbplats) per CONTRACTS.md 8.1, not ownerOnly; routes `/telefon`, `/telefon/samtal/:callId`, `/evenemang`, `/evenemang/:eventId`, `/evenemang/:eventId/inslapp/:occurrenceId` lazy to the feature folder; placeholder per 8.1 ("Den här delen är på väg.") | AdminLayout test: hidden when off, shown when on, visible to staff |
+| ADK3 | `src/shared/slots.tsx`, placeholder components `src/features/phone-agent/{CallbacksPanel,CallBadge}.tsx`, `src/features/events-tickets/EventsStats.tsx`, host inserts in `src/features/bokningar/BokningarPage.tsx` and `src/features/statistik/StatistikPage.tsx` | three slot ids and loaders; placeholders return `null` | slot hidden/shown |
+| ADK4 | `src/features/guide/steps.ts` | `nav-telefon`, `nav-evenemang` steps of CONTRACTS.md 8.1 | guide test |
+| ADK5 | `src/shared/storageRegistry.ts` | `EVENT_SCAN_KEY_PREFIX` from `STORAGE_KEYS`, entry per CONTRACTS.md 10 (`kind: 'IndexedDB'`, category nödvändig) | `storageRegistry.test.ts` passes (extend the allowed kinds if the test enumerates them) |
+
+### 6.4 booqy-console (3 tasks)
+
+| # | Files | Behaviour | Tests |
+|---|---|---|---|
+| COK1 | `api/src/app/contracts.py`, `web/src/contracts.ts` | regenerated | typecheck, import |
+| COK2 | `api/src/app/features/phone_agent.py` (`ROUTES = {}`) | merged by the handler like the four Run 0 stubs | merge test unchanged |
+| COK3 | `web/src/slots.tsx`, `web/src/pages/{TenantPage,SettingsPage}.tsx`, placeholders `web/src/features/phone-agent/{PhoneAgentTenantSection,PhoneAgentSettingsCard}.tsx` | Integrations tab also visible with `phoneAgent`; slots `tenant.integrations.phoneAgent`, `settings.phoneAgent`; the Plan tab's limits input is generic over `LIMITS` (if Run 0 hard-coded one input, generalise it here) | tab visible with only `phoneAgent`; limit override for the new name |
+
+### 6.5 customer-front-end (3 tasks)
+
+| # | Files | Behaviour | Tests |
+|---|---|---|---|
+| CUK1 | `packages/site-kit/src/shared/contracts.ts`, `site.ts` | regenerated; `events` typed in `SiteFeatureKey` | typecheck |
+| CUK2 | `packages/site-kit/src/pages.ts`, `index.ts`, `src/App.tsx`, `CustomerLayout.tsx`, placeholder pages in `packages/site-kit/src/features/evenemang/` | routes and `sitePages` keys of CONTRACTS.md 8.4 gated on `events`; "Evenemang" nav link when on; builder catch-all does not shadow them | `App.test.tsx`: absent when off, present when on |
+| CUK3 | `packages/site-kit/src/shared/storageRegistry.ts` | `TICKET_PURCHASE_KEY` and entry | `storageRegistry.test.ts` |
+
+### 6.6 brand guardian (1 task, customer-front-end `packages/brand`)
+
+| # | Files | Behaviour | Tests |
+|---|---|---|---|
+| BRK1 | `customer-front-end/packages/brand/**`, `infrastructure/docs/design/{DESIGN,INVENTORY}.md` | `Bar variant="live"` (live call / recording indicator: pulsing dot, polite status text "Pågående samtal" / "Spelas in", reduced motion = static dot); `Chip` status component (`tone` info/success/warning/danger/neutral, text, optional icon) for ticket status and call outcome, listed in INVENTORY 3 as missing today; `Card surface="ticket"` (perforated edge, QR area, mono details, both themes); contrast tests for the new pairs; DESIGN.md catalogue rows | brand package tests, tokens drift test, contrast test, brand-lint exit 0 |
+
+### Task count (addendum)
+
+| Repo | Tasks |
+|---|---|
+| application | 7 |
+| infrastructure | 6 |
+| admin-front-end | 5 |
+| booqy-console | 3 |
+| customer-front-end | 3 (+1 brand) |
+| booqy-website | 0 |
+| **Total** | **25** |
+
+### Ownership deviations (addendum, recorded in review)
+
+The addendum builders edited these paths outside the lists of 6.1-6.6.
+Each is a one-line, behaviour-neutral change the listed tasks needed; the
+orchestrator accepted them in review. After the addendum merges every path
+returns to its section 1, 2 or 3 owner as usual.
+
+| Repo | Path | Task | Change | Why |
+|---|---|---|---|---|
+| admin-front-end | `src/features/cookies/CookiesPage.tsx` | ADK5 | `KIND_LABEL` gains `IndexedDB: 'Databas i webbläsaren (IndexedDB)'` | the `/cookies` page labels every `StorageKind`; the new `IndexedDB` kind would not typecheck or render without it |
+| application | `shared/voice_provider_sim_recording.wav` (new, 1.6 kB) | AK2 | short silent WAV the voice-provider simulator returns as a call recording | the simulator needs a fixed recording payload; owned by L from Run 2 with `shared/voice_provider*.py` |
+| application | `docs/openapi.yaml` | AK7 | `/site-config` documents `tenant.features.events` | the merged doc is the one the test validates; 6.1 listed only the README and the test (hotspot, AP16) |
+| admin-front-end | `brand-lint.config.json` | ADK2/ADK3 | `block` gains `features/events-tickets/**`, `features/phone-agent/**` | the new feature folders get the same blocking glob as the ten Run 0 features |
+| booqy-console | `web/brand-lint.config.json` | COK3 | `block` gains `features/phone-agent/**` | same, for the console placeholders |
+| customer-front-end | `brand-lint.config.json` | CUK2 | `block` gains `features/evenemang/**` | same, for the guest placeholder pages |
+
+The brand-lint config files are the brand guardian's (section 2); only the
+blocking globs for the new feature folders were added, no rule changed.

@@ -138,6 +138,10 @@ output "ecr_repository_urls" {
     personalliggare            = module.personalliggare_ecr.repository_url
     accounting_sync            = module.accounting_sync_ecr.repository_url
     dish_margin                = module.dish_margin_ecr.repository_url
+    events_tickets             = module.events_tickets_ecr.repository_url
+    phone_agent                = module.phone_agent_ecr.repository_url
+    phone_agent_call           = module.phone_agent_call_ecr.repository_url
+    phone_agent_jobs           = module.phone_agent_jobs_ecr.repository_url
   }
 }
 

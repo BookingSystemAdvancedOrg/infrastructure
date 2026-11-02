@@ -90,9 +90,10 @@ plans = {
       reservations = true, ordering = true, catering = false, terminal = true, marketing = false, kassa = false,
       metaAds      = false, siteBuilder = false, guestCrm = false, googleBusiness = false, giftCards = false,
       waitlist     = false, socialPosting = false, personalliggare = false, accountingSync = false, dishMargin = false,
+      events       = false, phoneAgent = false,
     }
     price_sek = 3950
-    limits    = { siteBuilderAiEditsPerMonth = 0 }
+    limits    = { siteBuilderAiEditsPerMonth = 0, phoneAgentMinutesPerMonth = 0 }
   }
   growth = {
     name          = "Growth"
@@ -101,9 +102,10 @@ plans = {
       reservations = true, ordering = true, catering = true, terminal = true, marketing = true, kassa = false,
       metaAds      = false, siteBuilder = false, guestCrm = false, googleBusiness = false, giftCards = false,
       waitlist     = false, socialPosting = false, personalliggare = false, accountingSync = false, dishMargin = false,
+      events       = false, phoneAgent = false,
     }
     price_sek = 8295
-    limits    = { siteBuilderAiEditsPerMonth = 0 }
+    limits    = { siteBuilderAiEditsPerMonth = 0, phoneAgentMinutesPerMonth = 0 }
   }
 }
 

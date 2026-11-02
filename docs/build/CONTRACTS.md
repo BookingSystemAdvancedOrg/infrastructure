@@ -1,8 +1,14 @@
 # Booqy build contracts (Runs 1-3)
 
 The fixed contract every feature agent implements against. Written in Run 0
-step 4 from ADR-A..J, RULES.md and EXPLORE-NOTES.md. Where this file and an
+step 4 from ADR-A..J, RULES.md and EXPLORE-NOTES.md; extended in the Run 0
+addendum (branch `build/run-0-addendum-kl`) with features K (events and
+tickets, ADR-K) and L (AI phone agent, ADR-L). Where this file and an
 ADR disagree, **this file wins**; report the mismatch to the orchestrator.
+Addendum rows are marked "(addendum)"; section 17 lists exactly what
+`application/contracts/booqy.yaml` must gain for them. Anything marked
+**[NEEDS YOUR OK]** is an owner decision still open (pricing, plans,
+legal wording, retention) and ships with the safe placeholder shown.
 A feature agent that finds the contract wrong stops and reports it
 (RULES.md, Scope); it never changes a shared file itself.
 
@@ -33,9 +39,13 @@ file, Lambda name, event source, admin and console folders.
 | H | `personalliggare` | `personalliggare` | `personalliggare` | `personalliggare` | none | 2 |
 | I | `accounting-sync` | `accounting_sync` | `accountingSync` | `accounting-sync` | none | 3 |
 | J | `dish-margin` | `dish_margin` | `dishMargin` | `dish-margin` | none | 3 |
+| K (addendum) | `events-tickets` | `events_tickets` | `events` | `events-tickets` | none | 2 |
+| L (addendum) | `phone-agent` | `phone_agent` | `phoneAgent` | `phone-agent` | `phone-agent-call`, `phone-agent-jobs` | 2 |
 
 The API Lambda is always named exactly `<prefix><feature-id>` with a `live`
 alias. Feature hooks (section 9) are delivered to that function.
+`phoneAgent` is the camelCase form of PROMPTS.md's `phone_agent` (every
+entitlement key is camelCase; the Python package is the snake form).
 
 ## 1. Contract source and generated types
 
@@ -50,11 +60,11 @@ they live in OpenAPI fragments (section 15).
 
 | Section | Content |
 |---|---|
-| `features` | all 16 entitlement keys in display order: `key`, `id` (kebab), `labelSv`, `labelEn`, `existing` (bool), `siteConfig` (bool: exposed in `/site-config`) |
-| `limits` | `siteBuilderAiEditsPerMonth`: `feature: siteBuilder`, `type: int`, `min: 0`, `max: 1000`, `default: 0`, `labelSv`, `labelEn` |
+| `features` | all 18 entitlement keys in display order (16 from Run 0, `events` and `phoneAgent` from the addendum): `key`, `id` (kebab), `labelSv`, `labelEn`, `existing` (bool), `siteConfig` (bool: exposed in `/site-config`) |
+| `limits` | `siteBuilderAiEditsPerMonth`: `feature: siteBuilder`, `type: int`, `min: 0`, `max: 1000`, `default: 0`, `labelSv`, `labelEn`; (addendum) `phoneAgentMinutesPerMonth`: `feature: phoneAgent`, `type: int`, `min: 0`, `max: 100000`, `default: 0` |
 | `events` | `bus: booqy-events`, the common detail fields, and per source (`booqy.<feature-id>`) each detail-type with its extra fields (section 5) |
 | `hooks` | each hook name with `caller`, `targets` (feature ids), `gate` (section 9) |
-| `clients` | `meta`, `google_business`, `fortnox`, `visma`, `bedrock` with `env` and `tfvar` (section 13) |
+| `clients` | `meta`, `google_business`, `fortnox`, `visma`, `bedrock`, (addendum) `voice`, `telephony`, `agent_model` with `env` and `tfvar` (section 13) |
 | `siteConfig` | `tenantFeatures` list, `tenant.site`, `location.waitlist` (section 7) |
 | `slots` | admin, console and site-kit slot ids with `feature`, `ownerOnly`, host (section 8) |
 | `storage` | the two new site-kit storage keys (section 10) |
@@ -73,7 +83,7 @@ of sha256 of the YAML bytes).
 
 | File | Language | Contains |
 |---|---|---|
-| `application/shared/contracts.py` | Python | `FEATURE_KEYS` (tuple, 16), `NEW_FEATURE_KEYS` (10), `FeatureKey` (Literal), `FEATURE_IDS` (key -> kebab id), `SITE_CONFIG_FEATURES`, `LIMITS` (dict name -> {feature, min, max, default}), `LimitKey`, `EVENT_BUS = "booqy-events"`, `EVENT_SOURCES`, `EVENTS` (source -> detail-type -> {"required": {...}, "optional": {...}}), one `TypedDict` per detail-type (`MetaConnectionConnectedDetail`, ...), `HOOKS` (name -> {caller, targets, gate}), `CLIENTS`, enum Literals (1.3) |
+| `application/shared/contracts.py` | Python | `FEATURE_KEYS` (tuple, 18 after the addendum), `NEW_FEATURE_KEYS` (12 after the addendum), `FeatureKey` (Literal), `FEATURE_IDS` (key -> kebab id), `SITE_CONFIG_FEATURES`, `LIMITS` (dict name -> {feature, min, max, default}), `LimitKey`, `EVENT_BUS = "booqy-events"`, `EVENT_SOURCES`, `EVENTS` (source -> detail-type -> {"required": {...}, "optional": {...}}), one `TypedDict` per detail-type (`MetaConnectionConnectedDetail`, ...), `HOOKS` (name -> {caller, targets, gate}), `CLIENTS`, enum Literals (1.3) |
 | `booqy-console/api/src/app/contracts.py` | Python | `FEATURE_KEYS`, `FEATURE_LABELS_EN`, `LIMITS`, `CONSOLE_FORWARD_OPS` (section 9.3) |
 | `admin-front-end/src/shared/contracts.ts` | TS | `FEATURE_KEYS as const`, `FeatureKey`, `FEATURE_LABELS: Record<FeatureKey, {sv, en}>`, `LIMIT_KEYS`, `LimitKey`, `LIMITS`, `AdminSlotId` (union) and `ADMIN_SLOTS: Record<AdminSlotId, {feature: FeatureKey \| FeatureKey[]; ownerOnly: boolean}>`, enums |
 | `booqy-console/web/src/contracts.ts` | TS | `FEATURE_KEYS`, `FeatureKey`, `FEATURE_LABELS`, `LIMIT_KEYS`, `LIMITS`, `ConsoleSlotId`, `CONSOLE_SLOTS`, enums |
@@ -106,6 +116,11 @@ second part may carry a noun before the verb (`SyncFailed`, `CapReached`,
 | `SocialChannel` | `facebook`, `instagram` | G |
 | `AccountingProvider` | `fortnox`, `visma` | I |
 | `SiteMode` | `builder`, `custom` | B |
+| `TicketStatus` (addendum) | `valid`, `checked_in`, `transferred`, `refunded`, `void` | K |
+| `TransferKind` (addendum) | `gift`, `resale` | K |
+| `PhoneAgentMode` (addendum) | `after_hours`, `overflow`, `always` | L |
+| `CallOutcome` (addendum) | `booked`, `moved`, `cancelled`, `info`, `transferred`, `callback`, `abandoned`, `refused`, `error` | L |
+| `CallRefusedReason` (addendum) | `cap`, `kill_switch`, `hours`, `paused`, `entitlement` | L |
 
 ## 2. Entitlements and limits
 
@@ -126,6 +141,9 @@ missing feature counts as off (unchanged rule).
 | `accountingSync` | feature | false | JWT 403; callback 404; worker skips | no |
 | `dishMargin` | feature | false | routes 403; insights omits margin fields | no |
 | `siteBuilderAiEditsPerMonth` | limit (int, 0-1000) | 0 | 0 = every AI edit 429 `quota_exceeded` | no |
+| `events` (addendum) | feature | false | JWT 403; public 404; `BokforingCard` group and Statistik slot hidden | yes (`tenant.features.events`) |
+| `phoneAgent` (addendum) | feature | false | JWT 403; operator tenant routes 404; inbound call answered with the refusal sentence and ended (`outcome: refused`, reason `entitlement`, 0 minutes); number kept 30 days then released | no |
+| `phoneAgentMinutesPerMonth` (addendum) | limit (int, 0-100000) | 0 | included minutes per billing period; the tenant cap defaults to it; minutes above it are the overage line (ADR-L 10) **[NEEDS YOUR OK: values]** | no |
 
 Python helpers (Run 0, `shared/tenant.py`): `FEATURES = contracts.FEATURE_KEYS`;
 `limit(tenant_row, name) -> int`; `for_jwt(..., feature=)` and
@@ -159,6 +177,13 @@ and is changed only by the owner, never by a feature agent.
 | `accountingSync` | false | false | false | true | ADR-I |
 | `dishMargin` | false | false | false | true | ADR-J |
 | `limits.siteBuilderAiEditsPerMonth` | 0 | 0 | 10 | 50 | ADR-B |
+| `events` (addendum) | false | false | true **[NEEDS YOUR OK]** | true **[NEEDS YOUR OK]** | ADR-K |
+| `phoneAgent` (addendum) | false | false | false (add-on by override) **[NEEDS YOUR OK]** | true **[NEEDS YOUR OK]** | ADR-L |
+| `limits.phoneAgentMinutesPerMonth` (addendum) | 0 | 0 | 0 **[NEEDS YOUR OK]** | 300 **[NEEDS YOUR OK]** | ADR-L |
+
+`plans` validation (addendum): limit names in
+`["siteBuilderAiEditsPerMonth", "phoneAgentMinutesPerMonth"]`, the second
+0-100000.
 
 Per-tenant override: Booqy Console Plan tab (section 8.3), stored as today
 (console diffs tenant against plan), now also for `limits`.
@@ -184,6 +209,15 @@ only after the tenant/location check. "Purge" = handled by the feature's
 | `<prefix>personalliggare-ledger` | H | `LOCATION#<l>` / `SEQ#<12-digit seq>` | `byDay`: `GSI1PK=DAY#<l>#<day>`, `GSI1SK=SEQ#<12-digit seq>` | yes (end of 2nd calendar year, legal to confirm) | no | **never** (Deny resource policy, deletion protection everywhere) |
 | `<prefix>accounting-sync` | I | `TENANT#<t>` / `CONNECTION`, `OAUTH#<nonce>`, `COMPANY#<companyKey>#DAY#<day>`; `LOCATION#<l>` / `DAY#<day>` | none | yes (DAY 7 years, OAUTH 10 min) | no | yes, plus secret |
 | `<prefix>dish-margin` | J | `LOCATION#<l>` / `COST#<menuItemId>#<validFrom>`, `SETTINGS` | none | no | no | yes |
+| `<prefix>events-tickets` (addendum) | K | `TENANT#<t>` / `EVENT#<eventId>`, `EVENT#<eventId>#OCC#<startAt>`, `EVENT#<eventId>#TYPE#<typeId>`, `ORDER#<orderId>`, `TICKET#<ticketId>`, `CODE#<codeHmac>`, `TRANSFER#<transferId>`, `TX#<txId>`, `JOB#<jobId>` | `byOccurrence`: `GSI1PK=TENANT#<t>#OCC#<occurrenceId>`, `GSI1SK=<holderName>#<ticketId>` (TICKET only); `byLocationDay`: `GSI2PK=TENANT#<t>#LOC#<l>#<day>`, `GSI2SK=<at>#<txId>` (TX only) | yes (pending ORDER 15 min, TRANSFER, JOB 7 d) | no | partial: everything now except TX rows, which get `ttl` = end of the 7th year |
+| `<prefix>phone-agent` (addendum) | L | `TENANT#<t>` / `CONFIG`, `LOC#<l>#CONFIG`, `NUMBER#<e164>`, `CALL#<day>#<callId>`, `CALL#<day>#<callId>#T#<seq:05d>`, `CALLBACK#<callbackId>`, `USAGE#<periodEnd>`, `SIM#<sessionId>` | `byNumber` sparse: `GSI1PK=NUMBER#<e164>`, `GSI1SK=<t>#<l>`; `byReservation` sparse: `GSI2PK=TENANT#<t>#RES#<reservationId>`, `GSI2SK=<startedAt>` | yes (turns 24 months, CALL 7 years, CALLBACK 90 d after close, SIM 1 h) **[NEEDS YOUR OK: retention]** | no | yes, plus numbers released, provider agents deleted, recordings deleted, `USER#agent:<l>` rows removed |
+
+Other new stores (addendum): S3 bucket
+`<prefix>phone-agent-recordings-<account>` (private, SSE, lifecycle by
+retention prefix, written only with the tenant's recording opt-in);
+Lambda Function URL on `phone-agent-call` (`RESPONSE_STREAM`, the agent
+turn endpoint, protected by `${prefix}phone-agent/llm-endpoint-key`);
+Scheduler groups `<prefix>events-tickets`, `<prefix>phone-agent`.
 
 Other new stores: SQS FIFO `<prefix>accounting-sync.fifo` + DLQ
 `<prefix>accounting-sync-dlq.fifo` (I); Step Functions
@@ -199,6 +233,8 @@ IAM-scoped with `dynamodb:Attributes`):
 | tenant table `TENANT#<t>/PROFILE` | `site = {mode, version}` | `site-builder` | `tenant-site-config` |
 | location table `TENANT#<t>/LOCATION#<l>` | `waitlist = {publicJoin}` | `waitlist` | `tenant-site-config` |
 | tenant table `PLATFORM#META_ADS/SETTINGS` (new row) | `killSwitch`, `maxMonthlyCapSek` | `meta-ads` (via console forward) | `meta-ads`, `meta-ads-jobs` |
+| tenant table `PLATFORM#PHONE_AGENT/SETTINGS` (new row, addendum) | `killSwitch`, `maxMinutesCap` | `phone-agent` (via console forward) | `phone-agent`, `phone-agent-call` |
+| user table `USER#agent:<l>/PROFILE` (new rows, addendum) | whole row `{tenantId, role: "staff", locationId, name: "Telefonassistent", status: "system"}` | `phone-agent` (Put/Delete, `dynamodb:LeadingKeys` `StringLike USER#agent:*`) | `staff_location()` in the existing Lambdas the agent invokes (ADR-L "agent principal") |
 
 ## 5. Events
 
@@ -253,6 +289,23 @@ an SQS DLQ in their own module.
 | `booqy.accounting-sync` | `AccountingSync.DayPosted` | `scope` (locationId or `company-<key>`), `day: date`, `provider`, `voucherId` | accounting-sync | none |
 | `booqy.accounting-sync` | `AccountingSync.PostingFailed` | `scope`, `day: date`, `code`, `retryable: bool` | accounting-sync | none |
 | `booqy.dish-margin` | `DishMargin.CostSet` | `locationId`, `menuItemId`, `validFrom: date` | dish-margin | none |
+| `booqy.events-tickets` (addendum) | `Event.Published` | `locationId`, `eventId`, `occurrences: int` | events-tickets | none |
+| `booqy.events-tickets` | `EventOccurrence.Cancelled` | `locationId`, `eventId`, `occurrenceId`, `ticketsToRefund: int` | events-tickets | none |
+| `booqy.events-tickets` | `Ticket.Sold` | `locationId`, `eventId`, `occurrenceId`, `orderId`, `qty: int`, `amountOre: int` | events-tickets | none (guest-crm candidate later) |
+| `booqy.events-tickets` | `Ticket.CheckedIn` | `locationId`, `occurrenceId`, `ticketId` | events-tickets | none |
+| `booqy.events-tickets` | `Ticket.Transferred` | `locationId`, `occurrenceId`, `ticketId`, `newTicketId`, `kind: enum[gift,resale]` | events-tickets | none |
+| `booqy.events-tickets` | `Ticket.Refunded` | `locationId`, `occurrenceId`, `ticketId`, `amountOre: int`, `by: enum[owner,cancellation]` | events-tickets | none |
+| `booqy.phone-agent` (addendum) | `PhoneCall.Answered` | `locationId`, `callId`, `language: enum[sv,en]` | phone-agent-call | none |
+| `booqy.phone-agent` | `PhoneCall.Ended` | `locationId`, `callId`, `durationSec: int`, `billedMinutes: int`, `outcome: enum[booked,moved,cancelled,info,transferred,callback,abandoned,refused,error]`, `reservationId?`, `callbackId?` | phone-agent-call, phone-agent-jobs | none |
+| `booqy.phone-agent` | `PhoneCall.Refused` | `locationId`, `callId`, `reason: enum[cap,kill_switch,hours,paused,entitlement]` | phone-agent-call | none |
+| `booqy.phone-agent` | `PhoneCallback.Requested` | `locationId`, `callbackId`, `callId` | phone-agent-call | none |
+| `booqy.phone-agent` | `PhoneCallback.Closed` | `locationId`, `callbackId` | phone-agent | none |
+| `booqy.phone-agent` | `PhoneMinutes.CapReached` | `periodEnd: date`, `minutes: int`, `capMinutes: int` | phone-agent-call | none |
+| `booqy.phone-agent` | `PhoneNumber.Provisioned` | `locationId` | phone-agent | none |
+| `booqy.phone-agent` | `PhoneNumber.Released` | `locationId` | phone-agent, phone-agent-jobs | none |
+
+No detail ever carries a phone number, a transcript, a holder name or an
+email (addendum rule restated).
 
 Delivery: at least once; every consumer is idempotent (deterministic schedule
 names, conditional writes). Producers publish after the write succeeds;
@@ -446,6 +499,68 @@ Existing route change (Run 0, hotspot): `GET /insights?locationId=<l>` (the exis
 `missingCost`, `targetMarginPct`; only when `dishMargin` is on and the
 caller is owner; `without_money` strips all five for staff.
 
+### 6.K Events and tickets (`events`, addendum)
+
+| # | Method + path | Auth | Roles | Entitlement | Request -> response | Feature errors | Idempotency |
+|---|---|---|---|---|---|---|---|
+| K1 | GET `/locations/{locationId}/events?status=&cursor=` | jwt | owner, staff | `events` | -> `{events[{eventId, title, status, nextOccurrence?, sold, capacity}], cursor}` | 400 bad status | n/a |
+| K2 | POST `/locations/{locationId}/events` | jwt | owner | `events` | `{eventId, title, description, imageKey?, occurrences[{startAt, endAt, capacity, salesOpenAt?, salesCloseAt?}], series?, ticketTypes[], settings}` -> 201 event (`draft`) | 400 `invalid_capacity`, `invalid_price`, `invalid_vat_rate`, `invalid_window`, `invalid_series`, `unknown_image` | client ULID `eventId` |
+| K3 | GET `/locations/{locationId}/events/{eventId}` | jwt | owner, staff | `events` | -> event + `occurrences[]` + `ticketTypes[]` (staff: no revenue) | none | n/a |
+| K4 | PUT `/locations/{locationId}/events/{eventId}` | jwt | owner | `events` | event fields + `version` -> event | 400 as K2 | `version` |
+| K5 | POST `/locations/{locationId}/events/{eventId}/publish` | jwt | owner | `events` | `{version}` -> event (`published`), series occurrences generated | 409 `invalid_state` | second publish 200, no duplicates |
+| K6 | PUT `/locations/{locationId}/events/{eventId}/ticket-types/{typeId}` | jwt | owner | `events` | `{name, priceOre, vatRate, capacity?, tier?, includes?, perOrderMax, sortOrder, version?}` -> type | 400 `invalid_price`, `invalid_vat_rate` | client ULID + `version` |
+| K7 | DELETE `/locations/{locationId}/events/{eventId}/ticket-types/{typeId}` | jwt | owner | `events` | -> 204 | 409 `has_sales` | second 204 |
+| K8 | PUT `/locations/{locationId}/events/{eventId}/occurrences/{occurrenceId}` | jwt | owner | `events` | `{capacity?, salesOpenAt?, salesCloseAt?, doorsAt?, version}` -> occurrence | 400 `invalid_capacity` (below sold) | `version` |
+| K9 | POST `/locations/{locationId}/events/{eventId}/occurrences/{occurrenceId}/cancel` | jwt | owner | `events` | `{jobId, version, message?}` -> 202 `{jobId, toRefund}` | 409 `invalid_state` | client ULID `jobId`; each refund once |
+| K10 | GET `/locations/{locationId}/events/{eventId}/occurrences/{occurrenceId}/guest-list` | jwt | owner, staff | `events` | -> `{scanKey, tickets[{ticketId, holderName, typeName, status, checkedInAt?}], counters{sold, checkedIn, capacity}}` | none | n/a |
+| K11 | POST `/locations/{locationId}/events/{eventId}/occurrences/{occurrenceId}/check-ins` | jwt | owner, staff | `events` | `{checkIns[{ticketId, sig, at, clientId}]}` (max 200) -> `{results[{clientId, status: ok \| already \| invalid \| void, at?, by?}]}` | 400 `too_many` | `clientId` |
+| K12 | GET `/locations/{locationId}/events/{eventId}/orders?cursor=` | jwt | owner | `events` | -> `{orders[], cursor}` | 400 bad cursor | n/a |
+| K13 | POST `/locations/{locationId}/events/tickets/{ticketId}/refund` | jwt | owner | `events` | `{txId, reason}` -> ticket (`refunded`) | 409 `invalid_state`; 502 `stripe_unavailable` | `txId`; Stripe key `ticket-refund-<ticketId>` |
+| K14 | GET `/locations/{locationId}/events/jobs/{jobId}` | jwt | owner | `events` | -> `{kind, done, counts}` | none | n/a |
+| K15 | GET `/public/locations/{locationId}/events` | public | guest | `events` | -> `{events[{eventId, title, imageUrl?, nextOccurrence, fromPriceSek, soldOut}]}` | none | n/a |
+| K16 | GET `/public/locations/{locationId}/events/{eventId}` | public | guest | `events` | -> event + `occurrences[{occurrenceId, startAt, left, soldOut}]` + `ticketTypes[{typeId, name, priceSek, left?, available}]` + `tablePick?` | 404 draft | n/a |
+| K17 | POST `/public/locations/{locationId}/events/checkout` | public (Turnstile + request guard, throttle `public`) | guest | `events` | `{orderId, occurrenceId, lines[{typeId, qty}], buyerName, buyerEmail, buyerPhone?, tableIds?, turnstileToken}` -> `{clientSecret?, amountSek, expiresAt}` | 400 `too_many_tickets`, `invalid_email`, `turnstile_failed`; 409 `sold_out`, `type_sold_out`, `sales_closed`, `table_taken`; 502 `stripe_unavailable` | `orderId` = Stripe key `ticket-<orderId>` |
+| K18 | GET `/public/tickets/{token}` | public (token) | guest | `events` | -> `{event, occurrence, tickets[{ticketId, typeName, holderName, status, qr}], wallet{apple, google}, transferAllowed, resaleAllowed}` | 404 | n/a |
+| K19 | GET `/public/tickets/{token}/pass?ticketId=&kind=apple\|google` | public (token) | guest | `events` | -> `.pkpass` or 302 | 404 (also when the Wallet secret is missing) | n/a |
+| K20 | POST `/public/tickets/{token}/transfers` | public (token) | guest | `events` | `{transferId, ticketId, kind, toEmail?}` -> 201 transfer | 400 `invalid_email`; 409 `transfer_closed`, `invalid_state` | client ULID |
+| K21 | POST `/public/ticket-transfers/{transferToken}/accept` | public (token) | guest | `events` | `{name}` -> `{ticketToken}` | 409 `invalid_state` | second accept -> same token |
+| K22 | DELETE `/public/tickets/{token}/transfers/{transferId}` | public (token) | guest | `events` | -> 204 | none | second 204 |
+
+Resale checkout reuses K17: when the occurrence has a `pending` resale
+transfer for the requested type, that ticket is sold first (ADR-K 8).
+Existing route change (addendum hotspot, Run 2): `stripe-webhook` forwards
+events with `metadata.kind == "ticket"` to `stripe.event` with target
+events-tickets (section 9.2).
+
+### 6.L AI phone agent (`phoneAgent`, addendum)
+
+| # | Method + path | Auth | Roles | Entitlement | Request -> response | Feature errors | Idempotency |
+|---|---|---|---|---|---|---|---|
+| L1 | GET `/tenant/phone-agent` | jwt | owner | `phoneAgent` | -> `{config, locations[{locationId, enabled, killSwitch, mode, number?, minutesThisPeriod}], usage{minutes, cap, includedMinutes, periodEnd}}` | none | n/a |
+| L2 | PUT `/tenant/phone-agent/config` | jwt | owner | `phoneAgent` | `{agentName, tone, languages, recording{enabled, purpose?, retentionDays?}, minutesCapPerMonth, version}` -> config | 400 `purpose_required`, `invalid_retention`, `invalid_cap`, `text_too_long` | `version` |
+| L3 | GET `/locations/{locationId}/phone-agent` | jwt | owner, staff | `phoneAgent` | -> location config + `forwarding{number, codes[]}` (staff: read-only view) | none | n/a |
+| L4 | PUT `/locations/{locationId}/phone-agent` | jwt | owner | `phoneAgent` | `{enabled, mode, agentHours, greetingExtraSv, greetingExtraEn, transferTo, maxCallSeconds, version}` -> config; first enable 202 `{status: provisioning}` then 200 | 400 `invalid_hours`, `invalid_phone`, `invalid_max_call`, `text_too_long`; 409 `provisioning`, `number_unavailable`; 502 `telephony_unavailable`, `voice_provider_unavailable` | `version`; second enable never provisions a second number |
+| L5 | POST `/locations/{locationId}/phone-agent/kill-switch` | jwt | owner, staff | `phoneAgent` | `{on, version}` -> config | 400 missing `on` | same state 200 |
+| L6 | POST `/locations/{locationId}/phone-agent/simulate` | jwt | owner | `phoneAgent` | `{sessionId, text, language?}` -> `{reply, toolCalls[{name, ok}], state, disclosure: bool}` (writes no booking: dry run) | 400 `text_too_long`; 502 `ai_unavailable` | `sessionId` + turn index |
+| L7 | GET `/locations/{locationId}/phone-agent/calls?from&to&cursor` | jwt | owner, staff | `phoneAgent` | -> `{calls[{callId, startedAt, durationSec, language, outcome, reservationId?, callbackId?, summary}], cursor}` (staff: no caller number) | 400 `invalid_range` | n/a |
+| L8 | GET `/locations/{locationId}/phone-agent/calls/{callId}` | jwt | owner, staff | `phoneAgent` | -> call + `turns[]` + `recordingUrl?` (owner only) | none | n/a |
+| L9 | DELETE `/locations/{locationId}/phone-agent/calls/{callId}/recording` | jwt | owner | `phoneAgent` | -> 204 | none | second 204 |
+| L10 | GET `/locations/{locationId}/phone-agent/callbacks?status=` | jwt | owner, staff | `phoneAgent` | -> `{callbacks[]}` | 400 bad status | n/a |
+| L11 | POST `/locations/{locationId}/phone-agent/callbacks/{callbackId}/close` | jwt | owner, staff | `phoneAgent` | `{version, note?}` -> callback | 409 `invalid_state` | second close -> same |
+| L12 | GET `/locations/{locationId}/phone-agent/reservations/{reservationId}/call` | jwt | owner, staff | `phoneAgent` | -> `{callId, summary, disclosure, startedAt}` | 404 when not booked by phone | n/a |
+| L13 | POST `/public/phone-agent/telephony/webhook` | public (provider signature, throttle `public`) | none | n/a (checked per call) | provider body -> 200 `{}` | 404 bad signature or unknown number | duplicate -> one call row |
+| L14 | POST `/public/phone-agent/voice/webhook` | public (provider signature, throttle `public`) | none | n/a | provider events -> 200 | 404 bad signature | conditional transitions |
+| L15 | GET `/platform/tenants/{tenantId}/phone-agent` | operator | platform_admin | n/a | -> `{paused, locations[{locationId, enabled, number?, minutesThisPeriod}], usage[{periodEnd, minutes}]}` | 404 unknown tenant | n/a |
+| L16 | PUT `/platform/tenants/{tenantId}/phone-agent` | operator | platform_admin | n/a | `{paused}` -> `{paused}` | 404 | same body same result |
+| L17 | GET `/platform/phone-agent/settings` | operator | platform_admin | n/a | -> `{killSwitch, maxMinutesCap}` | none | n/a |
+| L18 | PUT `/platform/phone-agent/settings` | operator | platform_admin | n/a | `{killSwitch, maxMinutesCap}` -> settings | 400 `invalid_cap` | same body same result |
+
+Not an API Gateway route: the agent turn endpoint `POST /v1/chat/completions`
+(OpenAI-compatible SSE) on the `phone-agent-call` Function URL, protected by
+`${prefix}phone-agent/llm-endpoint-key` in a header and bound to a known,
+live `callId`. Tool execution invokes the existing functions listed in
+ADR-L "Bedrock agent" directly (no new routes on them).
+
 ## 7. `/site-config` additions
 
 Backend `functions/tenant-site-config/app.py` and site-kit
@@ -458,10 +573,14 @@ Backend `functions/tenant-site-config/app.py` and site-kit
 | `tenant.features.siteBuilder` | bool | always | entitlements |
 | `tenant.site` | `{mode: 'builder' \| 'custom', version: int}` (version = live `versionNo`, 0 = nothing published) | `siteBuilder` on and PROFILE has `site` | `TENANT#<t>/PROFILE.site`, written by site-builder |
 | `locations[].waitlist` | `{publicJoin: bool}` | `waitlist` on and the location row has `waitlist` | location row `waitlist`, written by waitlist F6 |
+| `tenant.features.events` (addendum) | bool | always | entitlements (`siteConfig: true` in the YAML; `SITE_CONFIG_FEATURES` grows to nine) |
 
 `tenant.features` keeps its existing five keys and does **not** gain `kassa`
 or the other new keys (staff-only features, nothing guest-facing). That is
 the deliberate answer to the "`_FEATURES` lacks kassa" mismatch.
+`phoneAgent` adds nothing to `/site-config` (the guest site shows the
+restaurant's own number as today; the Booqy number is only a forwarding
+target).
 
 ## 8. UI placement contracts
 
@@ -474,6 +593,13 @@ the deliberate answer to the "`_FEATURES` lacks kassa" mismatch.
 | `restaurangen` | `/presentkort` | Presentkort | `giftCards` | yes | `nav-presentkort` | after Gäster | `src/features/gift-cards/PresentkortPage.tsx` |
 | `restaurangen` | `/webbplats` | Webbplats | `siteBuilder` | yes | `nav-webbplats` | after Presentkort | `src/features/site-builder/WebbplatsPage.tsx` |
 | `restaurangen` | `/marknadsforing` (existing) | Marknadsföring | **any of** `marketing`, `metaAds`, `googleBusiness`, `socialPosting` (was `marketing`) | yes | `nav-marknadsforing` | unchanged | existing |
+| `passet` (addendum) | `/telefon` | Telefon | `phoneAgent` | no (staff see calls, callbacks and the kill switch; settings are owner-only inside the page) | `nav-telefon` | after Personalliggare | `src/features/phone-agent/TelefonPage.tsx` |
+| `restaurangen` (addendum) | `/evenemang` | Evenemang | `events` | no (staff scan and see the guest list; editing is owner-only inside the page) | `nav-evenemang` | after Webbplats | `src/features/events-tickets/EvenemangPage.tsx` |
+
+Child routes owned by the feature pages (addendum): `/evenemang/:eventId`,
+`/evenemang/:eventId/inslapp/:occurrenceId` (scanner and guest list),
+`/telefon/samtal/:callId`; registered in `pages.ts`/`App.tsx` by the
+addendum scaffolding as lazy routes to the same feature folder.
 
 `NavItem.feature` becomes `FeatureKey | FeatureKey[]` (array = any of).
 Guide steps (`features/guide/steps.ts`, Run 0) for the four new tour ids,
@@ -485,6 +611,8 @@ shown only when the item is visible:
 | `nav-gaster` | Gäster | Se vilka gäster som kommer tillbaka och vad de har bokat och beställt. |
 | `nav-presentkort` | Presentkort | Sälj presentkort på er hemsida och se vad som finns kvar att lösa in. |
 | `nav-webbplats` | Webbplats | Ändra er hemsida, förhandsgranska och publicera när ni är nöjda. |
+| `nav-telefon` (addendum) | Telefon | Låt assistenten svara när ni inte hinner. Se samtalen, vem som vill bli uppringd och stäng av när ni vill. |
+| `nav-evenemang` (addendum) | Evenemang | Sälj biljetter till kvällar och middagar, scanna vid dörren och se vad som är sålt. |
 
 Page title for H while legal review is open: "Personalliggare (under
 granskning)". Placeholder page (Run 0): `AdminTopbar` + `admin-main`, the
@@ -518,11 +646,23 @@ when their feature is on; the existing six tabs are shown only when
 | `meny.dish.share` | MenyPage dish actions | `socialPosting` | yes | `{locationId, menuItemId}` | `src/features/social-posting/ShareDishAction.tsx` |
 | `statistik.dishes.margin` | StatistikPage dishes section | `dishMargin` | yes | `{insights, locationId, from, to}` | `src/features/dish-margin/MarginChart.tsx` |
 | `statistik.signals` (function, static import) | `features/statistik/insights.ts` `signals()` appends | `dishMargin` | yes (server strips data) | `signals(data) => Signal[]` | `src/features/dish-margin/signals.ts` (Run 0 stub returns `[]`) |
+| `bokningar.panel.callbacks` (addendum) | BokningarPage, below the waitlist panel slot | `phoneAgent` | no | `{locationId, date}` | `src/features/phone-agent/CallbacksPanel.tsx` |
+| `bokningar.reservation.call` (addendum) | BokningarPage reservation row, next to the guest badge | `phoneAgent` | no | `{locationId, reservationId}` | `src/features/phone-agent/CallBadge.tsx` |
+| `statistik.events` (addendum) | StatistikPage, after the dishes section | `events` | no (server strips money for staff) | `{insights, locationId, from, to}` | `src/features/events-tickets/EventsStats.tsx` |
 
 BokforingCard (Run 0): new group "Presentkort" with roles
 `giftCardLiability` ("Ej inlösta presentkort", default 2421) and
 `giftCardBreakage` ("Övriga ersättningar och intäkter", default 3990),
-shown only when `giftCards` is on.
+shown only when `giftCards` is on. Addendum: group "Biljetter" with the
+`ticketSales*` roles (one per accountant-approved VAT rate; accounts
+**[NEEDS YOUR OK: accountant]**, placeholders 3010/3011/3012 by rate),
+shown only when `events` is on; the roles are added to
+`shared/accounting.py` in the Run 2 hotspot batch, not in the addendum.
+
+Existing route change (addendum, Run 2 hotspot): `GET /insights?locationId=`
+gains `events{occurrences, ticketsSold, revenueOre, checkedIn}` per day when
+`events` is on, through the `insights.events` hook; `without_money` strips
+`revenueOre`.
 
 ### 8.3 Booqy Console (English)
 
@@ -533,10 +673,16 @@ shown only when `giftCards` is on.
 | TenantPage Website tab | slot `tenant.website.siteBuilder` (`{tenantId}`), visible when `siteBuilder` on | `web/src/features/site-builder/SiteBuilderSection.tsx` |
 | TenantPage "Suspend or offboard" tab | slot `tenant.offboard.personalliggare` (`{tenantId}`), always visible (offboarded tenants too) | `web/src/features/personalliggare/ExportLedgerSection.tsx` |
 | SettingsPage | slot `settings.metaAds` (`{}`) card "Meta ads" | `web/src/features/meta-ads/MetaAdsSettingsCard.tsx` |
+| TenantPage Integrations tab (addendum): visible when `metaAds`, `googleBusiness` **or `phoneAgent`** is on | slot `tenant.integrations.phoneAgent` (`{tenantId}`): numbers, minutes per period, pause | `web/src/features/phone-agent/PhoneAgentTenantSection.tsx` |
+| SettingsPage (addendum) | slot `settings.phoneAgent` (`{}`) card "Phone agent" (platform kill switch, max minutes cap) | `web/src/features/phone-agent/PhoneAgentSettingsCard.tsx` |
+| TenantPage Plan tab and NewTenantPage (addendum) | number input "Phone agent minutes per month" for `phoneAgentMinutesPerMonth` (0-100000), sent as `overrides.limits`, built generically from `LIMITS` | none (hotspot) |
+| TenantPage Billing tab (addendum, Run 2 hotspot) | two lines "Phone agent, <n> locations" and "Phone minutes over <included>" per period from `billing.usage`; prices from `var.phone_agent_location_price_sek` / `var.phone_agent_minute_price_sek` with per-tenant override like the SMS price **[NEEDS YOUR OK: prices]** | none (hotspot) |
 
 Console labels (`labelEn`): Meta ads, Site builder, Guest CRM, Google
 Business Profile, Gift cards, Waitlist, Social posting, Staff ledger
-(personalliggare), Fortnox/Visma posting, Margin per dish.
+(personalliggare), Fortnox/Visma posting, Margin per dish; (addendum)
+Events and tickets, Phone agent. Swedish labels (`labelSv`): Evenemang och
+biljetter, Telefonassistent.
 
 ### 8.4 Restaurant site (site-kit and customer app)
 
@@ -547,9 +693,16 @@ Business Profile, Gift cards, Waitlist, Social posting, Staff ledger
 | `/ko` (and `/ko#<token>`) | `waitlist` and the location's `waitlist.publicJoin` | `packages/site-kit/src/features/ko/KoPage.tsx` | from `boka` slot |
 | `/forhandsvisning` | `siteBuilder` | `packages/site-kit/src/features/site-builder/PreviewPage.tsx` | none, `noindex` |
 | `*` (catch-all) when `tenant.site?.mode === 'builder'` and `version > 0` | `siteBuilder` | `packages/site-kit/src/features/site-builder/BuilderPage.tsx` | pages from the document |
+| `/evenemang` (addendum) | `events` | `packages/site-kit/src/features/evenemang/EvenemangPage.tsx` | "Evenemang" link in the site nav when on |
+| `/evenemang/:eventId` (addendum) | `events` | `packages/site-kit/src/features/evenemang/EvenemangDetaljPage.tsx` | from the list and the poster QR |
+| `/biljett` (and `/biljett#<token>`) (addendum) | `events` | `packages/site-kit/src/features/evenemang/BiljettPage.tsx` | from the ticket email |
+| `/biljett/ta-emot` (and `#<transferToken>`) (addendum) | `events` | `packages/site-kit/src/features/evenemang/TaEmotPage.tsx` | from the transfer email |
 
 `sitePages` keys (Run 0): `presentkort`, `presentkortSaldo`, `ko`,
-`forhandsvisning`, `builderPage`.
+`forhandsvisning`, `builderPage`; (addendum) `evenemang`, `evenemangDetalj`,
+`biljett`, `biljettTaEmot`. The builder catch-all must not shadow these
+four when `events` is on (same rule as the Run 0 routes). No new site
+slots for K or L.
 
 | Site slot id | Host | Feature | Props | Component (feature-owned) |
 |---|---|---|---|---|
@@ -597,7 +750,17 @@ still lets erase, export, SIE history and gift card events reach its data.
 | `accounting.events` | `shared/accounting.location_events` (accounting export and accounting-sync) | gift-cards | on or ever on | `locationId`, `first`, `last` | `events[{day, postings[{role, amount, text}], warnings[]}]` (shape of `shared.accounting.Event`) |
 | `insights.dishCosts` | insights `GET /insights?locationId=` | dish-margin | `dishMargin` on and caller is owner | `locationIds[]`, `first`, `last` | `targetMarginPct`, `costs{menuItemId: [{validFrom, costOre}]}` |
 | `marketing.segment` | marketing (campaign save, `op: describe`), marketing-send (`op: page`) | guest-crm | audience `{type: "segment", exportId}` | `op`, `exportId`, `cursor?` | describe: `count`; page: `subscriberIds[]`, `cursor?` |
-| `platform` | platform-tenants feature modules (operator routes) | meta-ads, site-builder, google-business, personalliggare | operator route hit | `op`, `body`, `query`, `operator{sub, email}` | `status`, `body` |
+| `platform` | platform-tenants feature modules (operator routes) | meta-ads, site-builder, google-business, personalliggare, (addendum) phone-agent | operator route hit | `op`, `body`, `query`, `operator{sub, email}` | `status`, `body` |
+| `insights.events` (addendum, caller built in the Run 2 hotspot batch) | insights `GET /insights?locationId=` | events-tickets | `events` on or ever on | `locationIds[]`, `first`, `last` | `days[{day, occurrences, ticketsSold, revenueOre, checkedIn}]` |
+| `billing.usage` (addendum, caller built in the Run 2 hotspot batch) | platform-tenants invoicing task (`financeTask: invoice`) and the console Billing tab | phone-agent | `phoneAgent` on or ever on | `periodStart`, `periodEnd` | `lines[{locationId, minutes}]`, `includedMinutes` |
+
+Addendum target changes to existing hooks: `privacy.export` and
+`privacy.erase` add events-tickets and phone-agent (by email hash, by
+phone hash); `tenant.purge` targets all twelve; `stripe.event` is called
+with target events-tickets when `metadata.kind == "ticket"` (same
+`account` rule as gift cards: ignore unless `account` equals the order's
+`stripeAccountId`); `accounting.events` adds events-tickets (TX rows by
+`byLocationDay`).
 
 Margin math stays in `shared/dish_margin.py` `apply(summary, costs)`
 (Run 0 stub returns `summary` unchanged; J owns the file afterwards).
@@ -618,6 +781,10 @@ Kassa payments with method `Presentkort` debit `giftCardLiability`.
 | B13 | `site-builder.release.ready` | site-builder | `site_release_proposed` |
 | D11 | `google-business.tenant.get` | google-business | none |
 | H9 | `personalliggare.export` | personalliggare | `staff_ledger_exported` |
+| L15 (addendum) | `phone-agent.tenant.get` | phone-agent | none |
+| L16 (addendum) | `phone-agent.tenant.pause` | phone-agent | `phone_agent_paused` / `phone_agent_resumed` (split by the request's `paused`) |
+| L17 (addendum) | `phone-agent.settings.get` | phone-agent | none |
+| L18 (addendum) | `phone-agent.settings.put` | phone-agent | `phone_agent_settings_changed` |
 
 ### 9.4 Notification send (direct invoke of `notification:live`)
 
@@ -635,7 +802,13 @@ item before invoking and owns the Swedish copy (rendered with
 `shared/messages.py` helpers, read-only). Kinds: `gift-cards.code`,
 `gift-cards.code-resend`, `waitlist.joined`, `waitlist.offered`,
 `waitlist.expired`. The gift card code is in the invoke payload only, never
-in a table or log.
+in a table or log. Addendum kinds: `events-tickets.tickets` (email, the
+tickets with QR and Wallet links), `events-tickets.transfer` (email, gift
+or resale link), `events-tickets.refunded` (email), `events-tickets.cancelled`
+(email, occurrence cancelled); `phone-agent.guarantee-link` (SMS, the
+existing payment link), `phone-agent.callback-summary` (email to the
+location, optional), `phone-agent.cap-warning` (email to the owner at
+80 %). Ticket tokens and QR payloads travel in the payload only.
 
 ## 10. Storage registry entries
 
@@ -644,9 +817,15 @@ in a table or log.
 | site-kit `src/shared/storageRegistry.ts` | `GIFT_CARD_PURCHASE_KEY` | `booqy-giftcard-purchase` | sessionStorage | Webbplatsen (where: Presentkort) | Kommer ihåg ditt presentkortsköp medan kortbetalningen bekräftas, så att tack-sidan kan visa det. | Tills köpet är klart eller fliken stängs | nödvändig | E |
 | site-kit `src/shared/storageRegistry.ts` | `WAITLIST_TOKEN_PREFIX` | `booqy-waitlist-<locationId>` | localStorage | Webbplatsen (where: Kö) | Sparar din plats i kön så att du ser när ditt bord är klart. | Till slutet av dagen du ställde dig i kö | nödvändig | F |
 
-No new keys in the admin or console registries. B's preview token stays in
-the URL fragment and is never stored. Run 0 adds both entries and
-constants; the features import the constants.
+| site-kit `src/shared/storageRegistry.ts` (addendum) | `TICKET_PURCHASE_KEY` | `booqy-ticket-purchase` | sessionStorage | Webbplatsen (where: Evenemang) | Kommer ihåg ditt biljettköp medan kortbetalningen bekräftas, så att biljettsidan kan visas. | Tills köpet är klart eller fliken stängs | nödvändig | K |
+| admin `src/shared/storageRegistry.ts` (addendum) | `EVENT_SCAN_KEY_PREFIX` | `booqy-event-scan-<occurrenceId>` | IndexedDB | Booqy (Evenemang, insläpp) | Sparar gästlistan och insläpp som gjorts utan nät vid dörren, tills de har skickats till servern. | Tills insläppen är synkade, senast dagen efter evenemanget | nödvändig | K |
+
+No new keys in the console registry; L adds none anywhere (the simulator
+session lives on the server as `SIM#`). B's preview token and K's ticket
+tokens stay in the URL fragment and are never stored. Run 0 added the first
+two entries; the addendum adds the next two (admin's registry is no longer
+"no new keys": the `storageRegistry.test.ts` rules apply, IndexedDB counts
+as a `kind`). The features import the constants.
 
 ## 11. Secrets Manager
 
@@ -660,6 +839,12 @@ constants; the features import the constants.
 | `booqy/<env>/accounting-sync/<tenantId>` | accounting-sync at runtime | `{provider, accessToken, refreshToken, expiresAt, companyId}` | I | accounting-sync: create/put/get/delete |
 | `${prefix}accounting-sync/fortnox-app` | Terraform (I), by hand | Fortnox client id/secret | I | accounting-sync: get |
 | `${prefix}accounting-sync/visma-app` | Terraform (I), by hand | Visma client id/secret | I | accounting-sync: get |
+| `${prefix}events-tickets/code-pepper` (addendum) | Terraform (K), `random_password` | HMAC pepper for ticket codes and scan keys | K | events-tickets: get |
+| `${prefix}events-tickets/apple-pass` (addendum) | Terraform (K), by hand | Pass Type ID certificate, key, WWDR cert, team id | K | events-tickets: get (empty = Apple Wallet hidden) |
+| `${prefix}events-tickets/google-wallet` (addendum) | Terraform (K), by hand | service account JSON, issuer id | K | events-tickets: get (empty = Google Wallet hidden) |
+| `${prefix}phone-agent/voice-provider` (addendum) | Terraform (L), by hand | voice provider API key, webhook signing secret | L | phone-agent, phone-agent-call: get |
+| `${prefix}phone-agent/telephony` (addendum) | Terraform (L), by hand | SIP provider API credentials, webhook secret | L | phone-agent, phone-agent-call, phone-agent-jobs: get |
+| `${prefix}phone-agent/llm-endpoint-key` (addendum) | Terraform (L), `random_password` | header secret the voice provider sends to the agent turn endpoint | L | phone-agent (writes it into the provider agent config), phone-agent-call: get |
 
 Per-tenant runtime secrets: IAM on `arn:...:secret:booqy/<env>/<feature-id>/*`,
 7-day recovery window on delete, deleted by the feature's `tenant.purge`
@@ -678,6 +863,17 @@ hook. Never logged, returned or put in an event.
 | `bedrock_client` | string / `"simulator"` | same | `external-clients.tf` | `BEDROCK_CLIENT` | Run 0 |
 | `bedrock_model_id` | string / `""` | none (real client refuses empty) | `external-clients.tf` | `BEDROCK_MODEL_ID` | Run 0 |
 | `plans` | existing object, adds `limits = optional(map(number), {})` | limit names in `["siteBuilderAiEditsPerMonth"]`, whole, 0-1000 | `variables.tf` | (plan rows) | Run 0 |
+| `plans` (addendum) | same | limit names also `phoneAgentMinutesPerMonth`, 0-100000 | `variables.tf` | (plan rows) | addendum |
+| `voice_client` (addendum) | string / `"simulator"` | `simulator` or `real` | `external-clients.tf` | `VOICE_CLIENT` | addendum |
+| `telephony_client` (addendum) | string / `"simulator"` | same | `external-clients.tf` | `TELEPHONY_CLIENT` | addendum |
+| `agent_model_client` (addendum) | string / `"simulator"` | same | `external-clients.tf` | `AGENT_MODEL_CLIENT` | addendum |
+| `phone_agent_model_id` (addendum) | string / `""` | none (real client refuses empty) | `external-clients.tf` | `PHONE_AGENT_MODEL_ID` | addendum |
+| `phone_agent_location_price_sek` (addendum) | number / `0` | whole, >= 0 | `variables.tf` | `BILLING_PHONE_AGENT_LOCATION_PRICE_SEK` (platform-tenants, Run 2 hotspot) | addendum; value **[NEEDS YOUR OK]** |
+| `phone_agent_minute_price_sek` (addendum) | number / `0` | >= 0, two decimals | `variables.tf` | `BILLING_PHONE_AGENT_MINUTE_PRICE_SEK` | addendum; value **[NEEDS YOUR OK]** |
+| `phone_agent_daily_minutes_alarm` (addendum) | number / `600` | whole, > 0 | `phone-agent.tf` (module input, not shared) | (alarm threshold) | L; value **[NEEDS YOUR OK]** |
+
+Price variables default to 0 so no invoice line is produced until the
+owner sets them (the invoicing run skips 0-priced lines, like SMS).
 
 Simulator refusal in prod is at runtime (the factory raises when
 `ENVIRONMENT=prod`), not in Terraform, so prod keeps planning while the
@@ -699,9 +895,17 @@ ECR repos (Run 0, because CI derives its bootstrap targets from `module
 "*_ecr"` in config.tf): `meta-ads`, `meta-ads-jobs`, `site-builder`,
 `site-builder-render`, `guest-crm`, `guest-crm-sync`, `google-business`,
 `google-business-jobs`, `gift-cards`, `waitlist`, `social-posting`,
-`personalliggare`, `accounting-sync`, `dish-margin`. Module input
-`ecr_repository_url(s)` is passed by the feature's root file from
-`module.<snake>_ecr.repository_url`.
+`personalliggare`, `accounting-sync`, `dish-margin`; (addendum, four more,
+18 in all) `events-tickets`, `phone-agent`, `phone-agent-call`,
+`phone-agent-jobs`. Module input `ecr_repository_url(s)` is passed by the
+feature's root file from `module.<snake>_ecr.repository_url`.
+
+Addendum module stubs: `infrastructure/events-tickets/` + `events-tickets.tf`,
+`infrastructure/phone-agent/` + `phone-agent.tf`, both zero resources with
+the `wiring` output below, and `network/api-gateway/events-tickets-routes.tf`,
+`phone-agent-routes.tf` with empty locals `events_tickets_routes`,
+`phone_agent_routes`; `config.tf` merges twelve `wiring` outputs and
+`feature-routes.tf` concatenates twelve route locals.
 
 `wiring` output, fixed shape (empty in Run 0); `config.tf` merges all ten:
 
@@ -758,10 +962,15 @@ first n calls (for idempotency and resume tests). Errors: one
 | `GoogleBusiness` (`shared/google_business.py`) | `authorize_url(state, redirect_uri)`, `exchange_code(code, redirect_uri) -> Token{refresh_token, access_token, account_name}`, `refresh(refresh_token) -> access_token`, `list_locations(token) -> [{name: "locations/<id>", title, address, new_review_uri}]`, `patch_hours(token, location_name, regular_hours, special_hours)`, `revoke(token)` | two locations `locations/sim-1`, `locations/sim-2`, review link `https://example.invalid/review/<id>`; stores patched hours, counts calls | D |
 | `FortnoxClient` (`shared/fortnox.py`), `VismaClient` (`shared/visma.py`), same port `AccountingProviderClient` | `authorize_url(state, redirect_uri)`, `exchange_code(code, redirect_uri) -> Token{access_token, refresh_token, expires_at, company_id, org_number, company_name}`, `refresh(refresh_token) -> Token` (rotating), `post_voucher(token, Voucher{series, date, description, rows[{account, debit_ore, credit_ore, text, cost_center?}]}) -> Ref{id, series, number}`, `find_voucher(token, date, series, text_contains) -> Ref \| None`, `revoke(token)`; errors `account_missing`, `financial_year_missing`, `period_locked`, `unauthorized`, `rate_limited`, `unavailable` | in-memory company ledger, numbering per series; a used refresh token raises `unauthorized`; `missing_accounts={...}` and `org_number=` configurable | I |
 | `TextModel` (`shared/bedrock.py`) | `complete(system, prompt, *, max_tokens, json_schema=None) -> str` | with `json_schema`: the smallest valid instance (strings "Simulerad text" cut to `maxLength`, arrays at `minItems`, enums first value); without: `"Simulerad text: " + prompt[:40]`; `responses=[...]` queues canned answers | A |
+| `VoiceProvider` (`shared/voice_provider.py`, addendum) | `create_agent(config) -> provider_agent_id`, `update_agent(id, config)`, `delete_agent(id)`, `sip_target(id) -> SipTarget{uri, auth?}`, `say(call_ref, text)`, `transfer(call_ref, to_e164, timeout_s) -> TransferResult{answered}`, `end(call_ref, reason)`, `recording_url(call_ref) -> url \| None`, `parse_webhook(headers, body) -> list[VoiceEvent]` (`call_started`, `transcript`, `language_detected`, `interrupted`, `transfer_result`, `call_ended`); error `VoiceProviderError(code, retryable)` | ids `sim-agent-<sha1(name)[:10]>`, idempotent by name; `sip_target` = `sip:<id>@sim.invalid`; `say`/`transfer`/`end` recorded in `calls`; `transfer` answers per `transfer_answered=True\|False` set on the instance; `parse_webhook` accepts the simulator's own JSON (`{"events": [...]}`) with a `X-Sim-Signature: ok` header, anything else raises `unauthorized`; `recording_url` returns a `file://` fixture only when `recording=True` | L (real: `shared/voice_provider_real.py`, ElevenLabs) |
+| `Telephony` (`shared/telephony.py`, addendum) | `provision_number(country, label) -> Number{e164, provider_id}`, `release_number(provider_id)`, `set_inbound(provider_id, sip, fallback_e164)`, `transfer(call_ref, to_e164, timeout_s) -> TransferResult`, `parse_webhook(headers, body) -> list[TelephonyEvent]` (`inbound`, `ended`), `verify_forwarding(e164) -> ForwardingCheck`; error `TelephonyError(code, retryable)` | numbers `+4610000<n:04d>` handed out in order, `numbers_left=0` makes `provision_number` raise `number_unavailable`; `set_inbound` stores the target per number; webhook auth = Basic `sim:sim`; `verify_forwarding` returns `unsupported` | L (real: `shared/telephony_real.py`, 46elks) |
+| `AgentModel` (`shared/agent_model.py`, addendum) | `converse(system, messages, tools, *, max_tokens) -> Turn{text?, tool_uses[{id, name, input}], stop_reason}`; error `AgentModelError(code, retryable)` | **scripted intent table**: the last caller message is matched against Swedish and English patterns shipped with the simulator (book, availability, move, cancel, menu, hours, human, callback, yes, no, number, date, time, party size) and turned into the matching tool use or a fixed Swedish/English sentence; a `tool_result` message produces the confirmation sentence for that tool; `responses=[...]` overrides with canned turns; `delay_ms` sleeps to exercise the latency harness | L (real: `shared/agent_model_real.py`, Bedrock Converse stream) |
 
 Terraform: each feature module sets the env var from the root variable for
 the functions that use the client; `bedrock:InvokeModel` only on the
-`bedrock_model_id` ARN.
+`bedrock_model_id` ARN; (addendum) `bedrock:InvokeModelWithResponseStream`
+only on the `phone_agent_model_id` ARN, from `phone-agent-call` and
+`phone-agent` (simulate route).
 
 ## 14. IAM changes to existing roles (IAM change: owner to approve)
 
@@ -785,6 +994,27 @@ sites bucket policy.
 | 8 | insights | invoke dish-margin | `insights.dishCosts` (replaces Query on the dish-margin table) |
 | 9 | marketing, marketing-send | invoke guest-crm | `marketing.segment` (replaces GetItem/Query on CRM exports) |
 | 10 | platform-tenants | invoke meta-ads, site-builder, google-business, personalliggare | operator forwards (replaces Query on the ledger) |
+| 11 (addendum) | guest-privacy | invoke events-tickets, phone-agent | `privacy.export` / `privacy.erase` |
+| 12 (addendum) | tenant-purge | invoke events-tickets, phone-agent | `tenant.purge` (twelve targets) |
+| 13 (addendum) | stripe-webhook | invoke events-tickets | `stripe.event` for `metadata.kind = ticket` |
+| 14 (addendum) | accounting | invoke events-tickets | `accounting.events` |
+| 15 (addendum) | insights | invoke events-tickets | `insights.events` |
+| 16 (addendum) | platform-tenants | invoke phone-agent | operator forwards and `billing.usage` (one statement, `PlatformForwardHook`, `phone-agent:live` only) |
+
+Rows 11-16 are added to `security/iam/feature-hooks/` by the addendum
+scaffolding (same module, same shape; nothing is deployed behind the ARNs
+until Run 2), **IAM change: owner to approve** in the addendum PR.
+
+Also flagged (addendum, new roles touching existing resources, built by
+the features in Run 2): the phone-agent roles get `lambda:InvokeFunction`
+on `tenant-site-config:live`, `get-availability:live`,
+`create-pending-reservation:live`, `get-reservation:live`,
+`mark-arrived:live`, `cancel-reservation:live`, `get-menu:live` (the
+agent's tools, ADR-L) and `PutItem/DeleteItem` on the user table limited by
+`dynamodb:LeadingKeys` to `USER#agent:*`; the events-tickets role gets the
+reservation and slot-occupancy item actions of `create-pending-reservation`
+for table pick (or invoke on it; decided in Run 2); both get invoke on
+`notification:live`.
 
 Also flagged (new roles writing existing resources, built by features):
 site-builder role `UpdateItem` on the tenant table limited by
@@ -818,3 +1048,115 @@ features=None, limits=None)`; `NEW_FEATURES` (all ten false);
 keeps its current four keys on purpose so existing tests do not change
 behaviour. Every new route gets the six cases of RULES.md with `TENANT_A`
 (owner, staff, `LOC_A`, `LOC_A2`) acting on `TENANT_B` / `LOC_B` ids.
+Addendum: `NEW_FEATURES` grows to twelve keys (`events`, `phoneAgent`
+false); `tenant_row(limits=)` accepts `phoneAgentMinutesPerMonth`.
+
+## 17. Run 0 addendum: exact additions to `application/contracts/booqy.yaml`
+
+What the application-repo scaffolding builder adds to the YAML, then
+regenerates the five targets of 1.2 (`python scripts/gen_contracts.py`)
+and re-runs `tests/test_contracts.py`. Field types use the 1.1
+mini-language. Everything else in this file that says "(addendum)" follows
+from these entries plus the Terraform, frontend and console tasks in
+OWNERSHIP.md section 6.
+
+```yaml
+features:                      # appended after dishMargin, display order
+  - key: events
+    id: events-tickets
+    labelSv: Evenemang och biljetter
+    labelEn: Events and tickets
+    existing: false
+    siteConfig: true
+  - key: phoneAgent
+    id: phone-agent
+    labelSv: Telefonassistent
+    labelEn: Phone agent
+    existing: false
+    siteConfig: false
+
+limits:
+  phoneAgentMinutesPerMonth:
+    feature: phoneAgent
+    type: int
+    min: 0
+    max: 100000
+    default: 0
+    labelSv: Telefonminuter per månad
+    labelEn: Phone agent minutes per month
+
+enums:
+  TicketStatus: [valid, checked_in, transferred, refunded, void]
+  TransferKind: [gift, resale]
+  PhoneAgentMode: [after_hours, overflow, always]
+  CallOutcome: [booked, moved, cancelled, info, transferred, callback, abandoned, refused, error]
+  CallRefusedReason: [cap, kill_switch, hours, paused, entitlement]
+
+events:
+  sources:
+    booqy.events-tickets:
+      Event.Published: {locationId: string, eventId: string, occurrences: int}
+      EventOccurrence.Cancelled: {locationId: string, eventId: string, occurrenceId: string, ticketsToRefund: int}
+      Ticket.Sold: {locationId: string, eventId: string, occurrenceId: string, orderId: string, qty: int, amountOre: int}
+      Ticket.CheckedIn: {locationId: string, occurrenceId: string, ticketId: string}
+      Ticket.Transferred: {locationId: string, occurrenceId: string, ticketId: string, newTicketId: string, kind: "enum[gift,resale]"}
+      Ticket.Refunded: {locationId: string, occurrenceId: string, ticketId: string, amountOre: int, by: "enum[owner,cancellation]"}
+    booqy.phone-agent:
+      PhoneCall.Answered: {locationId: string, callId: string, language: "enum[sv,en]"}
+      PhoneCall.Ended: {locationId: string, callId: string, durationSec: int, billedMinutes: int, outcome: "enum[booked,moved,cancelled,info,transferred,callback,abandoned,refused,error]", reservationId?: string, callbackId?: string}
+      PhoneCall.Refused: {locationId: string, callId: string, reason: "enum[cap,kill_switch,hours,paused,entitlement]"}
+      PhoneCallback.Requested: {locationId: string, callbackId: string, callId: string}
+      PhoneCallback.Closed: {locationId: string, callbackId: string}
+      PhoneMinutes.CapReached: {periodEnd: date, minutes: int, capMinutes: int}
+      PhoneNumber.Provisioned: {locationId: string}
+      PhoneNumber.Released: {locationId: string}
+
+hooks:                          # changed and new entries only
+  privacy.export:  {caller: guest-privacy, targets: [guest-crm, google-business, gift-cards, waitlist, events-tickets, phone-agent], gate: ever_on}
+  privacy.erase:   {caller: guest-privacy, targets: [guest-crm, google-business, gift-cards, waitlist, events-tickets, phone-agent], gate: ever_on}
+  tenant.purge:    {caller: tenant-purge, targets: [<all twelve feature ids>], gate: always}
+  stripe.event:    {caller: stripe-webhook, targets: [gift-cards, events-tickets], gate: ever_on}   # target chosen by metadata.kind: giftcard | ticket
+  accounting.events: {caller: accounting, targets: [gift-cards, events-tickets], gate: ever_on}
+  insights.events: {caller: insights, targets: [events-tickets], gate: ever_on}   # staff see it too; without_money strips revenueOre (8.2, 9.2; DECISIONS.md 2026-11-02)
+  billing.usage:   {caller: platform-tenants, targets: [phone-agent], gate: ever_on}
+  platform:        {caller: platform-tenants, targets: [meta-ads, site-builder, google-business, personalliggare, phone-agent], gate: operator}
+
+clients:
+  voice:        {env: VOICE_CLIENT, tfvar: voice_client}
+  telephony:    {env: TELEPHONY_CLIENT, tfvar: telephony_client}
+  agent_model:  {env: AGENT_MODEL_CLIENT, tfvar: agent_model_client}
+
+siteConfig:
+  tenantFeatures: [..., events]          # existing five + giftCards, waitlist, siteBuilder, events
+
+slots:
+  admin:
+    bokningar.panel.callbacks:   {feature: phoneAgent, ownerOnly: false, host: BokningarPage}
+    bokningar.reservation.call:  {feature: phoneAgent, ownerOnly: false, host: BokningarPage}
+    statistik.events:            {feature: events, ownerOnly: false, host: StatistikPage}
+  console:
+    tenant.integrations.phoneAgent: {feature: phoneAgent, host: TenantPage Integrations tab}
+    settings.phoneAgent:            {feature: null, host: SettingsPage}   # platform-wide page, no tenant features (same as settings.metaAds)
+
+storage:
+  siteKit:
+    TICKET_PURCHASE_KEY: {key: booqy-ticket-purchase, kind: sessionStorage, feature: events}
+  admin:
+    EVENT_SCAN_KEY_PREFIX: {key: "booqy-event-scan-<occurrenceId>", kind: IndexedDB, feature: events}
+
+consoleForwardOps:
+  phone-agent.tenant.get:    {route: L15, target: phone-agent, audit: null}
+  phone-agent.tenant.pause:  {route: L16, target: phone-agent, audit: [phone_agent_paused, phone_agent_resumed]}
+  phone-agent.settings.get:  {route: L17, target: phone-agent, audit: null}
+  phone-agent.settings.put:  {route: L18, target: phone-agent, audit: phone_agent_settings_changed}
+```
+
+The generator's detail-type pattern already accepts every name above
+(`Published`, `Cancelled`, `Sold`, `CheckedIn`, `Transferred`, `Refunded`,
+`Answered`, `Ended`, `Refused`, `Requested`, `Closed`, `CapReached`,
+`Provisioned`, `Released`). The `storage` section gains an `admin` map
+(today it has only site-kit keys); the generator emits the admin constant
+into `admin-front-end/src/shared/contracts.ts` as `STORAGE_KEYS` and the
+admin registry imports it. The self-consistency test must still pass:
+every new source is `booqy.<feature-id>`, every hook target and slot
+feature is a known id/key, no duplicate keys.

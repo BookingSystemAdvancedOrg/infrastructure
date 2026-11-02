@@ -134,7 +134,7 @@ variable "plans" {
     price_sek     = number
     limits        = optional(map(number), {})
   }))
-  description = "Plan catalog (packages you sell). A tenant's limits are copied from its plan when the plan is assigned and can be overridden per tenant from the platform dashboard - no deploy either way. Feature keys: reservations, ordering, catering, terminal (card readers for in-person payments, managed from Booqy Console), marketing (visit statistics and email campaigns to guests who opted in), kassa (the till, off by default: turn it on per tenant in Booqy Console; test mode until a certified control system is connected); metaAds, siteBuilder, guestCrm, googleBusiness, giftCards, waitlist, socialPosting, personalliggare, accountingSync, dishMargin (the Run 0 features, false until each ships). limits: numeric plan limits, today only siteBuilderAiEditsPerMonth (0-1000, missing = 0). price_sek: the monthly price excluding VAT, invoiced in arrears on the 25th through Stripe on the platform account; a changed price applies to customers on the plan's price from the next billing period (a customer's own price is not affected)."
+  description = "Plan catalog (packages you sell). A tenant's limits are copied from its plan when the plan is assigned and can be overridden per tenant from the platform dashboard - no deploy either way. Feature keys: reservations, ordering, catering, terminal (card readers for in-person payments, managed from Booqy Console), marketing (visit statistics and email campaigns to guests who opted in), kassa (the till, off by default: turn it on per tenant in Booqy Console; test mode until a certified control system is connected); metaAds, siteBuilder, guestCrm, googleBusiness, giftCards, waitlist, socialPosting, personalliggare, accountingSync, dishMargin, events, phoneAgent (the Run 0 and Run 0 addendum features, false until each ships). limits: numeric plan limits, siteBuilderAiEditsPerMonth (0-1000) and phoneAgentMinutesPerMonth (0-100000), missing = 0. price_sek: the monthly price excluding VAT, invoiced in arrears on the 25th through Stripe on the platform account; a changed price applies to customers on the plan's price from the next billing period (a customer's own price is not affected)."
   sensitive   = false
   default = {
     starter = {
@@ -159,9 +159,38 @@ variable "plans" {
   validation {
     condition = alltrue(flatten([for p in var.plans : [
       for name, value in p.limits :
-      contains(["siteBuilderAiEditsPerMonth"], name) && value >= 0 && value <= 1000 && floor(value) == value
+      contains(["siteBuilderAiEditsPerMonth", "phoneAgentMinutesPerMonth"], name) && value >= 0 && floor(value) == value
+      && value <= lookup({ siteBuilderAiEditsPerMonth = 1000, phoneAgentMinutesPerMonth = 100000 }, name, 0)
     ]]))
-    error_message = "limits: only siteBuilderAiEditsPerMonth, a whole number from 0 to 1000."
+    error_message = "limits: only siteBuilderAiEditsPerMonth (a whole number from 0 to 1000) and phoneAgentMinutesPerMonth (a whole number from 0 to 100000)."
+  }
+}
+
+# Phone agent prices (Run 0 addendum, ADR-L 10). 0 = no invoice line: the
+# invoicing run skips 0-priced lines (like SMS), so nothing is billed until
+# the owner sets them. Read by platform-tenants (BILLING_PHONE_AGENT_*) from
+# Run 2; [NEEDS YOUR OK] on the values.
+variable "phone_agent_location_price_sek" {
+  type        = number
+  description = "Monthly price excluding VAT per location with the phone agent enabled (BILLING_PHONE_AGENT_LOCATION_PRICE_SEK). Whole SEK, 0 = not invoiced."
+  sensitive   = false
+  default     = 0
+
+  validation {
+    condition     = var.phone_agent_location_price_sek >= 0 && floor(var.phone_agent_location_price_sek) == var.phone_agent_location_price_sek
+    error_message = "phone_agent_location_price_sek must be a whole number of SEK (0 or more)."
+  }
+}
+
+variable "phone_agent_minute_price_sek" {
+  type        = number
+  description = "Price excluding VAT per phone agent minute above the plan's included minutes (BILLING_PHONE_AGENT_MINUTE_PRICE_SEK). SEK with at most two decimals, 0 = not invoiced."
+  sensitive   = false
+  default     = 0
+
+  validation {
+    condition     = var.phone_agent_minute_price_sek >= 0 && floor(var.phone_agent_minute_price_sek * 100) == var.phone_agent_minute_price_sek * 100
+    error_message = "phone_agent_minute_price_sek must be 0 or more with at most two decimals (öre)."
   }
 }
 

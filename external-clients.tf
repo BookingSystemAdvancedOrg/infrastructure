@@ -69,3 +69,48 @@ variable "bedrock_model_id" {
   sensitive   = false
   default     = ""
 }
+
+# Run 0 addendum (feature L, phone-agent; CONTRACTS.md 12.1 and 13).
+
+variable "voice_client" {
+  type        = string
+  description = "Voice provider client for phone-agent and phone-agent-call (VOICE_CLIENT): simulator or real."
+  sensitive   = false
+  default     = "simulator"
+
+  validation {
+    condition     = contains(["simulator", "real"], var.voice_client)
+    error_message = "voice_client must be simulator or real."
+  }
+}
+
+variable "telephony_client" {
+  type        = string
+  description = "Telephony (SIP numbers) client for phone-agent, phone-agent-call and phone-agent-jobs (TELEPHONY_CLIENT): simulator or real."
+  sensitive   = false
+  default     = "simulator"
+
+  validation {
+    condition     = contains(["simulator", "real"], var.telephony_client)
+    error_message = "telephony_client must be simulator or real."
+  }
+}
+
+variable "agent_model_client" {
+  type        = string
+  description = "Agent model client (Bedrock Converse stream) for phone-agent-call and the phone-agent simulate route (AGENT_MODEL_CLIENT): simulator or real."
+  sensitive   = false
+  default     = "simulator"
+
+  validation {
+    condition     = contains(["simulator", "real"], var.agent_model_client)
+    error_message = "agent_model_client must be simulator or real."
+  }
+}
+
+variable "phone_agent_model_id" {
+  type        = string
+  description = "Bedrock model (or EU inference profile) id used by the real agent model client (PHONE_AGENT_MODEL_ID). Empty = none; the real client refuses an empty id. bedrock:InvokeModelWithResponseStream is granted only on this model."
+  sensitive   = false
+  default     = ""
+}

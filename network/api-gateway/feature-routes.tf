@@ -1,4 +1,5 @@
-# Routes of the ten Run 0 features (CONTRACTS.md 12.3). Each feature lists
+# Routes of the twelve features (ten from Run 0, two from the Run 0 addendum;
+# CONTRACTS.md 12.3). Each feature lists
 # its routes in its own <feature-id>-routes.tf; this file is the only place
 # they become API Gateway resources, so no feature edits shared routing.
 #
@@ -23,6 +24,8 @@ locals {
     "personalliggare" = local.personalliggare_routes
     "accounting-sync" = local.accounting_sync_routes
     "dish-margin"     = local.dish_margin_routes
+    "events-tickets"  = local.events_tickets_routes
+    "phone-agent"     = local.phone_agent_routes
   }
 
   # route_key => { feature, auth, throttle }
