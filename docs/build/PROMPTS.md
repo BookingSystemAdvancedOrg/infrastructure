@@ -696,31 +696,6 @@ reply-only and does not relay these.
 
 ---
 
-# ADDENDUM D: Jarvis HUD (live status page)
+# ADDENDUM D: Jarvis HUD and Jarvis OS (local only)
 
-An orange-red command-centre page that shows the state of the programme and production at a glance. The page itself is `infrastructure/jarvis-hud/index.html` (an original design; the file was delivered to the owner, who adds it to the repo). It renders from a `state.json` next to it; without one it shows sample data and a DEMO tag.
-
-## Orchestrator task (add to the Hygiene step, first run after this file lands)
-
-```
-JARVIS HUD. If infrastructure/jarvis-hud/index.html exists and is not yet hosted:
- 1. Host it at https://jarvis.booqy.se (production account): private S3 bucket + CloudFront with
-    the existing managed-certificate pattern, Route 53 record in the booqy.se zone, protected by
-    CloudFront + Cognito (the operator pool, platform_admin group) or a signed-cookie gate so only
-    the owner can open it. No public access. Terraform in the infrastructure repo, deployed by CI
-    like the other static sites.
- 2. Generate state.json next to it at the end of EVERY Orchestrator run and every 15 minutes by
-    a small scheduled Lambda (Python, eu-north-1), from: STATUS.md and PIPELINE.md on dev
-    (parsed), open PRs + check status on all six repos (GitHub API via the existing app token),
-    the uptime alarm and the alarm count from CloudWatch, the last production deploy and smoke
-    result from the pipelines, and the human-actions list from STATUS.md. Schema exactly as the
-    page's DEMO object: { generatedAt, demo:false, pipeline:{step,feature,round,lock},
-    features:[{id,name,status}], prs:[{repo,number,title,state,url}], ci:[{repo,status}],
-    actions:[string], uptime, ciPass, alarms, log:[string] }. PR state is one of
-    awaiting_owner | ci_running | ci_failed | draft | approved.
- 3. Keep the page's design as delivered; only fix bugs. Record the URL in STATUS.md under "Links".
- 4. Treat this as an infrastructure change touching CloudFront, Cognito and a certificate:
-    Fable 5.1 leads it.
-```
-
-The owner opens https://jarvis.booqy.se on Mac or iPhone (add to home screen). The COMMAND box copies a ready "/jarvis …" line to paste in the booqy chat; it does not fire the Orchestrator itself, by design.
+Jarvis's HUD runs locally on the owner's Mac at http://localhost:7777, built by Claude Code in the booqy project from docs/build/JARVIS-OS.md. The Orchestrator does NOT host it, creates no AWS resources and no domain for it. The Orchestrator's only duty here: keep STATUS.md and PIPELINE.md accurate, because the local HUD reads them.
