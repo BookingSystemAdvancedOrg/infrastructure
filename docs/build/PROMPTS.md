@@ -586,7 +586,10 @@ ON EVERY RUN, IN ORDER:
    - Approved by the owner and CI green → final pre-production review (above) → merge (squash),
      wait for the production deploy and smoke test, run docs/build/RELEASE-CHECKLIST.md if it
      exists and the uptime check, enable nothing for tenants, update STATUS.md
-     (status=production) and BUSINESS-REQUIREMENTS.md with the new BR-* rows, close the PR. If
+     (status=production) and BUSINESS-REQUIREMENTS.md with the new BR-* rows, close the PR.
+     Features listed under "Also included" in that PR get status
+     "in production, dark (not yet tested by owner)" in STATUS.md and stay in PIPELINE.md under
+     "Needs owner" with their test steps until the owner gives the go-ahead for them. If
      the production smoke test fails: revert the merge on main immediately (git revert, push),
      comment the failure on the PR, mark the feature "rolled back" in STATUS.md, fix on dev.
    - Owner review comments → each is a finding: fix on dev via the loop below, update the brief,
