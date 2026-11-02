@@ -1079,6 +1079,27 @@ module "dish_margin_ecr" {
   environment = var.env
   function    = "dish-margin"
 }
+# Run 0 addendum feature functions (features K and L, CONTRACTS.md 12.2).
+module "events_tickets_ecr" {
+  source      = "./storage/ecr/terminal-payments"
+  environment = var.env
+  function    = "events-tickets"
+}
+module "phone_agent_ecr" {
+  source      = "./storage/ecr/terminal-payments"
+  environment = var.env
+  function    = "phone-agent"
+}
+module "phone_agent_call_ecr" {
+  source      = "./storage/ecr/terminal-payments"
+  environment = var.env
+  function    = "phone-agent-call"
+}
+module "phone_agent_jobs_ecr" {
+  source      = "./storage/ecr/terminal-payments"
+  environment = var.env
+  function    = "phone-agent-jobs"
+}
 module "catering_requests_ecr" {
   source      = "./storage/ecr/catering-requests"
   environment = var.env
@@ -2332,7 +2353,8 @@ locals {
     accounting                 = module.accounting.role_name
   }, local.feature_tenant_aware_role_names)
 
-  # The ten Run 0 feature modules (<feature-id>.tf) report what they add to
+  # The twelve feature modules (<feature-id>.tf: ten from Run 0, two from the
+  # Run 0 addendum) report what they add to
   # the shared wiring above and to the API (CONTRACTS.md 12.2); empty until
   # a feature has functions.
   feature_wiring = [
@@ -2346,6 +2368,8 @@ locals {
     module.personalliggare.wiring,
     module.accounting_sync.wiring,
     module.dish_margin.wiring,
+    module.events_tickets.wiring,
+    module.phone_agent.wiring,
   ]
   feature_lambda_releases         = merge([for w in local.feature_wiring : w.lambda_releases]...)
   feature_tenant_aware_role_names = merge([for w in local.feature_wiring : w.tenant_aware_role_names]...)
