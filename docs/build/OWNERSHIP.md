@@ -507,3 +507,22 @@ platform-tenants, `ticketSales*` roles in `shared/accounting.py`,
 | customer-front-end | 3 (+1 brand) |
 | booqy-website | 0 |
 | **Total** | **25** |
+
+### Ownership deviations (addendum, recorded in review)
+
+The addendum builders edited these paths outside the lists of 6.1-6.6.
+Each is a one-line, behaviour-neutral change the listed tasks needed; the
+orchestrator accepted them in review. After the addendum merges every path
+returns to its section 1, 2 or 3 owner as usual.
+
+| Repo | Path | Task | Change | Why |
+|---|---|---|---|---|
+| admin-front-end | `src/features/cookies/CookiesPage.tsx` | ADK5 | `KIND_LABEL` gains `IndexedDB: 'Databas i webbläsaren (IndexedDB)'` | the `/cookies` page labels every `StorageKind`; the new `IndexedDB` kind would not typecheck or render without it |
+| application | `shared/voice_provider_sim_recording.wav` (new, 1.6 kB) | AK2 | short silent WAV the voice-provider simulator returns as a call recording | the simulator needs a fixed recording payload; owned by L from Run 2 with `shared/voice_provider*.py` |
+| application | `docs/openapi.yaml` | AK7 | `/site-config` documents `tenant.features.events` | the merged doc is the one the test validates; 6.1 listed only the README and the test (hotspot, AP16) |
+| admin-front-end | `brand-lint.config.json` | ADK2/ADK3 | `block` gains `features/events-tickets/**`, `features/phone-agent/**` | the new feature folders get the same blocking glob as the ten Run 0 features |
+| booqy-console | `web/brand-lint.config.json` | COK3 | `block` gains `features/phone-agent/**` | same, for the console placeholders |
+| customer-front-end | `brand-lint.config.json` | CUK2 | `block` gains `features/evenemang/**` | same, for the guest placeholder pages |
+
+The brand-lint config files are the brand guardian's (section 2); only the
+blocking globs for the new feature folders were added, no rule changed.

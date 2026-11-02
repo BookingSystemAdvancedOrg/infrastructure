@@ -42,10 +42,10 @@ locals {
     marketing_send = [{ sid = "MarketingSegmentHook", targets = ["guest-crm"] }]
     platform_tenants = [
       {
+        # one statement: operator forwards and billing.usage (row 16, phone-agent:live only)
         sid     = "PlatformForwardHook"
         targets = ["meta-ads", "site-builder", "google-business", "personalliggare", "phone-agent"] # + row 16
       },
-      { sid = "BillingUsageHook", targets = ["phone-agent"] }, # row 16
     ]
   }
 }

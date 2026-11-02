@@ -818,7 +818,7 @@ location, optional), `phone-agent.cap-warning` (email to the owner at
 | site-kit `src/shared/storageRegistry.ts` | `WAITLIST_TOKEN_PREFIX` | `booqy-waitlist-<locationId>` | localStorage | Webbplatsen (where: Kö) | Sparar din plats i kön så att du ser när ditt bord är klart. | Till slutet av dagen du ställde dig i kö | nödvändig | F |
 
 | site-kit `src/shared/storageRegistry.ts` (addendum) | `TICKET_PURCHASE_KEY` | `booqy-ticket-purchase` | sessionStorage | Webbplatsen (where: Evenemang) | Kommer ihåg ditt biljettköp medan kortbetalningen bekräftas, så att biljettsidan kan visas. | Tills köpet är klart eller fliken stängs | nödvändig | K |
-| admin `src/shared/storageRegistry.ts` (addendum) | `EVENT_SCAN_KEY_PREFIX` | `booqy-event-scan-<occurrenceId>` | IndexedDB | Admin (where: Evenemang, insläpp) | Sparar gästlistan och insläpp som gjorts utan nät vid dörren, tills de har skickats till servern. | Tills insläppen är synkade, senast dagen efter evenemanget | nödvändig | K |
+| admin `src/shared/storageRegistry.ts` (addendum) | `EVENT_SCAN_KEY_PREFIX` | `booqy-event-scan-<occurrenceId>` | IndexedDB | Booqy (Evenemang, insläpp) | Sparar gästlistan och insläpp som gjorts utan nät vid dörren, tills de har skickats till servern. | Tills insläppen är synkade, senast dagen efter evenemanget | nödvändig | K |
 
 No new keys in the console registry; L adds none anywhere (the simulator
 session lives on the server as `SIM#`). B's preview token and K's ticket
@@ -999,7 +999,7 @@ sites bucket policy.
 | 13 (addendum) | stripe-webhook | invoke events-tickets | `stripe.event` for `metadata.kind = ticket` |
 | 14 (addendum) | accounting | invoke events-tickets | `accounting.events` |
 | 15 (addendum) | insights | invoke events-tickets | `insights.events` |
-| 16 (addendum) | platform-tenants | invoke phone-agent | operator forwards and `billing.usage` |
+| 16 (addendum) | platform-tenants | invoke phone-agent | operator forwards and `billing.usage` (one statement, `PlatformForwardHook`, `phone-agent:live` only) |
 
 Rows 11-16 are added to `security/iam/feature-hooks/` by the addendum
 scaffolding (same module, same shape; nothing is deployed behind the ARNs
@@ -1135,7 +1135,7 @@ slots:
     bokningar.reservation.call:  {feature: phoneAgent, ownerOnly: false, host: BokningarPage}
     statistik.events:            {feature: events, ownerOnly: false, host: StatistikPage}
   console:
-    tenant.integrations.phoneAgent: {feature: phoneAgent, host: TenantPage}
+    tenant.integrations.phoneAgent: {feature: phoneAgent, host: TenantPage Integrations tab}
     settings.phoneAgent:            {feature: null, host: SettingsPage}   # platform-wide page, no tenant features (same as settings.metaAds)
 
 storage:
