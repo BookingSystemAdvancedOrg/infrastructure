@@ -1,13 +1,14 @@
 # Pipeline
 
 ## Lock
-locked 2026-11-02T17:55Z run trig_01TwjXjhLvXmrF8bKhExNuTr
+unlocked (released 2026-11-02T18:10Z)
 
 ## Position
 Step: Run 0 addendum (K events & tickets, L phone agent). Review round 1 done, fix round 1 pushed (infra 4b251cb, console 05fb778, customer ecf187b).
 PRs (draft, base dev, branch build/run-0-addendum-kl): infrastructure#37, application#69, admin-front-end#22, booqy-console#12, customer-front-end#14.
 Reviewer verdicts: infra, application, admin = merge; console, customer = merge after fixes (screenshots; now added).
-Next run: fresh Fable re-review scoped to the fix-round commits, then merge in order infra, application, admin, console, customer (CI green on each) once the owner has approved the IAM rows. Open one-liner: application contracts/booqy.yaml line ~408 host for tenant.integrations.phoneAgent says "TenantPage", docs say "TenantPage Integrations tab" (cosmetic, needs regenerate).
+Re-review DONE 2026-11-02 (Fable, fix-round commits): all five PRs = merge, CI green, plan 8 add/8 change/0 destroy. Only low findings: OWNERSHIP.md deviations table misses 3 rows (console features/__init__.py, NewTenantPage.tsx, edited tests in application); ruff +24 (not a gate). WAITING ONLY for owner approval of IAM rows in infrastructure#37. When approved: merge in order infra, application, admin, console, customer (CI green on each), add the 3 OWNERSHIP rows.
+Old note (done): fresh Fable re-review scoped to the fix-round commits, then merge in order infra, application, admin, console, customer (CI green on each) once the owner has approved the IAM rows. Open one-liner: application contracts/booqy.yaml line ~408 host for tenant.integrations.phoneAgent says "TenantPage", docs say "TenantPage Integrations tab" (cosmetic, needs regenerate).
 
 ## Owner instructions
 - 2026-11-02 (via Jarvis): Close the four old PRs to main (application#67, admin-front-end#20, booqy-console#10, customer-front-end#12) with a comment that they predate the build programme and will be replaced by the go-ahead flow. Then update STATUS.md to show Run 0 as merged to dev, and continue with the Run 0 addendum.
