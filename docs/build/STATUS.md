@@ -3,7 +3,7 @@
 Ledger for the multi-agent build in `docs/build/PROMPTS.md`. Read this
 first when a run starts or resumes; skip anything already verified or merged.
 
-Last updated: 2026-11-02 (Run 0 merged to dev; Run 0 addendum K and L started).
+Last updated: 2026-11-02 (Run 0 merged to dev; Run 0 addendum K and L: docs done on `build/run-0-addendum-kl`, scaffolding todo).
 
 ## Run 0: Foundations
 
@@ -220,6 +220,20 @@ after these fixes, all applied on the Run 0 branches:
    sibling worktrees present.
 5. The note above about not turning the ten keys on.
 
+## Run 0 addendum (features K and L)
+
+Branch `build/run-0-addendum-kl` (infrastructure, from `origin/dev`),
+docs part done 2026-11-02: `docs/adr/ADR-K-events-tickets.md`,
+`docs/adr/ADR-L-phone-agent.md`, CONTRACTS.md addendum rows and section
+17 (exact `booqy.yaml` additions), OWNERSHIP.md sections K, L and 6
+(25 scaffolding tasks), this ledger. Not done: the scaffolding code in the
+five repos (OWNERSHIP.md 6), the brand variants (6.6), the fresh review.
+Open owner decisions are marked **[NEEDS YOUR OK]** in the ADRs and
+CONTRACTS.md: plans and prices for both features, included minutes,
+retention periods, provider contracts (ElevenLabs, 46elks), art. 50 and
+recording wording, VAT treatment of tickets, Kassa ticket payments (v1.1),
+entitlement key spelled `phoneAgent` (camelCase, not `phone_agent`).
+
 ## Feature ledger
 
 Status values: todo | building | reviewing | fixing | verified | blocked |
@@ -237,3 +251,5 @@ merged.
 | H. Personalliggare | todo | | 0 | | | Legal review |
 | I. Fortnox and Visma posting | todo | | 0 | | | Fortnox and Visma developer access |
 | J. Margin per dish | todo | | 0 | | | |
+| K. Events and tickets (addendum, Run 2) | todo | | 0 | ADR-K and contracts on `build/run-0-addendum-kl` (docs only); scaffolding tasks OWNERSHIP.md 6 not started | Wallet pass signing against real Apple/Google accounts | Accountant: VAT rate list and BAS accounts for tickets (needs accountant review); lawyer: receipt by email, withdrawal-right text, resale terms; Apple Developer Pass Type ID and Google Wallet issuer; owner: plan rows, per-ticket fee or none [NEEDS YOUR OK] |
+| L. AI phone agent (addendum, Run 2) | todo | | 0 | ADR-L and contracts on `build/run-0-addendum-kl` (docs only); scaffolding tasks OWNERSHIP.md 6 not started; 46elks SIP-forward capability to verify in sandbox week 1 of Run 2 | Real voice latency and Swedish quality (Run 3 voice QA); Nova Sonic language list (quarterly) | Voice provider account, EU residency and DPA (ElevenLabs proposed); SIP provider account, KYC and Swedish numbers (46elks proposed); Bedrock model access for `phone_agent_model_id`; lawyer: art. 50 wording, recording notice and basis, privacy notice paragraph; accountant: VAT on per-location and per-minute lines; owner: plans, included minutes, prices, retention options, default agent name, reserved concurrency [NEEDS YOUR OK]; IAM rows 11-16 approval |
