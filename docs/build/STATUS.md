@@ -340,13 +340,39 @@ Open findings and decisions for the orchestrator:
    the test suite gets it via `openapi-spec-validator` (listing it in
    requirements-dev.txt is a shared change).
 
+Accepted debt for Run 1, scheduled for Run 2 (scale; review fix round 2,
+not coded on purpose):
+
+7. **Nightly Meta ads statistics run one restaurant after another in one
+   job.** Each night at 04:00 a single 5-minute job fetches yesterday's ad
+   numbers from Meta for every connected restaurant in turn. With a few
+   restaurants this takes seconds; at roughly 100+ connected restaurants
+   (or a slow Meta day) it can run out of time, and the restaurants late in
+   the list then get no numbers that night (and their spend cap is checked
+   a day late). Nothing is double-counted, and the next night's run fills
+   the gap only for its own day. Run 2: split the job so each restaurant
+   (or small batch) runs on its own, e.g. a Step Functions Map or one
+   queue message per restaurant, and alarm when a night is incomplete.
+   Owner: meta-ads (application `functions/meta-ads-jobs`, infrastructure
+   `meta-ads/`).
+8. **Counting a guest segment reads the whole guest list each time.** When
+   an owner previews how many guests a segment reaches (Gäster >
+   Målgrupper, and the campaign audience picker), the server reads every
+   guest profile of the restaurant to count. That is fine for hundreds or
+   a few thousand guests, but cost and waiting time grow with every guest
+   and with every click. Run 2: cache the count per segment version for a
+   short time, or keep running counts, and cap how often a preview can be
+   asked for. Owner: guest-crm (application `shared/features/guest_crm`).
+
 IAM (all on NEW roles; no existing role, boundary, OIDC role, Cognito,
 CloudFront or KMS changed): see each module README. Call-outs: site-builder
 `s3:Get/Put/DeleteObject` on `sites/*` + ListBucket prefix `sites/*`, and
 tenant-table UpdateItem limited to attribute `site`; meta-ads Secrets
 Manager create/put/get/delete on `booqy/<env>/meta-ads/*`, tenant-table
 Get/Put limited to `PLATFORM#META_ADS`, `cloudwatch:PutMetricData`
-(namespace-conditioned), Bedrock only when a model id is set. New stateful
+(namespace-conditioned), Bedrock only when a model id is set; meta-ads-jobs
+also gets `states:StartExecution` on the publish state machine (fix round 2:
+the 15-minute sweep restarts publishes whose start was lost). New stateful
 resources: tables `<prefix>meta-ads`, `<prefix>site-builder`,
 `<prefix>guest-crm` (PITR, deletion protection in prod), SQS
 `<prefix>guest-crm-sync-dlq`, secret `${prefix}meta-ads/app`, two Standard
