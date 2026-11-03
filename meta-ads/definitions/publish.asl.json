@@ -1,0 +1,68 @@
+{
+  "Comment": "Meta ads publish (ADR-A 7): every task is idempotent and skips a step whose Meta id is stored; the campaign always ends PAUSED.",
+  "QueryLanguage": "JSONata",
+  "StartAt": "CheckGuards",
+  "States": {
+%{ for i, step in steps ~}
+    "${step}": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Arguments": {
+        "FunctionName": "${jobs_alias_arn}",
+        "Payload": {
+          "task": "${step}",
+          "tenantId": "{% $states.context.Execution.Input.tenantId %}",
+          "campaignId": "{% $states.context.Execution.Input.campaignId %}"
+        }
+      },
+      "Retry": [
+        {
+          "ErrorEquals": ["MetaGraphError", "Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException", "Lambda.TooManyRequestsException", "States.Timeout"],
+          "IntervalSeconds": 5,
+          "MaxAttempts": 4,
+          "BackoffRate": 3,
+          "JitterStrategy": "FULL"
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "MarkFailed",
+          "Output": { "error": "{% $states.errorOutput %}" }
+        }
+      ],
+      "TimeoutSeconds": 120,
+      "Next": "${i + 1 < length(steps) ? steps[i + 1] : "Done"}"
+    },
+%{ endfor ~}
+    "MarkFailed": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Arguments": {
+        "FunctionName": "${jobs_alias_arn}",
+        "Payload": {
+          "task": "MarkFailed",
+          "tenantId": "{% $states.context.Execution.Input.tenantId %}",
+          "campaignId": "{% $states.context.Execution.Input.campaignId %}",
+          "error": "{% $states.input.error %}"
+        }
+      },
+      "Retry": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "IntervalSeconds": 5,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Next": "Failed"
+    },
+    "Failed": {
+      "Type": "Fail",
+      "Error": "PublishFailed"
+    },
+    "Done": {
+      "Type": "Succeed"
+    }
+  }
+}
