@@ -68,3 +68,6 @@ Run 2 notes: execution name should be tenant-scoped; nightly insights loop per t
 - Approve infrastructure#40 IAM rows and new stateful resources (see PR comment). Then I merge.
 - Add pipeline job building/pushing the site-builder-render image (render-lambda/Dockerfile) before any tenant uses builder mode.
 - Meta Business Verification/App Review, Login for Business config, meta-ads/app secret value; Bedrock model access (bedrock_model_id); legal: guest-register LIA template, DSA/alcohol ad checks.
+
+## Position update 2026-11-03 (poll run)
+No owner approval on infrastructure#40 yet (only the orchestrator comment, no reviews). Nothing merged. Owner notified by push that Run 1 awaits IAM approval. Do not re-notify until something changes.
