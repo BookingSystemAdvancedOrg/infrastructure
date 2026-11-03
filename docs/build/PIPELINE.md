@@ -1,7 +1,7 @@
 # Pipeline
 
 ## Lock
-LOCKED 2026-11-03 run-0033Z (started 2026-11-03T00:33Z)
+unlocked (released 2026-11-03, Run 1 reviewed, waiting on owner IAM approval)
 
 ## Position
 Step: Run 0 addendum (K events & tickets, L phone agent). Review round 1 done, fix round 1 pushed (infra 4b251cb, console 05fb778, customer ecf187b).
@@ -58,3 +58,13 @@ Fix round 2 pushed (application 83b807b/363256c/168dc78, infra fa55fe7/481a92c/6
 Fable re-check of fix round 2: infra#40 merge (fmt+validate OK, plan 122 add/3 change/0 destroy), admin#24 merge, console#14 merge, customer#16 merge, application#71 merge after fixes (guest-crm _conditional_failed must re-raise unless ConditionalCheckFailed; sweep per-tenant isolation; start_failed test). Fix round 3 (last of 3) running; then a small Fable diff re-check. Contract edits done (infra ef92111, application 09c7655).
 Merge order when clear: infra#40 -> application#71 -> console#14 -> admin#24 -> customer#16. infra#40 is NOT merged to dev until the owner approves its IAM rows (precedent: infra#37) incl. new meta-ads-jobs states:StartExecution on the publish state machine only.
 Run 2 notes: execution name = raw campaign id, not tenant-scoped (derive from tenant+campaign); nightly insights loop; segment preview cost.
+
+## Position update 2026-11-03 (Run 1 ready, waiting on owner)
+Run 1 (A Meta ads, B1 site builder core, C Guest CRM): 3 fix rounds done, Fable final diff check = merge. All five PRs verdict merge, CI green, plan 122 add / 3 change / 0 destroy: infrastructure#40, application#71 (a8e9efc), admin-front-end#24 (df176e7), booqy-console#14, customer-front-end#16. NOTHING MERGED YET: infra#40 needs owner approval of its IAM rows (comment posted on the PR). Resume: when the owner approves (Jarvis instruction or GitHub comment), merge in order infra#40, application#71, console#14, admin#24, customer#16 (CI green on each, infra apply before application), then dev smoke test, mark A/B/C 'on dev, awaiting owner go-ahead', notify.
+Follow-up (small, post-merge or next round): ads.pause_all still unguarded in run_sweep (Graph/Secrets error for one tenant aborts the sweep for later tenants).
+Run 2 notes: execution name should be tenant-scoped; nightly insights loop per tenant; segment preview cost; stream-fanout consumer before D/F.
+
+## Needs owner (Run 1)
+- Approve infrastructure#40 IAM rows and new stateful resources (see PR comment). Then I merge.
+- Add pipeline job building/pushing the site-builder-render image (render-lambda/Dockerfile) before any tenant uses builder mode.
+- Meta Business Verification/App Review, Login for Business config, meta-ads/app secret value; Bedrock model access (bedrock_model_id); legal: guest-register LIA template, DSA/alcohol ad checks.
