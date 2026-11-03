@@ -175,3 +175,29 @@ optional `cursor` the way C1 and K1 have it.
 
 **Files.** `docs/build/CONTRACTS.md` 6.A (A9), `docs/adr/ADR-A-meta-ads.md`
 test row 9, `application/docs/openapi/meta-ads.yaml`.
+
+## 2026-11-03: site-kit's builder pages keep the nav Bar as markup (Run 1 exception)
+
+**Contradiction.** RULES.md (Brand) says every bar-like element uses the
+Bar family from `packages/brand` and is never hand-rolled. The site
+builder's `SitePage` (and the draft preview around it) render the page nav
+as the Bar's markup (`bq-bar bq-bar--nav`, `bq-bar__items`,
+`bq-bar__item`) instead of `<Bar variant="nav">`, because `SitePage` is
+also rendered on the server by the render Lambda (react-dom/server), whose
+bundle does not include `@booqy/brand` (site-kit does not depend on it).
+
+**Decision.** Accepted for Run 1 as a documented exception, limited to
+`packages/site-kit/src/features/site-builder/SitePage.tsx`: the markup
+must stay class-for-class identical to the brand nav Bar and uses brand
+tokens only (brand-lint still applies). The draft preview shows only this
+one bar (the separate preview page bar is removed), and in the preview its
+items open the draft page inside the preview instead of the live
+`/<slug>`.
+
+**Follow-up (Run 2, brand guardian).** Export a static, SSR-safe nav Bar
+from `packages/brand` (plain markup component or render helper with no
+browser-only imports) and switch `SitePage` to it, then delete this
+exception.
+
+**Files.** `customer-front-end/packages/site-kit/src/features/site-builder/{SitePage,PreviewPage}.tsx`,
+`site-builder.css`, `SitePage.test.tsx`.
