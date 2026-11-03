@@ -50,3 +50,6 @@ Fix round 1 (18 findings) pushed on build/run-1-integration. Fable contract/ADR 
 
 ## Position update 2026-11-03 (Run 1 round 2 review done, fix round 2 running)
 Round 2 verdicts: infra#40 merge; application#71 merge after fixes; admin#24 merge; console#14 merge; customer#16 merge after brand decision. F1-F19 verified fixed. New: HIGH meta-ads LANDING bookings "/boka" -> "/boka-bord" (attribution lost); MED guest-crm HIST+counter non-transactional; MED publishing campaign with no executionArn needs sweep; brand exception for hand-rolled nav Bar in site-kit decided (accepted, documented). Fix round 2 (of max 3) launched. Then fresh Fable re-check of the round-2 commits and merge in order infra#40 (owner IAM approval first), application#71, console#14, admin#24, customer#16.
+
+## Position update 2026-11-03 (Run 1 fix round 2 done, round 3 re-check running)
+Fix round 2 pushed (application 83b807b/363256c/168dc78, infra fa55fe7/481a92c/6fde7f2, customer 58bebf7, admin 7a1e0ed..af903e7, console 2f7e120). Adds IAM: meta-ads-jobs states:StartExecution on publish state machine only (owner approval row for infra#40). Fresh Fable re-check + Fable contract edit (start_failed for meta-ads, sweep in ADR-A) running. Next: if "merge" and CI green, merge infra#40 only after owner IAM approval; otherwise exit with Run 1 on dev-ready PRs awaiting that approval.
