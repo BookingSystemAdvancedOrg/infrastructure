@@ -53,3 +53,8 @@ Round 2 verdicts: infra#40 merge; application#71 merge after fixes; admin#24 mer
 
 ## Position update 2026-11-03 (Run 1 fix round 2 done, round 3 re-check running)
 Fix round 2 pushed (application 83b807b/363256c/168dc78, infra fa55fe7/481a92c/6fde7f2, customer 58bebf7, admin 7a1e0ed..af903e7, console 2f7e120). Adds IAM: meta-ads-jobs states:StartExecution on publish state machine only (owner approval row for infra#40). Fresh Fable re-check + Fable contract edit (start_failed for meta-ads, sweep in ADR-A) running. Next: if "merge" and CI green, merge infra#40 only after owner IAM approval; otherwise exit with Run 1 on dev-ready PRs awaiting that approval.
+
+## Position update 2026-11-03 (Run 1 round 3)
+Fable re-check of fix round 2: infra#40 merge (fmt+validate OK, plan 122 add/3 change/0 destroy), admin#24 merge, console#14 merge, customer#16 merge, application#71 merge after fixes (guest-crm _conditional_failed must re-raise unless ConditionalCheckFailed; sweep per-tenant isolation; start_failed test). Fix round 3 (last of 3) running; then a small Fable diff re-check. Contract edits done (infra ef92111, application 09c7655).
+Merge order when clear: infra#40 -> application#71 -> console#14 -> admin#24 -> customer#16. infra#40 is NOT merged to dev until the owner approves its IAM rows (precedent: infra#37) incl. new meta-ads-jobs states:StartExecution on the publish state machine only.
+Run 2 notes: execution name = raw campaign id, not tenant-scoped (derive from tenant+campaign); nightly insights loop; segment preview cost.
