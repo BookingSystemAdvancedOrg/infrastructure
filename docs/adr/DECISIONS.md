@@ -201,3 +201,51 @@ exception.
 
 **Files.** `customer-front-end/packages/site-kit/src/features/site-builder/{SitePage,PreviewPage}.tsx`,
 `site-builder.css`, `SitePage.test.tsx`.
+
+## 2026-11-03: campaign `error.code` gains `start_failed`
+
+**Defect.** The 15-minute sweep in `application/functions/meta-ads-jobs/app.py`
+(`restart_stranded`) marks a campaign `failed` with
+`error: {code: start_failed}` when a publish that sat in `publishing`
+without an `executionArn` for 10 minutes cannot be started. CONTRACTS.md
+6.A and ADR-A only knew the MarkFailed codes (`meta_unavailable` and the
+guard codes), and the OpenAPI fragment's `error.code` was an untyped
+string, so the admin had no contract for the new value.
+
+**Decision.** A campaign's `error{code}` (A9/A10, status `failed`, never
+a `field`) is a MarkFailed code or `start_failed`. Admin renders
+`start_failed` as "Annonsen kom aldrig i gång. Skapa den igen." (the
+owner creates a new campaign; no Meta objects exist, so there is nothing
+to retry). The code is `start_failed` and not a new value because B5
+already uses it for the same situation (site-builder publish whose
+StartExecution failed) and the admin maps codes to text per feature.
+
+**Files.** `docs/build/CONTRACTS.md` 6.A (A8 idempotency, A10),
+`docs/adr/ADR-A-meta-ads.md` data model, errors and test plan,
+`application/docs/openapi/meta-ads.yaml` (`MetaAdsCampaign.error`).
+Follow-up for admin: `admin-front-end/src/features/meta-ads/api.ts`
+`FAILED_LABEL` needs the `start_failed` entry.
+
+## 2026-11-03: the 15-minute sweep also restarts stranded publishes
+
+**Contradiction.** ADR-A decision 6 and its Terraform section described
+the `meta-ads-jobs` schedule as a kill-switch sweep only, and the IAM
+call-out gave `states:StartExecution` to the API role alone. Since fix
+round 2 (`application` `restart_stranded`, `infrastructure/meta-ads/main.tf`
+`RestartStrandedPublish`) the same sweep starts publishes whose
+StartExecution was lost, and the jobs role holds `states:StartExecution`
+on the publish state machine.
+
+**Decision.** The sweep is one schedule with two duties per connected
+tenant: pause active campaigns of blocked tenants (kill switch) and start
+every campaign still `publishing` without an `executionArn` that is at
+least 10 minutes old, using the campaign id as the execution name so a
+start the API already made is a no-op (`ExecutionAlreadyExists`); a start
+that fails marks the row `failed` with `start_failed` (entry above). The
+`meta-ads-jobs` role gets `states:StartExecution` on `<prefix>meta-ads-publish`
+only (IAM call-out in ADR-A; already in `meta-ads/main.tf` and README).
+The 10-minute wait keeps the sweep behind the owner's own retry of A8,
+which starts the row immediately.
+
+**Files.** `docs/adr/ADR-A-meta-ads.md` decision 7, Terraform modules
+and IAM, test plan; `docs/build/CONTRACTS.md` 6.A (A8 idempotency).
