@@ -45,3 +45,29 @@ always shows.
 **Files.** `application/contracts/booqy.yaml`, the five generated targets
 of CONTRACTS.md 1.2, `docs/build/CONTRACTS.md` section 17,
 `booqy-console/web/src/slots.test.tsx`.
+
+## 2026-11-03: guest-crm-sync is the last direct DynamoDB stream reader
+
+**Contradiction.** Run 1 feature C added `guest-crm-sync` as a third reader
+on the reservation and catering-request streams and a fourth on the order
+stream (`guest-crm/main.tf`, `aws_lambda_event_source_mapping.source`).
+DynamoDB Streams throttles GetRecords above two concurrent readers per
+shard, so every extra reader slows all of them (print-jobs already alarms on
+IteratorAge for this). An EventBridge Pipe (ADR-C open question 1) is also
+a stream reader, so it does not help.
+
+**Decision.** `guest-crm-sync` is the LAST feature that reads a source
+table's stream directly. It ships with an IteratorAge alarm
+(`guest-crm-sync-iterator-age`, 5 minutes for 5 minutes) so throttling shows
+up. Before features D or F (Run 2) add any consumer of these tables, build
+one stream-fanout consumer per source stream that publishes the changes to
+the `booqy-events` bus; new features (and, later, the existing readers)
+subscribe to the bus instead of the stream.
+
+**Reason.** Readers past two per shard add throttling for every reader,
+and paid-order printing is on the same stream. One fan-out consumer keeps
+each stream at a fixed reader count however many features listen, and the
+bus already carries the domain events with per-rule DLQs.
+
+**Files.** `guest-crm/main.tf` (alarm `sync_iterator_age`); this entry.
+The fan-out consumer itself is Run 2 work for the orchestrator.

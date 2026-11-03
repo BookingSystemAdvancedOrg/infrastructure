@@ -8,8 +8,8 @@ marketing campaigns.
   (feature C, sections 0, 4, 5, 6.C, 9 and 12).
 - Resources: table `<prefix>guest-crm` (+ sparse GSI `byLastSeen`), Lambdas
   `guest-crm` (API, hooks, rebuild job) and `guest-crm-sync` (streams), the
-  three stream mappings (status filters, `ReportBatchItemFailures`, SQS DLQ
-  `<prefix>guest-crm-sync-dlq`), roles, log groups, Errors and DLQ alarms.
+  three stream mappings (filters that mirror `classify()`: reservation status; order paid or completed; catering confirmed/delivered/closed or paid; `ReportBatchItemFailures`, SQS DLQ
+  `<prefix>guest-crm-sync-dlq`), roles, log groups, Errors, DLQ and IteratorAge alarms (guest-crm-sync is the last direct stream reader: `docs/adr/DECISIONS.md` 2026-11-03).
 - Routes: `network/api-gateway/guest-crm-routes.tf` (`local.guest_crm_routes`).
 - IAM (new roles only): own table + GSI; GetItem/Query on the reservation,
   order and catering-requests tables; stream read on their streams; Query on

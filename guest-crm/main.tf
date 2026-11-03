@@ -121,11 +121,14 @@ locals {
     ]
   }
 
-  # Only the status changes the sync counts (ADR-C 3); everything else never invokes it.
+  # Only the changes the sync counts (ADR-C 3); everything else never invokes it.
+  # Each list is OR-ed (one filter each) and mirrors shared/features/guest_crm
+  # classify(), the same test the backfill applies: an order counts when paid
+  # or completed, a catering request when confirmed/delivered/closed or paid.
   stream_filters = {
-    reservation = { status = { S = ["arrived", "no_show", "no_show_charged", "no_show_charge_failed"] } }
-    order       = { paymentStatus = { S = ["paid"] } }
-    catering    = { status = { S = ["confirmed", "delivered", "closed"] } }
+    reservation = [{ status = { S = ["arrived", "no_show", "no_show_charged", "no_show_charge_failed"] } }]
+    order       = [{ paymentStatus = { S = ["paid"] } }, { status = { S = ["completed"] } }]
+    catering    = [{ status = { S = ["confirmed", "delivered", "closed"] } }, { paid = { BOOL = [true] } }]
   }
 }
 
@@ -278,8 +281,10 @@ resource "aws_lambda_alias" "live" {
   }
 }
 
-# The rebuild job is invoked asynchronously by itself: no automatic retry
-# (a lost run is restarted by the owner; every row applies once).
+# The rebuild job invokes itself asynchronously through the live alias
+# (app.py _invoke_self -> "<name>:live"), so this config on that alias applies:
+# no automatic retry (a lost run is taken over by a new rebuild once its
+# cursor has not been saved for 30 minutes; every row applies once).
 resource "aws_lambda_function_event_invoke_config" "api" {
   function_name                = aws_lambda_function.fn["guest-crm"].function_name
   qualifier                    = aws_lambda_alias.live["guest-crm"].name
@@ -317,11 +322,14 @@ resource "aws_lambda_event_source_mapping" "source" {
   }
 
   filter_criteria {
-    filter {
-      pattern = jsonencode({
-        eventName = ["INSERT", "MODIFY"]
-        dynamodb  = { NewImage = local.stream_filters[each.key] }
-      })
+    dynamic "filter" {
+      for_each = local.stream_filters[each.key]
+      content {
+        pattern = jsonencode({
+          eventName = ["INSERT", "MODIFY"]
+          dynamodb  = { NewImage = filter.value }
+        })
+      }
     }
   }
 
@@ -344,6 +352,32 @@ resource "aws_cloudwatch_metric_alarm" "errors" {
   comparison_operator = "GreaterThanOrEqualToThreshold"
   treat_missing_data  = "notBreaching"
   alarm_actions       = [var.alert_topic_arn]
+
+  tags = {
+    Environment = var.environment
+  }
+}
+
+# guest-crm-sync reads three source streams (reservation, order, catering)
+# through the three mappings above. Lambda reports IteratorAge per function,
+# not per mapping, so one alarm on the Maximum covers all three: any stream
+# 5 minutes behind means throttled GetRecords (shared streams) or failing batches.
+resource "aws_cloudwatch_metric_alarm" "sync_iterator_age" {
+  alarm_name        = "${local.prefix}guest-crm-sync-iterator-age"
+  alarm_description = "guest-crm-sync is more than 5 minutes behind a source stream (reservation, order or catering): GetRecords throttling on a shared stream, or failing batches. Guest counts lag."
+  namespace         = "AWS/Lambda"
+  metric_name       = "IteratorAge"
+  dimensions        = { FunctionName = aws_lambda_function.fn["guest-crm-sync"].function_name }
+
+  statistic           = "Maximum"
+  period              = 60
+  evaluation_periods  = 5
+  comparison_operator = "GreaterThanThreshold"
+  threshold           = 300000
+  treat_missing_data  = "notBreaching"
+
+  alarm_actions = [var.alert_topic_arn]
+  ok_actions    = [var.alert_topic_arn]
 
   tags = {
     Environment = var.environment
