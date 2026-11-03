@@ -250,8 +250,8 @@ refused, idempotent retry.
 | 5 | cap above ceiling 400 | staff 403 | adAccount not in token 400 | 403 | stale version 409 |
 | 6 | n/a | staff 403 | n/a | 403 | second call 204 |
 | 7 | menu item missing 404 | staff 403 | LOC_B, B's menu item | 403 | quota counted once per call |
-| 8 | radius 50, days 40, alcohol | staff 403 | LOC_B, B's menu item | 403 | same campaignId -> one item, one execution |
-| 9 | bad cursor 400 | staff 403 | LOC_B | 403 | n/a |
+| 8 | radius 50, days 40, alcohol; location without a stored position 409 `assets_missing` (`field: position`) | staff 403 | LOC_B, B's menu item | 403 | same campaignId -> one item, one execution |
+| 9 | any `cursor` query parameter 400; response never carries `cursor` | staff 403 | LOC_B | 403 | n/a |
 | 10 | n/a | staff 403 | campaign of B 404 | 403 | n/a |
 | 11 | cap exceeded, kill switch 409 | staff 403 | campaign of B 404 | 403 | second activate returns active |
 | 12 | stale version 409 | staff 403 | campaign of B 404 | 403 | second pause returns paused |
