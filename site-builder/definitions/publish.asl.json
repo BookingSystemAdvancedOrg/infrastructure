@@ -1,0 +1,79 @@
+{
+  "Comment": "Site builder publish (ADR-B 3): Validate -> Render (skipped for rollback) -> Promote. Every task is safe to rerun.",
+  "QueryLanguage": "JSONata",
+  "StartAt": "Validate",
+  "States": {
+    "Validate": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Arguments": {
+        "FunctionName": "${api_alias_arn}",
+        "Payload": {
+          "task": "Validate",
+          "tenantId": "{% $states.context.Execution.Input.tenantId %}",
+          "publishId": "{% $states.context.Execution.Input.publishId %}"
+        }
+      },
+      "Retry": [${retry}],
+      "Catch": [{ "ErrorEquals": ["States.ALL"], "Next": "MarkFailed", "Output": { "error": "{% $states.errorOutput %}" } }],
+      "Output": "{% $states.result.Payload %}",
+      "TimeoutSeconds": 60,
+      "Next": "NeedsRender"
+    },
+    "NeedsRender": {
+      "Type": "Choice",
+      "Choices": [{ "Condition": "{% $states.input.render = true %}", "Next": "Render" }],
+      "Default": "Promote"
+    },
+    "Render": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Arguments": {
+        "FunctionName": "${render_alias_arn}",
+        "Payload": {
+          "tenantId": "{% $states.input.tenantId %}",
+          "publishId": "{% $states.input.publishId %}",
+          "versionNo": "{% $states.input.versionNo %}"
+        }
+      },
+      "Retry": [${retry}],
+      "Catch": [{ "ErrorEquals": ["States.ALL"], "Next": "MarkFailed", "Output": { "error": "{% $states.errorOutput %}" } }],
+      "Output": "{% $states.input %}",
+      "TimeoutSeconds": 300,
+      "Next": "Promote"
+    },
+    "Promote": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Arguments": {
+        "FunctionName": "${api_alias_arn}",
+        "Payload": {
+          "task": "Promote",
+          "tenantId": "{% $states.context.Execution.Input.tenantId %}",
+          "publishId": "{% $states.context.Execution.Input.publishId %}"
+        }
+      },
+      "Retry": [${retry}],
+      "Catch": [{ "ErrorEquals": ["States.ALL"], "Next": "MarkFailed", "Output": { "error": "{% $states.errorOutput %}" } }],
+      "TimeoutSeconds": 120,
+      "Next": "Done"
+    },
+    "MarkFailed": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Arguments": {
+        "FunctionName": "${api_alias_arn}",
+        "Payload": {
+          "task": "MarkFailed",
+          "tenantId": "{% $states.context.Execution.Input.tenantId %}",
+          "publishId": "{% $states.context.Execution.Input.publishId %}",
+          "error": "{% $states.input.error %}"
+        }
+      },
+      "Retry": [{ "ErrorEquals": ["States.ALL"], "IntervalSeconds": 5, "MaxAttempts": 3, "BackoffRate": 2 }],
+      "Next": "Failed"
+    },
+    "Failed": { "Type": "Fail", "Error": "PublishFailed" },
+    "Done": { "Type": "Succeed" }
+  }
+}
