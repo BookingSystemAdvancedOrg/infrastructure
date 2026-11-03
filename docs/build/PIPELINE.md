@@ -1,7 +1,7 @@
 # Pipeline
 
 ## Lock
-unlocked (released 2026-11-02, run at ~20:40Z, no work done beyond orientation)
+LOCKED 2026-11-03 run-0033Z (started 2026-11-03T00:33Z)
 
 ## Position
 Step: Run 0 addendum (K events & tickets, L phone agent). Review round 1 done, fix round 1 pushed (infra 4b251cb, console 05fb778, customer ecf187b).
@@ -33,3 +33,6 @@ Next run: if an owner approval appears on any of them, run the FINAL PRE-PRODUCT
 Owner merged to main themselves, without my final pre-production review and with no approving review recorded: infrastructure#38 (22:23Z), application#70 (22:46Z), booqy-website#12 (22:47Z), booqy-console#13 (23:01Z). Production deploy status of the app, console and website merges was not verified by this run.
 Still open, no reviews or comments: admin-front-end#23, customer-front-end#15. Not touched. Production now has backend, console and website with the K/L scaffolding while admin and customer frontends lack it; all features are off, so no tenant impact is expected (unverified).
 Run 1 stays held until those two resolve. STATUS.md not changed (no merge by this run). Next run: if admin#23 or customer#15 gains an owner approval, run the final pre-production review, then merge.
+
+## Position update 2026-11-03 (this run)
+admin-front-end#23 and customer-front-end#15 were merged to main by the owner at 23:42Z on 11-02; all six dev->main PRs are resolved, no open PRs in any repo. Hold on Run 1 lifted; starting Run 1.
