@@ -11,7 +11,10 @@ custom-code tier (B2) in Run 2.
   image from customer-front-end `render-lambda/`), Standard state machine
   `<prefix>site-builder-publish` (`definitions/publish.asl.json`, JSONata:
   Validate -> Render, skipped for rollback -> Promote; Catch -> MarkFailed),
-  Errors and failed-execution alarms.
+  Errors and failed-execution alarms. `site-builder-render` gets
+  `MENU_IMAGE_BASE_URL` (the public CloudFront distribution that serves
+  `/menu-images/*`, same value as `sites/`); without it rendered pages have
+  no images.
 - Routes: `network/api-gateway/site-builder-routes.tf`; B8 is public with
   the public throttle.
 - IAM (new roles only; **call out**): `site-builder` gets s3 Get/Put/Delete
@@ -24,3 +27,9 @@ custom-code tier (B2) in Run 2.
   pipeline (ADR-B open question 1); until that workflow pushes it, the
   function runs the placeholder image and every publish fails at Render
   (feature is off for every tenant).
+- **Do not switch a tenant to builder mode while its site repo workflow
+  still deploys to the root.** The tenant's own site repo (`sites/`,
+  template workflow) syncs its build to `sites/<t>/` and Promote copies the
+  builder pages to the same root and deletes root pages it does not own, so
+  the two overwrite each other on every deploy or publish. First disable (or
+  repoint) the repo's deploy workflow, then turn on `siteBuilder` and publish.

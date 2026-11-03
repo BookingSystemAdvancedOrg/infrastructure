@@ -43,6 +43,8 @@ locals {
         ENVIRONMENT             = var.environment
         SITE_BUILDER_TABLE_NAME = aws_dynamodb_table.this.name
         SITES_BUCKET_NAME       = var.sites_bucket_name
+        # imageKey starts with menu-images/; without a base the rendered pages have no images.
+        MENU_IMAGE_BASE_URL = var.menu_image_base_url
         # The API base URL is baked into the render image at build time (site-kit's
         # own build env); passing the stage URL here would be a dependency cycle
         # (stage -> throttled public route B8 -> this module's alias).

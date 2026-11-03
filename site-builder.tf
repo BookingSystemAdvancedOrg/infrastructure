@@ -9,6 +9,7 @@ module "site_builder" {
   location_table_name      = module.location.table_name
   location_id_index_name   = module.location.location_id_index_name
   sites_bucket_name        = module.sites.bucket_name
+  menu_image_base_url      = "https://${module.cloudfront_public.distribution_domain_name}" # same CDN as sites.tf
   request_guard_table_name = module.request_guard.table_name
   request_guard_table_arn  = module.request_guard.table_arn
   site_domain              = local.site_domain

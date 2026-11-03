@@ -332,6 +332,10 @@ Open findings and decisions for the orchestrator:
    `VERSION#` gets `publishedAt/publishedBy` stamped once when first live.
 5. **Render image pipeline** for `site-builder-render` (ADR-B open
    question 1, owner's `.github`).
+5a. **Operator rule (review F11)**: do not switch a tenant to builder mode
+   while its site repo workflow still deploys to the root `sites/<t>/`; the
+   repo deploy and Promote overwrite each other. Disable or repoint the
+   repo's deploy workflow first (`site-builder/README.md`).
 6. **`jsonschema`** is pinned in `functions/site-builder/requirements.txt`;
    the test suite gets it via `openapi-spec-validator` (listing it in
    requirements-dev.txt is a shared change).

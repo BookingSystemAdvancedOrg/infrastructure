@@ -58,3 +58,8 @@ variable "event_bus_arn" {
 variable "alert_topic_arn" {
   type = string
 }
+
+variable "menu_image_base_url" {
+  description = "Origin that serves /menu-images/* (the public CloudFront distribution), no trailing slash - the render Lambda's image base"
+  type        = string
+}
