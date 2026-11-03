@@ -36,3 +36,7 @@ Run 1 stays held until those two resolve. STATUS.md not changed (no merge by thi
 
 ## Position update 2026-11-03 (this run)
 admin-front-end#23 and customer-front-end#15 were merged to main by the owner at 23:42Z on 11-02; all six dev->main PRs are resolved, no open PRs in any repo. Hold on Run 1 lifted; starting Run 1.
+
+## Position update 2026-11-03 (Run 1 built)
+Run 1 A, B1, C built by worker on build/run-1-integration; draft PRs against dev: infrastructure#40, application#71, admin-front-end#24, booqy-console#14, customer-front-end#16. Worker had no Agent tool, so builder work was done by it directly and nothing had been reviewed. Fresh Fable code+brand review round 1 launched (escalated to Fable: IAM and new stateful resources in infra#40). Next: collect verdicts, fix loop (max 3 rounds), ponytail-audit, then merge in order infra, application, admin, console, customer.
+Needs owner (when ready): approve IAM rows and new stateful resources in infrastructure#40; add pipeline job to build/push site-builder-render image; Meta Business Verification/App Review; Bedrock model access.
