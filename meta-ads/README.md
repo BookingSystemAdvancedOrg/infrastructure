@@ -10,14 +10,16 @@ and run Facebook/Instagram ads for bookings, orders and catering.
   insights, sweep), Standard state machine `<prefix>meta-ads-publish`
   (`definitions/publish.asl.json`, JSONata, retries on Meta/Lambda errors,
   Catch -> MarkFailed), schedules (insights 04:00 Europe/Stockholm, kill-switch
-  sweep every 15 minutes), secret `${prefix}meta-ads/app` (value set by hand),
+  sweep every 15 minutes, which also starts publishes stuck in `publishing`
+  without an executionArn for 10 minutes or marks them `start_failed`), secret `${prefix}meta-ads/app` (value set by hand),
   Errors, failed-execution and platform spend alarms.
 - Clients: `META_CLIENT` / `BEDROCK_CLIENT` from the root `meta_client` /
   `bedrock_client` (default simulator; the simulator is refused in prod at
   runtime). Bedrock access is granted only when `bedrock_model_id` is set.
 - IAM (new roles only): own table + GSI; Secrets Manager create/put/get/
   delete/tag on `booqy/<env>/meta-ads/*` and get on the app secret;
-  `states:StartExecution` on the state machine; GetItem on the menu table;
+  `states:StartExecution` on the state machine (API and, for the sweep's
+  restart of stranded publishes, the jobs function); GetItem on the menu table;
   Query on the marketing table (STATS, read-only); GetItem/PutItem on the
   tenant table limited to the `PLATFORM#META_ADS` partition (kill switch);
   `s3:GetObject` on `menu-images/*`; Query on the user table's tenant index

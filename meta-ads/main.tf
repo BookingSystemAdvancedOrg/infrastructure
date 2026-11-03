@@ -55,6 +55,7 @@ locals {
         USER_TENANT_INDEX_NAME     = var.user_tenant_index_name
         MENU_IMAGES_BUCKET_NAME    = var.menu_image_bucket_name
         NOTIFICATION_FUNCTION_NAME = var.notification_function_arn
+        PUBLISH_STATE_MACHINE_ARN  = local.state_machine_arn
       })
     }
   }
@@ -166,6 +167,14 @@ locals {
         Effect   = "Allow"
         Action   = ["lambda:InvokeFunction"]
         Resource = var.notification_function_arn
+      },
+      {
+        # The 15-minute sweep starts a publish whose StartExecution was lost
+        # (same execution name as A8, so never a second execution).
+        Sid      = "RestartStrandedPublish"
+        Effect   = "Allow"
+        Action   = ["states:StartExecution"]
+        Resource = local.state_machine_arn
       },
       {
         Sid       = "PlatformSpendMetric"
