@@ -4,6 +4,9 @@
 **Date:** 2026-11-01
 **Deciders:** Owner (product), orchestrator (contracts); Meta App Review and Business Verification (external)
 **Run:** built in Run 1 against the Run 0 contract; ADR-G (social posting) reuses the connection in Run 2
+**Addendum (2026-11-04):** `ADR-A2-ad-platforms.md` widens the feature to
+all ad platforms behind a platform adapter port; everything below stays
+as built for Meta (DECISIONS.md 2026-11-04).
 
 ## Context
 

@@ -249,3 +249,117 @@ which starts the row immediately.
 
 **Files.** `docs/adr/ADR-A-meta-ads.md` decision 7, Terraform modules
 and IAM, test plan; `docs/build/CONTRACTS.md` 6.A (A8 idempotency).
+
+## 2026-11-04: phone agent counter-offers (ADR-L decision 13)
+
+**Contradiction.** The owner's instruction of 2026-11-04 (PIPELINE.md)
+asked for a counter-offer rule the ADR did not have: ADR-L only said
+"agent offers at most three times; full day -> it asks about the next day
+itself", `get_availability` took only `date`, `partySize` and a time
+range, and nothing said how a nearby table is offered when the location
+has a floor plan.
+
+**Decision.** The order is fixed in ADR-L decision 13 and the owner
+trusts the recommendation: (1) requested time free -> book it; (2) time
+taken -> the three closest free times the same day on both sides of the
+requested time (distance first, tie to the earlier time, spoken in clock
+order); (3) whole day full -> the next day once, then a callback, never a
+third day; (4) a nearby table at the requested time when the location has
+a published floor plan, offered before the time shift: two free tables on
+the same floor at most 1.0 m apart whose seats fit (`adjacent_pair`), a
+larger table the online rule keeps from this party (`larger`), or a table
+marked phone-only (`phone_only`); per location `counterOffers{nearbyTables,
+phoneOnlyTables}` (both default true). `hold_table` answers the
+counter-offer in the same call that finds the time taken, so the happy
+path stays one tool call. The call row and `PhoneCall.Ended` carry
+`counterOffer` (new enum `CounterOffer`). Owner choices stay marked
+**[NEEDS YOUR OK]** in the ADR: three offers and earlier-wins, one next
+day then callback, the nearby-table interpretation and its 1.0 m gap,
+nearby before times, the toggle defaults. Provider contracts, prices,
+retention, legal wording and IAM are not touched by this decision.
+
+**Reason.** The owner's rule is the natural phone conversation and keeps
+the agent inside the existing availability engine (no new data, no new
+tool): the guest view already returns the online options and why every
+other table is not offered, the staff view returns every free table, and
+the public active layout carries the geometry in metres. Offering the
+nearby table first keeps the caller's time, which is what they asked for.
+
+**Files.** `docs/adr/ADR-L-phone-agent.md` (decision 13, tool table, data
+model, L4, events, IAM, test plan), `docs/build/CONTRACTS.md` (1.3, 5,
+6.L L4/L7/L8 and the tool note, 13, 14, 17.1),
+`application/contracts/booqy.yaml` and the five generated targets,
+`application/shared/agent_model.py` (counter-offer sentences and flow in
+the simulator), `application/tests/test_phone_agent_counter_offers.py`,
+`application/tests/test_contracts.py`.
+
+## 2026-11-04: the phone agent books through the staff route, with no server-side hold
+
+**Contradiction.** ADR-L's tool table sent `hold_table` to the public
+hold route `POST /locations/{l}/holds` and `create_reservation` to the
+public online route. Both run Turnstile (when `TURNSTILE_REQUIRED`) and
+the per-IP request guard, which the agent's synthesized event cannot
+satisfy, the online route needs `acceptTerms` from the guest, and the hold
+only accepts online table options, so the nearby-table counter-offer could
+never be held there.
+
+**Decision.** The agent books the way staff book a phone call today:
+`POST /locations/{l}/reservations/manual` with `source: "phone"`,
+`notifyGuest: true` and explicit `tableIds`, under the agent principal
+(a staff user). `hold_table` is a bookability check with the shared
+availability engine that returns a proposal id valid for the call; there
+is no server-side hold (staff phone bookings have none today; the manual
+route's conditional write refuses a table taken in the meantime and the
+agent re-offers). Consequence: the manual route never asks a card
+guarantee, so in v1 a party that would need one online gets a callback
+instead of a booking. The upgrade (manual route accepts `guarantee: true`
+for `source: phone`, creates the pending-guarantee reservation and
+returns `guaranteeRequired`, which makes decision 8's SMS link work) is a
+Run 2 hotspot change **[NEEDS YOUR OK]**.
+
+**Reason.** It is the only path that needs no change to the public
+routes' bot and attempt protection, that can seat a nearby table, and
+that produces the existing `source: phone` reservations the Bokningar
+page already shows. A hold-less phone booking is what the restaurant does
+by hand today.
+
+**Files.** `docs/adr/ADR-L-phone-agent.md` (decision 13 "Hold and
+booking path", tool table rows `hold_table` and `create_reservation`),
+`docs/build/CONTRACTS.md` 6.L tool note.
+
+## 2026-11-04: feature A widens to all ad platforms behind a platform adapter port (ADR-A2)
+
+**Contradiction.** The owner's instruction of 2026-11-04 asks for ad
+campaigns on all platforms with spend set by the restaurant, recurring
+campaigns, a first-time guide and a daily view; ADR-A, CONTRACTS.md 6.A
+and the Run 1 code are Meta-only, with `MetaGraph` called straight from
+the publish workflow and the insights job, and the routes, table keys,
+events and entitlement all named `meta-ads`.
+
+**Decision.** `docs/adr/ADR-A2-ad-platforms.md` (addendum to ADR-A): one
+port `AdPlatform` (`shared/ad_platform.py`) behind the existing wizard,
+`MetaAdPlatform` wrapping the Run 1 `MetaGraph` first (no behaviour
+change for Meta), then Google Ads, then TikTok, others only when their
+API lets a third party create ads on the restaurant's own account. Meta's
+routes, table, events and entitlement stay as built; the platform-neutral
+additions (connection list, spend confirmation, schedules, the daily
+view) get their own contract rows at the Run 2 cut (CONTRACTS.md 6.A2,
+Fable). Spend always stays inside the existing per-campaign bounds,
+monthly cap, kill switch and alarm, and starts only after an explicit
+confirmation showing the total. Money screens stay owner-only and
+hidden-amount for staff unless the owner decides otherwise, which the ADR
+flags as its first question. Work is split: A2 (port, Meta adapter,
+confirmation, schedules, guide, daily view) in Run 2 next to G; A3 Google
+Ads and A4 TikTok in Run 3 behind simulators, real adapters only after
+the platform approvals the ADR lists. No separate run.
+
+**Reason.** The wizard, caps, kill switch, UTM attribution and insights
+are platform-neutral already; only the five Meta calls are not. A port
+lets each platform ship as one adapter plus its connection guide without
+touching the others, and the Meta code on `dev` keeps working while the
+port is introduced. Google Ads and TikTok approvals take weeks and are
+human actions, so their adapters cannot be verified in Run 2 anyway.
+
+**Files.** `docs/adr/ADR-A2-ad-platforms.md` (new),
+`docs/adr/ADR-A-meta-ads.md` (addendum pointer), `docs/build/STATUS.md`,
+`docs/build/PIPELINE.md`.

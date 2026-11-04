@@ -277,6 +277,114 @@ Swedish first and English second.
     ringde") so the owner can read the agent's answers before any call. Each
     step saves with `version`; the agent is live only after step 5.
 
+13. **Counter-offers (owner decision 2026-11-04, DECISIONS.md).** When a
+    caller asks for a table at a time, the agent follows this order and
+    never invents an alternative the tools did not return:
+
+    1. **Requested time free -> book it.** `hold_table(date, time,
+       partySize)` answers `{holdId, ...}` when the party has an online
+       table option at that time; the agent confirms the details back and
+       books on the caller's "yes" (decision 11).
+    2. **Time taken -> the closest free times the same day, on both sides
+       of the requested time.** The same `hold_table` call answers `{held:
+       false, reason: "time_taken", time, before[], after[], nearby[]}`
+       (one tool call either way, so the happy path stays inside the
+       latency budget). `before` and `after` are the day's free start
+       times for the party on each side of the requested time, closest
+       first. The agent speaks at most **three** (`MAX_OFFERS`), chosen by
+       distance from the requested time, a tie going to the earlier time,
+       and spoken in clock order ("17.30, 18.30 eller 19.30")
+       **[NEEDS YOUR OK: three, and earlier-wins on a tie]**. The caller
+       names one, the agent holds it (step 1) and books.
+    3. **Whole day full -> the next day, once.** `hold_table` answers
+       `{held: false, reason: "day_full", dayFull: true}` (or
+       `get_availability` answers no times); the agent asks "Vill du att
+       jag kollar dagen efter?" and on "yes" calls `get_availability(date
+       + 1, partySize, time)`, which ranks that day's free times by
+       distance from the asked time (the time itself included when free)
+       and speaks the closest three. The agent moves to the next day
+       **once**: when that day is also full it offers a callback
+       (`request_callback`, topic "bokning"), never a third day
+       **[NEEDS YOUR OK: one day, then callback; waitlist join is v2
+       (ADR-F, open question 3)]**. The day the agent moved to is the day
+       being booked until the caller names another one.
+    4. **Nearby table at the requested time, when the location has a
+       floor plan.** Interpretation **[NEEDS YOUR OK]**: a "nearby table"
+       is a table, or two tables next to each other, at the requested
+       time that the online rules would not offer this party but a staff
+       member taking the call would: (a) `adjacent_pair`: two free tables
+       on the same floor whose edges are at most `NEARBY_GAP_M = 1.0`
+       metres apart (layout geometry is stored in metres) and whose seats
+       together fit the party, and that are not already a stored
+       `tableCombination` (those are online options already); (b)
+       `larger`: a free table whose online rule says the party is too
+       small for it (`too_large` in the availability response) but whose
+       seats fit; (c) `phone_only`: a free table marked not bookable
+       online (`online: false`, the "phone" reason) that fits. Without a
+       published layout there are no tables at all, so `nearby` is empty
+       and only steps 2-3 apply. Per location the owner can switch it off
+       or narrow it: `counterOffers{nearbyTables: bool (default true),
+       phoneOnlyTables: bool (default true)}` in the wizard step "tider
+       och läge" and route L4 **[NEEDS YOUR OK: defaults, the 1.0 m gap]**.
+       The nearby table is offered **before** the other times because it
+       keeps the caller's time ("Klockan 19 finns inget vanligt bord
+       ledigt, men jag kan ge er två bord bredvid varandra klockan 19.
+       Vill du ha det?"); "yes" holds exactly those `tableIds` at the
+       same time, "no" falls back to step 2 with the times only
+       **[NEEDS YOUR OK: nearby before times]**.
+
+    **How `get_availability` offers it.** The tool wrapper in
+    `phone-agent-call` (`shared/features/phone_agent/offers.py`) builds
+    every answer from the existing read-only Lambdas, nothing new on their
+    tables: `get-availability:live` in the guest view (`?partySize=`,
+    online options per slot plus the `unavailable[{tableId, reason,
+    minParty, maxParty}]` list the booking page already gets) and in the
+    staff view (no `partySize`: every free table with its seats per slot),
+    and for the geometry of (a) the public active layout
+    `GET /locations/{l}/layout/active` served by `list-layout-version:live`
+    (elements with `x`, `y`, `width`, `depth`, `floorId`, `seats`, `zone`),
+    cached for the call. `get_availability` gains `time?` (the asked time;
+    `timeFrom`/`timeTo` stay for ranges) and answers `{times[],
+    requestedTime?, before[], after[], nearby[], dayFull}`; `hold_table`
+    gains `tableIds?` (the nearby option) and answers the shapes above.
+    Both compute the same `offers(...)` result; the tool list itself gains
+    no tool.
+
+    **Hold and booking path.** The public hold route (`POST
+    /locations/{l}/holds`) runs Turnstile (when `TURNSTILE_REQUIRED`) and
+    the per-IP request guard, neither of which the agent's synthesized
+    event can satisfy, and it only accepts online options, so a nearby
+    table could never be held there. Decision: the agent books the way
+    staff book a phone call today, through the staff route `POST
+    /locations/{l}/reservations/manual` with `source: "phone"`,
+    `notifyGuest: true` and explicit `tableIds` (the agent principal is a
+    staff user, decision "The agent principal"); `hold_table` is a
+    bookability check with the same engine (`shared/availability`,
+    read-only import) that returns a proposal id valid for the call, **not
+    a server-side hold** (staff phone bookings have none today; the manual
+    route's conditional write still refuses a table taken in the
+    meantime, and the agent then re-offers, test row below).
+    `create_reservation(holdId, ...)` books the proposal's tables.
+    Consequence for decision 8: the manual route never asks a card
+    guarantee, so in v1 a party that would need one online (`guarantee.required`,
+    read-only import) is not booked by the agent; it gets a callback
+    ("För så stora sällskap ringer restaurangen upp dig"). Upgrade
+    **[NEEDS YOUR OK, Run 2 hotspot]**: the manual route accepts
+    `guarantee: true` for `source: phone`, creates the reservation in the
+    pending-guarantee state and returns `guaranteeRequired`, which makes
+    `send_guarantee_link` work as decision 8 describes (the simulator
+    scenario already drives that shape).
+
+    **Evidence.** The call row and `PhoneCall.Ended` carry `counterOffer`
+    (`none` | `other_time` | `next_day` | `nearby_table`, the last offer
+    the caller accepted or, when nothing was booked, the furthest step
+    reached) so the Samtal list can show "Erbjöd annan tid"; enum
+    `CounterOffer` in the contract. The simulator's scripted intent table
+    carries the sentences (`COUNTER_OFFERS`, `NEARBY_TABLE` in
+    `shared/agent_model.py`) in Swedish and English, and
+    `tests/test_phone_agent_counter_offers.py` drives every step above in
+    both languages.
+
 ## Data model
 
 Table `<prefix>phone-agent` (PAY_PER_REQUEST, PITR, deletion protection in
@@ -285,9 +393,9 @@ prod, TTL `ttl`, no stream). Tenant in every partition key.
 | PK | SK | Item |
 |---|---|---|
 | `TENANT#<t>` | `CONFIG` | `agentName`, `tone`, `languages` (`[sv, en]`), `recording{enabled, purpose?, retentionDays?}`, `minutesCapPerMonth`, `version`, `updatedAt`, `updatedBy` |
-| `TENANT#<t>` | `LOC#<l>#CONFIG` | `enabled`, `killSwitch`, `mode` (`after_hours` \| `overflow` \| `always`), `agentHours{mon..sun: [{from, to}]}`, `greetingExtraSv`, `greetingExtraEn`, `transferTo` (E.164), `maxCallSeconds`, `number?{e164, providerId, provisionedAt, releaseAfter?}`, `providerAgentId?`, `forwardingVerifiedAt?`, `version` |
+| `TENANT#<t>` | `LOC#<l>#CONFIG` | `enabled`, `killSwitch`, `mode` (`after_hours` \| `overflow` \| `always`), `agentHours{mon..sun: [{from, to}]}`, `greetingExtraSv`, `greetingExtraEn`, `transferTo` (E.164), `maxCallSeconds`, `counterOffers{nearbyTables, phoneOnlyTables}` (decision 13, both default true), `number?{e164, providerId, provisionedAt, releaseAfter?}`, `providerAgentId?`, `forwardingVerifiedAt?`, `version` |
 | `TENANT#<t>` | `NUMBER#<e164>` | pointer `{locationId}`; GSI `byNumber` |
-| `TENANT#<t>` | `CALL#<yyyy-mm-dd>#<callId>` | `locationId`, `callRef` (provider), `from` (E.164, removed at contact retention), `fromHash` (`sha256(tenant\|phone)`), `status`, `startedAt`, `answeredAt?`, `endedAt?`, `durationSec`, `billedMinutes`, `metered`, `language`, `outcome` (`booked` \| `moved` \| `cancelled` \| `info` \| `transferred` \| `callback` \| `abandoned` \| `refused` \| `error`), `refusedReason?`, `disclosure{text, playedAt, repeats, languages[]}`, `reservationId?`, `callbackId?`, `transfer?{startedAt, answered, at}`, `recording?{key, expiresAt}`, `summary?` (one line by the agent, no phone number), `turnCount`, `version`, `ttl` (7 years) |
+| `TENANT#<t>` | `CALL#<yyyy-mm-dd>#<callId>` | `locationId`, `callRef` (provider), `from` (E.164, removed at contact retention), `fromHash` (`sha256(tenant\|phone)`), `status`, `startedAt`, `answeredAt?`, `endedAt?`, `durationSec`, `billedMinutes`, `metered`, `language`, `outcome` (`booked` \| `moved` \| `cancelled` \| `info` \| `transferred` \| `callback` \| `abandoned` \| `refused` \| `error`), `refusedReason?`, `disclosure{text, playedAt, repeats, languages[]}`, `counterOffer` (`none` \| `other_time` \| `next_day` \| `nearby_table`, decision 13), `reservationId?`, `callbackId?`, `transfer?{startedAt, answered, at}`, `recording?{key, expiresAt}`, `summary?` (one line by the agent, no phone number), `turnCount`, `version`, `ttl` (7 years) |
 | `TENANT#<t>` | `CALL#<day>#<callId>#T#<seq:05d>` | transcript turn: `role` (`agent` \| `caller` \| `system` \| `tool`), `text`, `at`, `toolName?`, `toolArgsRedacted?`, `toolOk?`, `ttl` (24 months) |
 | `TENANT#<t>` | `CALLBACK#<callbackId>` | `locationId`, `callId`, `name?`, `phone`, `phoneHash`, `topic`, `preferredTime?`, `status` (`open` \| `closed`), `createdAt`, `closedAt?`, `closedBy?`, `note?`, `version`, `ttl` (90 days after close) |
 | `TENANT#<t>` | `USAGE#<periodEnd>` | `minutes`, `loc{<l>: minutes}`, `calls`, `warned80` |
@@ -329,9 +437,9 @@ summarised to the model (no raw rows, no other guests' names).
 | Tool | Arguments | Existing Lambda and route (invoked directly on the `live` alias with the synthesized event) | Notes |
 |---|---|---|---|
 | `get_restaurant_info` | none | `tenant-site-config` `GET /site-config?tenantId=` | hours, special days, address, booking rules (`maxPartySizeOnline`, `bookingDurationHours`, guarantee, grace), policies; cached per call |
-| `get_availability` | `date`, `partySize`, `timeFrom?`, `timeTo?` | `get-availability` `GET /locations/{l}/availability?date=&partySize=` | agent offers at most three times; full day -> it asks about the next day itself |
-| `hold_table` | `date`, `time`, `partySize` | `create-pending-reservation` `POST /locations/{l}/holds` | the guest-site hold; released by the existing expiry if the call drops |
-| `create_reservation` | `holdId`, `name`, `phone` (caller id by default), `partySize`, `note?`, `language` | `create-pending-reservation` `POST /locations/{l}/reservations` | confirmation SMS/email come from the existing stream; result tells the agent whether a guarantee is required |
+| `get_availability` | `date`, `partySize`, `time?`, `timeFrom?`, `timeTo?` | `get-availability` `GET /locations/{l}/availability?date=&partySize=` (guest view) and without `partySize` (staff view, every free table), plus `list-layout-version` `GET /locations/{l}/layout/active` for the floor plan (decision 13) | -> `{times[], requestedTime?, before[], after[], nearby[], dayFull}`; agent offers at most three times, closest to `time` first; full day -> the next day once, then a callback |
+| `hold_table` | `date`, `time`, `partySize`, `tableIds?` | same reads as `get_availability` (`shared/availability` engine, read-only); **no write**: a bookability check returning a proposal id valid for the call | -> `{holdId, date, time, partySize, tableIds}` or `{held: false, reason: time_taken \| day_full, time, before[], after[], nearby[], dayFull?}` (decision 13); the booking itself is `create_reservation` |
+| `create_reservation` | `holdId`, `name`, `phone` (caller id by default), `partySize`, `note?`, `language` | `create-pending-reservation` `POST /locations/{l}/reservations/manual` with `source: "phone"`, `notifyGuest: true`, the proposal's `tableIds` (decision 13) | confirmation SMS/email come from the existing stream; a table taken since the proposal -> the route refuses and the agent re-offers; `guaranteeRequired` only after the Run 2 hotspot upgrade of decision 13 **[NEEDS YOUR OK]**, until then guarantee-size parties get a callback |
 | `send_guarantee_link` | `reservationId` | `notification:live` (kind `phone-agent.guarantee-link`), link built with `shared/manage_link.py` read-only | only when `create_reservation` said guarantee required |
 | `find_reservations` | `phone?`, `fromDate?` | `get-reservation` `GET /locations/{l}/reservations?date=` for the next 14 days, filtered in the tool on `customerPhone` | never reveals a booking that does not match the caller's number unless the caller gives name and date that match |
 | `move_reservation` | `reservationId`, `date`, `time`, `partySize?` | `mark-arrived` `PATCH /locations/{l}/reservations/{id}` | inside the location's change cutoff; otherwise the agent explains and offers callback |
@@ -354,7 +462,7 @@ Errors `{error, code, field?}`. Staff are held to their assigned location.
 | L1 | GET | `/tenant/phone-agent` | JWT | owner | -> `{config, locations[{locationId, enabled, killSwitch, mode, number?, minutesThisPeriod}], usage{minutes, cap, includedMinutes, periodEnd}}` |
 | L2 | PUT | `/tenant/phone-agent/config` | JWT | owner | `{agentName, tone, languages, recording{enabled, purpose?, retentionDays?}, minutesCapPerMonth, version}` -> config |
 | L3 | GET | `/locations/{locationId}/phone-agent` | JWT | owner, staff | -> location config (staff: without `transferTo` edit, with kill switch) + `forwarding{codes[], number}` |
-| L4 | PUT | `/locations/{locationId}/phone-agent` | JWT | owner | `{enabled, mode, agentHours, greetingExtraSv, greetingExtraEn, transferTo, maxCallSeconds, version}` -> config; first `enabled: true` provisions the number and the provider agent (202 `provisioning` then 200) |
+| L4 | PUT | `/locations/{locationId}/phone-agent` | JWT | owner | `{enabled, mode, agentHours, greetingExtraSv, greetingExtraEn, transferTo, maxCallSeconds, counterOffers{nearbyTables, phoneOnlyTables}, version}` -> config; first `enabled: true` provisions the number and the provider agent (202 `provisioning` then 200) |
 | L5 | POST | `/locations/{locationId}/phone-agent/kill-switch` | JWT | owner, staff | `{on, version}` -> config |
 | L6 | POST | `/locations/{locationId}/phone-agent/simulate` | JWT | owner | `{sessionId, text, language?}` -> `{reply, toolCalls[{name, ok}], state, disclosure: bool}` (text-in/text-out, same agent loop, writes nothing to bookings: tools run in `dryRun` except reads) |
 | L7 | GET | `/locations/{locationId}/phone-agent/calls?from&to&cursor` | JWT | owner, staff | -> `{calls[{callId, startedAt, durationSec, language, outcome, reservationId?, callbackId?, summary}], cursor}` (staff: no caller number) |
@@ -390,7 +498,7 @@ transcript text in any detail.
 | detail-type | extra detail |
 |---|---|
 | `PhoneCall.Answered` | `locationId`, `callId`, `language` |
-| `PhoneCall.Ended` | `locationId`, `callId`, `durationSec`, `billedMinutes`, `outcome`, `reservationId?`, `callbackId?` |
+| `PhoneCall.Ended` | `locationId`, `callId`, `durationSec`, `billedMinutes`, `outcome`, `reservationId?`, `callbackId?`, `counterOffer?` (`none` \| `other_time` \| `next_day` \| `nearby_table`, decision 13) |
 | `PhoneCall.Refused` | `locationId`, `callId`, `reason: enum[cap,kill_switch,hours,paused,entitlement]` |
 | `PhoneCallback.Requested` | `locationId`, `callbackId`, `callId` |
 | `PhoneCallback.Closed` | `locationId`, `callbackId` |
@@ -421,7 +529,9 @@ No consumer in Run 2. Guest CRM may later count `PhoneCall.Ended` with a
   existing functions** `tenant-site-config:live`, `get-availability:live`,
   `create-pending-reservation:live`, `get-reservation:live`,
   `mark-arrived:live`, `cancel-reservation:live`, `get-menu:live` (seven
-  with get-menu). Scoping is by alias ARN, nothing on their tables.
+  with get-menu), plus `list-layout-version:live` (the public active
+  layout, decision 13; eight in all). Scoping is by alias ARN, nothing on
+  their tables.
 - **IAM change to existing roles (call out, owner to approve):**
   `guest-privacy`, `tenant-purge` and `platform-tenants` get invoke on
   `phone-agent:live` (hooks `privacy.*`, `tenant.purge`, `platform`,
@@ -554,7 +664,24 @@ a marked integration test runs the same scripts against real Bedrock when
 `BEDROCK_CLIENT=real` (skipped in CI). Scenarios, each in Swedish and
 English, each asserting the disclosure turn is first and
 `disclosure.playedAt` is set: book inside rules; full day -> next day
-offered; party over the online limit -> guarantee SMS link sent, no card
+offered; **counter-offers (decision 13, `tests/test_phone_agent_counter_offers.py`,
+written 2026-11-04 and green on `dev`)**: requested time free -> booked
+with no counter-offer; time taken -> the three closest same-day times on
+both sides, clock order, tie to the earlier time; free times on one side
+only; a plain "yes" to a list asks which time; an availability question
+with a time ranks the day by distance; full day -> next day keeping the
+asked time, the next day's own time offered when free; next day also
+full -> callback, never a third day; nearby table (each of
+`adjacent_pair`, `larger`, `phone_only`) offered first and held with its
+`tableIds` on "yes", the times offered on "no"; no floor plan -> times
+only; the ranking itself; every sentence in Swedish and English;
+determinism. Run 2 adds the tool-side cases: `offers()` from the real
+availability responses (both views) and a layout fixture with two tables
+1.0 m apart and two 1.5 m apart; a proposal whose table is taken before
+`create_reservation` -> the manual route refuses, the agent re-offers; a
+guarantee-size party -> callback (until the hotspot upgrade);
+`counterOffers.nearbyTables: false` -> `nearby` empty; the call row and
+event carry `counterOffer`; party over the online limit -> guarantee SMS link sent, no card
 data asked; move inside cutoff; cancel inside cutoff; special day closed;
 menu question; unknown question -> callback row; "speak to a human" ->
 transfer; transfer unanswered -> agent resumes and offers callback;
