@@ -1,7 +1,7 @@
 # Pipeline
 
 ## Lock
-LOCKED 2026-11-04T21:29:19Z run-20261104T2129Z
+unlocked (released 2026-11-04, run-20261104T2129Z)
 
 ## Position
 Step: Run 0 addendum (K events & tickets, L phone agent). Review round 1 done, fix round 1 pushed (infra 4b251cb, console 05fb778, customer ecf187b).
@@ -120,3 +120,13 @@ Fresh Fable review of build/run-2-integration tips (infra dd176e2, app 38f1e00, 
 Run 2 batch 1 (D Google Business, E Gift cards, F Waitlist, G Social posting) on build/run-2-integration: review round 1 (merge after fixes) -> fix round 2 -> Fable re-check: application#73, admin#26, console#16 = merge; customer#18 = merge (site-kit brand alias decided, DECISIONS); infra#42 = merge after one IAM fix (waitlist ReturnValues condition) -> fix round 3 done (infra c1d574e, app 3660cd5/dde219a, admin 893c73b, docs ed9d1db), CI plan 129 add / 3 change / 0 destroy. Round 3 diff is small and CI-verified, not re-reviewed by a fresh reviewer; do a quick fresh Fable diff check before merging.
 NOTHING MERGED. infra#42 needs the owner's IAM approval (PR table incl. in-place changes X1-X3: finance_rollup role/env, api stage throttle). Merge order after approval: infra#42 (apply done), application#73, console#16, admin#26, customer#18; then dev smoke test, mark D/E/F/G 'on dev, awaiting owner go-ahead', delete merged branches (containment check), continue Run 2 batch 2 (H, B2, K, L incl. counter-offers PRs #41/#72/#25/#15/#17 spec PRs, A all-platform ads ADR addendum) and Run 3.
 Open: A's Meta port must return created_time (STATUS item 10); no tablet screenshots; spec PRs #41,#72,#25,#15,#17 (ADR-L counter-offers) are open against dev, not yet reviewed/merged.
+
+## Position update 2026-11-04 (run-20261104T2129Z)
+Owner approved the infra#42 IAM rows (D/F/G/E, X1-X3; plan 129 add/3 change/0 destroy). Fresh Fable diff check of fix round 3 = merge on all five, IAM list beyond approved rows empty. Merged to dev (squash, CI green, in order): infrastructure#42 (055ac20, dev apply success), application#73 (7ff3751, deploy success), booqy-console#16 (688702b; its dev deploy was still running when this run ended, verify), admin-front-end#26 (c6d861b, success), customer-front-end#18 (f3bb8e2, success). D, E, F, G are 'on dev, awaiting owner go-ahead' (CI deploy only; no Playwright or real-provider tests: unverified). No PR to main.
+Branch cleanup NOT done: this environment's proxy denies branch deletion (HTTP 403). Containment check passed: each build/run-2-integration tip equals its merged PR head, and every build/run-2-<feature> branch (google-business, waitlist, social-posting, gift-cards) is behind/contained in it (ahead=0) in all five repos. Owner or a run with delete rights should delete build/run-2-* in infrastructure, application, booqy-console, admin-front-end, customer-front-end.
+Next: review and merge the spec PRs infrastructure#41, application#72, admin-front-end#25, booqy-console#15, customer-front-end#17 (ADR-L counter-offers; Fable leads contract change); then Run 2 batch 2 (H, B2, K, L with counter-offers, A all-platform ads per ADR-A addendum), then Run 3.
+
+## Needs owner (Run 2 batch 1, dev test steps)
+- D Google Business, E Gift cards, F Waitlist, G Social posting are on dev, all entitlements off; enable per test tenant in the console and use the admin tabs (Google, Presentkort, Kö/Waitlist, Inlägg). Simulated Google/Meta and fake Stripe only.
+- Delete the merged build/run-2-* branches (see above).
+- External: Google Business API access + OAuth verification and the google-business/app secret value; Meta App Review for pages_manage_posts and instagram_content_publish; accountant on gift-card VAT (2421/3990); lawyer on gift-card validity/withdrawal and review-request marketing.
