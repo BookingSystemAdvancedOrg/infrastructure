@@ -41,8 +41,15 @@ supplies at different rates.
    `XXXX-XXXX-XXXX-XXXX`, stored only as HMAC-SHA256 with a pepper secret
    (`<prefix>gift-cards/code-pepper`) plus `last4`. Sent once by email to the
    recipient (or buyer) by invoking `notification:live` with the code in the
-   payload only (CONTRACTS.md 9.4; never stored, so no table stream); owners
-   can resend, never see the full code. Bearer instrument: whoever has the code may use it.
+   payload only (CONTRACTS.md 9.4; never stored, so no table stream). Owners
+   never see the full code, and because it is never stored it cannot be
+   re-sent either: E10 "Skicka ny kod" **rotates** the code (new `CODE#`
+   row, old one deleted, `codeHmac`/`last4` replaced on the card in one
+   transaction, then the new code is emailed as `gift-cards.code-resend`).
+   The old code stops working at once, so the admin asks the owner to
+   confirm before calling E10 and shows the new `last4` afterwards
+   (decided 2026-11-04, DECISIONS.md). Bearer instrument: whoever has the
+   code may use it.
 4. **Balance ledger**: `balanceOre` on the card and an append-only TX row
    per change, written in one transaction with a condition
    (`balanceOre >= :amount AND version = :v AND status = active AND
@@ -85,8 +92,19 @@ supplies at different rates.
    location picker), so cross-location redemption moves the liability
    between locations of the same legal entity; a monthly
    "presentkortsskuld" figure (sum of balances) is shown for reconciliation.
-9. **Stripe disputes/refunds**: a refunded or lost-dispute purchase voids
-   the card (remaining balance only; a partly used card shows a warning).
+9. **Stripe disputes/refunds** arrive through the `stripe.event` hook
+   (account-checked, decision 2). A lost dispute (`charge.dispute.closed`
+   with `status: lost`; a won one is ignored) voids the card: one
+   `void-<chargeId>` TX of the remaining balance, channel `system`,
+   idempotent (`already_void` on replay or on an already void card).
+   `charge.refunded` is meant to void the card **only on a full refund**
+   (`amount_refunded == amount`); a **partial refund** must not void a
+   card the guest still holds and is instead flagged on the card for the
+   owner to settle by hand (E8 adjust or E9 refund). **As built on
+   `build/run-2-integration` the handler voids on every `charge.refunded`
+   whatever the refunded amount and writes no flag**; the split is a code
+   follow-up (DECISIONS.md 2026-11-04). The E9 owner refund is a Stripe
+   refund of the unused part and voids the card itself.
 
 ## Data model
 
@@ -123,7 +141,7 @@ Errors `{error, code, field?}`. Codes travel only in request bodies.
 | 7 | GET | `/tenant/gift-cards/{cardId}` | JWT | owner | -> card + `transactions[]` |
 | 8 | POST | `/tenant/gift-cards/{cardId}/adjust` | JWT | owner | `{txId, expiresAt?, reason}` -> card (extend validity) |
 | 9 | POST | `/tenant/gift-cards/{cardId}/refund` | JWT | owner | `{txId, reason}` -> card (`void`); Stripe refund of the unused part, key `giftcard-refund-<txId>` |
-| 10 | POST | `/tenant/gift-cards/{cardId}/resend` | JWT | owner | `{to: buyer \| recipient}` -> 202 |
+| 10 | POST | `/tenant/gift-cards/{cardId}/resend` | JWT | owner | `{to: buyer \| recipient}` -> 202 `{last4}` (a new code; the old one is void; active cards only) |
 | 11 | POST | `/locations/{locationId}/gift-cards/lookup` | JWT | owner, staff | `{code}` -> `{cardId, last4, balanceSek, expiresAt, status}` |
 | 12 | POST | `/locations/{locationId}/gift-cards/redemptions` | JWT | owner, staff | `{txId (= Kassa paymentId), code, amountOre, billId}` -> `{balanceAfterSek, txId}` |
 | 13 | POST | `/locations/{locationId}/gift-cards/redemptions/{txId}/reverse` | JWT | owner, staff | `{}` -> `{balanceAfterSek}` (only before the bill's receipt) |
@@ -264,7 +282,7 @@ entitlement off refused, idempotent retry.
 | 7 | n/a | staff 403 | B's cardId 404 | 403 | n/a |
 | 8 | shorter expiry 400 | staff 403 | B's card 404 | 403 | same txId -> one TX |
 | 9 | after window 409 | staff 403 | B's card 404 | 403 | same txId -> one Stripe refund |
-| 10 | bad target | staff 403 | B's card 404 | 403 | resend twice -> two mails (allowed) |
+| 10 | bad target; expired or void card 409 | staff 403 | B's card 404 | 403 | resend twice -> two mails, two codes; only the latest code is accepted by lookup, balance and redemption |
 | 11 | missing code 400 | staff other location 404 | LOC_B 404 | 403 | n/a |
 | 12 | amount > balance 409 | staff other location 404 | B's code 404 | 403 | same txId -> one debit |
 | 13 | after receipt 409 | staff other location 404 | B's txId 404 | 403 | second reverse -> same balance |

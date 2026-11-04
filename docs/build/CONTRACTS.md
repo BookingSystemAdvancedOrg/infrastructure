@@ -202,7 +202,7 @@ only after the tenant/location check. "Purge" = handled by the feature's
 | `<prefix>site-builder` | B | `TENANT#<t>` / `SITE`, `DRAFT`, `VERSION#<n:06d>`, `PUBLISHED`, `PUBLISH#<id>`, `PREVIEW#<hash>`, `AIUSE#<month>`, `AIPROP#<id>`, `CUSTOM#<sha>` | none | yes | no | yes (S3 `sites/<t>/` already removed via site-repo) |
 | `<prefix>guest-crm` | C | `TENANT#<t>` / `IDENT#<channel>#<subject>`, `PROFILE#<guestId>`, `HIST#<guestId>#<at>#<kind>#<sourceId>`, `SEGMENT#<id>`, `EXPORT#<id>`, `EXPORT#<id>#<chunk:04d>`, `BACKFILL` | `byLastSeen` sparse: `GSI1PK=TENANT#<t>#GUESTS`, `GSI1SK=<lastSeenAt>#<guestId>` | yes | no | yes |
 | `<prefix>google-business` | D | `TENANT#<t>` / `CONNECTION`, `OAUTH#<state>`, `GLOC#<googleLocationId>`, `REVSENT#<guestKey>`; `LOCATION#<l>` / `LINK`, `REVIEWSETTINGS`, `REVJOB#<kind>#<sourceId>` | `byLinked` sparse: `GSI1PK=LINKED`, `GSI1SK=<t>#<l>` | yes | no | yes, plus secret and pending schedules |
-| `<prefix>gift-cards` | E | `TENANT#<t>` / `SETTINGS`, `PURCHASE#<id>`, `CARD#<cardId>`, `CODE#<codeHmac>`, `CARD#<cardId>#TX#<txId>` | `byLocationDay`: `GSI1PK=TENANT#<t>#LOC#<l>#<day>`, `GSI1SK=<at>#<txId>` (TX only); `byExpiry` sparse: `GSI2PK=EXPIRY#<day>`, `GSI2SK=<t>#<cardId>` | yes (holds; on purge, CARD/CODE/TX get `ttl` = end of 7th year after the last TX) | no | partial: SETTINGS, PURCHASE, contact fields now; bookkeeping rows by TTL |
+| `<prefix>gift-cards` | E | `TENANT#<t>` / `SETTINGS`, `PURCHASE#<id>`, `CARD#<cardId>`, `CODE#<codeHmac>`, `CARD#<cardId>#TX#<txId>`, `TXREF#<txId>` (`cardId`, `verifiedAt?`: Kassa finds a redemption by its `paymentId`; written in the same transaction as the TX row); `JOB` / `NIGHTLY` (one row per table, no tenant: `lastDay` = resume point of the nightly job) | `byLocationDay`: `GSI1PK=TENANT#<t>#LOC#<l>#<day>`, `GSI1SK=<at>#<txId>` (TX only); `byExpiry` sparse, three day-buckets read only by the nightly job: `GSI2PK=EXPIRY#<day>` (active CARD, `GSI2SK=<t>#<cardId>`), `GSI2PK=CLEANUP#<day>` (used/expired/void CARD, day = last TX + 24 months, contact fields removed then), `GSI2PK=UNVERIFIED#<day>` (TXREF of a Kassa redeem Kassa has not verified, `GSI2SK=<t>#<txId>`; reversed after 30 min, removed on verify, reverse or purge) | yes (holds; on purge, CARD/CODE/TX/TXREF get `ttl` = end of 7th year after the last TX) | no | partial: SETTINGS, PURCHASE, contact fields now; bookkeeping rows by TTL |
 | `<prefix>waitlist` | F | `LOCATION#<l>` / `ENTRY#<day>#<entryId>`, `SETTINGS` | none | yes (end of day + 30 d) | **no** (SMS via notification invoke, section 9.4) | yes |
 | `<prefix>social-posting` | G | `TENANT#<t>` / `POST#<postId>` | none | yes | no | yes |
 | `<prefix>personalliggare` | H | `TENANT#<t>` / `PERSON#<id>`, `USER#<sub>`; `LOCATION#<l>` / `HEAD`, `PRESENT#<personId>`, `REQ#<recordId>` | none | yes (REQ 7 d) | no | yes, after a final export is offered |
@@ -429,7 +429,7 @@ are among them.
 | E7 | GET `/tenant/gift-cards/{cardId}` | jwt | owner | `giftCards` | -> card + `transactions[]` | none | n/a |
 | E8 | POST `/tenant/gift-cards/{cardId}/adjust` | jwt | owner | `giftCards` | `{txId, expiresAt?, reason}` -> card | 400 shorter expiry | `txId` |
 | E9 | POST `/tenant/gift-cards/{cardId}/refund` | jwt | owner | `giftCards` | `{txId, reason}` -> card (`void`) | 409 `refund_window_passed`, `card_void` | `txId`; Stripe key `giftcard-refund-<txId>` |
-| E10 | POST `/tenant/gift-cards/{cardId}/resend` | jwt | owner | `giftCards` | `{to: buyer \| recipient}` -> 202 | 400 bad target | not idempotent by design |
+| E10 | POST `/tenant/gift-cards/{cardId}/resend` | jwt | owner | `giftCards` | `{to: buyer \| recipient}` -> 202 `{last4}`; codes are never stored, so "Skicka ny kod" **rotates** the code: new CODE# row, old one deleted, `codeHmac`/`last4` replaced on the card in one transaction, then the new code is mailed (`gift-cards.code-resend`); the old code stops working at once, which the admin confirms with the owner first | 400 bad target, no email for that target; 409 `card_expired`, `card_void`, `changed_retry` | not idempotent by design (every call is a new code; only the latest works) |
 | E11 | POST `/locations/{locationId}/gift-cards/lookup` | jwt | owner, staff | `giftCards` | `{code}` -> `{cardId, last4, balanceSek, expiresAt, status}` | 400 missing code | n/a |
 | E12 | POST `/locations/{locationId}/gift-cards/redemptions` | jwt | owner, staff | `giftCards` and `kassa` | `{txId (= Kassa paymentId), code, amountOre, billId}` -> `{balanceAfterSek, txId}` | 409 `insufficient_balance`, `card_expired`, `card_void` | `txId`; same id other amount 409 |
 | E13 | POST `/locations/{locationId}/gift-cards/redemptions/{txId}/reverse` | jwt | owner, staff | `giftCards` and `kassa` | `{}` -> `{balanceAfterSek}` | 409 `receipt_issued` | second reverse same balance |
@@ -800,9 +800,11 @@ Kassa payments with method `Presentkort` debit `giftCardLiability`.
 
 ### 9.4 Notification send (direct invoke of `notification:live`)
 
-Features never send email or SMS themselves (D's review requests use the
-existing marketing mail path, ADR-D). Callers invoke `notification:live`
-with `InvocationType=Event`:
+Features never send email or SMS themselves (D's review request **email**
+uses the existing marketing mail path, `shared/marketing_mail.py` with
+List-Unsubscribe, ADR-D; its **SMS** goes through `notification:live` like
+every other feature SMS). Callers invoke `notification:live` with
+`InvocationType=Event`:
 
 `{"notice": {"version": 1, "kind": "<feature-id>.<message>", "tenantId", "locationId"?, "channel": "email" | "sms", "to", "subject"?, "text", "html"?, "replyTo": "location" | "tenant" | null}}`
 
@@ -816,8 +818,14 @@ item before invoking and owns the Swedish copy (rendered with
 `waitlist.expired`, `meta-ads.cap-warning` (email to every active owner
 when month-to-date spend reaches 80 % of the monthly cap, sent by
 `meta-ads-jobs` from the nightly insights run, once per month via
-`SPEND#<month>.warnedAt`; ADR-A 6). The gift card code is in the invoke
-payload only, never in a table or log. Addendum kinds: `events-tickets.tickets` (email, the
+`SPEND#<month>.warnedAt`; ADR-A 6), `google-business.review-request` (SMS,
+sent by `google-business-jobs` at the review schedule's fire time to a
+guest with SMS consent, `replyTo: null`; the email variant of the same
+request is sent by marketing mail under the same kind string for
+billing, not through notification; ADR-D 7). The gift card code is in the
+invoke payload only, never in a table or log; `gift-cards.code-resend`
+carries a **new** code (E10 rotates it, the old code stops working).
+Addendum kinds: `events-tickets.tickets` (email, the
 tickets with QR and Wallet links), `events-tickets.transfer` (email, gift
 or resale link), `events-tickets.refunded` (email), `events-tickets.cancelled`
 (email, occurrence cancelled); `phone-agent.guarantee-link` (SMS, the
@@ -1038,7 +1046,9 @@ on `sites/*` of the sites bucket; waitlist role `UpdateItem` on the
 location table limited to `PK`, `SK`, `waitlist`; meta-ads role
 `GetItem/PutItem` on tenant table key `PLATFORM#META_ADS/SETTINGS`;
 callers of `notification:live` (gift-cards, waitlist, meta-ads-jobs for
-`meta-ads.cap-warning`) get invoke on it.
+`meta-ads.cap-warning`, google-business-jobs for
+`google-business.review-request` SMS; that role needs no `sns:Publish`)
+get invoke on it.
 Notification itself gets no new permission.
 
 ## 15. OpenAPI

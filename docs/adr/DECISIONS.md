@@ -249,3 +249,171 @@ which starts the row immediately.
 
 **Files.** `docs/adr/ADR-A-meta-ads.md` decision 7, Terraform modules
 and IAM, test plan; `docs/build/CONTRACTS.md` 6.A (A8 idempotency).
+
+## 2026-11-04: gift-cards table has `TXREF#<txId>`, `JOB`/`NIGHTLY` and three `byExpiry` buckets
+
+**Contradiction.** CONTRACTS.md 4 listed the `<prefix>gift-cards` rows as
+`SETTINGS`, `PURCHASE#`, `CARD#`, `CODE#` and `CARD#<c>#TX#<tx>`, with
+`byExpiry` holding only `EXPIRY#<day>`. The code
+(`shared/features/gift_cards/__init__.py`, `functions/gift-cards/app.py`,
+`infrastructure/gift-cards/main.tf`) also writes `TXREF#<txId>`
+(`cardId`, `verifiedAt?`, same transaction as the TX row, so Kassa can
+verify a redemption by its `paymentId`), a tenant-less `JOB`/`NIGHTLY`
+row (`lastDay`, the nightly job's resume point) and two more `GSI2PK`
+buckets: `CLEANUP#<day>` on a used/expired/void card (last TX + 24
+months, the contact clean-up of ADR-E "Retention") and
+`UNVERIFIED#<day>` on the TXREF of a Kassa redeem Kassa has not verified
+(reversed after 30 minutes; the key is removed on verify, reverse and
+purge).
+
+**Decision.** The table row in CONTRACTS.md 4 names all of them. One
+sparse index carries the three nightly day-buckets rather than three
+indexes: each row sits in exactly one bucket at a time, the job walks the
+same `GSI2PK = <bucket>#<day>` query for every bucket, and a card leaves
+the expiry bucket for the clean-up bucket in the same conditional update
+that changes its status. `TXREF` exists because the Kassa hook carries
+only `paymentId`, not `cardId`, and the TX key is `CARD#<c>#TX#<tx>`.
+
+**Files.** `docs/build/CONTRACTS.md` section 4.
+
+## 2026-11-04: notification kind `google-business.review-request`
+
+**Contradiction.** CONTRACTS.md 9.4 said D's review requests use the
+marketing mail path and listed no `google-business.*` kind, while
+`functions/google-business-jobs/app.py` `_deliver` sends the SMS variant
+by invoking `notification:live` with `kind: google-business.review-request`
+(`channel: sms`, `replyTo: null`) and the email variant through
+`shared/marketing_mail.send(kind="google-business.review-request")`.
+
+**Decision.** `google-business.review-request` is a contract kind in 9.4
+(SMS through notification; the email keeps the marketing mail path and
+uses the same kind string so billing sees one kind). Section 14 adds
+google-business-jobs to the callers of `notification:live`.
+
+**Reason.** Review SMS must get the tenant sender, number prefixes, part
+counting and per-kind billing that only notification applies; the email
+needs List-Unsubscribe and the signed withdraw link that only marketing
+mail applies. One kind string keeps the usage report per feature.
+
+**Files.** `docs/build/CONTRACTS.md` 9.4 and 14.
+
+## 2026-11-04: review-request SMS is sent via `notification:live`, not SNS
+
+**Contradiction.** ADR-D decision 7 said "SNS for SMS" and the IAM
+call-out gave the jobs role `sns:Publish`. The built sender never
+publishes to SNS: it invokes the notification alias (entry above), which
+is also what 9.4 requires of every feature.
+
+**Decision.** ADR-D 7 and its IAM call-out read "SMS via
+`notification:live` (Lambda invoke, kind `google-business.review-request`)",
+and the jobs role needs `lambda:InvokeFunction` on `notification:live`
+and no `sns:Publish`. The module (`infrastructure/google-business/main.tf`,
+fix round of 2026-11-04) sets `NOTIFICATION_FUNCTION_NAME` from the new
+variable `notification_function_arn` (root `google-business.tf` passes
+`module.notification_fn.alias_arn`) and replaces the `SendReviewSms`
+`sns:Publish` statement with `InvokeNotification` on that alias.
+
+**Reason.** A second SMS sender would duplicate the prefix, part-count
+and billing rules and leave review SMS out of the usage report; the
+notification Lambda already has the SNS permission and the dev outbox.
+
+**Files.** `docs/adr/ADR-D-google-business-profile.md` decision 7, IAM,
+external dependencies.
+
+## 2026-11-04: E10 "Skicka ny kod" rotates the code and is confirmed in the UI
+
+**Contradiction.** ADR-E decision 3 said "owners can resend" and route 10
+returned a bare 202, as if the stored code could be mailed again. Codes
+are never stored (HMAC + last4 only), so a resend is impossible; the built
+E10 (`functions/gift-cards/app.py` `resend`) generates a new code, writes
+the new `CODE#` row, deletes the old one and replaces `codeHmac`/`last4`
+on the card in one transaction, then mails the new code as
+`gift-cards.code-resend` and answers 202 `{last4}`. The admin
+(`PresentkortPage.tsx`) asks the owner to confirm "Skicka ny kod" because
+the old code stops working, and shows the new last4.
+
+**Decision.** E10 is documented as rotation: 202 `{last4}`, 409
+`card_expired`/`card_void` (active cards only), 409 `changed_retry` on a
+concurrent change; never idempotent, only the latest code works; the UI
+confirms first. ADR-E 3, route 10 and test row 10 say the same.
+
+**Reason.** Keeping codes retrievable would turn a leaked admin session
+into spendable money (ADR-E alternatives); rotation gives the owner a
+working "send again" without storing anything, and the confirmation step
+stops an owner from voiding a code a guest is about to use.
+
+**Files.** `docs/build/CONTRACTS.md` 6.E (E10) and 9.4,
+`docs/adr/ADR-E-gift-cards.md` decision 3, route 10, test row 10.
+
+## 2026-11-04: `charge.refunded` voids only on a full refund; partial refunds are flagged (code follow-up)
+
+**Contradiction.** ADR-E decision 9 said a refunded purchase "voids the
+card (remaining balance only; a partly used card shows a warning)".
+Review finding 10 asks that a partial Stripe refund (`amount_refunded <
+amount`) must not void a card the guest still holds. The built handler
+(`functions/gift-cards/app.py` `stripe_event`) voids the remaining balance
+on every `charge.refunded` and on a lost `charge.dispute.closed`
+(`void-<chargeId>` TX, idempotent), reads no `amount_refunded` and writes
+no warning or flag.
+
+**Decision.** The contract is: full refund or lost dispute -> void;
+partial refund -> no balance change, the card is flagged for the owner
+(who settles it with E8/E9); a won dispute is ignored. ADR-E 9 states
+this and says plainly that the branch voids on every `charge.refunded`
+today, so nobody reads the ADR as describing shipped behaviour.
+Code follow-up for the gift-cards worker: compare `amount_refunded` with
+`amount`, flag the card on a partial refund and add the test
+(finding 10). The flag's shape (card attribute and E6/E7 field) is set
+by that worker and recorded here when built.
+
+**Reason.** Stripe sends `charge.refunded` for partial refunds too (an
+owner refunding a shipping-style adjustment, or Stripe's own partial
+reversal). Voiding then takes money from a guest who was not refunded;
+the liability stays on 2421 until the owner acts.
+
+**Files.** `docs/adr/ADR-E-gift-cards.md` decision 9.
+
+## 2026-11-04: social-posting schedule creation treats `ConflictException` as success
+
+**Contradiction.** ADR-G idempotency said `create_schedule` on an existing
+name is "treated as success after comparing the time". The built route 6
+(`functions/social-posting/app.py` `schedule`, `_create_schedule`) deletes
+the post's schedule, creates it for the new time and swallows a
+`ConflictException` without reading the existing schedule's time.
+
+**Decision.** Conflict is success, no time comparison. The schedule name
+is the post id and the worker re-reads the post's status and
+`scheduledAt` at fire time, so a schedule left over from a race can only
+fire a no-op (`noop` when the post is no longer `scheduled`), and the
+same-time retry already returns the current post before any Scheduler
+call. The ADR text is corrected.
+
+**Reason.** `GetSchedule` + compare + `UpdateSchedule` adds two calls and
+a second race for no safety the fire-time check does not already give.
+
+**Files.** `docs/adr/ADR-G-social-posting.md` idempotency paragraph.
+
+## 2026-11-04: `needs_check` recovery should use `created_time` after the first attempt, not a caption match (code follow-up)
+
+**Contradiction.** ADR-G decision 6 said the worker looks for "the
+caption's marker hash" in the Page's latest posts. The built worker
+(`_publish_channel`) appends no marker and adopts the first of the 25
+most recent Page posts whose `message` equals the post's caption. Review
+finding 10 asks for recovery by `created_time`: a Page post created after
+the first attempt's timestamp for this post, so two posts with the same
+caption on one Page (a weekly special) cannot be confused and a caption
+Meta rewrote (trimmed whitespace, link preview) still matches.
+
+**Decision.** The contract is recovery by `created_time` after the first
+attempt (the attempt time is recorded on the channel state before the
+Graph call); the caption is a secondary check, not the key. ADR-G 6
+states this and says the branch still matches on caption only. Code
+follow-up for the social-posting worker: store the attempt time on the
+channel before `publish_page_photo`, have `recent_page_posts` return
+`created_time`, and match on it (test: two posts with one caption, only
+the later one is adopted).
+
+**Reason.** Caption equality is neither unique nor stable on Meta's
+side; the first attempt's time is known to Booqy and monotonic.
+
+**Files.** `docs/adr/ADR-G-social-posting.md` decision 6.

@@ -59,8 +59,13 @@ EventBridge Scheduler created in code (`no-show-check`, `catering-lifecycle`).
    incentive (Google policy).
 7. **Messages** are Swedish, from the restaurant's name, with the Google
    review link (`metadata.newReviewUri`) behind the existing signed
-   marketing redirect (click counted, no open pixel). Sent via
-   `shared/marketing_mail.py` (List-Unsubscribe) and SNS for SMS.
+   marketing redirect (click counted, no open pixel). Email is sent via
+   `shared/marketing_mail.py` (List-Unsubscribe); **SMS is sent via
+   `notification:live`** (Lambda invoke of the notification alias,
+   `InvocationType=Event`, kind `google-business.review-request`,
+   `replyTo: null`, CONTRACTS.md 9.4), so the tenant sender, number
+   prefixes, part counting and billing are notification's. `google-business-jobs`
+   never publishes to SNS itself (built as decided on 2026-11-04, DECISIONS.md).
 8. **Client port** `shared/google_business.py` (`GoogleBusiness`,
    `SimulatedGoogleBusiness`, env `GOOGLE_BUSINESS_CLIENT` from Terraform
    `google_business_client`), simulator refused in prod.
@@ -147,8 +152,9 @@ rule on the bus.
 - **IAM (new roles; call out):** Secrets Manager create/put/get/delete on
   `booqy/<env>/google-business/*`; get on the app secret; location table
   `GetItem`; reservation/order `GetItem` (contact via `contactRef`); consent
-  Query; SES send (sender identity) and SNS publish like `notification`;
-  marketing link-key secret read (signed redirect);
+  Query; SES send (sender identity) for the review email;
+  `lambda:InvokeFunction` on `notification:live` for the review SMS (no
+  `sns:Publish`); marketing link-key secret read (signed redirect);
   `scheduler:CreateSchedule/DeleteSchedule` on its group, `iam:PassRole` on
   the invoke role; `events:PutEvents`.
 - The module's `wiring` output lists the functions; purge is the
@@ -181,7 +187,8 @@ Run 0 ships `false` in every plan.
 Google Business Profile APIs (Account Management, Business Information),
 mocked in Runs 1-2. **Human actions:** request GBP API access for Booqy's
 Google Cloud project (quota is 0 until approved); OAuth consent screen
-verification for the sensitive `business.manage` scope. SES/SNS existing.
+verification for the sensitive `business.manage` scope. SES existing; SMS
+through the existing notification Lambda.
 
 ## Privacy and GDPR
 

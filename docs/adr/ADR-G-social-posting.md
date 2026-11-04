@@ -45,9 +45,16 @@ bucket under a tenant- and location-scoped key.
    publishing` with a 5-minute lease, store Meta's id on success. Instagram:
    the container id is stored before `media_publish`, so a retry publishes
    the same container (Meta refuses a second publish of one container). Facebook
-   has no idempotency key: on an unknown outcome (timeout after send) the
-   channel goes to `needs_check` and the worker reads the Page's latest posts
-   for the caption's marker hash before any retry. Never blind-retry.
+   has no idempotency key: on an unknown outcome (a retryable Graph error
+   after send) the channel goes to `needs_check` and the next run first
+   reads the Page's latest 25 posts (`recent_page_posts`) and adopts a
+   match as published before any retry. Never blind-retry. Recovery is
+   meant to use the posts' `created_time` (anything the Page published
+   after the first attempt's timestamp with this post's image/caption) so
+   that two posts with the same caption on one Page are not confused; **as
+   built the worker matches on `message == caption` only and does not
+   read `created_time`**, which is a code follow-up (DECISIONS.md
+   2026-11-04). No marker hash is appended to the caption.
 7. **Drafts from menu items** are built from a Swedish template (name,
    description, price "149 kr"). A "Föreslå text" button reuses
    `shared/bedrock.py` `TextModel` (Run 0 scaffolding, `BEDROCK_CLIENT`)
@@ -108,8 +115,13 @@ item or image key; 409 `changed_retry`, `invalid_state`, `meta_not_connected`,
 Idempotency: `postId` client-supplied (Put `attribute_not_exists`, retry
 returns the stored draft); drafts from menu use deterministic ids; state
 changes are conditional on `version`; a second schedule with the same time
-returns the current post and keeps one schedule (`create_schedule` on an
-existing name is treated as success after comparing the time).
+returns the current post and keeps one schedule. Route 6 deletes the
+post's schedule (`ResourceNotFoundException` ignored) and creates it again
+for the new time; a `ConflictException` from `create_schedule` (a retry
+or a race left the name in place) is treated as success without
+comparing the stored time, because the schedule name is the post id and
+the worker reads the post's `scheduledAt` and status at fire time, so a
+stale schedule can only fire a no-op (decided 2026-11-04, DECISIONS.md).
 
 ## Events
 
