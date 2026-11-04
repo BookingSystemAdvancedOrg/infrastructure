@@ -1,7 +1,7 @@
 # Pipeline
 
 ## Lock
-LOCKED 2026-11-04T19:34Z by run-20261104T1934Z (took over: prior lock 13:33Z reached 6h; last prior activity 15:17Z, Run 2 batch 1 fix round 1 pushed, no review verdict recorded)
+unlocked (released 2026-11-04, run-20261104T1934Z, Run 2 batch 1 waiting on owner IAM approval)
 
 ## Position
 Step: Run 0 addendum (K events & tickets, L phone agent). Review round 1 done, fix round 1 pushed (infra 4b251cb, console 05fb778, customer ecf187b).
@@ -103,3 +103,8 @@ Next: wait for an owner go-ahead via Jarvis per feature before opening a dev->ma
 
 ## Position update 2026-11-04 (19:50Z run, Run 2 batch 1 review round 1)
 Fresh Fable review of build/run-2-integration tips (infra dd176e2, app 38f1e00, admin d480d27, console 2e21565, customer e959f1d): all five PRs = merge after fixes. Gates green (app 4106 passed). Must fix: (1) google-business-jobs review SMS: Terraform lacks NOTIFICATION_FUNCTION_NAME env + lambda:InvokeFunction on notification, drop unused sns:Publish *; (2) re-run dev CI on infra head (state-lock collision), PR owner table must list 3 in-place changes incl. existing finance-rollup role log-read; (3) customer ko/presentkort not built from @booqy/brand (Bar tab/banner); (4) no Playwright screenshots on admin#26, console#16, customer#18. Should fix: gift-card code delivery trace (codeSentAt), E9 refund race, partial-refund voids card, G6 schedule retry, needs_check caption match, contracts/ADR edits (Fable leads). Fix worker + Fable contract edit launched (fix round 2 of max 3 for batch 1, counting earlier round 1). Merge order after fixes: infra#42 (owner IAM approval first), application#73, console#16, admin#26, customer#18.
+
+## Position update 2026-11-04 (run-20261104T1934Z end)
+Run 2 batch 1 (D Google Business, E Gift cards, F Waitlist, G Social posting) on build/run-2-integration: review round 1 (merge after fixes) -> fix round 2 -> Fable re-check: application#73, admin#26, console#16 = merge; customer#18 = merge (site-kit brand alias decided, DECISIONS); infra#42 = merge after one IAM fix (waitlist ReturnValues condition) -> fix round 3 done (infra c1d574e, app 3660cd5/dde219a, admin 893c73b, docs ed9d1db), CI plan 129 add / 3 change / 0 destroy. Round 3 diff is small and CI-verified, not re-reviewed by a fresh reviewer; do a quick fresh Fable diff check before merging.
+NOTHING MERGED. infra#42 needs the owner's IAM approval (PR table incl. in-place changes X1-X3: finance_rollup role/env, api stage throttle). Merge order after approval: infra#42 (apply done), application#73, console#16, admin#26, customer#18; then dev smoke test, mark D/E/F/G 'on dev, awaiting owner go-ahead', delete merged branches (containment check), continue Run 2 batch 2 (H, B2, K, L incl. counter-offers PRs #41/#72/#25/#15/#17 spec PRs, A all-platform ads ADR addendum) and Run 3.
+Open: A's Meta port must return created_time (STATUS item 10); no tablet screenshots; spec PRs #41,#72,#25,#15,#17 (ADR-L counter-offers) are open against dev, not yet reviewed/merged.
