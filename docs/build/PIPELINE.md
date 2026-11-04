@@ -1,7 +1,7 @@
 # Pipeline
 
 ## Lock
-LOCKED 2026-11-04T13:33Z by run-20261104T1333Z (Run 2 start)
+LOCKED 2026-11-04T19:34Z by run-20261104T1934Z (took over: prior lock 13:33Z reached 6h; last prior activity 15:17Z, Run 2 batch 1 fix round 1 pushed, no review verdict recorded)
 
 ## Position
 Step: Run 0 addendum (K events & tickets, L phone agent). Review round 1 done, fix round 1 pushed (infra 4b251cb, console 05fb778, customer ecf187b).
@@ -111,3 +111,5 @@ Run 2 batch 1 (D Google Business Profile, E Gift cards, F Waitlist, G Social pos
 - External: Google Business Profile API access + OAuth verification of business.manage and the google-business/app secret value; Meta App Review for pages_manage_posts and instagram_content_publish.
 - Decisions: Kassa voucher payment means (gift cards in Kassa stay refused until then); card guarantee on waitlist conversions (v1 none); E10 resend rotates the code (codes are never stored).
 
+## Position update 2026-11-04 (19:50Z run, Run 2 batch 1 review round 1)
+Fresh Fable review of build/run-2-integration tips (infra dd176e2, app 38f1e00, admin d480d27, console 2e21565, customer e959f1d): all five PRs = merge after fixes. Gates green (app 4106 passed). Must fix: (1) google-business-jobs review SMS: Terraform lacks NOTIFICATION_FUNCTION_NAME env + lambda:InvokeFunction on notification, drop unused sns:Publish *; (2) re-run dev CI on infra head (state-lock collision), PR owner table must list 3 in-place changes incl. existing finance-rollup role log-read; (3) customer ko/presentkort not built from @booqy/brand (Bar tab/banner); (4) no Playwright screenshots on admin#26, console#16, customer#18. Should fix: gift-card code delivery trace (codeSentAt), E9 refund race, partial-refund voids card, G6 schedule retry, needs_check caption match, contracts/ADR edits (Fable leads). Fix worker + Fable contract edit launched (fix round 2 of max 3 for batch 1, counting earlier round 1). Merge order after fixes: infra#42 (owner IAM approval first), application#73, console#16, admin#26, customer#18.
