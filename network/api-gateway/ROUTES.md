@@ -98,12 +98,12 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | POST | `/platform/tenants/{tenantId}/purge` | JWT (operator) | platform-tenants |
 | POST | `/platform/tenants/{tenantId}/restore` | JWT (operator) | platform-tenants |
 | POST | `/platform/tenants/{tenantId}/onboarding/retry` | JWT (operator) | platform-tenants |
-| GET | `/platform/tenants/{tenantId}/site` | JWT (operator) | platform-tenants (-> site-repo) |
-| POST | `/platform/tenants/{tenantId}/site/retry` | JWT (operator) | platform-tenants (-> site-repo) |
-| POST | `/platform/tenants/{tenantId}/site/invite` | JWT (operator) | platform-tenants (-> site-repo) |
-| POST | `/platform/tenants/{tenantId}/site/redeploy` | JWT (operator) | platform-tenants (-> site-repo) |
-| POST | `/platform/tenants/{tenantId}/site/archive` | JWT (operator) | platform-tenants (-> site-repo) |
-| POST | `/platform/tenants/{tenantId}/site/mount` | JWT (operator) | platform-tenants (dev: -> site-repo -> dev link) |
+| GET | `/platform/tenants/{tenantId}/site` | JWT (operator) | platform-tenants |
+| POST | `/platform/tenants/{tenantId}/site/retry` | JWT (operator) | platform-tenants |
+| POST | `/platform/tenants/{tenantId}/site/invite` | JWT (operator) | platform-tenants |
+| POST | `/platform/tenants/{tenantId}/site/redeploy` | JWT (operator) | platform-tenants |
+| POST | `/platform/tenants/{tenantId}/site/archive` | JWT (operator) | platform-tenants |
+| POST | `/platform/tenants/{tenantId}/site/mount` | JWT (operator) | platform-tenants |
 | GET | `/platform/tenants/{tenantId}/users` | JWT (operator) | platform-tenants |
 | POST | `/platform/tenants/{tenantId}/owners` | JWT (operator) | platform-tenants |
 | GET | `/platform/tenants/{tenantId}/locations` | JWT (operator) | platform-tenants |
@@ -190,3 +190,22 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | POST | `/locations/{locationId}/card-payments` | JWT | terminal-payments |
 | GET | `/locations/{locationId}/card-payments/{proxy+}` | JWT | terminal-payments |
 | POST | `/locations/{locationId}/card-payments/{proxy+}` | JWT | terminal-payments |
+| GET | `/tenant/guests` | JWT | guest-crm |
+| POST | `/tenant/guests/search` | JWT | guest-crm |
+| GET | `/tenant/guest-segments` | JWT | guest-crm |
+| POST | `/tenant/guests/rebuild` | JWT | guest-crm |
+| GET | `/tenant/meta-ads/connection` | JWT | meta-ads |
+| POST | `/tenant/meta-ads/connection/start` | JWT | meta-ads |
+| POST | `/tenant/meta-ads/connection/callback` | JWT | meta-ads |
+| GET | `/tenant/meta-ads/assets` | JWT | meta-ads |
+| PUT | `/tenant/meta-ads/connection` | JWT | meta-ads |
+| DELETE | `/tenant/meta-ads/connection` | JWT | meta-ads |
+| GET | `/platform/meta-ads/settings` | JWT (operator) | platform-tenants |
+| PUT | `/platform/meta-ads/settings` | JWT (operator) | platform-tenants |
+| GET | `/tenant/site-builder` | JWT | site-builder |
+| PUT | `/tenant/site-builder/draft` | JWT | site-builder |
+| POST | `/tenant/site-builder/preview-links` | JWT | site-builder |
+| POST | `/tenant/site-builder/publish` | JWT | site-builder |
+| GET | `/tenant/site-builder/versions` | JWT | site-builder |
+| POST | `/tenant/site-builder/rollback` | JWT | site-builder |
+| POST | `/public/site-builder/preview` | NONE | site-builder |

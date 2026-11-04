@@ -3,7 +3,7 @@
 Ledger for the multi-agent build in `docs/build/PROMPTS.md`. Read this
 first when a run starts or resumes; skip anything already verified or merged.
 
-Last updated: 2026-11-02 (Run 0 merged to dev; Run 0 addendum K and L: docs, backend scaffolding, brand BRK1 and the four frontend/console scaffolding sets done on `build/run-0-addendum-kl`, awaiting fresh review).
+Last updated: 2026-11-03 (Run 1 Wave A: A, B1 and C built on `build/run-1-<feature>` and merged into `build/run-1-integration` in every touched repo; draft PRs against `dev`; independent Fable code review and brand-guardian review NOT yet done, see Run 1 below).
 
 ## Run 0: Foundations
 
@@ -266,6 +266,118 @@ retention periods, provider contracts (ElevenLabs, 46elks), art. 50 and
 recording wording, VAT treatment of tickets, Kassa ticket payments (v1.1),
 entitlement key spelled `phoneAgent` (camelCase, not `phone_agent`).
 
+
+## Run 1: Wave A (A Meta ads, B1 Site builder core, C Guest CRM)
+
+**State: built, integrated, gates green, NOT reviewed (2026-11-03).** The
+worker-orchestrator session had no sub-agent tool, so the builder work was
+done in one Opus 5.5 session and **no fresh Fable code reviewer or brand
+guardian reviewer has run yet**. Per RULES.md no feature is "verified"
+until both sign off; the Booqy Orchestrator runs those reviews on the draft
+PRs. Nothing merged.
+
+Branches (pushed): `build/run-1-guest-crm`, `build/run-1-meta-ads`,
+`build/run-1-site-builder` per touched repo, merged in that order into
+`build/run-1-integration` (no conflicts). Draft PRs from
+`build/run-1-integration` into `dev`: see the PR list in the run report.
+
+| Repo | C guest-crm | A meta-ads | B site-builder |
+|---|---|---|---|
+| application | API C1-C11, sync, hooks (privacy, purge, marketing.segment), rebuild job | API A1-A13, platform hook A14-A17, purge, jobs (workflow tasks, insights, sweep) | API B1-B8, Validate/Promote/MarkFailed, schema v1.json, gen_site_schema.py |
+| infrastructure | module, routes, root file | module, ASL, schedules, routes | module, ASL, routes |
+| admin-front-end | Gäster, profile, segments, audience picker, badge | Annonser tab, wizard, overview tiles | Webbplats editor |
+| booqy-console | none | A14-A17 routes, settings card, tenant section | none (B11-B13 are B2) |
+| customer-front-end | none | none | SitePage, BuilderPage, PreviewPage, render-lambda |
+
+Gates on `build/run-1-integration` (2026-11-03):
+
+| Gate | Result |
+|---|---|
+| application pytest | 3955 passed, 3 skipped (baseline 3834 + 121 new) |
+| two-tenant isolation tests (A, B, C) | 3 passed |
+| gen_contracts.py --check (siblings beside) | in sync |
+| gen_site_schema.py --check | in sync |
+| ruff E/F/W on new Python (not a CI gate) | clean |
+| terraform fmt -check -recursive | clean |
+| terraform validate | each new module validated in isolation with hashicorp/aws 6.20.0 ("valid"); full root not run (registry blocked, Stripe provider unreachable); CI plan pending |
+| admin lint / tsc / test / build / brand-lint | 0 errors / ok / see run report / built / no blocking findings |
+| console api pytest; web tsc / test / build / brand-lint | 196 passed; ok / 116 passed / built / no blocking findings |
+| customer site-kit + app tests, typecheck, build, brand-lint; render-lambda node tests | 106 + 360 + 12 passed; ok; built; no blocking findings; 4 passed |
+
+Not verified (needs real AWS/Meta or a person): Terraform plan/apply, the
+Step Functions definitions at runtime, real Meta Marketing API (only the
+simulator; `meta_graph_real.py` is still the skeleton), real Bedrock,
+stream throttling with a third/fourth reader, the render image build
+(no pipeline job yet), UI screenshots light/dark mobile/desktop, keyboard
+and contrast audit (brand guardian's job).
+
+Open findings and decisions for the orchestrator:
+
+1. **Live site-kit preview in the admin editor** (ADR-B UI) needs site-kit
+   as an admin dependency (shared `package.json`) or a CSP `frame-src`
+   change; built instead: structure preview + "Förhandsgranska" opens the
+   real render through the private link.
+2. **customer `src/App.tsx`** (shared): in builder mode `/` still routes to
+   MenyPage; the index route must go to BuilderPage when
+   `tenant.site.mode === 'builder'` and `version > 0`.
+3. **Stream readers**: guest-crm-sync adds a third reader on the
+   reservation and catering-requests streams and a fourth on the order
+   stream. An EventBridge Pipe (ADR-C open question 1) is also a reader, so
+   it does not help; options: fan out from one consumer, or Kinesis for
+   DynamoDB.
+4. **Contract notes**: notification kind `meta-ads.cap-warning` (not in
+   CONTRACTS 9.4); 409 `assets_missing` also covers "location has no stored
+   geocode" (`cateringOrigin.position`); A9 returns no cursor; ADR-B test
+   "contrast 3:1 -> 400" cannot happen with the ADR's own nudge rule;
+   `VERSION#` gets `publishedAt/publishedBy` stamped once when first live.
+5. **Render image pipeline** for `site-builder-render` (ADR-B open
+   question 1, owner's `.github`).
+5a. **Operator rule (review F11)**: do not switch a tenant to builder mode
+   while its site repo workflow still deploys to the root `sites/<t>/`; the
+   repo deploy and Promote overwrite each other. Disable or repoint the
+   repo's deploy workflow first (`site-builder/README.md`).
+6. **`jsonschema`** is pinned in `functions/site-builder/requirements.txt`;
+   the test suite gets it via `openapi-spec-validator` (listing it in
+   requirements-dev.txt is a shared change).
+
+Accepted debt for Run 1, scheduled for Run 2 (scale; review fix round 2,
+not coded on purpose):
+
+7. **Nightly Meta ads statistics run one restaurant after another in one
+   job.** Each night at 04:00 a single 5-minute job fetches yesterday's ad
+   numbers from Meta for every connected restaurant in turn. With a few
+   restaurants this takes seconds; at roughly 100+ connected restaurants
+   (or a slow Meta day) it can run out of time, and the restaurants late in
+   the list then get no numbers that night (and their spend cap is checked
+   a day late). Nothing is double-counted, and the next night's run fills
+   the gap only for its own day. Run 2: split the job so each restaurant
+   (or small batch) runs on its own, e.g. a Step Functions Map or one
+   queue message per restaurant, and alarm when a night is incomplete.
+   Owner: meta-ads (application `functions/meta-ads-jobs`, infrastructure
+   `meta-ads/`).
+8. **Counting a guest segment reads the whole guest list each time.** When
+   an owner previews how many guests a segment reaches (Gäster >
+   Målgrupper, and the campaign audience picker), the server reads every
+   guest profile of the restaurant to count. That is fine for hundreds or
+   a few thousand guests, but cost and waiting time grow with every guest
+   and with every click. Run 2: cache the count per segment version for a
+   short time, or keep running counts, and cap how often a preview can be
+   asked for. Owner: guest-crm (application `shared/features/guest_crm`).
+
+IAM (all on NEW roles; no existing role, boundary, OIDC role, Cognito,
+CloudFront or KMS changed): see each module README. Call-outs: site-builder
+`s3:Get/Put/DeleteObject` on `sites/*` + ListBucket prefix `sites/*`, and
+tenant-table UpdateItem limited to attribute `site`; meta-ads Secrets
+Manager create/put/get/delete on `booqy/<env>/meta-ads/*`, tenant-table
+Get/Put limited to `PLATFORM#META_ADS`, `cloudwatch:PutMetricData`
+(namespace-conditioned), Bedrock only when a model id is set; meta-ads-jobs
+also gets `states:StartExecution` on the publish state machine (fix round 2:
+the 15-minute sweep restarts publishes whose start was lost). New stateful
+resources: tables `<prefix>meta-ads`, `<prefix>site-builder`,
+`<prefix>guest-crm` (PITR, deletion protection in prod), SQS
+`<prefix>guest-crm-sync-dlq`, secret `${prefix}meta-ads/app`, two Standard
+state machines.
+
 ## Feature ledger
 
 Status values: todo | building | reviewing | fixing | verified | blocked |
@@ -273,9 +385,9 @@ merged.
 
 | Feature | Status | Branch | Attempts | Open issues | Unverified | Human actions needed |
 |---|---|---|---|---|---|---|
-| A. Meta ads | building (Run 1, 2026-11-03) | | 0 | | | Meta Business Verification, App Review |
-| B. Site builder | building (Run 1, 2026-11-03) | | 0 | | | |
-| C. Guest CRM | building (Run 1, 2026-11-03) | | 0 | | | |
+| A. Meta ads | reviewing (built + integrated, awaiting Fable review and brand guardian) | `build/run-1-meta-ads` -> `build/run-1-integration` | 1 | see Run 1 open findings 4 | real Meta API, Bedrock, Step Functions runtime, screenshots | Meta Business Verification, App Review, Login for Business config, `meta-ads/app` secret value, Bedrock model access |
+| B. Site builder | reviewing (B1 built + integrated, awaiting Fable review and brand guardian; B2 is Run 2) | `build/run-1-site-builder` -> `build/run-1-integration` | 1 | Run 1 open findings 1, 2, 4, 5 | render image build, Step Functions runtime, screenshots | Owner: render image job in customer-front-end pipeline |
+| C. Guest CRM | reviewing (built + integrated, awaiting Fable review and brand guardian) | `build/run-1-guest-crm` -> `build/run-1-integration` | 1 | Run 1 open finding 3 (stream readers) | stream throttling, screenshots | Lawyer: legitimate-interest assessment template; marketing 19 § existing-customer exception |
 | D. Google Business Profile + reviews | todo | | 0 | | | Google Business Profile API access |
 | E. Gift cards | todo | | 0 | | | Accountant: gift card VAT (single- or multi-purpose) |
 | F. Waitlist | todo | | 0 | | | |

@@ -341,9 +341,9 @@ where noted, else a token). Roles: `owner` = `owner_user`, `staff` =
 | A5 | PUT `/tenant/meta-ads/connection` | jwt | owner | `metaAds` or `socialPosting` | `{adAccountId?, pageId, instagramId?, dsa{beneficiary, payor}?, monthlyCapSek?, version}` -> connection (`adAccountId`, `dsa`, cap required when `metaAds` on) | 400 `invalid_cap`, `unknown_asset` | `version` |
 | A6 | DELETE `/tenant/meta-ads/connection` | jwt | owner | `metaAds` or `socialPosting` | -> 204; pauses campaigns, deletes secret | none | second call 204 |
 | A7 | POST `/locations/{locationId}/meta-ads/copy` | jwt | owner | `metaAds` | `{menuItemId, goal}` -> `{suggestions[{headline, primaryText}]}` | 429 `quota_exceeded`, 502 `ai_unavailable` | counted once per call |
-| A8 | POST `/locations/{locationId}/meta-ads/campaigns` | jwt | owner | `metaAds` | `{campaignId, goal, menuItemId, headline, primaryText, budgetSek, days, radiusKm}` -> 202 campaign (`publishing`) | 400 `invalid_budget`, `invalid_radius`, `invalid_days`, `alcohol_not_allowed`, `text_too_long`; 409 `not_connected`, `assets_missing`, `cap_exceeded`, `kill_switch` | client ULID `campaignId` = execution name |
-| A9 | GET `/locations/{locationId}/meta-ads/campaigns` | jwt | owner | `metaAds` | -> `{campaigns[], cursor?}` | 400 bad cursor | n/a |
-| A10 | GET `/locations/{locationId}/meta-ads/campaigns/{campaignId}` | jwt | owner | `metaAds` | -> campaign + `previewUrl?` | none | n/a |
+| A8 | POST `/locations/{locationId}/meta-ads/campaigns` | jwt | owner | `metaAds` | `{campaignId, goal, menuItemId, headline, primaryText, budgetSek, days, radiusKm}` -> 202 campaign (`publishing`) | 400 `invalid_budget`, `invalid_radius`, `invalid_days`, `alcohol_not_allowed`, `text_too_long`; 409 `not_connected`, `assets_missing` (ad account, Page, dish image **or the location's stored `position`** missing; `field: "position"` when it is the position), `cap_exceeded`, `kill_switch` | client ULID `campaignId` = execution name; a row still `publishing` without an `executionArn` is started by the retry, and by the 15-minute sweep of `meta-ads-jobs` once it is 10 min old (if that start fails too the sweep marks it `failed`, `error.code = start_failed`) |
+| A9 | GET `/locations/{locationId}/meta-ads/campaigns` | jwt | owner | `metaAds` | -> `{campaigns[]}` (newest first, one page: the response **never** carries a `cursor`) | 400 `cursor` (any `cursor` query parameter) | n/a |
+| A10 | GET `/locations/{locationId}/meta-ads/campaigns/{campaignId}` | jwt | owner | `metaAds` | -> campaign + `previewUrl?`; a `failed` campaign carries `error{code}` (no `field`): a publish-workflow code (`meta_unavailable` unless the cause names `kill_switch`, `not_connected`, `assets_missing`, `unknown_image`, `invalid_status`, `feature_not_in_plan` or `not_found`) or `start_failed` (the sweep could not start a publish stranded for 10 min; admin: "Annonsen kom aldrig i gång. Skapa den igen.") | none | n/a |
 | A11 | POST `.../campaigns/{campaignId}/activate` | jwt | owner | `metaAds` | `{version}` -> campaign (`active`) | 409 `cap_exceeded`, `kill_switch`, `invalid_status` | `version` + status; retry returns active |
 | A12 | POST `.../campaigns/{campaignId}/pause` | jwt | owner | `metaAds` | `{version}` -> campaign (`paused`) | 409 `invalid_status` | retry returns paused |
 | A13 | GET `/locations/{locationId}/meta-ads/insights?from=&to=` | jwt | owner | `metaAds` | -> `{rows[{campaignId, day, spendSek, reach, clicks, bookings, orders, costPerBookingSek, costPerOrderSek}], totals}` | 400 `invalid_range` | n/a |
@@ -361,16 +361,28 @@ where noted, else a token). Roles: `owner` = `owner_user`, `staff` =
 | B1 | GET `/tenant/site-builder` | jwt | owner | `siteBuilder` | -> `{mode, draft{doc, version, basedOn}, published{versionNo, publishedAt}?, aiQuota?{used, limit}}` | none | n/a |
 | B2 | PUT `/tenant/site-builder/draft` | jwt | owner | `siteBuilder` | `{doc, version}` -> draft | 400 `schema_invalid`, `doc_too_large`, `invalid_link`, `unknown_image` (`field` = JSON pointer); 409 `wrong_mode` | `version` |
 | B3 | POST `/tenant/site-builder/preview-links` | jwt | owner | `siteBuilder` | `{}` -> `{url, expiresAt}` | none | new token per call |
-| B4 | POST `/tenant/site-builder/publish` | jwt | owner | `siteBuilder` | `{publishId, draftVersion}` or `{publishId, source: "custom", commitSha}` -> 202 `{publishId, status}` | 400 `contrast_too_low` and B2 errors; 409 `publish_running`, `wrong_mode` | client ULID `publishId` = execution name |
-| B5 | GET `/tenant/site-builder/publish/{publishId}` | jwt | owner | `siteBuilder` | -> `{status, versionNo?, error?{code, field}}` | none | n/a |
+| B4 | POST `/tenant/site-builder/publish` | jwt | owner | `siteBuilder` | `{publishId, draftVersion}` or `{publishId, source: "custom", commitSha}` -> 202 `{publishId, status}` | 400 `contrast_too_low` (safety net: theme pairs are nudged to >= 4.5:1 first, ADR-B 3) and B2 errors; 409 `publish_running`, `wrong_mode` | client ULID `publishId` = execution name; a row whose workflow never started (B5 `start_failed`) is restarted by the retry |
+| B5 | GET `/tenant/site-builder/publish/{publishId}` | jwt | owner | `siteBuilder` | -> `{status, versionNo?, error?{code, field?}}`; `code` is a B2/B4 validation code (with `field`) or `start_failed` (StartExecution failed, no `field`; B4 or B7 with the same `publishId` starts it again) | none | n/a |
 | B6 | GET `/tenant/site-builder/versions` | jwt | owner | `siteBuilder` | -> `{versions[{versionNo, source, publishedAt, publishedBy, live}]}` | none | n/a |
-| B7 | POST `/tenant/site-builder/rollback` | jwt | owner | `siteBuilder` | `{publishId, versionNo}` -> 202 `{publishId}` | 409 `publish_running` | `publishId`; live version = 200 no-op |
+| B7 | POST `/tenant/site-builder/rollback` | jwt | owner | `siteBuilder` | `{publishId, versionNo}` -> 202 `{publishId}` | 409 `publish_running` | `publishId` (a `start_failed` row is restarted by the retry); live version = 200 no-op |
 | B8 | POST `/public/site-builder/preview` | public (token + request guard) | guest | `siteBuilder` | `{tenantId, token}` -> `{doc}` | 404 on any bad token | n/a |
 | B9 | POST `/tenant/site-builder/ai-edits` (B2) | jwt | owner | `siteBuilder` + limit | `{proposalId, prompt, draftVersion}` -> `{patch, before, after, quota{used, limit}}` | 400 `prompt_too_long`, `invalid_patch`; 429 `quota_exceeded`; 502 `ai_unavailable` | `proposalId` counted once |
 | B10 | POST `/tenant/site-builder/ai-edits/{proposalId}/apply` (B2) | jwt | owner | `siteBuilder` | `{draftVersion}` -> draft | 409 `changed_retry` | second apply 200 same draft |
 | B11 | GET `/platform/tenants/{tenantId}/site-builder` (B2) | operator | platform_admin | n/a | -> `{mode, published, releases[{commitSha, prNumber, previewUrl, status}]}` | 404 | n/a |
 | B12 | PUT `/platform/tenants/{tenantId}/site-builder/mode` (B2) | operator | platform_admin | n/a | `{mode, version}` -> `{mode}` | 400 bad mode | `version` |
 | B13 | POST `/platform/tenants/{tenantId}/site-builder/custom/{commitSha}/ready` (B2) | operator | platform_admin | n/a | `{}` -> CUSTOM item | 404 unknown sha | repeat same result |
+
+**Reserved page slugs.** A page `slug` that the customer app routes itself
+as a first path segment (`meny`, `boka-bord`, `bestall`, `catering`,
+`presentkort`, `ko`, `forhandsvisning`, `evenemang`, `biljett`, ...) or that
+is an S3 prefix under `sites/<t>/` (`v`, `releases`, `preview`, `assets`)
+would never be shown, so B2 and B4 refuse it with 400 `schema_invalid`,
+`field` = `/pages/<i>/slug` (the same code and pointer as a duplicate slug).
+The one list is `RESERVED_SLUGS` in
+`application/shared/features/site_builder/__init__.py`; a test asserts it
+covers every `path="..."` in `customer-front-end/src/App.tsx`, so a new
+customer-app route is added there first. Site-kit's `sitePages` keys (8.4)
+are among them.
 
 ### 6.C Guest CRM (`guestCrm`)
 
@@ -801,8 +813,11 @@ message is never sent twice by Lambda; the caller records "sent" on its own
 item before invoking and owns the Swedish copy (rendered with
 `shared/messages.py` helpers, read-only). Kinds: `gift-cards.code`,
 `gift-cards.code-resend`, `waitlist.joined`, `waitlist.offered`,
-`waitlist.expired`. The gift card code is in the invoke payload only, never
-in a table or log. Addendum kinds: `events-tickets.tickets` (email, the
+`waitlist.expired`, `meta-ads.cap-warning` (email to every active owner
+when month-to-date spend reaches 80 % of the monthly cap, sent by
+`meta-ads-jobs` from the nightly insights run, once per month via
+`SPEND#<month>.warnedAt`; ADR-A 6). The gift card code is in the invoke
+payload only, never in a table or log. Addendum kinds: `events-tickets.tickets` (email, the
 tickets with QR and Wallet links), `events-tickets.transfer` (email, gift
 or resale link), `events-tickets.refunded` (email), `events-tickets.cancelled`
 (email, occurrence cancelled); `phone-agent.guarantee-link` (SMS, the
@@ -1022,7 +1037,8 @@ site-builder role `UpdateItem` on the tenant table limited by
 on `sites/*` of the sites bucket; waitlist role `UpdateItem` on the
 location table limited to `PK`, `SK`, `waitlist`; meta-ads role
 `GetItem/PutItem` on tenant table key `PLATFORM#META_ADS/SETTINGS`;
-callers of `notification:live` (gift-cards, waitlist) get invoke on it.
+callers of `notification:live` (gift-cards, waitlist, meta-ads-jobs for
+`meta-ads.cap-warning`) get invoke on it.
 Notification itself gets no new permission.
 
 ## 15. OpenAPI

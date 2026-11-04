@@ -64,7 +64,15 @@ misbehaves.
    task whose call succeeded but whose write was lost looks the object up by
    its name (`booqy-<campaignId>-<step>`) before creating. Activate and pause
    are synchronous API calls (three status updates), guarded by the kill
-   switch.
+   switch. **Stranded publishes:** a campaign still `publishing` without an
+   `executionArn` 10 minutes after creation (the API died or StartExecution
+   failed and the owner did not retry route 8) is started by the 15-minute
+   sweep in `meta-ads-jobs`, with the campaign id as the execution name
+   (`ExecutionAlreadyExists` is treated as started, so there is never a
+   second execution); if that start fails too the sweep marks it `failed`
+   with `error.code = start_failed`, so no campaign sits in `publishing`
+   forever. The sweep is one schedule: kill-switch pausing plus this
+   restart, per connected tenant.
 8. **Links carry UTM** `utm_source=facebook|instagram`, `utm_medium=paid_social`,
    `utm_campaign=booqy-<first 10 of campaignId>`, so the existing cookieless
    counters attribute visits, bookings and orders. Nightly insights store
@@ -91,7 +99,7 @@ list connected tenants without a Scan.
 |---|---|---|
 | `TENANT#<t>` | `CONNECTION` | `status` (`connected` \| `needs_reauth` \| `disconnected`), `businessId`, `adAccountId`, `pageId`, `instagramId?`, `currency`, `dsa{beneficiary, payor}`, `monthlyCapSek`, `paused` (operator), `connectedAt`, `connectedBy`, `version`; `GSI1PK=CONNECTED`, `GSI1SK=<t>` while connected |
 | `TENANT#<t>` | `OAUTH#<state>` | `sub`, `createdAt`, `ttl` = +10 min |
-| `TENANT#<t>` | `CAMPAIGN#<campaignId>` | `locationId`, `goal`, `status` (`publishing` \| `paused` \| `active` \| `completed` \| `failed` \| `rejected`), `creative{menuItemId, imageKey, headline<=40, primaryText<=125, cta}`, `budgetSek`, `startDate`, `endDate`, `radiusKm`, `utmCampaign`, `meta{campaignId, adSetId, creativeId, adId, imageHash}`, `executionArn`, `error?`, `version`, `createdBy`, `createdAt` |
+| `TENANT#<t>` | `CAMPAIGN#<campaignId>` | `locationId`, `goal`, `status` (`publishing` \| `paused` \| `active` \| `completed` \| `failed` \| `rejected`), `creative{menuItemId, imageKey, headline<=40, primaryText<=125, cta}`, `budgetSek`, `startDate`, `endDate`, `radiusKm`, `utmCampaign`, `meta{campaignId, adSetId, creativeId, adId, imageHash}`, `executionArn`, `error?{code}` (`failed` only: a MarkFailed code or `start_failed`), `version`, `createdBy`, `createdAt` |
 | `TENANT#<t>` | `INSIGHT#<campaignId>#<yyyy-mm-dd>` | `impressions`, `reach`, `clicks`, `spendOre`, `bookings`, `orders`, `revenueOre`, `ttl` = +25 months |
 | `TENANT#<t>` | `SPEND#<yyyy-mm>` | `spendOre`, `warnedAt?`, `cappedAt?` |
 | `TENANT#<t>` | `COPYUSE#<yyyy-mm>` | `count` (Bedrock suggestions, max 200 per month), `ttl` = +13 months |
@@ -130,6 +138,15 @@ campaign or menu item; 409 `not_connected`, `assets_missing`, `cap_exceeded`,
 `kill_switch`, `changed_retry`, `invalid_status`; 502 `meta_unavailable`;
 429 `quota_exceeded`.
 
+Campaign `error.code` (routes 9 and 10, status `failed`, never a `field`):
+MarkFailed stores `meta_unavailable` unless the workflow's cause names
+`kill_switch`, `not_connected`, `assets_missing`, `unknown_image`,
+`invalid_status`, `feature_not_in_plan` or `not_found`; the sweep stores
+`start_failed` when it cannot start a publish stranded for 10 minutes
+(decision 7). Admin renders `start_failed` as "Annonsen kom aldrig i gång.
+Skapa den igen." (the owner creates a new campaign; there is no retry
+button because the Meta objects were never created).
+
 Idempotency: route 8 Put with `attribute_not_exists` on the client
 `campaignId` (same body returns the stored item; the execution name is the
 `campaignId`, so a second StartExecution is a no-op); 11/12 conditional on
@@ -156,8 +173,8 @@ ADR-G consumes `MetaConnection.*` to enable or disable posting.
 
 - `infrastructure/meta-ads/` (`main.tf`, `variables.tf`, `outputs.tf`):
   table + GSI, Lambdas `meta-ads` (API) and `meta-ads-jobs` (Step Functions
-  tasks, nightly insights at 04:00 Europe/Stockholm via Scheduler, kill
-  switch sweep), state machine `<prefix>meta-ads-publish` (JSONata ASL in
+  tasks, nightly insights at 04:00 Europe/Stockholm via Scheduler, the
+  15-minute sweep: kill switch and stranded-publish restart), state machine `<prefix>meta-ads-publish` (JSONata ASL in
   `meta-ads/definitions/publish.asl.json`), log groups, Errors alarms, spend
   alarm, roles. Root `meta-ads.tf` passes `var.meta_client` and
   `var.bedrock_client` (declared by Run 0 in `external-clients.tf`); routes
@@ -168,7 +185,9 @@ ADR-G consumes `MetaConnection.*` to enable or disable posting.
   `PutSecretValue`, `GetSecretValue`, `DeleteSecret` on
   `booqy/<env>/meta-ads/*` (per-tenant, created at runtime);
   `GetSecretValue` on the app secret; `states:StartExecution` on the
-  state machine; `bedrock:InvokeModel` on one model/inference profile ARN;
+  publish state machine for the API role and, only for the sweep's restart
+  of stranded publishes, for the `meta-ads-jobs` role (that state machine
+  only, nothing else in Step Functions); `bedrock:InvokeModel` on one model/inference profile ARN;
   S3 `GetObject` on the menu-image bucket; `dynamodb:Query` on the marketing
   table (read-only, `TENANT#*#STATS`); `events:PutEvents` on the bus;
   `cloudwatch:PutMetricData` (namespace condition).
@@ -250,8 +269,8 @@ refused, idempotent retry.
 | 5 | cap above ceiling 400 | staff 403 | adAccount not in token 400 | 403 | stale version 409 |
 | 6 | n/a | staff 403 | n/a | 403 | second call 204 |
 | 7 | menu item missing 404 | staff 403 | LOC_B, B's menu item | 403 | quota counted once per call |
-| 8 | radius 50, days 40, alcohol | staff 403 | LOC_B, B's menu item | 403 | same campaignId -> one item, one execution |
-| 9 | bad cursor 400 | staff 403 | LOC_B | 403 | n/a |
+| 8 | radius 50, days 40, alcohol; location without a stored position 409 `assets_missing` (`field: position`) | staff 403 | LOC_B, B's menu item | 403 | same campaignId -> one item, one execution |
+| 9 | any `cursor` query parameter 400; response never carries `cursor` | staff 403 | LOC_B | 403 | n/a |
 | 10 | n/a | staff 403 | campaign of B 404 | 403 | n/a |
 | 11 | cap exceeded, kill switch 409 | staff 403 | campaign of B 404 | 403 | second activate returns active |
 | 12 | stale version 409 | staff 403 | campaign of B 404 | 403 | second pause returns paused |
@@ -262,7 +281,12 @@ Plus: publish workflow idempotent (rerun each task: no duplicate Meta
 objects) and resumable (fail after CreateAdSet, redrive completes); every ad
 set has lifetime budget, end date, DSA fields; nightly insights job rerun for
 the same day overwrites, never double-counts; cap 80% mail once, 100% pauses
-all; kill switch pauses all active campaigns; `META_CLIENT=simulator` refused
+all; kill switch pauses all active campaigns; the sweep starts a publish
+stranded 10 minutes without an `executionArn` (campaign id as execution
+name: one execution even when the API's start had succeeded and only the
+arn write was lost; a fresh row is left alone) and marks one it cannot
+start `failed` with `start_failed`, a rerun changing nothing;
+`META_CLIENT=simulator` refused
 with `ENVIRONMENT=prod`; grep test: no `connect.facebook.net`, `fbq(` or
 Pixel id anywhere in frontends. **Two-tenant isolation test:** A's owner
 lists, reads, activates and reads insights for B's campaign ids and LOC_B:
