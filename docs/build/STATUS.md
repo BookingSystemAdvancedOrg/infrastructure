@@ -393,7 +393,8 @@ Branches (pushed): `build/run-2-google-business`, `build/run-2-waitlist`,
 merged in that order into `build/run-2-integration` (cut from `dev`, no
 conflicts). Draft PRs from `build/run-2-integration` into `dev` in
 infrastructure, application, admin-front-end, booqy-console and
-customer-front-end (numbers in the run report / PIPELINE.md).
+customer-front-end: infrastructure#42, application#73, admin-front-end#26,
+booqy-console#16, customer-front-end#18.
 
 | Repo | D google-business | F waitlist | G social-posting | E gift-cards |
 |---|---|---|---|---|
