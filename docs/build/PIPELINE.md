@@ -1,7 +1,7 @@
 # Pipeline
 
 ## Lock
-unlocked (released 2026-11-03, Run 1 reviewed, waiting on owner IAM approval)
+LOCKED 2026-11-04 run-merge-run1 (Jarvis instruction: merge Run 1 to dev)
 
 ## Position
 Step: Run 0 addendum (K events & tickets, L phone agent). Review round 1 done, fix round 1 pushed (infra 4b251cb, console 05fb778, customer ecf187b).
@@ -71,3 +71,5 @@ Run 2 notes: execution name should be tenant-scoped; nightly insights loop per t
 
 ## Position update 2026-11-03 (poll run)
 No owner approval on infrastructure#40 yet (only the orchestrator comment, no reviews). Nothing merged. Owner notified by push that Run 1 awaits IAM approval. Do not re-notify until something changes.
+
+- 2026-11-04 (via Jarvis): Owner approves the IAM rows and new stateful resources in infrastructure#40 as listed in the PR comment (plan 122 add, 3 change, 0 destroy). Merge Run 1 to dev in order infrastructure#40, application#71, booqy-console#14, admin-front-end#24, customer-front-end#16, CI green on each, infra apply finished before application. Then dev smoke test, mark A, B1, C 'on dev awaiting owner go-ahead', notify. Nothing goes to main.
