@@ -190,6 +190,14 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | POST | `/locations/{locationId}/card-payments` | JWT | terminal-payments |
 | GET | `/locations/{locationId}/card-payments/{proxy+}` | JWT | terminal-payments |
 | POST | `/locations/{locationId}/card-payments/{proxy+}` | JWT | terminal-payments |
+| GET | `/tenant/gift-cards/settings` | JWT | gift-cards |
+| PUT | `/tenant/gift-cards/settings` | JWT | gift-cards |
+| GET | `/tenant/gift-cards` | JWT | gift-cards |
+| GET | `/tenant/google-business/connection` | JWT | google-business |
+| POST | `/tenant/google-business/connection/start` | JWT | google-business |
+| POST | `/tenant/google-business/connection/callback` | JWT | google-business |
+| DELETE | `/tenant/google-business/connection` | JWT | google-business |
+| GET | `/tenant/google-business/locations` | JWT | google-business |
 | GET | `/tenant/guests` | JWT | guest-crm |
 | POST | `/tenant/guests/search` | JWT | guest-crm |
 | GET | `/tenant/guest-segments` | JWT | guest-crm |
@@ -209,3 +217,6 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | GET | `/tenant/site-builder/versions` | JWT | site-builder |
 | POST | `/tenant/site-builder/rollback` | JWT | site-builder |
 | POST | `/public/site-builder/preview` | NONE | site-builder |
+| GET | `/tenant/social-posts` | JWT | social-posting |
+| POST | `/tenant/social-posts` | JWT | social-posting |
+| POST | `/tenant/social-posts/drafts` | JWT | social-posting |
