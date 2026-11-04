@@ -24,9 +24,9 @@ off.
   it). Simulator (`shared/agent_model.py`) carries the counter-offer
   sentences and flow in Swedish and English;
   `tests/test_phone_agent_counter_offers.py` (28 cases) green; full
-  application suite 4028 passed, 3 skipped. Unverified: the tool side
-  (`offers()` from the real availability responses, the layout read)
-  is Run 2 work.
+  application suite 4030 passed, 3 skipped; ruff: 3 pre-existing
+  findings (not a CI gate). Unverified: the tool side (`offers()` from
+  the real availability responses, the layout read) is Run 2 work.
 - **A all platforms (ADR-A2, DECISIONS.md 2026-11-04):** platform
   adapter port behind the existing wizard; Meta then Google Ads then
   TikTok, Snapchat/Pinterest only on demand, others not suitable or

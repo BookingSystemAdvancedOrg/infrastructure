@@ -210,10 +210,17 @@ platforms chosen in the console. Adding keys is a Run 0-style hotspot
 (the YAML feature count, plan rows in `dev.tfvars`/`prod.tfvars`, the
 console checkboxes) batched at the Run 3 cut.
 
-IAM (new roles, call out): per platform one app secret
-`${prefix}ads/<platform>-app` (value by hand); the existing meta-ads
-roles gain `GetSecretValue` on them and Secrets Manager CRUD on
-`booqy/<env>/ads/*`; nothing else changes.
+IAM (new rows, call out) **[NEEDS YOUR OK]**: per platform one app
+secret `${prefix}ads/<platform>-app` (value by hand); the existing
+meta-ads roles gain `GetSecretValue` on them and Secrets Manager CRUD on
+`booqy/<env>/ads/*`. Second row: decision 4 replaces the Meta-only spend
+metric with `Booqy/Ads PlatformSpendSek` per platform, so the
+`meta-ads-jobs` role's `cloudwatch:PutMetricData` condition
+(`cloudwatch:namespace`, `meta-ads/main.tf:184`) changes from
+`Booqy/MetaAds` to `Booqy/Ads`, together with the spend alarm's
+`namespace` (`meta-ads/main.tf:524`) in the same change. Nothing else
+changes. Both rows are listed in PIPELINE.md "Needs owner (spec change
+2026-11-04)" and go into the Run 2 infra PR for approval.
 
 ## Run plan
 

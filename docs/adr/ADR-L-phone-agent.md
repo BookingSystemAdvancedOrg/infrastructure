@@ -465,8 +465,8 @@ Errors `{error, code, field?}`. Staff are held to their assigned location.
 | L4 | PUT | `/locations/{locationId}/phone-agent` | JWT | owner | `{enabled, mode, agentHours, greetingExtraSv, greetingExtraEn, transferTo, maxCallSeconds, counterOffers{nearbyTables, phoneOnlyTables}, version}` -> config; first `enabled: true` provisions the number and the provider agent (202 `provisioning` then 200) |
 | L5 | POST | `/locations/{locationId}/phone-agent/kill-switch` | JWT | owner, staff | `{on, version}` -> config |
 | L6 | POST | `/locations/{locationId}/phone-agent/simulate` | JWT | owner | `{sessionId, text, language?}` -> `{reply, toolCalls[{name, ok}], state, disclosure: bool}` (text-in/text-out, same agent loop, writes nothing to bookings: tools run in `dryRun` except reads) |
-| L7 | GET | `/locations/{locationId}/phone-agent/calls?from&to&cursor` | JWT | owner, staff | -> `{calls[{callId, startedAt, durationSec, language, outcome, reservationId?, callbackId?, summary}], cursor}` (staff: no caller number) |
-| L8 | GET | `/locations/{locationId}/phone-agent/calls/{callId}` | JWT | owner, staff | -> call + `turns[]` + `recordingUrl?` (owner only, 5 min) |
+| L7 | GET | `/locations/{locationId}/phone-agent/calls?from&to&cursor` | JWT | owner, staff | -> `{calls[{callId, startedAt, durationSec, language, outcome, counterOffer, reservationId?, callbackId?, summary}], cursor}` (staff: no caller number; `counterOffer` per decision 13) |
+| L8 | GET | `/locations/{locationId}/phone-agent/calls/{callId}` | JWT | owner, staff | -> call (incl. `counterOffer`, decision 13) + `turns[]` + `recordingUrl?` (owner only, 5 min) |
 | L9 | DELETE | `/locations/{locationId}/phone-agent/calls/{callId}/recording` | JWT | owner | -> 204 |
 | L10 | GET | `/locations/{locationId}/phone-agent/callbacks?status=` | JWT | owner, staff | -> `{callbacks[]}` |
 | L11 | POST | `/locations/{locationId}/phone-agent/callbacks/{callbackId}/close` | JWT | owner, staff | `{version, note?}` -> callback |
