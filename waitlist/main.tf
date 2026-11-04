@@ -41,12 +41,16 @@ locals {
       Resource = var.published_layout_snapshot_table_arn
     },
     {
-      # Mirror of publicJoin for /site-config: the one attribute only.
-      Sid       = "MirrorPublicJoin"
-      Effect    = "Allow"
-      Action    = ["dynamodb:UpdateItem"]
-      Resource  = var.location_table_arn
-      Condition = { "ForAllValues:StringEquals" = { "dynamodb:Attributes" = ["PK", "SK", "waitlist"] } }
+      # Mirror of publicJoin for /site-config: the one attribute only, and no
+      # ReturnValues, so the role cannot read other location attributes back.
+      Sid      = "MirrorPublicJoin"
+      Effect   = "Allow"
+      Action   = ["dynamodb:UpdateItem"]
+      Resource = var.location_table_arn
+      Condition = {
+        "ForAllValues:StringEquals" = { "dynamodb:Attributes" = ["PK", "SK", "waitlist"] }
+        StringEquals                = { "dynamodb:ReturnValues" = ["NONE"] }
+      }
     },
     {
       Sid      = "LinkKeyAndTurnstile"
