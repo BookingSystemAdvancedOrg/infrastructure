@@ -22,7 +22,7 @@ locals {
     {
       Sid      = "GiftCardsTable"
       Effect   = "Allow"
-      Action   = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:DeleteItem", "dynamodb:Query", "dynamodb:BatchWriteItem"]
+      Action   = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:DeleteItem", "dynamodb:Query"]
       Resource = [local.table_arn, "${local.table_arn}/index/byLocationDay", "${local.table_arn}/index/byExpiry"]
     },
     {

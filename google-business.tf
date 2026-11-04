@@ -18,6 +18,7 @@ module "google_business" {
   from_address                  = local.no_reply_email
   mail_outbox_bucket_name       = local.mail_outbox_bucket
   mail_outbox_bucket_arn        = local.mail_outbox_arn
+  notification_function_arn     = module.notification_fn.alias_arn
   event_bus_name                = module.events.bus_name
   event_bus_arn                 = module.events.bus_arn
   alert_topic_arn               = module.alerts.topic_arn

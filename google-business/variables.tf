@@ -95,3 +95,8 @@ variable "admin_app_url" {
   description = "Admin app base URL (OAuth redirect lands on Inställningar > Profil; /api is the link base)"
   type        = string
 }
+
+variable "notification_function_arn" {
+  description = "notification live alias ARN (review SMS, CONTRACTS.md 9.4)"
+  type        = string
+}

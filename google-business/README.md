@@ -29,8 +29,9 @@ post-visit review requests.
     (contact read at send time through `contactRef`); `dynamodb:Query` on
     the consent log; `secretsmanager:GetSecretValue` on the marketing link
     key (withdraw link); `ses:SendRawEmail` from the no-reply address only;
-    `sns:Publish` on `*` (direct-to-phone SMS has no ARN, as notification);
-    dev only `s3:PutObject` on the mail outbox `outbox/*`.
+    `lambda:InvokeFunction` on `notification:live` only (review SMS go through
+    notification, CONTRACTS.md 9.4; input `notification_function_arn`, env
+    `NOTIFICATION_FUNCTION_NAME`); dev only `s3:PutObject` on the mail outbox `outbox/*`.
   - scheduler invoke role: `lambda:InvokeFunction` on `google-business-jobs:live`,
     `sqs:SendMessage` on the DLQ.
 - No existing role changes; the hook callers' invoke grants (guest-privacy,

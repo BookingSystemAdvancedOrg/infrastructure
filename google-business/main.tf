@@ -59,6 +59,7 @@ locals {
         MARKETING_LINK_BASE           = "${var.admin_app_url}/api"
         MARKETING_LINK_KEY_SECRET_ARN = var.marketing_link_key_secret_arn
         MAIL_OUTBOX_BUCKET_NAME       = var.mail_outbox_bucket_name
+        NOTIFICATION_FUNCTION_NAME    = var.notification_function_arn
       })
     }
   }
@@ -145,11 +146,11 @@ locals {
         Condition = { StringLike = { "ses:FromAddress" = local.ses_from } }
       },
       {
-        # Direct-to-phone SNS publishes have no ARN to scope to (as notification).
-        Sid      = "SendReviewSms"
+        # Review SMS go through notification:live (CONTRACTS.md 9.4), never SNS directly.
+        Sid      = "InvokeNotification"
         Effect   = "Allow"
-        Action   = ["sns:Publish"]
-        Resource = "*"
+        Action   = ["lambda:InvokeFunction"]
+        Resource = var.notification_function_arn
       },
       ], var.mail_outbox_bucket_arn == "" ? [] : [
       {
