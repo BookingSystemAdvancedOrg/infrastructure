@@ -65,7 +65,14 @@ EventBridge Scheduler created in code (`no-show-check`, `catering-lifecycle`).
    `InvocationType=Event`, kind `google-business.review-request`,
    `replyTo: null`, CONTRACTS.md 9.4), so the tenant sender, number
    prefixes, part counting and billing are notification's. `google-business-jobs`
-   never publishes to SNS itself (built as decided on 2026-11-04, DECISIONS.md).
+   never publishes to SNS itself (built as decided on 2026-11-04, DECISIONS.md;
+   confirmed on application 55f372e: the function reads
+   `NOTIFICATION_FUNCTION_NAME`, which `infrastructure/google-business/main.tf`
+   sets from `notification_function_arn`, and treats any invoke status
+   other than 202 as a failure). A failed send, SMS or email, releases the
+   `REVJOB` claim and the cooldown row and raises, so the schedule's retry
+   (and in the end its DLQ) sends it; `ReviewRequest.Sent` goes out only
+   after the send.
 8. **Client port** `shared/google_business.py` (`GoogleBusiness`,
    `SimulatedGoogleBusiness`, env `GOOGLE_BUSINESS_CLIENT` from Terraform
    `google_business_client`), simulator refused in prod.

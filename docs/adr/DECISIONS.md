@@ -417,3 +417,146 @@ the later one is adopted).
 side; the first attempt's time is known to Booqy and monotonic.
 
 **Files.** `docs/adr/ADR-G-social-posting.md` decision 6.
+
+## 2026-11-04: E9 refund writes the refund TX first, then refunds exactly that amount in Stripe
+
+**Contradiction.** ADR-E route 9 and CONTRACTS.md 6.E described E9 as
+"Stripe refund of the unused part, then the card", which is what the
+first build did (`refund`: Stripe first, `change_balance` after). Fix
+round 2 showed the race: a redemption between the balance read and the
+card write makes Stripe refund more than the card still held, and a crash
+after the Stripe call leaves a refunded card that can still be redeemed.
+
+**Decision.** Built in application 55f372e: `refund` writes the card
+first, one `refund` TX of the balance it read, conditional on the card
+`version` (`change_balance(expect_version=...)`); a redemption in between
+is 409 `changed_retry` with no Stripe call. Then Stripe refunds exactly
+the TX amount (key `giftcard-refund-<txId>`) and `stripeRefundId` is set
+on the TX. A Stripe failure is 502 `stripe_unavailable` with the card
+already void; a retry with the same `txId` returns the card and finishes
+the Stripe refund while `stripeRefundId` is missing, so there is one TX
+and one Stripe refund however often the route is called. CONTRACTS.md
+6.E, ADR-E 9, data model, route 9, idempotency and test row 9 say so.
+
+**Reason.** Voiding first means the card can never be spent after money
+has gone back; the Stripe call is idempotent by `txId`, so finishing it
+later is safe, while a refund that outruns a redemption is not.
+
+**Files.** `docs/build/CONTRACTS.md` 4 and 6.E,
+`docs/adr/ADR-E-gift-cards.md` decision 9, data model, route 9,
+idempotency, test row 9.
+
+## 2026-11-04: `charge.refunded` partial flag and the code-email resend are built; new stored fields
+
+**Contradiction.** The "code follow-up" entry above left the partial
+refund flag unbuilt and its shape to the worker; the same review found
+that a crash between the card write and the code email left an issued
+card whose guest never got a code (the webhook replay answered
+`already_issued`).
+
+**Decision.** Built in application 55f372e, so ADR-E 9 no longer says
+"as built the handler voids on every `charge.refunded`":
+- `charge.refunded` voids only when `amount_refunded == amount`
+  (`voided` / `already_void`); otherwise the balance is untouched and the
+  card gets `partialRefundOre` (öre refunded in Stripe) and
+  `partialRefundAt`, result `flagged:partial_refund`, plus a warning log
+  line; the owner settles with E8 or E9.
+- `codeSentAt` is stamped on the card once notification has accepted the
+  code email (invoke status 202; anything else raises). A
+  `payment_intent.succeeded` replay for an issued, active card without
+  `codeSentAt` that is older than 2 minutes (`CODE_SEND_GRACE_SECONDS`;
+  the first attempt may still be sending) rotates the code (E10's
+  transaction) and sends `gift-cards.code` again, result `code_resent`; a
+  concurrent change or a card no longer active answers `already_issued`.
+- `stripeRefundId` on a `refund` TX (entry above).
+The `stripe.event` result list in CONTRACTS.md 9.2 now names
+`code_resent` and `flagged:partial_refund`; section 4 and the ADR-E data
+model carry the fields. They are stored only: `card_detail` (E6/E7) and
+the admin page do not show them yet.
+
+**Reason.** A guest with a partly refunded purchase still holds a card;
+voiding would take the money twice. Stripe replays
+`payment_intent.succeeded` for a day, so the stamp lets the replay heal
+a lost email without ever storing the code, and the grace keeps a slow
+first send from producing two codes.
+
+**Files.** `docs/build/CONTRACTS.md` 4, 9.2, 9.4;
+`docs/adr/ADR-E-gift-cards.md` decisions 3 and 9, data model.
+
+## 2026-11-04: `needs_check` recovery by `created_time` is built; A's Meta port must return it
+
+**Contradiction.** The entry above left the `created_time` match as a
+code follow-up for the social-posting worker.
+
+**Decision.** Built in application 55f372e: the channel's first publish
+lease stores `firstAttemptAt` (kept on later attempts), and FB
+`needs_check` recovery adopts a Page post only when `message == caption`
+and `created_time >= firstAttemptAt - 120 s` (`CLOCK_SKEW_SECONDS`,
+Meta's clock against ours). A post without a parseable, timezone-aware
+`created_time` never matches; with no match the worker publishes again,
+as before (the first attempt's outcome was unknown). Tests: a post
+created after the first attempt is adopted; last week's post with the
+same caption, or one without `created_time`, is not. The Meta port has to
+supply `created_time`: the simulator's `publish_page_photo`
+(`shared/meta_graph.py`) stamps none and `shared/meta_graph_real.py` is
+still the Run 0 skeleton, so `RealMetaGraph.recent_page_posts` must
+request `fields=id,message,permalink_url,created_time` and return it,
+and the simulator should stamp it at publish. That is feature A's port,
+not G's files: Run 2 batch 1 open item 10 in STATUS.md.
+
+**Reason.** The first attempt's time is known to Booqy and monotonic; a
+caption is neither unique nor stable. Treating a missing `created_time`
+as "not proven" errs toward a second post rather than adopting a
+stranger's post, and the real port will return the field.
+
+**Files.** `docs/build/CONTRACTS.md` 4; `docs/adr/ADR-G-social-posting.md`
+decision 6, data model, external dependencies, test plan;
+`docs/build/STATUS.md` Run 2 batch 1 open item 10.
+
+## 2026-11-04: review SMS via `notification:live` confirmed in code; a refused send is retried by the schedule
+
+**Contradiction.** The entry above recorded the decision from the
+infrastructure fix; the application side had not been checked against
+it, and a refused invoke counted as sent.
+
+**Decision.** Confirmed on application 55f372e: `google-business-jobs`
+`send_review` invokes `os.environ["NOTIFICATION_FUNCTION_NAME"]`
+(`InvocationType=Event`, kind `google-business.review-request`,
+`replyTo: null`) and never SNS; `infrastructure/google-business/main.tf`
+sets the variable from `notification_function_arn`. New in the same
+commit: an invoke status other than 202, or a failed email send, releases
+the `REVJOB` claim (`sent` back to `scheduled`, `channel` and `sentAt`
+removed) and deletes the cooldown row this attempt wrote, then raises, so
+the Scheduler retry (and in the end the DLQ) sends it;
+`ReviewRequest.Sent` is published only after the send. ADR-D 7 and
+CONTRACTS.md 9.4 note it.
+
+**Reason.** 9.4 has the caller record "sent" before invoking so Lambda
+never sends twice; without the undo a refused invoke would have counted
+as sent and the guest would never get the request.
+
+**Files.** `docs/adr/ADR-D-google-business-profile.md` decision 7,
+`docs/build/CONTRACTS.md` 9.4.
+
+## 2026-11-04: `@booqy/site-kit` depends on `@booqy/brand`
+
+**Contradiction.** ADR-BRAND-sharing links the customer-front-end
+workspace (guest site and site-kit) to `packages/brand`, but
+`@booqy/site-kit` as a published package had no runtime dependency on
+the brand package; its F and E pages reached for brand components.
+
+**Decision.** From customer-front-end 2f43d25 (2026-11-04) the Kö and
+Presentkort pages in site-kit use `@booqy/brand` (banner, tab Bar,
+Button), so `packages/site-kit/package.json` declares
+`"@booqy/brand": "0.1.0"` in `dependencies`. The workspace builds and
+tests brand before site-kit (`npm run build -w @booqy/brand && npm run
+build -w @booqy/site-kit`; same order for `test`), and a site-kit release
+needs a published brand version of the same or a compatible number. The
+dependency direction is brand -> site-kit -> apps, never the reverse.
+
+**Reason.** One copy of the brand components for the restaurant site's
+feature pages instead of a second one inside site-kit; the brand package
+already ships from the same workspace.
+
+**Files.** `docs/adr/DECISIONS.md` only (the dependency itself lives in
+customer-front-end `packages/site-kit/package.json`).

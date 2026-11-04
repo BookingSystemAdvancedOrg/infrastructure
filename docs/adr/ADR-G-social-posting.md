@@ -48,13 +48,20 @@ bucket under a tenant- and location-scoped key.
    has no idempotency key: on an unknown outcome (a retryable Graph error
    after send) the channel goes to `needs_check` and the next run first
    reads the Page's latest 25 posts (`recent_page_posts`) and adopts a
-   match as published before any retry. Never blind-retry. Recovery is
-   meant to use the posts' `created_time` (anything the Page published
-   after the first attempt's timestamp with this post's image/caption) so
-   that two posts with the same caption on one Page are not confused; **as
-   built the worker matches on `message == caption` only and does not
-   read `created_time`**, which is a code follow-up (DECISIONS.md
-   2026-11-04). No marker hash is appended to the caption.
+   match as published before any retry. Never blind-retry. Recovery uses
+   the posts' `created_time`: the channel state records `firstAttemptAt`
+   with its first publish lease (before the Graph call, kept on later
+   attempts), and a Page post is adopted only when its `message` equals
+   the caption **and** its `created_time` is at or after `firstAttemptAt`
+   minus 120 s of clock skew (`CLOCK_SKEW_SECONDS`); a post without a
+   parseable, timezone-aware `created_time` never matches, so two posts
+   with the same caption on one Page (a weekly special) are not confused
+   (built 2026-11-04, application 55f372e, DECISIONS.md). No marker hash
+   is appended to the caption. The Meta port must therefore return
+   `created_time` from `recent_page_posts`: the simulator's
+   `publish_page_photo` does not stamp it and `RealMetaGraph` is still
+   the Run 0 skeleton, so that is a follow-up in feature A's port files,
+   not G's (STATUS.md, Run 2 batch 1 open item 10).
 7. **Drafts from menu items** are built from a Swedish template (name,
    description, price "149 kr"). A "Föreslå text" button reuses
    `shared/bedrock.py` `TextModel` (Run 0 scaffolding, `BEDROCK_CLIENT`)
@@ -85,7 +92,9 @@ Post: `tenantId`, `postId` (client ULID), `locationId`, `source`
 
 Channel: `state` (`queued` | `publishing` | `published` | `needs_check` |
 `failed`), `leaseUntil?`, `containerId?` (IG), `metaPostId?`, `permalink?`,
-`publishedAt?`, `attempts`, `lastError?` `{code, message}` (no tokens).
+`publishedAt?`, `attempts`, `firstAttemptAt?` (set with the first lease,
+never moved; the lower bound for FB `needs_check` recovery), `lastError?`
+`{code, message}` (no tokens).
 
 Listing: Query `PK=TENANT#<t>`, `begins_with(SK, POST#)` (ULIDs sort by
 time). Volume is tiny (tens per month), so status filtering is in code. No GSI.
@@ -189,6 +198,11 @@ growth (with marketing). Run 0 ships `false` in every plan.
   `instagram_content_publish` on top of A's Business Verification and
   review. Instagram publishing requires a professional account linked to
   the Page; the UI must say so.
+- `recent_page_posts` must return each post's `created_time` (Graph
+  `fields=id,message,permalink_url,created_time`) for `needs_check`
+  recovery (decision 6). A's real port (`shared/meta_graph_real.py`, a
+  skeleton) and simulator (`publish_page_photo` stamps none) do not yet;
+  open item 10 in STATUS.md, Run 2 batch 1.
 - Rate limit: Instagram allows a limited number of API posts per 24 hours
   per account (verify the current figure); the worker returns
   `instagram_rate_limited` and does not retry until the window passes.
@@ -236,7 +250,10 @@ idempotent retry.
 
 Disconnect event handled twice -> same drafts, no schedules left. Worker: run twice for one post -> one Meta call per channel; crash after IG
 container create -> retry reuses the container; FB timeout -> `needs_check`,
-no second post; one channel fails, the other is published
+no second post when a Page post with the caption was created after the
+first attempt (an older one with the same caption, or one without
+`created_time`, is not adopted and the worker posts again); one channel
+fails, the other is published
 (`partly_published`), retry touches only the failed one; entitlement switched
 off before the timer -> failed, no Meta call; Meta disconnected -> failed
 `meta_not_connected`. Isolation: tenant A's worker can never read B's secret

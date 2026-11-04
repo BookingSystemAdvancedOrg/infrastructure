@@ -428,6 +428,11 @@ end to end for gift cards (fake Stripe in tests), SMS/email delivery
 (notification mocked), UI screenshots light/dark mobile/tablet/desktop,
 keyboard and contrast audit (brand guardian), and the fresh code review.
 
+Fix rounds on `build/run-2-integration` (2026-11-04, application 38f1e00
+and 55f372e): see the DECISIONS.md entries of 2026-11-04 (E9 refund order,
+`charge.refunded` partial flag, code resend on webhook replay, G
+`needs_check` by `created_time`, D review SMS retry).
+
 Open findings and decisions for the orchestrator (contract or hotspot):
 
 1. **D click counting**: `stats.clicks30d` is always 0. The ADR's signed
@@ -460,6 +465,16 @@ Open findings and decisions for the orchestrator (contract or hotspot):
    `/platform/...` feature routes (the `[^\]]*` list regex stops early), the
    same gap as Run 1's meta-ads; the routes themselves are in the
    `*-routes.tf` lists. Generator fix is integrator work.
+10. **G `needs_check` needs `created_time` from the Meta port (follow-up
+   in A's files, not G's)**: the worker (application 55f372e) adopts a
+   Page post only when `created_time >= firstAttemptAt - 120 s`. A's
+   simulator (`shared/meta_graph.py` `publish_page_photo`) stamps no
+   `created_time` on the posts it records, and `shared/meta_graph_real.py`
+   is still the Run 0 skeleton, so today recovery only matches posts the
+   tests add by hand. When A builds `RealMetaGraph.recent_page_posts` it
+   must request `fields=id,message,permalink_url,created_time` and return
+   `created_time` (ISO 8601 with offset), and the simulator should stamp it
+   at publish (DECISIONS.md 2026-11-04, ADR-G 6).
 
 IAM (all on NEW roles; no existing role, permissions boundary, OIDC/deploy
 role, Cognito, CloudFront or KMS changed; the hook callers' invoke grants on
@@ -469,7 +484,8 @@ actions on the reservation and slot-occupancy tables (as
 create-pending-reservation) and UpdateItem on the location table limited to
 attribute `waitlist`; google-business-jobs GetItem on reservation and order
 tables, Query on the consent log, GetSecretValue on the marketing link key,
-`ses:SendRawEmail` from the no-reply address, `sns:Publish` on `*` (SMS);
+`ses:SendRawEmail` from the no-reply address, invoke on `notification:live`
+for the review SMS (no `sns:Publish`; fix round 2026-11-04);
 social-posting GetSecretValue on A's `booqy/<env>/meta-ads/*` and GetItem on
 A's table (read only); gift-cards GetSecretValue on the platform Stripe key
 and the Turnstile secret; waitlist, gift-cards invoke `notification:live`.
@@ -493,7 +509,7 @@ merged.
 | D. Google Business Profile + reviews | built, NOT reviewed (Run 2 batch 1, draft PRs) | `build/run-2-google-business` -> `build/run-2-integration` | 1 | Run 2 batch 1 findings 1, 2 | real GBP API, Scheduler/bus rule runtime, SES/SNS delivery, screenshots | Google Business Profile API access and OAuth verification of `business.manage`; `google-business/app` secret value; lawyer: review request as marketing / soft opt-in |
 | E. Gift cards | built, NOT reviewed (Run 2 batch 1, draft PRs); **VAT treatment needs accountant review** | `build/run-2-gift-cards` -> `build/run-2-integration` | 1 | Run 2 batch 1 findings 3-6 | Stripe test mode end to end, Kassa (blocked: no voucher payment means), code email delivery, screenshots | Accountant: multi-purpose voucher, 2421/3990, breakage; lawyer: validity 24 months, withdrawal right, kassaregister voucher reporting; decision on the control system voucher means |
 | F. Waitlist | built, NOT reviewed (Run 2 batch 1, draft PRs) | `build/run-2-waitlist` -> `build/run-2-integration` | 1 | Run 2 batch 1 finding 8 | SMS delivery, Scheduler runtime, screenshots | Owner: card guarantee on conversions (v1 none) |
-| G. Social posting | built, NOT reviewed (Run 2 batch 1, draft PRs) | `build/run-2-social-posting` -> `build/run-2-integration` | 1 | Run 2 batch 1 finding 7 | real Meta publishing, Instagram daily post limit, Scheduler/bus rule runtime, screenshots | Meta App Review for `pages_manage_posts` and `instagram_content_publish`; lawyer: alcohol posts (alkohollagen 7 kap.) |
+| G. Social posting | built, NOT reviewed (Run 2 batch 1, draft PRs) | `build/run-2-social-posting` -> `build/run-2-integration` | 1 | Run 2 batch 1 findings 7, 10 | real Meta publishing, Instagram daily post limit, Scheduler/bus rule runtime, screenshots | Meta App Review for `pages_manage_posts` and `instagram_content_publish`; lawyer: alcohol posts (alkohollagen 7 kap.) |
 | H. Personalliggare | todo | | 0 | | | Legal review |
 | I. Fortnox and Visma posting | todo | | 0 | | | Fortnox and Visma developer access |
 | J. Margin per dish | todo | | 0 | | | |

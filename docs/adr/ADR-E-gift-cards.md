@@ -49,7 +49,13 @@ supplies at different rates.
    The old code stops working at once, so the admin asks the owner to
    confirm before calling E10 and shows the new `last4` afterwards
    (decided 2026-11-04, DECISIONS.md). Bearer instrument: whoever has the
-   code may use it.
+   code may use it. The card carries `codeSentAt`, stamped once
+   notification has accepted the code email (invoke status 202); a
+   `payment_intent.succeeded` replay for an issued, active card still
+   without it after a 2-minute grace rotates the code (E10's transaction)
+   and sends it again (`stripe.event` result `code_resent`), so a crash
+   between the card write and the email is healed by Stripe's own retry
+   without storing the code (built 2026-11-04, DECISIONS.md).
 4. **Balance ledger**: `balanceOre` on the card and an append-only TX row
    per change, written in one transaction with a condition
    (`balanceOre >= :amount AND version = :v AND status = active AND
@@ -97,14 +103,20 @@ supplies at different rates.
    with `status: lost`; a won one is ignored) voids the card: one
    `void-<chargeId>` TX of the remaining balance, channel `system`,
    idempotent (`already_void` on replay or on an already void card).
-   `charge.refunded` is meant to void the card **only on a full refund**
-   (`amount_refunded == amount`); a **partial refund** must not void a
-   card the guest still holds and is instead flagged on the card for the
-   owner to settle by hand (E8 adjust or E9 refund). **As built on
-   `build/run-2-integration` the handler voids on every `charge.refunded`
-   whatever the refunded amount and writes no flag**; the split is a code
-   follow-up (DECISIONS.md 2026-11-04). The E9 owner refund is a Stripe
-   refund of the unused part and voids the card itself.
+   `charge.refunded` voids the card **only on a full refund**
+   (`amount_refunded == amount`, result `voided`); a **partial refund**
+   must not void a card the guest still holds, so the handler leaves the
+   balance alone, logs it and flags the card (`partialRefundOre`,
+   `partialRefundAt`; result `flagged:partial_refund`) for the owner to
+   settle by hand (E8 adjust or E9 refund). Built on
+   `build/run-2-integration` (application 55f372e, 2026-11-04,
+   DECISIONS.md). The E9 owner refund writes the card first: one `refund`
+   TX of the balance it read, conditional on the card's `version` (a
+   redemption in between is 409 `changed_retry` and nothing is refunded),
+   then a Stripe refund of exactly that amount (key
+   `giftcard-refund-<txId>`). A Stripe failure is 502 `stripe_unavailable`
+   with the card already void, and a retry with the same `txId` finishes
+   the Stripe refund (`stripeRefundId` on the TX marks it done).
 
 ## Data model
 
@@ -119,9 +131,9 @@ read only by the nightly job).
 |---|---|---|
 | `TENANT#<t>` | `SETTINGS` | `enabled`, `amountsSek[]`, `customMinSek`, `customMaxSek`, `validityMonths`, `version` |
 | `TENANT#<t>` | `PURCHASE#<purchaseId>` | `locationId`, `amountOre`, `paymentIntentId`, `buyerEmail`, `recipientName?`, `recipientEmail?`, `message?`, `status` (`pending` \| `issued` \| `failed`), `cardId?`, `ttl` = +7 days while pending (removed on issue) |
-| `TENANT#<t>` | `CARD#<cardId>` | `codeHmac`, `last4`, `initialOre`, `balanceOre`, `status` (`active` \| `used` \| `expired` \| `void`), `soldAtLocationId`, `purchaseId`, `purchasedAt`, `expiresAt`, `buyerEmail`, `buyerEmailHash`, `recipientName?`, `recipientEmail?`, `recipientEmailHash?`, `message?`, `version` |
+| `TENANT#<t>` | `CARD#<cardId>` | `codeHmac`, `last4`, `initialOre`, `balanceOre`, `status` (`active` \| `used` \| `expired` \| `void`), `soldAtLocationId`, `purchaseId`, `purchasedAt`, `expiresAt`, `buyerEmail`, `buyerEmailHash`, `recipientName?`, `recipientEmail?`, `recipientEmailHash?`, `message?`, `codeSentAt?` (set once notification accepted the code email), `partialRefundOre?`, `partialRefundAt?` (a partial `charge.refunded`), `version` |
 | `TENANT#<t>` | `CODE#<codeHmac>` | `cardId` (uniqueness and lookup) |
-| `TENANT#<t>` | `CARD#<cardId>#TX#<txId>` | `kind` (`issue` \| `redeem` \| `reverse` \| `expire` \| `adjust` \| `refund` \| `void`), `amountOre` (signed), `balanceAfterOre`, `channel` (`online` \| `kassa` \| `admin` \| `system`), `ref{orderId? \| billId?, paymentId?}`, `locationId`, `at`, `by?`; never updated |
+| `TENANT#<t>` | `CARD#<cardId>#TX#<txId>` | `kind` (`issue` \| `redeem` \| `reverse` \| `expire` \| `adjust` \| `refund` \| `void`), `amountOre` (signed), `balanceAfterOre`, `channel` (`online` \| `kassa` \| `admin` \| `system`), `ref{orderId? \| billId?, paymentId?}`, `locationId`, `at`, `by?`, `stripeRefundId?` (a `refund` TX only, set once when Stripe has the refund); otherwise never updated |
 
 Email hashes are `sha256(tenant|email)` for erasure lookups. Amounts in
 öre.
@@ -140,7 +152,7 @@ Errors `{error, code, field?}`. Codes travel only in request bodies.
 | 6 | GET | `/tenant/gift-cards?status=&cursor=` | JWT | owner | -> `{cards[{cardId, last4, initialSek, balanceSek, status, expiresAt}], liabilitySek, cursor}` |
 | 7 | GET | `/tenant/gift-cards/{cardId}` | JWT | owner | -> card + `transactions[]` |
 | 8 | POST | `/tenant/gift-cards/{cardId}/adjust` | JWT | owner | `{txId, expiresAt?, reason}` -> card (extend validity) |
-| 9 | POST | `/tenant/gift-cards/{cardId}/refund` | JWT | owner | `{txId, reason}` -> card (`void`); Stripe refund of the unused part, key `giftcard-refund-<txId>` |
+| 9 | POST | `/tenant/gift-cards/{cardId}/refund` | JWT | owner | `{txId, reason}` -> card (`void`); the refund TX first (version condition), then a Stripe refund of exactly that amount, key `giftcard-refund-<txId>`; 409 `changed_retry` when the balance moved in between, 502 `stripe_unavailable` with the card already void (the same `txId` again finishes it) |
 | 10 | POST | `/tenant/gift-cards/{cardId}/resend` | JWT | owner | `{to: buyer \| recipient}` -> 202 `{last4}` (a new code; the old one is void; active cards only) |
 | 11 | POST | `/locations/{locationId}/gift-cards/lookup` | JWT | owner, staff | `{code}` -> `{cardId, last4, balanceSek, expiresAt, status}` |
 | 12 | POST | `/locations/{locationId}/gift-cards/redemptions` | JWT | owner, staff | `{txId (= Kassa paymentId), code, amountOre, billId}` -> `{balanceAfterSek, txId}` |
@@ -159,7 +171,10 @@ wrong code, feature off (public); 409 `insufficient_balance`, `card_expired`,
 Idempotency: `purchaseId` (Stripe idempotency key and conditional Put),
 `txId` on every balance change (TX row `attribute_not_exists`; a retry with
 the same `txId` returns the stored result, a different amount gives 409
-`changed_retry`); webhook issue keyed by `purchaseId`.
+`changed_retry`); webhook issue keyed by `purchaseId`; E9 writes the
+refund TX before the Stripe call, so a retry with the same `txId` returns
+the card and only makes the Stripe refund while the TX has no
+`stripeRefundId` (one TX, one Stripe refund).
 
 ## Events
 
@@ -281,7 +296,7 @@ entitlement off refused, idempotent retry.
 | 6 | bad status | staff 403 | n/a | 403 | n/a |
 | 7 | n/a | staff 403 | B's cardId 404 | 403 | n/a |
 | 8 | shorter expiry 400 | staff 403 | B's card 404 | 403 | same txId -> one TX |
-| 9 | after window 409 | staff 403 | B's card 404 | 403 | same txId -> one Stripe refund |
+| 9 | after window 409; a redemption in between 409 `changed_retry` and no Stripe call; Stripe down 502 with the card void, the same txId finishes it | staff 403 | B's card 404 | 403 | same txId -> one TX, one Stripe refund (`stripeRefundId`) |
 | 10 | bad target; expired or void card 409 | staff 403 | B's card 404 | 403 | resend twice -> two mails, two codes; only the latest code is accepted by lookup, balance and redemption |
 | 11 | missing code 400 | staff other location 404 | LOC_B 404 | 403 | n/a |
 | 12 | amount > balance 409 | staff other location 404 | B's code 404 | 403 | same txId -> one debit |
