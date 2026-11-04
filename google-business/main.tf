@@ -42,7 +42,7 @@ locals {
       timeout = 28
       memory  = 512
       env = merge(local.common_env, {
-        GOOGLE_REDIRECT_URI = "${var.admin_app_url}/installningar?flik=profil&google=1"
+        GOOGLE_REDIRECT_URI = "${var.admin_app_url}/installningar?google=1"
       })
     }
     google-business-jobs = {
