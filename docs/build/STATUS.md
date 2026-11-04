@@ -3,7 +3,7 @@
 Ledger for the multi-agent build in `docs/build/PROMPTS.md`. Read this
 first when a run starts or resumes; skip anything already verified or merged.
 
-Last updated: 2026-11-03 (Run 1 Wave A: A, B1 and C built on `build/run-1-<feature>` and merged into `build/run-1-integration` in every touched repo; draft PRs against `dev`; independent Fable code review and brand-guardian review NOT yet done, see Run 1 below).
+Last updated: 2026-11-04 (Run 2 batch 1: D, E, F, G built on `build/run-2-<feature>` and merged into `build/run-2-integration`; draft PRs against `dev`; NOT yet reviewed by a fresh code reviewer or brand guardian, see Run 2 batch 1 below).
 
 ## Run 0: Foundations
 
@@ -378,6 +378,124 @@ resources: tables `<prefix>meta-ads`, `<prefix>site-builder`,
 `<prefix>guest-crm-sync-dlq`, secret `${prefix}meta-ads/app`, two Standard
 state machines.
 
+
+## Run 2 batch 1 (D Google Business Profile, E Gift cards, F Waitlist, G Social posting)
+
+**State: built, integrated, gates green, NOT reviewed (2026-11-04).** The
+worker-orchestrator session had no sub-agent tool, so the four features were
+built sequentially (D, F, G, E) in one Opus 5.5 session; **no fresh code
+reviewer or brand guardian reviewer has run yet** and no Playwright
+screenshots were taken. Per RULES.md none of D, E, F, G is "verified".
+Nothing merged. All four entitlements stay `false` in every plan.
+
+Branches (pushed): `build/run-2-google-business`, `build/run-2-waitlist`,
+`build/run-2-social-posting`, `build/run-2-gift-cards` per touched repo,
+merged in that order into `build/run-2-integration` (cut from `dev`, no
+conflicts). Draft PRs from `build/run-2-integration` into `dev` in
+infrastructure, application, admin-front-end, booqy-console and
+customer-front-end: infrastructure#42, application#73, admin-front-end#26,
+booqy-console#16, customer-front-end#18.
+
+| Repo | D google-business | F waitlist | G social-posting | E gift-cards |
+|---|---|---|---|---|
+| application | API D1-D10, hook D11, purge, privacy hooks; jobs (hourly sync, GuestVisit.Recorded -> schedule, review sender) | API F1-F10, offer timer, hooks | API G1-G8, publish worker, disconnect consumer, purge | API E1-E13, stripe.event, checkout.giftcard, kassa.giftcard, accounting.events, privacy, purge, nightly expiry |
+| infrastructure | module, routes, root file | module, routes, root file | module, routes, root file | module (+ pepper secret), routes, root file |
+| admin-front-end | GoogleProfileCard, OmdomenTab | QueuePanel, WaitlistSettingsCard | InlaggTab, ShareDishAction | PresentkortPage, KassaGiftCardButton |
+| booqy-console | D11 forward + Integrations section | none | none | none |
+| customer-front-end | none | KoPage, JoinQueueLink | none | PresentkortPage, SaldoPage, GiftCardField |
+
+Gates on `build/run-2-integration` (2026-11-04, this session):
+
+| Gate | Result |
+|---|---|
+| application pytest (`-n 8`) | 4100 passed, 3 skipped (new: D 35, F 22, G 20, E 21) |
+| two-tenant isolation tests (D, E, F, G) | included above, all pass |
+| gen_contracts.py --check (siblings beside) | in sync (exit 0) |
+| gen_site_schema.py --check | in sync |
+| ruff E/F/W on new Python (not a CI gate) | clean |
+| terraform fmt -check -recursive | clean |
+| terraform validate (whole root, hashicorp/aws 6.69.1, random 3.6.3, archive 2.7.1, lukasaron/stripe 3.4.0 from a local mirror; no backend) | "Success! The configuration is valid" (deprecation warnings for table-level hash_key/range_key, same as the existing modules) |
+| admin lint / tsc / vitest / build / brand-lint | 0 errors (42 warnings, dev has 36; the 6 new are `set-state-in-effect`, the pattern the existing pages use) / ok / 705 passed / built / no blocking findings |
+| console api pytest; web tsc / vitest / build / brand-lint | 199 passed (D branch, the only console change); ok / 121 passed / built / no blocking findings |
+| customer lint, site-kit tsc, tests (brand, site-kit, app), build, brand-lint | 0 errors; ok; 106 + 374 + 13 passed; built; no blocking findings |
+
+Not verified (needs real AWS, providers or a person): Terraform plan/apply
+(CI only), Scheduler one-time schedules and bus rules at runtime, real
+Google Business Profile API (simulator only; `google_business_real.py` is
+still the Run 0 skeleton), real Meta publishing (A's simulator; App Review
+for `pages_manage_posts` / `instagram_content_publish`), Stripe test mode
+end to end for gift cards (fake Stripe in tests), SMS/email delivery
+(notification mocked), UI screenshots light/dark mobile/tablet/desktop,
+keyboard and contrast audit (brand guardian), and the fresh code review.
+
+Fix rounds on `build/run-2-integration` (2026-11-04, application 38f1e00
+and 55f372e): see the DECISIONS.md entries of 2026-11-04 (E9 refund order,
+`charge.refunded` partial flag, code resend on webhook replay, G
+`needs_check` by `created_time`, D review SMS retry).
+
+Open findings and decisions for the orchestrator (contract or hotspot):
+
+1. **D click counting**: `stats.clicks30d` is always 0. The ADR's signed
+   marketing redirect (`/m/c/{token}` in `marketing-public`, frozen hotspot)
+   only knows campaign links; review emails link straight to the Google
+   review URL. Needs a hotspot change (a review-link token kind) in a later batch.
+2. **D**: review emails are sent without `MARKETING_CONFIGURATION_SET`
+   (the marketing module does not output it), so SES bounce/complaint
+   events of review emails are not tracked; add an output (marketing module,
+   frozen) or accept.
+3. **E data model addition (contract, Fable)**: `TXREF#<txId>` rows
+   (cardId per transaction id) so `kassa.giftcard` can verify a Kassa
+   payment by its `paymentId`; and `JOB/NIGHTLY` (resume point of the
+   nightly job). Not in CONTRACTS.md 4.
+4. **E10 "Skicka igen" rotates the code**: codes are stored only as
+   HMAC + last4 (ADR-E 3), so a resend issues a new code and the old one
+   stops working. ADR text says "resend"; confirm (Fable/owner).
+5. **E Kassa is blocked** by Run 0's `ControlSystem.voucher_method = None`
+   (501 `gift_card_receipt_not_supported`, legal check of the control
+   system's voucher payment means). E12 works; the admin button reverses
+   the debit when Kassa refuses. Gift cards in Kassa need that decision.
+6. **E accounting**: the card part of a refunded online order is booked on
+   the OBS account with a warning (the order export only refunds the Stripe
+   part); `charge.dispute.closed` lacks `metadata.kind` (Run 0 note), so
+   lost disputes are not routed yet. **VAT treatment: needs accountant review.**
+7. **G "Föreslå text"** (Bedrock caption, ADR-G 7) has no route in
+   CONTRACTS.md 6.G, so it is not built; drafts use the Swedish template.
+8. **F card guarantee** on waitlist conversions: none (ADR-F open question 3, owner to confirm).
+9. **ROUTES.md**: `generate_routes.py` lists only the `/tenant/...` and
+   `/platform/...` feature routes (the `[^\]]*` list regex stops early), the
+   same gap as Run 1's meta-ads; the routes themselves are in the
+   `*-routes.tf` lists. Generator fix is integrator work.
+10. **G `needs_check` needs `created_time` from the Meta port (follow-up
+   in A's files, not G's)**: the worker (application 55f372e) adopts a
+   Page post only when `created_time >= firstAttemptAt - 120 s`. A's
+   simulator (`shared/meta_graph.py` `publish_page_photo`) stamps no
+   `created_time` on the posts it records, and `shared/meta_graph_real.py`
+   is still the Run 0 skeleton, so today recovery only matches posts the
+   tests add by hand. When A builds `RealMetaGraph.recent_page_posts` it
+   must request `fields=id,message,permalink_url,created_time` and return
+   `created_time` (ISO 8601 with offset), and the simulator should stamp it
+   at publish (DECISIONS.md 2026-11-04, ADR-G 6).
+
+IAM (all on NEW roles; no existing role, permissions boundary, OIDC/deploy
+role, Cognito, CloudFront or KMS changed; the hook callers' invoke grants on
+the four `:live` aliases exist since Run 0): see each module README and the
+infrastructure PR. Rows that touch existing resources: waitlist role item
+actions on the reservation and slot-occupancy tables (as
+create-pending-reservation) and UpdateItem on the location table limited to
+attribute `waitlist`; google-business-jobs GetItem on reservation and order
+tables, Query on the consent log, GetSecretValue on the marketing link key,
+`ses:SendRawEmail` from the no-reply address, invoke on `notification:live`
+for the review SMS (no `sns:Publish`; fix round 2026-11-04);
+social-posting GetSecretValue on A's `booqy/<env>/meta-ads/*` and GetItem on
+A's table (read only); gift-cards GetSecretValue on the platform Stripe key
+and the Turnstile secret; waitlist, gift-cards invoke `notification:live`.
+New stateful resources: tables `<prefix>google-business`,
+`<prefix>waitlist`, `<prefix>social-posting`, `<prefix>gift-cards`; secrets
+`${prefix}google-business/app` (value by hand) and
+`${prefix}gift-cards/code-pepper` (random); Scheduler groups
+`<prefix>google-business`, `<prefix>waitlist`, `<prefix>social-posting`;
+SQS DLQs `<prefix>google-business-dlq`, `<prefix>social-posting-dlq`.
+
 ## Feature ledger
 
 Status values: todo | building | reviewing | fixing | verified | blocked |
@@ -388,10 +506,10 @@ merged.
 | A. Meta ads | on dev, awaiting owner go-ahead (merged to dev 2026-11-04; CI dev smoke tests passed in all repos; real Meta/Bedrock/Step Functions runtime unverified) | `build/run-1-meta-ads` -> `build/run-1-integration` | 1 | see Run 1 open findings 4 | real Meta API, Bedrock, Step Functions runtime, screenshots | Meta Business Verification, App Review, Login for Business config, `meta-ads/app` secret value, Bedrock model access |
 | B. Site builder | on dev, awaiting owner go-ahead (merged to dev 2026-11-04; CI dev smoke tests passed in all repos; real Meta/Bedrock/Step Functions runtime unverified) | `build/run-1-site-builder` -> `build/run-1-integration` | 1 | Run 1 open findings 1, 2, 4, 5 | render image build, Step Functions runtime, screenshots | Owner: render image job in customer-front-end pipeline |
 | C. Guest CRM | on dev, awaiting owner go-ahead (merged to dev 2026-11-04; CI dev smoke tests passed in all repos; real Meta/Bedrock/Step Functions runtime unverified) | `build/run-1-guest-crm` -> `build/run-1-integration` | 1 | Run 1 open finding 3 (stream readers) | stream throttling, screenshots | Lawyer: legitimate-interest assessment template; marketing 19 § existing-customer exception |
-| D. Google Business Profile + reviews | todo | | 0 | | | Google Business Profile API access |
-| E. Gift cards | todo | | 0 | | | Accountant: gift card VAT (single- or multi-purpose) |
-| F. Waitlist | todo | | 0 | | | |
-| G. Social posting | todo | | 0 | | | Depends on A's Meta connection |
+| D. Google Business Profile + reviews | built, NOT reviewed (Run 2 batch 1, draft PRs) | `build/run-2-google-business` -> `build/run-2-integration` | 1 | Run 2 batch 1 findings 1, 2 | real GBP API, Scheduler/bus rule runtime, SES/SNS delivery, screenshots | Google Business Profile API access and OAuth verification of `business.manage`; `google-business/app` secret value; lawyer: review request as marketing / soft opt-in |
+| E. Gift cards | built, NOT reviewed (Run 2 batch 1, draft PRs); **VAT treatment needs accountant review** | `build/run-2-gift-cards` -> `build/run-2-integration` | 1 | Run 2 batch 1 findings 3-6 | Stripe test mode end to end, Kassa (blocked: no voucher payment means), code email delivery, screenshots | Accountant: multi-purpose voucher, 2421/3990, breakage; lawyer: validity 24 months, withdrawal right, kassaregister voucher reporting; decision on the control system voucher means |
+| F. Waitlist | built, NOT reviewed (Run 2 batch 1, draft PRs) | `build/run-2-waitlist` -> `build/run-2-integration` | 1 | Run 2 batch 1 finding 8 | SMS delivery, Scheduler runtime, screenshots | Owner: card guarantee on conversions (v1 none) |
+| G. Social posting | built, NOT reviewed (Run 2 batch 1, draft PRs) | `build/run-2-social-posting` -> `build/run-2-integration` | 1 | Run 2 batch 1 findings 7, 10 | real Meta publishing, Instagram daily post limit, Scheduler/bus rule runtime, screenshots | Meta App Review for `pages_manage_posts` and `instagram_content_publish`; lawyer: alcohol posts (alkohollagen 7 kap.) |
 | H. Personalliggare | todo | | 0 | | | Legal review |
 | I. Fortnox and Visma posting | todo | | 0 | | | Fortnox and Visma developer access |
 | J. Margin per dish | todo | | 0 | | | |
