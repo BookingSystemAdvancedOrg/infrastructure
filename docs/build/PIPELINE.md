@@ -1,7 +1,7 @@
 # Pipeline
 
 ## Lock
-LOCKED 2026-11-04 run-merge-run1 (Jarvis instruction: merge Run 1 to dev)
+unlocked (released 2026-11-04, Run 1 merged to dev)
 
 ## Position
 Step: Run 0 addendum (K events & tickets, L phone agent). Review round 1 done, fix round 1 pushed (infra 4b251cb, console 05fb778, customer ecf187b).
@@ -90,3 +90,13 @@ No owner approval on infrastructure#40 yet (only the orchestrator comment, no re
 - 2026-11-04 (via Jarvis): Owner approves the IAM rows and new stateful resources in infrastructure#40 as listed in the PR comment (plan 122 add, 3 change, 0 destroy). Merge Run 1 to dev in order infrastructure#40, application#71, booqy-console#14, admin-front-end#24, customer-front-end#16, CI green on each, infra apply finished before application. Then dev smoke test, mark A, B1, C 'on dev awaiting owner go-ahead', notify. Nothing goes to main.
 
 - 2026-11-04 (via Jarvis, appended 12:26Z by a run that found the lock held): Owner: "you should not quit until all features i have requested are implemented and added and push it to dev". After Run 1 continue straight through the programme without waiting for a prompt: Run 2 (D, E, F, G, H, B2, K, L incl. the phone agent counter-offer flow) including the all-platform ads work from the ADR-A addendum, then Run 3 (I, J, brand consolidation, hardening, release checklist). Keep reviews, fix loops and gates. Merge to dev only; nothing to main or production; all features off by default. Do not stop on an external approval or an undecided [NEEDS YOUR OK]: build against mock/simulator clients with safe placeholders, record as unverified in STATUS.md, keep going. Does NOT approve future IAM changes: list each new IAM row in the PR and in Needs owner and notify. Never change OIDC or deploy roles, touch live keys or destroy production data. When finished, report which features are on dev and which are only verified against simulators.
+
+## Position update 2026-11-04 (Run 1 merged to dev)
+Merged to dev in order, CI green on each: infrastructure#40 (c9cd377; dev apply + smoke test OK), application#71 (63c1302; deploy + smoke OK), booqy-console#14 (eed261e; smoke OK), admin-front-end#24 (5adf0a7; OK), customer-front-end#16 (64071a7; OK). A (Meta ads), B1 (site builder), C (Guest CRM) are 'on dev, awaiting owner go-ahead'. No PR to main opened. Only the CI smoke tests were run; no Playwright flows or real-provider tests (unverified).
+Next: wait for an owner go-ahead via Jarvis per feature before opening a dev->main PR. Follow-ups: ads.pause_all unguarded in run_sweep; Run 2 notes above.
+
+## Needs owner (dev test steps, Run 1)
+- A Meta ads: in the console Settings, check the 'Meta ads' card (kill switch, cap) and the tenant Integrations section; in admin open the Annonser tab and walk the 6-step wizard on the test tenant (simulated Meta only; campaigns are created paused).
+- B1 Site builder: admin Webbplats tab, edit pages/blocks, preview link, publish, roll back from Versioner. Render image build job still missing, so do not use builder mode for real tenants.
+- C Guest CRM: admin Gäster page, profile drawer, segments, audience picker in campaigns.
+- All three are entitled off by default; enable per test tenant in the console.

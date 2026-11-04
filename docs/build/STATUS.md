@@ -385,9 +385,9 @@ merged.
 
 | Feature | Status | Branch | Attempts | Open issues | Unverified | Human actions needed |
 |---|---|---|---|---|---|---|
-| A. Meta ads | reviewing (built + integrated, awaiting Fable review and brand guardian) | `build/run-1-meta-ads` -> `build/run-1-integration` | 1 | see Run 1 open findings 4 | real Meta API, Bedrock, Step Functions runtime, screenshots | Meta Business Verification, App Review, Login for Business config, `meta-ads/app` secret value, Bedrock model access |
-| B. Site builder | reviewing (B1 built + integrated, awaiting Fable review and brand guardian; B2 is Run 2) | `build/run-1-site-builder` -> `build/run-1-integration` | 1 | Run 1 open findings 1, 2, 4, 5 | render image build, Step Functions runtime, screenshots | Owner: render image job in customer-front-end pipeline |
-| C. Guest CRM | reviewing (built + integrated, awaiting Fable review and brand guardian) | `build/run-1-guest-crm` -> `build/run-1-integration` | 1 | Run 1 open finding 3 (stream readers) | stream throttling, screenshots | Lawyer: legitimate-interest assessment template; marketing 19 § existing-customer exception |
+| A. Meta ads | on dev, awaiting owner go-ahead (merged to dev 2026-11-04; CI dev smoke tests passed in all repos; real Meta/Bedrock/Step Functions runtime unverified) | `build/run-1-meta-ads` -> `build/run-1-integration` | 1 | see Run 1 open findings 4 | real Meta API, Bedrock, Step Functions runtime, screenshots | Meta Business Verification, App Review, Login for Business config, `meta-ads/app` secret value, Bedrock model access |
+| B. Site builder | on dev, awaiting owner go-ahead (merged to dev 2026-11-04; CI dev smoke tests passed in all repos; real Meta/Bedrock/Step Functions runtime unverified) | `build/run-1-site-builder` -> `build/run-1-integration` | 1 | Run 1 open findings 1, 2, 4, 5 | render image build, Step Functions runtime, screenshots | Owner: render image job in customer-front-end pipeline |
+| C. Guest CRM | on dev, awaiting owner go-ahead (merged to dev 2026-11-04; CI dev smoke tests passed in all repos; real Meta/Bedrock/Step Functions runtime unverified) | `build/run-1-guest-crm` -> `build/run-1-integration` | 1 | Run 1 open finding 3 (stream readers) | stream throttling, screenshots | Lawyer: legitimate-interest assessment template; marketing 19 § existing-customer exception |
 | D. Google Business Profile + reviews | todo | | 0 | | | Google Business Profile API access |
 | E. Gift cards | todo | | 0 | | | Accountant: gift card VAT (single- or multi-purpose) |
 | F. Waitlist | todo | | 0 | | | |
