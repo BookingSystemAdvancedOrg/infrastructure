@@ -560,3 +560,80 @@ already ships from the same workspace.
 
 **Files.** `docs/adr/DECISIONS.md` only (the dependency itself lives in
 customer-front-end `packages/site-kit/package.json`).
+
+## 2026-11-04: site-kit's `@booqy/brand` dependency must become the npm alias before the first site-kit release; the brand CSS is loaded by site-kit or by the consuming site
+
+**Contradiction.** The entry above has `packages/site-kit/package.json`
+declare `"@booqy/brand": "0.1.0"`. Inside the customer-front-end
+workspace that resolves to `packages/brand`, but ADR-BRAND-sharing
+point 3 says the package is published to GitHub Packages as
+`@bookingsystemadvancedorg/brand` and that consumers use the npm alias
+`"@booqy/brand": "npm:@bookingsystemadvancedorg/brand@^0.1.0"`. A
+published `@booqy/site-kit` with the bare `0.1.0` specifier would ask
+the registry for a package that does not exist under that name. The
+brand components site-kit now renders (Bar, Button) also need the brand
+stylesheet, and nothing in site-kit loads it.
+
+**Decision.** Not a break today: `@booqy/site-kit` is unpublished and the
+workspace resolves brand from source (`@booqy/source` condition in
+site-kit's `tsconfig.json` and `vite.config.ts`, customer-front-end
+2f43d25). Before the first site-kit release, and only once the brand
+package has been published, `packages/site-kit/package.json` must
+declare the dependency as
+`"@booqy/brand": "npm:@bookingsystemadvancedorg/brand@^0.1.0"` (the
+alias of ADR-BRAND-sharing point 3), so a consumer installing site-kit
+pulls brand from GitHub Packages under the same import name. The brand
+CSS is loaded exactly once by one of two parties: either site-kit's
+`styles` entry (`src/styles.ts`) imports `@booqy/brand/styles.css`, or
+the consuming site does (the guest site does today in `src/main.tsx`);
+the site-kit README states which, and the release checklist checks both
+the alias and the CSS. The brand package stays `external` in site-kit's
+library build either way (never bundled twice).
+
+**Reason.** The bare version specifier is correct for the workspace and
+wrong for the registry; the alias keeps the import name `@booqy/brand`
+in every repo (ADR-BRAND-sharing point 1) while installing the published
+name. Deferring the switch is safe because site-kit cannot be installed
+from a registry yet, and switching before brand is published would
+break the workspace install.
+
+**Files.** `docs/adr/DECISIONS.md` only; the change lands in
+customer-front-end `packages/site-kit/package.json` (and `src/styles.ts`
+or the README) with the first site-kit release.
+
+## 2026-11-04: waitlist settings are rolled back when the location mirror is denied; the mirror uses `ReturnValues` NONE
+
+**Contradiction.** F6 (`PUT /locations/{locationId}/waitlist/settings`)
+writes the settings row first, then mirrors `publicJoin` onto the
+location row for `/site-config`. The IAM statement `MirrorPublicJoin`
+(infrastructure c1d574e) now allows the `UpdateItem` only with
+`dynamodb:Attributes` limited to `PK`, `SK`, `waitlist` and
+`dynamodb:ReturnValues` equal to `NONE`, so a mirror call that asks for
+return values is denied (and one against a missing location row fails
+its condition) after the settings row has already been saved: settings
+and mirror would disagree and `/site-config` would show the old
+`publicJoin`.
+
+**Decision.** Built in application 3660cd5. The mirror `UpdateItem` keeps
+`ReturnValues` at its default `NONE` (the policy allows nothing else).
+When the mirror raises a `ClientError`, `_undo_settings` puts the
+settings row back before the error propagates: the previous item is
+written again, or the row is deleted when there was none (previous
+`version` 0), both conditional on `version = <the version this request
+wrote>` so a later save by the owner is never overwritten; a failed
+condition is swallowed (someone saved after us, their save stands). The
+request then fails as before and the owner saves again on the old
+version. The IAM condition stays as it is: the role must not read other
+location attributes back through `ReturnValues`.
+
+**Reason.** The two writes are not in one transaction (different tables,
+and the location table is the hotspot's); restoring the first write on a
+denied second one is the cheapest way to keep the owner's settings and
+the public site consistent. Requiring `NONE` is the same rule
+site-builder's mirror already follows.
+
+**Files.** `docs/adr/DECISIONS.md` (this entry records the rollback;
+`docs/adr/ADR-F-waitlist.md` route 6 and `docs/build/CONTRACTS.md` 6.F F6
+describe the mirror itself); `waitlist/main.tf` `MirrorPublicJoin`
+(infrastructure c1d574e); `functions/waitlist/app.py` `put_settings` /
+`_undo_settings` and `tests/test_waitlist.py` (application 3660cd5).
