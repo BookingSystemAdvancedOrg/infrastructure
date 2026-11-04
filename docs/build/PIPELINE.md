@@ -1,7 +1,7 @@
 # Pipeline
 
 ## Lock
-LOCKED 2026-11-04T13:33Z by run-20261104T1333Z (Run 2 start)
+LOCKED 2026-11-04T19:34Z by run-20261104T1934Z (took over: prior lock 13:33Z reached 6h; last prior activity 15:17Z, Run 2 batch 1 fix round 1 pushed, no review verdict recorded)
 
 ## Position
 Step: Run 0 addendum (K events & tickets, L phone agent). Review round 1 done, fix round 1 pushed (infra 4b251cb, console 05fb778, customer ecf187b).
