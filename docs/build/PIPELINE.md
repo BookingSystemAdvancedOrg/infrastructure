@@ -1,7 +1,7 @@
 # Pipeline
 
 ## Lock
-LOCKED 2026-11-04T23:32Z run run-20261104T2332Z
+LOCKED 2026-11-05T05:40Z run run-20261105T0540Z (took over stale lock from run-20261104T2332Z, no repo activity since 22:47Z)
 
 ## Position
 Step: Run 0 addendum (K events & tickets, L phone agent). Review round 1 done, fix round 1 pushed (infra 4b251cb, console 05fb778, customer ecf187b).
