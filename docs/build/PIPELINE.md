@@ -214,3 +214,7 @@ Low notes: add a two-listing release test; owed resale_refund vs later dashboard
 Then: finish K (table pick, occurrence capacity if remaining), B2, A2, rest of L, I, J, Run 3.
 ## Needs owner (K-finish)
 - Allow the orchestrator to squash-merge the reviewed dev PRs (application#78, customer#20, admin#30), or merge them yourself in that order.
+
+## Owner instruction appended 2026-11-05 23:46Z (via the owner's Claude Code session, API fire, by a run that found the lock live)
+Routine re-enabled on Sonnet. Owner's session is merging the reviewed resale PRs application#78, customer-front-end#20 and admin-front-end#30 to dev and deleting their branches; skip any already merged. Next: fix the K media PRs (admin#31 stray admin-front-end symlink; save orphans the upload; Google Wallet JWT over 1800 chars in live mode; Wallet label-in-name; CONTRACTS.md 6.K and DECISIONS.md for imageKey/imageAlt and K19 params; resale CONTRACTS.md and ADR-K 8 text from application#78), rebase application#79, admin-front-end#31, customer-front-end#21 onto dev after resale lands, re-review, record as ready under Needs owner (owner's session merges). Then rest of K (table pick, occurrence capacity if missing), B2, A2 ads adapters with guided connect and tracking UI, rest of L, I, J, Run 3. Release the stale lock if dead. Nothing to main; all features off by default.
+Run note: lock treated as live because build/run-2d-k-resale in application (22:03Z) and admin-front-end (22:16Z) have commits younger than 2h; next run after ~00:20Z may proceed.
