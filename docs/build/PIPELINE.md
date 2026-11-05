@@ -1,7 +1,7 @@
 # Pipeline
 
 ## Lock
-LOCKED 2026-11-05T17:53Z run-20261105T1510Z (refresh at least every 60 min). Merged: infra#44, app#76, admin#28, customer#19, app#77. In flight: admin#29 (awaits app#77 deploy), resale worker, media worker.
+LOCKED 2026-11-05T18:48Z run-20261105T1510Z (refresh at least every 60 min). Merged: infra#44, app#76, #77, admin#28, #29, customer#19. In flight: resale fix round 1 (app#78, admin#30, customer#20), media review (app#79, admin#31, customer#21).
 
 ## Position
 Step: Run 0 addendum (K events & tickets, L phone agent). Review round 1 done, fix round 1 pushed (infra 4b251cb, console 05fb778, customer ecf187b).
