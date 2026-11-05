@@ -3,7 +3,7 @@
 Ledger for the multi-agent build in `docs/build/PROMPTS.md`. Read this
 first when a run starts or resumes; skip anything already verified or merged.
 
-Last updated: 2026-11-05 (Run 2 batch 2: H Personalliggare and L AI phone agent built on `build/run-2b-integration`, draft PRs against `dev`, NOT reviewed, see Run 2 batch 2 below). Previously: 2026-11-04 (Run 2 batch 1: D, E, F, G built on `build/run-2-<feature>`, merged into `build/run-2-integration` and then to `dev`, awaiting the owner's go-ahead, see Run 2 batch 1 below; spec change after the Run 1 merges: ADR-L counter-offers settled and the ADR-A2 all-platform ads addendum written on draft PRs, see "Spec change 2026-11-04" below; Run 1 A, B1, C are on `dev` awaiting the owner's go-ahead).
+Last updated: 2026-11-05 (Run 2 batch 2: H Personalliggare and L AI phone agent built on `build/run-2b-integration`, draft PRs against `dev`, reviewed once, fix round 1 applied, see "Fix round 1" under Run 2 batch 2 below). Previously: 2026-11-04 (Run 2 batch 1: D, E, F, G built on `build/run-2-<feature>`, merged into `build/run-2-integration` and then to `dev`, awaiting the owner's go-ahead, see Run 2 batch 1 below; spec change after the Run 1 merges: ADR-L counter-offers settled and the ADR-A2 all-platform ads addendum written on draft PRs, see "Spec change 2026-11-04" below; Run 1 A, B1, C are on `dev` awaiting the owner's go-ahead).
 
 ## Spec change 2026-11-04 (owner instructions of 2026-11-04, Fable-led, no code behind a flag changes)
 
@@ -624,6 +624,43 @@ Open findings for the orchestrator (contract or hotspot):
    only through the export.
 11. **L jobs** scan the table (sweep every 5 min, nightly); a status index is
    the upgrade when the table grows.
+
+### Fix round 1 (2026-11-05, reviewer findings, lead-fixed: tenant isolation and hotspot changes)
+
+Fixed on `build/run-2b-integration` (application, admin-front-end,
+infrastructure; booqy-console untouched):
+
+| # | Finding | Fix | Tests |
+|---|---|---|---|
+| 1 | Agent principal: `staff_location()` refused status `system`, and the `USER#agent:<l>` row made the tenant's Användare list answer 409 | `shared/tenant.staff_location()` accepts `system` **only** for subs with the `agent:` prefix (`tenant.SYSTEM_SUB_PREFIX`, which `phone_agent.AGENT_USER_PREFIX` now reuses), for the row's own location; `manage-user` `_list_users` skips `USER#agent:*` / status `system` rows. CONTRACTS.md 4 row updated. Finding 1 above is closed. | `test_shared_tenant.py::test_agent_system_user_is_staff_of_its_own_location_only` (own location ok, other location 404, other tenant 404, human sub with `system` 404, agent sub `disabled` 404), `test_manage_user.py::test_owner_list_skips_system_principals` |
+| 5 | `phone-agent` privacy hooks queried `CALL` and `CALLBACK#` (the first prefix already covers the second): callbacks exported/erased twice | one query | `test_phone_agent_routes.py::test_privacy_hooks_count_a_callback_once` |
+| 6 | `personalliggare` purge deleted `HEAD` while ledger rows stayed: a re-onboarded tenant could never append (seq 1 exists, chain restarts) | purge keeps `LOCATION#<l>/HEAD` (seq + last hash, no personal data); everything else in the state table still goes | `test_personalliggare.py::test_purge_then_re_onboard_then_check_in_continues_the_chain` (purge, persons re-created, check-in gets seq 3 with the chain verified), purge test asserts HEAD is the only row left |
+| 9 | A correction with `correctsSeq` could name another person's record | 400 `wrong_person` (field `correctsSeq`) unless `personId` equals the target's; CONTRACTS.md H4, ADR-H errors, OpenAPI, admin `ERRORS` copy | `test_personalliggare.py::test_correction_must_name_the_person_of_the_record_it_corrects` |
+| 3 | Art. 50 evidence only on an exact-text transcript match | the first final agent transcript of a call (status `answered`) marks `disclosed`; the provider's text is stored as `disclosure.spoken`, `disclosure.verbatim` = equal to the greeting after folding case, punctuation and whitespace. ADR-L decision 6 and the admin type updated. | `test_phone_agent_calls.py::test_disclosure_evidence_is_the_providers_first_final_agent_transcript` (caller/partial transcripts ignored, normalised text verbatim, later turns never overwrite), `::test_disclosure_evidence_keeps_a_diverging_provider_text` |
+| - | unused `cancel-reservation` in `phone_agent/tools.FUNCTIONS` | removed; CONTRACTS.md 14 IAM note says it is not invoked (finding 3 above closed) | existing |
+
+Gates after the fixes: application `pytest -n 8` 4269 passed, 2 skipped
+(8 new tests); `gen_contracts.py --check` with the siblings beside: in
+sync; ruff E/F/W on the touched files: no new findings (the 5 pre-existing
+ones unchanged); admin `tsc` clean and the personalliggare/phone-agent
+vitest files 20 passed.
+
+**Needs owner / follow-ups (not fixed in this round):**
+
+- **Public Function URL on `phone-agent-call` without reserved concurrency
+  or a throttle** (the provider webhooks and the turn endpoint answer there;
+  signature/key protected, but a flood still costs Lambda time). Owner
+  decision on reserved concurrency and, if wanted, a WAF/throttle in front.
+- **Full-table Scans in `phone-agent-jobs`** (sweep every 5 min and the
+  nightly job): a sparse status index is the upgrade once the table grows
+  (finding 11 above).
+- **`correctsSeq` optional** in H4: a missing value is a late registration
+  and the event publishes `correctsSeq: 0` (finding 6 above); contract
+  owner to decide whether the field becomes nullable.
+- **Export chain growth**: H6/H9 verify the whole chain on every export
+  (`pl.chain()` reads every ledger row of the location); fine for years of
+  one restaurant's records, but a checkpointed verification is the upgrade
+  for very large locations.
 
 IAM rows (all on NEW roles; no existing role, permissions boundary,
 OIDC/deploy role, Cognito, CloudFront or KMS changed; the hook callers'

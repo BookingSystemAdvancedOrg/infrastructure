@@ -235,7 +235,7 @@ IAM-scoped with `dynamodb:Attributes`):
 | location table `TENANT#<t>/LOCATION#<l>` | `waitlist = {publicJoin}` | `waitlist` | `tenant-site-config` |
 | tenant table `PLATFORM#META_ADS/SETTINGS` (new row) | `killSwitch`, `maxMonthlyCapSek` | `meta-ads` (via console forward) | `meta-ads`, `meta-ads-jobs` |
 | tenant table `PLATFORM#PHONE_AGENT/SETTINGS` (new row, addendum) | `killSwitch`, `maxMinutesCap` | `phone-agent` (via console forward) | `phone-agent`, `phone-agent-call` |
-| user table `USER#agent:<l>/PROFILE` (new rows, addendum) | whole row `{tenantId, role: "staff", locationId, name: "Telefonassistent", status: "system"}` | `phone-agent` (Put/Delete, `dynamodb:LeadingKeys` `StringLike USER#agent:*`) | `staff_location()` in the existing Lambdas the agent invokes (ADR-L "agent principal") |
+| user table `USER#agent:<l>/PROFILE` (new rows, addendum) | whole row `{tenantId, role: "staff", locationId, name: "Telefonassistent", status: "system"}` | `phone-agent` (Put/Delete, `dynamodb:LeadingKeys` `StringLike USER#agent:*`) | `staff_location()` in the existing Lambdas the agent invokes (ADR-L "agent principal"): status `system` counts as active **only** for a sub with the `agent:` prefix (`shared/tenant.SYSTEM_SUB_PREFIX`), for its own location; `manage-user` leaves `USER#agent:*` / status `system` rows out of the tenant's user list |
 
 ## 5. Events
 
@@ -478,7 +478,7 @@ like `/m/s/{token}`, not contact data.
 | H1 | GET `/locations/{locationId}/personalliggare?day=` | jwt | owner, staff | `personalliggare` | -> `{present[], records[] (corrected view), me?}`; staff see names, no identity numbers | 400 bad day | n/a |
 | H2 | POST `/locations/{locationId}/personalliggare/check-in` | jwt | staff (self), owner (anyone) | `personalliggare` | `{recordId, personId?}` -> 201 record | 409 `already_checked_in`, `no_person_for_user` | `REQ#<recordId>` |
 | H3 | POST `/locations/{locationId}/personalliggare/check-out` | jwt | staff (self), owner (anyone) | `personalliggare` | `{recordId, personId?}` -> 201 record | 409 `not_checked_in`, `no_person_for_user` | `REQ#<recordId>` |
-| H4 | POST `/locations/{locationId}/personalliggare/corrections` | jwt | owner | `personalliggare` | `{recordId, correctsSeq?, personId, kind, eventTime, reason}` -> 201 record | 400 `reason_required`, `invalid_event_time` | `REQ#<recordId>` |
+| H4 | POST `/locations/{locationId}/personalliggare/corrections` | jwt | owner | `personalliggare` | `{recordId, correctsSeq?, personId, kind, eventTime, reason}` -> 201 record | 400 `reason_required`, `invalid_event_time`, `wrong_person` (`correctsSeq` is another person's record) | `REQ#<recordId>` |
 | H5 | GET `/locations/{locationId}/personalliggare/inspection?day=` | jwt | owner, staff | `personalliggare` | -> full view incl. identity numbers; appends `inspection_view` | 400 bad day | appends by design |
 | H6 | GET `/locations/{locationId}/personalliggare/export?from&to&format=csv\|json` | jwt | owner | `personalliggare`, **or** records exist (exception) | -> file + `chainOk`, `firstBadSeq?` | 400 bad range | n/a |
 | H7 | GET `/tenant/personalliggare/persons` | jwt | owner | `personalliggare` | -> `{persons[]}` | none | n/a |
@@ -1062,10 +1062,11 @@ Also flagged (addendum, new roles touching existing resources, built by
 the features in Run 2): the phone-agent roles get `lambda:InvokeFunction`
 on `tenant-site-config:live`, `get-availability:live`,
 `create-pending-reservation:live`, `get-reservation:live`,
-`mark-arrived:live`, `cancel-reservation:live`, `get-menu:live`,
+`mark-arrived:live`, `get-menu:live`,
 `list-layout-version:live` (the agent's tools, ADR-L; the last one added
 2026-11-04 for the floor plan behind the nearby-table counter-offer,
-decision 13) and `PutItem/DeleteItem` on the user table limited by
+decision 13; `cancel-reservation:live` is not invoked, a cancel goes
+through the staff status route on `mark-arrived`) and `PutItem/DeleteItem` on the user table limited by
 `dynamodb:LeadingKeys` to `USER#agent:*`; the events-tickets role gets the
 reservation and slot-occupancy item actions of `create-pending-reservation`
 for table pick (or invoke on it; decided in Run 2); both get invoke on

@@ -109,6 +109,7 @@ Errors `{error, code, field?}`. Staff are held to their assigned location.
 
 Errors: 400 `invalid_personal_identity`, `reason_required`,
 `invalid_event_time` (future, or older than the retention window),
+`wrong_person` (`correctsSeq` names another person's record),
 `unsupported fields`; 403 `feature_not_in_plan`, `owner_only`; 404 foreign
 location, person or seq; 409 `already_checked_in`, `not_checked_in`,
 `no_person_for_user` (staff login not linked), `changed_retry`.
