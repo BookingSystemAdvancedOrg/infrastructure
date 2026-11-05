@@ -1,7 +1,7 @@
 # Pipeline
 
 ## Lock
-LOCKED 2026-11-05T21:35Z run-20261105T2133Z (took over stale lock 18:48Z; refresh at least every 60 min). Resuming K-finish: resale fix round 1 (app#78, admin#30, customer#20), media review (app#79, admin#31, customer#21).
+LOCKED 2026-11-05T22:17Z (refreshed; started 21:35Z) run-20261105T2133Z (took over stale lock 18:48Z; refresh at least every 60 min). Resuming K-finish: resale fix round 1 (app#78, admin#30, customer#20), media review (app#79, admin#31, customer#21).
 
 ## Position
 Step: Run 0 addendum (K events & tickets, L phone agent). Review round 1 done, fix round 1 pushed (infra 4b251cb, console 05fb778, customer ecf187b).
