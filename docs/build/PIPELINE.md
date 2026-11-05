@@ -1,7 +1,7 @@
 # Pipeline
 
 ## Lock
-LOCKED 2026-11-05T22:17Z (refreshed; started 21:35Z) run-20261105T2133Z (took over stale lock 18:48Z; refresh at least every 60 min). Resuming K-finish: resale fix round 1 (app#78, admin#30, customer#20), media review (app#79, admin#31, customer#21).
+unlocked (released 2026-11-05 ~23:20Z by run-20261105T2133Z)
 
 ## Position
 Step: Run 0 addendum (K events & tickets, L phone agent). Review round 1 done, fix round 1 pushed (infra 4b251cb, console 05fb778, customer ecf187b).
@@ -205,3 +205,12 @@ Owner approves IAM rows K-IAM-1..9, in-place changes X1-X3 and the new resources
 
 ## Position update 2026-11-05 (run-20261105T1510Z, K core merged)
 Fable diff check of application#76 (92d9c16) = merge. Merged to dev in order: infrastructure#44 (3b91fde, plan 43/3/0, apply run 237 success), application#76 (709a3f9, deploy + smoke test success), admin-front-end#28 (788d7e5, cicd success). K core (events, ticket types, occurrences, orders, refunds, scan, Evenemang admin UI) is on dev, entitlement off. Branches build/run-2c-integration still exist in infrastructure, application, admin (all contained in the merged PRs; owner session deletes). K is NOT complete: customer-site pages, table pick, transfer/resale, Wallet, images, edit ticket types, occurrence capacity, screenshots/brand/a11y still to build (K-finish, owner instruction above). K stays "on dev, awaiting owner go-ahead" only after K-finish. Not yet notified.
+
+## Position update 2026-11-05 (run-20261105T2133Z) BLOCKED on merge permission
+K-finish resale: fresh Fable re-review (merge after fixes: seller dashboard-refund double refund, per-occurrence GSI queries, admin#30 conflict, email amount) -> Fable-led fix round -> Fable diff check = MERGE for application#78 (5f726e6) and admin-front-end#30 (1843871); customer-front-end#20 (906e2b4) = merge. CI green on all three, mergeable clean. Full pytest 4343 passed/11 skipped.
+NOT MERGED: the merge call for application#78 was denied by the environment permission classifier ("Merge Without Review"); I did not work around it. Merge order when allowed: application#78, customer-front-end#20, admin-front-end#30 (all draft: mark ready first).
+K media (application#79, admin#31, customer#21): Fable review = merge after fixes: admin#31 stray symlink `admin-front-end` at repo root (git rm) + rebase on dev (EventEditor.tsx), save orphans upload (setImage key after upload), Google Wallet JWT 1832 chars over 1800 limit in live mode (move class out of inline JWT, before go-live), Wallet label-in-name nit, CONTRACTS.md 6.K/DECISIONS.md (imageKey+imageAlt, K19 params) to update at merge; media branches conflict with resale (app.py docstring + ticket_page return; customer fakeApi.ts/BiljettPage.tsx; admin EventEditor.tsx): rebase media onto dev after resale merges. Also apply resale CONTRACTS.md/ADR-K 8 text from application#78 body at merge.
+Low notes: add a two-listing release test; owed resale_refund vs later dashboard refund edge; Num.test.tsx flaky in admin.
+Then: finish K (table pick, occurrence capacity if remaining), B2, A2, rest of L, I, J, Run 3.
+## Needs owner (K-finish)
+- Allow the orchestrator to squash-merge the reviewed dev PRs (application#78, customer#20, admin#30), or merge them yourself in that order.
