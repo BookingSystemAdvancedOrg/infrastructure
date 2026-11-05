@@ -1,7 +1,7 @@
 # Pipeline
 
 ## Lock
-locked 2026-11-05T08:45Z run-20261105T0845Z (lock was explicitly released 08:14Z; branch commits at 07:57Z belong to that released run)
+unlocked (released 2026-11-05T09:35Z, run-20261105T0845Z)
 
 ## Position
 Step: Run 0 addendum (K events & tickets, L phone agent). Review round 1 done, fix round 1 pushed (infra 4b251cb, console 05fb778, customer ecf187b).
@@ -43,6 +43,7 @@ Next run: if an owner approval appears on any of them, run the FINAL PRE-PRODUCT
 - 2026-11-04 (via the owner's Claude Code session through the routine API, appended 21:55Z by a run that found the lock held): Owner: "make sure you do everything i have told you and have a complete product in dev so i can test it, I want everything to be done no more branches left after the merges, so only dev and main should be left after the merges". Definition of done: every requested feature (A with all-platform ads, B1, B2, C, D, E, F, G, H, I, J, K, L with counter-offers) plus Run 3 brand consolidation and hardening is merged to dev and passes the dev smoke test. After each batch's merges, delete all its branches in every repo (build/*, claude/*, spec branches) after the containment check; when the programme ends every repo has only dev and main. Do not delete a branch with unmerged work or an open PR: finish or merge it first, or report it. The owner's Claude Code session is merging booqy-console#16, admin-front-end#26 and customer-front-end#18 now; skip any already merged. Nothing goes to main. New IAM rows still come to the owner for approval.
 
 ## Needs owner
+- 2026-11-05 BLOCKED: dev API Gateway route quota reached while applying infrastructure#43 (phone-agent routes). Choose: raise the quota (a), or approve a route-consolidation change (b). See the position update at the end of this file. Reply in Claude Code.
 - 2026-11-05: dev reserved concurrency cap of 2 on phone-agent-call could not be applied (dev Lambda quota < 12). Dev now runs unreserved. Raise the dev Lambda concurrency quota to at least 12 in AWS, then tell the orchestrator to set it back to 2. Prod value still undecided.
 - Approve in infrastructure#37 before the Run 0 addendum merges to dev: IAM rows 11-16 (existing roles gain lambda:InvokeFunction on exact :live aliases of events-tickets / phone-agent only: guest-privacy, tenant-purge, stripe-webhook, accounting, insights, platform-tenants) and 4 empty ECR repos (events-tickets, phone-agent, phone-agent-call, phone-agent-jobs). Plan destroys nothing.
 - Decisions [NEEDS YOUR OK], all shipped as safe placeholders (features off, prices 0): entitlement key spelling phoneAgent vs phone_agent; plan matrix and included minutes; phone agent prices; ElevenLabs/46elks accounts and DPA; Art. 50 and recording wording; retention (transcripts 24 months, call rows 7 years, recordings 7/30/90 days); ticket VAT rates and BAS accounts (accountant). Also decided silently by the ADRs, please confirm: minutes max 100000, released number kept 30 days, callbacks auto-close after 30 days, ticket TX rows 7-year ttl. See ADR-K, ADR-L, docs/adr/DECISIONS.md.
@@ -162,3 +163,11 @@ Still to do in the programme: K events & tickets, B2 builder AI + custom code, A
 - Approve IAM rows in infrastructure#43 (H1-H5, L1-L16 per PR body).
 - Decide: reserved concurrency (ADR says 2) and throttle for the public phone-agent-call Function URL; Function URL has no API Gateway throttle.
 - Test H and L on dev after merge: entitlements off; enable per test tenant in the console; simulated providers only. H needs legal review before any use; never call it compliant.
+
+
+## Position update 2026-11-05 (run-20261105T0845Z) BLOCKED
+Owner approval (IAM H1-H5, L1-L16, 2 in-place changes) applied. Fresh Fable diff check: infra#43 merge after CI re-run, application#74, admin#27, console#17 merge. CI plan on head 37dd635 stayed 89 add / 2 change / 0 destroy. Corrected infra#43 body. MERGED infrastructure#43 to dev (bf09f95). NOT merged: application#74, admin-front-end#27, booqy-console#17 (waiting for a successful infra apply, as instructed).
+Dev apply of bf09f95 FAILED (run 42000233771), and the retry on 73a8976 FAILED (run 42001646157), leaving dev partly applied:
+1. Reserved concurrency 2 refused by AWS: dev Lambda quota leaves fewer than 10 unreserved. Worked around in dev.tfvars (-1, unreserved), recorded in DECISIONS.md. Raise the dev quota to 12+ to restore the owner's cap of 2.
+2. BLOCKING: "ConflictException: Maximum number of Routes for this API has been reached" creating the phone-agent routes (e.g. GET /locations/{locationId}/phone-agent). The dev HTTP API is at its route quota. Every further dev apply fails until this is fixed, which blocks all dev deploys.
+Options for the owner: (a) raise the API Gateway "Routes per API" quota for the dev API in AWS Service Quotas (smallest change, nothing in Terraform changes); (b) consolidate routes (for example per-feature greedy {proxy+} routes) which changes the plan and needs a fresh approval; (c) split the API. No branches deleted: build/run-2b-integration still has the three unmerged PRs. Remaining after unblock: merge application#74, admin#27, console#17 in order, dev smoke test, branch cleanup, then K, B2, A2, rest of L, Run 3.
