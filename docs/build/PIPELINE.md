@@ -1,7 +1,7 @@
 # Pipeline
 
 ## Lock
-LOCKED 2026-11-05T15:10Z run-20261105T1510Z (refresh at least every 60 min)
+LOCKED 2026-11-05T15:56Z run-20261105T1510Z (refresh at least every 60 min). infra#44 merged+applied, application#76 merged (deploy running), admin#28 next.
 
 ## Position
 Step: Run 0 addendum (K events & tickets, L phone agent). Review round 1 done, fix round 1 pushed (infra 4b251cb, console 05fb778, customer ecf187b).
