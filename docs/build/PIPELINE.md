@@ -1,7 +1,7 @@
 # Pipeline
 
 ## Lock
-LOCKED 2026-11-05T12:20Z run-20261105T1140Z (refreshed)
+LOCKED 2026-11-05T13:25Z run-20261105T1140Z (refreshed)
 
 ## Position
 Step: Run 0 addendum (K events & tickets, L phone agent). Review round 1 done, fix round 1 pushed (infra 4b251cb, console 05fb778, customer ecf187b).
@@ -183,3 +183,7 @@ Needs owner: confirm via Jarvis (a) consolidation is cancelled, (b) keep or drop
 
 ## Owner instruction appended 2026-11-05 11:43Z (via Jarvis, by a run that found the lock held)
 - Owner's session confirms: (a) route consolidation is cancelled; (b) drop shared/routing.py from application#74 (revert 9310945 did this); (c) application#75 is closed and its branch deleted. The active run owns merging application#74, admin-front-end#27 and booqy-console#17 once CI is green, then the dev smoke test and deleting merged branches. Then continue K, B2, A2, the rest of L and Run 3 without waiting. Also update the STATUS.md ledger for H and L. Nothing goes to main.
+
+## Position update 2026-11-05 (run-20261105T1140Z)
+Dev apply of infra#43 now passes (route quota 600; run 228 success). Reverted the unreviewed greedy-route resolver from application#74 (9310945; tree identical to the reviewed 497e9b5, owner had cancelled consolidation). Merged to dev, CI green: application#74 (e71c6f5, deploy + smoke test success), admin-front-end#27 (10e8483, success), booqy-console#17 (135d1c1, deploy still running at 13:25Z: verify). H Personalliggare and L phone agent (simulators only) are on dev, off by default. application#75 (greedy helper, draft) left open: owner to confirm closing it. No branch deleted (proxy denies deletion; build/run-2b-integration and build/greedy-routes-helper are contained/obsolete: owner or a run with delete rights to remove).
+Next: K events & tickets, B2 builder AI, A2 ads adapters, rest of L (real adapters), Run 3.
