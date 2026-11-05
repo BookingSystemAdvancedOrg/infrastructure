@@ -1,7 +1,7 @@
 # Pipeline
 
 ## Lock
-LOCKED run-20261105T1000Z since 2026-11-05T10:00Z (last run released explicitly 09:35Z; branch commit 08:45Z treated as pre-release activity)
+unlocked (released 2026-11-05T10:50Z, run-20261105T1000Z)
 
 ## Position
 Step: Run 0 addendum (K events & tickets, L phone agent). Review round 1 done, fix round 1 pushed (infra 4b251cb, console 05fb778, customer ecf187b).
@@ -176,3 +176,7 @@ Options for the owner: (a) raise the API Gateway "Routes per API" quota for the 
 Consolidate JWT routes of Run 0-2 features (meta-ads, site-builder, guest-crm, google-business, gift-cards, waitlist, social-posting, personalliggare, phone-agent) into greedy routes per path prefix (ANY /locations/{locationId}/<f>, ANY .../<f>/{proxy+}, same for /tenant/<f>), same Cognito authorizer. Do not touch public, operator or pre-Run-0 routes. Shared helper in application restores routeKey+pathParameters from the handler's ROUTES keys, keeps 404. Order: (1) application helper+handlers on dev, deployed; (2) infra consolidation PR; (3) after dev apply passes merge application#74, admin#27, console#17, smoke test via greedy route, delete merged branches. No IAM row change. Fable leads + fresh Fable review. Record in DECISIONS.md, update ROUTES.md/CONTRACTS.md, report route count before/after. Nothing to main.
 
 - 2026-11-05 (via the owner's Claude Code session through the routine API, appended ~10:35Z by a run that found the lock held): TOP PRIORITY, CANCELS the route consolidation instruction above. The owner's session verified the dev route limit was 300 with no request on record, then requested 600 in dev (877653167825) and prod (343695380960); both approved and now read 600 (Routes per HTTP API, L-65B5C802, eu-north-1). STOP the greedy route work: do NOT merge build/greedy-routes-helper or any route consolidation; delete that branch if it holds nothing else needed (containment check first). Keep per-endpoint routes (dev has 301 routes, prod 205). The owner's session is re-running the dev apply and will merge application#74, admin-front-end#27, booqy-console#17 if it passes; skip any already merged. Then continue K, B2, A2, the rest of L and Run 3 as already instructed. Lambda concurrency quota is 10 in dev and prod: the cap of 2 on phone-agent-call stays removed until raised; it stays in Needs owner. Nothing goes to main.
+
+## Position update 2026-11-05 (run-20261105T1000Z)
+Built application#75 (draft, build/greedy-routes-helper, 678f999) and pushed the same helper to application#74 (43d454a); Fable review of #75 was started but not awaited. Infra consolidation NOT started: a later PIPELINE.md entry (10:33Z, written by another run, marked as relayed from the owner) cancels the consolidation because the API route quota is now 600. I could not verify that text against a Jarvis payload or owner comment, but it only stops work, so I stopped. Nothing merged, nothing deleted, no branches removed. #74 now carries shared/routing.py (a no-op with per-endpoint routes).
+Needs owner: confirm via Jarvis (a) consolidation is cancelled, (b) keep or drop shared/routing.py in application#74, (c) close application#75. Until then I leave #74/#75, admin#27 and console#17 unmerged; the owner's session says it re-runs the dev apply and merges them.
