@@ -1,7 +1,7 @@
 # Pipeline
 
 ## Lock
-LOCKED 2026-11-05T14:21Z run-20261105T1140Z (refreshed)
+unlocked (released 2026-11-05T14:59Z, run-20261105T1140Z)
 
 ## Position
 Step: Run 0 addendum (K events & tickets, L phone agent). Review round 1 done, fix round 1 pushed (infra 4b251cb, console 05fb778, customer ecf187b).
@@ -190,3 +190,12 @@ Next: K events & tickets, B2 builder AI, A2 ads adapters, rest of L (real adapte
 
 ## Position update 2026-11-05 (K built, review round 1)
 K events & tickets built by worker on build/run-2c-integration: infrastructure#44 (91d3071), application#76 (feed11d), admin-front-end#28 (c61c929); console no change. Fable review: infra merge (after owner IAM approval K-IAM-1..9, in-place X1-X3), application and admin merge after fixes (refund retry txId/orphans, K9 sync mass refund vs 30s, public partition scans, midnight events, transfer spam, type_sold_out). Fable-led fix round 1 launched. No screenshots/brand-guardian yet. Next: re-review, then owner IAM approval for infra#44, then merge infra, application, admin.
+
+## Position update 2026-11-05 (K ready, waiting on owner IAM approval)
+K events & tickets: fix round 1 (all 8 findings) + Fable re-check + fix round 2 (BatchGetItem replaced by GetItem loop so no IAM change; canceled-refund handling; docs). Heads: application#76 92d9c16, admin-front-end#28 52811c91 (re-check = merge), infrastructure#44 91d3071 (review = merge). Full pytest 4318 passed/2 skipped. Application head 92d9c16 got only the small round-2 diff, not re-reviewed by a fresh reviewer: do a quick Fable diff check before merging. All three still draft; no Playwright screenshots, brand guardian or a11y review yet (admin#28 is "built, not verified").
+NOT MERGED: infra#44 needs owner approval of K-IAM-1..9 and in-place X1-X3 (see PR body). Merge order after approval: infra#44 (apply first), application#76, admin#28, dev smoke test, then mark K 'on dev, awaiting owner go-ahead'.
+Next: B2 builder AI, A2 ads adapters, rest of L (real adapters), Run 3.
+## Needs owner (K)
+- Approve IAM rows K-IAM-1..9 and X1-X3 in infrastructure#44 (plan to be confirmed 0 destroys in CI comment).
+- Accountant: ticket VAT 25/12/6 and BAS accounts; ticketSales* roles not built (books on sales<rate>/vat<rate>).
+- Not built in K: floor-plan table pick, resale, Wallet, event images, customer-site pages (/evenemang, /biljett).
