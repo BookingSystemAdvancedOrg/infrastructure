@@ -1,7 +1,7 @@
 # Pipeline
 
 ## Lock
-unlocked (released 2026-11-05T09:35Z, run-20261105T0845Z)
+LOCKED run-20261105T1000Z since 2026-11-05T10:00Z (last run released explicitly 09:35Z; branch commit 08:45Z treated as pre-release activity)
 
 ## Position
 Step: Run 0 addendum (K events & tickets, L phone agent). Review round 1 done, fix round 1 pushed (infra 4b251cb, console 05fb778, customer ecf187b).
@@ -171,3 +171,6 @@ Dev apply of bf09f95 FAILED (run 42000233771), and the retry on 73a8976 FAILED (
 1. Reserved concurrency 2 refused by AWS: dev Lambda quota leaves fewer than 10 unreserved. Worked around in dev.tfvars (-1, unreserved), recorded in DECISIONS.md. Raise the dev quota to 12+ to restore the owner's cap of 2.
 2. BLOCKING: "ConflictException: Maximum number of Routes for this API has been reached" creating the phone-agent routes (e.g. GET /locations/{locationId}/phone-agent). The dev HTTP API is at its route quota. Every further dev apply fails until this is fixed, which blocks all dev deploys.
 Options for the owner: (a) raise the API Gateway "Routes per API" quota for the dev API in AWS Service Quotas (smallest change, nothing in Terraform changes); (b) consolidate routes (for example per-feature greedy {proxy+} routes) which changes the plan and needs a fresh approval; (c) split the API. No branches deleted: build/run-2b-integration still has the three unmerged PRs. Remaining after unblock: merge application#74, admin#27, console#17 in order, dev smoke test, branch cleanup, then K, B2, A2, rest of L, Run 3.
+
+## Owner instructions (2026-11-05, via Jarvis, top priority)
+Consolidate JWT routes of Run 0-2 features (meta-ads, site-builder, guest-crm, google-business, gift-cards, waitlist, social-posting, personalliggare, phone-agent) into greedy routes per path prefix (ANY /locations/{locationId}/<f>, ANY .../<f>/{proxy+}, same for /tenant/<f>), same Cognito authorizer. Do not touch public, operator or pre-Run-0 routes. Shared helper in application restores routeKey+pathParameters from the handler's ROUTES keys, keeps 404. Order: (1) application helper+handlers on dev, deployed; (2) infra consolidation PR; (3) after dev apply passes merge application#74, admin#27, console#17, smoke test via greedy route, delete merged branches. No IAM row change. Fable leads + fresh Fable review. Record in DECISIONS.md, update ROUTES.md/CONTRACTS.md, report route count before/after. Nothing to main.
