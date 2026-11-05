@@ -648,16 +648,17 @@ range, and nothing said how a nearby table is offered when the location
 has a floor plan.
 
 **Decision.** The order is fixed in ADR-L decision 13 and the owner
-trusts the recommendation: (1) requested time free -> book it; (2) time
-taken -> the three closest free times the same day on both sides of the
-requested time (distance first, tie to the earlier time, spoken in clock
-order); (3) whole day full -> the next day once, then a callback, never a
-third day; (4) a nearby table at the requested time when the location has
-a published floor plan, offered before the time shift: two free tables on
-the same floor at most 1.0 m apart whose seats fit (`adjacent_pair`), a
-larger table the online rule keeps from this party (`larger`), or a table
-marked phone-only (`phone_only`); per location `counterOffers{nearbyTables,
-phoneOnlyTables}` (both default true). `hold_table` answers the
+trusts the recommendation: (1) requested time free -> book it; (2) a
+nearby table at the requested time when the location has a published floor
+plan, offered before the time shift: two free tables on the same floor at
+most 1.0 m apart whose seats fit (`adjacent_pair`), a larger table the
+online rule keeps from this party (`larger`), or a table marked phone-only
+(`phone_only`); per location `counterOffers{nearbyTables, phoneOnlyTables}`
+(both default true); (3) time taken -> the three closest free times the
+same day on both sides of the requested time (distance first, tie to the
+earlier time, spoken in clock order); (4) whole day full -> the next day
+once per day the caller asks for, then a callback, never a third day.
+`hold_table` answers the
 counter-offer in the same call that finds the time taken, so the happy
 path stays one tool call. The call row and `PhoneCall.Ended` carry
 `counterOffer` (new enum `CounterOffer`). Owner choices stay marked

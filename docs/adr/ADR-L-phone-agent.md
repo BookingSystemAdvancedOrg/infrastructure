@@ -285,31 +285,9 @@ Swedish first and English second.
        partySize)` answers `{holdId, ...}` when the party has an online
        table option at that time; the agent confirms the details back and
        books on the caller's "yes" (decision 11).
-    2. **Time taken -> the closest free times the same day, on both sides
-       of the requested time.** The same `hold_table` call answers `{held:
-       false, reason: "time_taken", time, before[], after[], nearby[]}`
-       (one tool call either way, so the happy path stays inside the
-       latency budget). `before` and `after` are the day's free start
-       times for the party on each side of the requested time, closest
-       first. The agent speaks at most **three** (`MAX_OFFERS`), chosen by
-       distance from the requested time, a tie going to the earlier time,
-       and spoken in clock order ("17.30, 18.30 eller 19.30")
-       **[NEEDS YOUR OK: three, and earlier-wins on a tie]**. The caller
-       names one, the agent holds it (step 1) and books.
-    3. **Whole day full -> the next day, once.** `hold_table` answers
-       `{held: false, reason: "day_full", dayFull: true}` (or
-       `get_availability` answers no times); the agent asks "Vill du att
-       jag kollar dagen efter?" and on "yes" calls `get_availability(date
-       + 1, partySize, time)`, which ranks that day's free times by
-       distance from the asked time (the time itself included when free)
-       and speaks the closest three. The agent moves to the next day
-       **once**: when that day is also full it offers a callback
-       (`request_callback`, topic "bokning"), never a third day
-       **[NEEDS YOUR OK: one day, then callback; waitlist join is v2
-       (ADR-F, open question 3)]**. The day the agent moved to is the day
-       being booked until the caller names another one.
-    4. **Nearby table at the requested time, when the location has a
-       floor plan.** Interpretation **[NEEDS YOUR OK]**: a "nearby table"
+    2. **Nearby table at the requested time, when the location has a
+       floor plan.** The `nearby[]` of the `hold_table` answer in step 3
+       (same call). Interpretation **[NEEDS YOUR OK]**: a "nearby table"
        is a table, or two tables next to each other, at the requested
        time that the online rules would not offer this party but a staff
        member taking the call would: (a) `adjacent_pair`: two free tables
@@ -322,7 +300,7 @@ Swedish first and English second.
        seats fit; (c) `phone_only`: a free table marked not bookable
        online (`online: false`, the "phone" reason) that fits. Without a
        published layout there are no tables at all, so `nearby` is empty
-       and only steps 2-3 apply. Per location the owner can switch it off
+       and only steps 3-4 apply. Per location the owner can switch it off
        or narrow it: `counterOffers{nearbyTables: bool (default true),
        phoneOnlyTables: bool (default true)}` in the wizard step "tider
        och läge" and route L4 **[NEEDS YOUR OK: defaults, the 1.0 m gap]**.
@@ -330,8 +308,33 @@ Swedish first and English second.
        keeps the caller's time ("Klockan 19 finns inget vanligt bord
        ledigt, men jag kan ge er två bord bredvid varandra klockan 19.
        Vill du ha det?"); "yes" holds exactly those `tableIds` at the
-       same time, "no" falls back to step 2 with the times only
+       same time, "no" falls back to step 3 with the times only
        **[NEEDS YOUR OK: nearby before times]**.
+    3. **Time taken -> the closest free times the same day, on both sides
+       of the requested time.** The same `hold_table` call answers `{held:
+       false, reason: "time_taken", time, before[], after[], nearby[]}`
+       (one tool call either way, so the happy path stays inside the
+       latency budget). `before` and `after` are the day's free start
+       times for the party on each side of the requested time, closest
+       first. The agent speaks at most **three** (`MAX_OFFERS`), chosen by
+       distance from the requested time, a tie going to the earlier time,
+       and spoken in clock order ("17.30, 18.30 eller 19.30")
+       **[NEEDS YOUR OK: three, and earlier-wins on a tie]**. The caller
+       names one, the agent holds it (step 1) and books.
+    4. **Whole day full -> the next day, once.** `hold_table` answers
+       `{held: false, reason: "day_full", dayFull: true}` (or
+       `get_availability` answers no times); the agent asks "Vill du att
+       jag kollar dagen efter?" and on "yes" calls `get_availability(date
+       + 1, partySize, time)`, which ranks that day's free times by
+       distance from the asked time (the time itself included when free)
+       and speaks the closest three. The agent moves to the next day
+       **once**: when that day is also full it offers a callback
+       (`request_callback`, topic "bokning"), never a third day
+       **[NEEDS YOUR OK: one day, then callback; waitlist join is v2
+       (ADR-F, open question 3)]**. The day the agent moved to is the day
+       being booked until the caller names another one; a day the caller
+       names starts the count again, so each day the caller asks for gets
+       its own next-day offer.
 
     **How `get_availability` offers it.** The tool wrapper in
     `phone-agent-call` (`shared/features/phone_agent/offers.py`) builds

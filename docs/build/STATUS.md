@@ -23,8 +23,9 @@ off.
   regenerated (`gen_contracts.py --check` clean with the siblings beside
   it). Simulator (`shared/agent_model.py`) carries the counter-offer
   sentences and flow in Swedish and English;
-  `tests/test_phone_agent_counter_offers.py` (28 cases) green; full
-  application suite 4030 passed, 3 skipped; ruff: 3 pre-existing
+  `tests/test_phone_agent_counter_offers.py` (30 cases, incl. the review
+  fix: the next day is offered once per day the caller asks for) green;
+  full application suite 4032 passed, 3 skipped; ruff: 3 pre-existing
   findings (not a CI gate). Unverified: the tool side (`offers()` from
   the real availability responses, the layout read) is Run 2 work.
 - **A all platforms (ADR-A2, DECISIONS.md 2026-11-04):** platform
