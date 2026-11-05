@@ -781,3 +781,6 @@ in the account, so the dev account's concurrency quota must be at least 12
 **Files.** `phone-agent.tf`, `phone-agent/main.tf`,
 `phone-agent/variables.tf`, `phone-agent/tests/concurrency.tftest.hcl`,
 `phone-agent/README.md`, `dev.tfvars`, `docs/build/PIPELINE.md`.
+
+## 2026-11-05: dev reserved concurrency for phone-agent-call set to -1 (unreserved) until the quota is raised
+The dev apply of infrastructure#43 failed: AWS refused reserved concurrency 2 because the dev account would drop below the minimum 10 unreserved executions (quota below 12). Dev was left partly applied. To unblock all dev deploys, dev.tfvars now sets phone_agent_call_reserved_concurrency = -1. This departs from the owner's cap of 2 and is temporary: raise the dev Lambda concurrency quota (owner, AWS Service Quotas) to at least 12, then set it back to 2. Feature is off for every tenant; the exposure is the public Function URL (simulator webhooks, see review finding F3).

@@ -160,7 +160,10 @@ per_tenant_sites = true
 # through the dev account's booqy-sites-prod-link role (sites/main.tf).
 site_link_prod_account_id = "343695380960"
 
-# AI phone agent (phone-agent.tf): cap phone-agent-call at 2 concurrent
-# executions in dev, so a flood on its public Function URL costs little.
+# AI phone agent (phone-agent.tf): the owner decided a cap of 2 concurrent
+# executions on phone-agent-call in dev. The dev apply of 2026-11-05 was
+# refused by AWS (InvalidParameterValueException: unreserved concurrency would
+# fall below 10), so the dev account Lambda quota is below 12. Set to -1
+# (unreserved) so dev can deploy; set back to 2 once the quota is raised.
 # Prod is UNDECIDED (owner, before L goes live) and stays unreserved.
-phone_agent_call_reserved_concurrency = 2
+phone_agent_call_reserved_concurrency = -1
