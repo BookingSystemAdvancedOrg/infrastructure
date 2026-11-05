@@ -539,6 +539,9 @@ returns to its section 1, 2 or 3 owner as usual.
 | admin-front-end | `brand-lint.config.json` | ADK2/ADK3 | `block` gains `features/events-tickets/**`, `features/phone-agent/**` | the new feature folders get the same blocking glob as the ten Run 0 features |
 | booqy-console | `web/brand-lint.config.json` | COK3 | `block` gains `features/phone-agent/**` | same, for the console placeholders |
 | customer-front-end | `brand-lint.config.json` | CUK2 | `block` gains `features/evenemang/**` | same, for the guest placeholder pages |
+| customer-front-end | `packages/site-kit/package.json`, `packages/site-kit/tsconfig.json`, `packages/site-kit/vite.config.ts`, root `package-lock.json` | Run 2 batch 1 (E, F site-kit pages; customer-front-end 2f43d25) | `dependencies` gains `"@booqy/brand": "0.1.0"`; `customConditions: ["@booqy/source"]` in tsconfig; `resolve.conditions` with `@booqy/source` in vite config; the lock file follows | the Kö and Presentkort pages use brand Bar and Button, so site-kit needs the brand package; tests and typecheck read the workspace source as the site does. DECISIONS.md 2026-11-04 records the npm alias and the brand CSS requirement before the first site-kit release |
 
 The brand-lint config files are the brand guardian's (section 2); only the
-blocking globs for the new feature folders were added, no rule changed.
+blocking globs for the new feature folders were added, no rule changed. The
+site-kit package files are the site-kit owner's (section 2); the Run 2 row
+above is the one dependency and its resolution, no build output changed.

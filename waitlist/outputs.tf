@@ -1,11 +1,15 @@
 # Merged by the root config.tf (local.feature_wiring) into lambda releases,
-# the tenant-context policy and the API Gateway integrations. Fixed shape
-# (CONTRACTS.md 12.2); empty until the feature's functions exist.
+# the tenant-context policy and the API Gateway integrations (CONTRACTS.md 12.2).
 output "wiring" {
   value = {
-    lambda_releases         = {} # "<fn name>" => { alias_name = "live" }
-    tenant_aware_role_names = {} # "<fn_name_underscored>" => role name
-    staff_check_role_names  = {} # same keys, functions where staff act
-    api_integrations        = {} # "<feature-id>" => { function_name, invoke_arn }
+    lambda_releases         = { (aws_lambda_function.fn.function_name) = { alias_name = aws_lambda_alias.live.name } }
+    tenant_aware_role_names = { waitlist = aws_iam_role.fn.name }
+    staff_check_role_names  = { waitlist = aws_iam_role.fn.name }
+    api_integrations = {
+      "waitlist" = {
+        function_name = aws_lambda_function.fn.function_name
+        invoke_arn    = aws_lambda_alias.live.invoke_arn
+      }
+    }
   }
 }
