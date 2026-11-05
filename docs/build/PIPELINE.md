@@ -1,7 +1,7 @@
 # Pipeline
 
 ## Lock
-LOCKED 2026-11-05T17:03Z run-20261105T1510Z (refresh at least every 60 min). K-finish wave 1: customer#19 (fix round 1 pushed c8f0cec), edit worker running.
+LOCKED 2026-11-05T17:53Z run-20261105T1510Z (refresh at least every 60 min). Merged: infra#44, app#76, admin#28, customer#19, app#77. In flight: admin#29 (awaits app#77 deploy), resale worker, media worker.
 
 ## Position
 Step: Run 0 addendum (K events & tickets, L phone agent). Review round 1 done, fix round 1 pushed (infra 4b251cb, console 05fb778, customer ecf187b).
