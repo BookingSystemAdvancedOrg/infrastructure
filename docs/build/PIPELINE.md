@@ -1,7 +1,7 @@
 # Pipeline
 
 ## Lock
-unlocked (released 2026-11-05T14:59Z, run-20261105T1140Z)
+LOCKED 2026-11-05T15:10Z run-20261105T1510Z (refresh at least every 60 min)
 
 ## Position
 Step: Run 0 addendum (K events & tickets, L phone agent). Review round 1 done, fix round 1 pushed (infra 4b251cb, console 05fb778, customer ecf187b).
@@ -199,3 +199,6 @@ Next: B2 builder AI, A2 ads adapters, rest of L (real adapters), Run 3.
 - Approve IAM rows K-IAM-1..9 and X1-X3 in infrastructure#44 (plan to be confirmed 0 destroys in CI comment).
 - Accountant: ticket VAT 25/12/6 and BAS accounts; ticketSales* roles not built (books on sales<rate>/vat<rate>).
 - Not built in K: floor-plan table pick, resale, Wallet, event images, customer-site pages (/evenemang, /biljett).
+
+## Owner instruction 2026-11-05 (via the owner's Claude Code session, API fire, run-20261105T1510Z)
+Owner approves IAM rows K-IAM-1..9, in-place changes X1-X3 and the new resources listed in infrastructure#44 PR body at head 91d3071 (CI plan 43 add, 3 change, 0 destroy). Covers that list only: anything else in IAM/existing resources changes, list it and ask again. Do the quick fresh Fable diff check of application#76 head 92d9c16, then merge to dev in order infra#44, application#76, admin#28 (CI green on each, infra apply first), dev smoke test. Branch deletion: this environment cannot delete branches; the owner's session does it after merges. Then finish K (customer-site /evenemang and /biljett end to end against Stripe test/fake, table pick on floor plan, transfer + face-value resale, Wallet passes behind config with simulator, event images, edit ticket types after creation, occurrence capacity; Playwright screenshots, brand guardian, a11y for admin#28 and new pages; ticket VAT and BAS marked needs accountant review). Then B2, A2 ads adapters with guided connect/tracking UI, rest of L (real adapters behind config, streaming, recording copy, guarantee-link path), I, J, Run 3. Nothing to main; all features off by default. Tell the owner to reply in Claude Code.
