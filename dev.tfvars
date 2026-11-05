@@ -159,3 +159,8 @@ per_tenant_sites = true
 # A site repo is born in the prod console, which also sets up its dev side
 # through the dev account's booqy-sites-prod-link role (sites/main.tf).
 site_link_prod_account_id = "343695380960"
+
+# AI phone agent (phone-agent.tf): cap phone-agent-call at 2 concurrent
+# executions in dev, so a flood on its public Function URL costs little.
+# Prod is UNDECIDED (owner, before L goes live) and stays unreserved.
+phone_agent_call_reserved_concurrency = 2

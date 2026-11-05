@@ -171,15 +171,20 @@ Swedish first and English second.
    Booqy, not typed freely: `"<Hej|Hello>, du pratar med <agentName>, en
    AI-assistent för <restaurant>. ..."`; the owner edits only the part after
    the disclosure. The first utterance is played with `say()` before the
-   LLM gets a turn, and `disclosed` is set when the provider's transcript
-   event for it arrives (`disclosure.playedAt`). If an `interrupted` event
+   LLM gets a turn, and `disclosed` is set when the provider's first final
+   agent transcript of the call arrives (`disclosure.playedAt`); the
+   provider's own text is kept as `disclosure.spoken`, with
+   `disclosure.verbatim` saying whether it equals the greeting once case,
+   punctuation and whitespace are folded (a transcript of played speech
+   rarely matches character for character, so an exact match is never
+   required for the evidence). If an `interrupted` event
    arrives before the disclosure sentence is complete, the agent says the
    short form again ("Jag är en AI-assistent för <restaurant>.") and counts
    it (`disclosure.repeats`). If the caller switches language, the short form
    is said once in the new language (`disclosure.languages[]`). The system
    prompt forbids claiming to be human and instructs the agent to confirm it
    is an AI when asked. **Evidence:** every call row stores
-   `disclosure{text, playedAt, repeats, languages[]}` and the transcript's
+   `disclosure{text, playedAt, spoken, verbatim, repeats, languages[]}` and the transcript's
    first agent turn is the disclosure; the test plan requires it in every
    scenario including interruption. The wording is **[NEEDS YOUR OK:
    lawyer]** and lives in `shared/features/phone_agent/copy.py` as a
