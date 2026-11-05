@@ -425,6 +425,27 @@ the console Plan tab).
 | `/site-config` fields | `tenant-site-config` (pass-through of `PROFILE.site`, location `waitlist`) | the one attribute it writes |
 | Storage keys | both registries (done) | imports of the constants |
 
+### Deviation: contract changed between Run 1 and Run 2 (spec change 2026-11-04)
+
+The row above says the contract is fixed for Runs 1-3. One recorded
+exception: the owner's 2026-11-04 spec change (ADR-L decision 13,
+CONTRACTS.md 17.1) edited these application paths between Run 1 and
+Run 2, on `dev` via application#72 (draft) and the three frontend
+companion PRs (generated files only: admin and console web gain the
+`CounterOffer` type and the new hash, console API and site-kit only the
+`CONTRACTS_HASH` line). After it merges every path returns to its usual owner.
+
+| Repo | Path | Change | Why |
+|---|---|---|---|
+| application | `contracts/booqy.yaml` | enum `CounterOffer`, optional `PhoneCall.Ended.counterOffer` | CONTRACTS.md 17.1 |
+| application | `shared/contracts.py` (generated) | `CounterOffer` Literal, `counterOffer?` on `PhoneCallEndedDetail`, `EVENTS`, `CONTRACTS_HASH` | regenerated from the YAML, `--check` clean |
+| application | `tests/test_contracts.py` | expectations for the new enum and event field | self-consistency test must cover 17.1 |
+| application | `shared/agent_model.py` | simulator counter-offer flow and sentences (sv, en) | port owned by Run 0 addendum (AK2), L owns it from Run 2; the simulator had to drive decision 13 before then |
+| admin-front-end | `src/shared/contracts.ts` (generated) | `CounterOffer` type, `CONTRACTS_HASH` | regenerated from the YAML, `--check` clean |
+| booqy-console | `web/src/contracts.ts` (generated) | `CounterOffer` type, `CONTRACTS_HASH` | regenerated from the YAML, `--check` clean |
+| booqy-console | `api/src/app/contracts.py` (generated) | `CONTRACTS_HASH` only | regenerated from the YAML, `--check` clean |
+| customer-front-end | `packages/site-kit/src/shared/contracts.ts` (generated) | `CONTRACTS_HASH` only | regenerated from the YAML, `--check` clean |
+
 ## 6. Run 0 addendum scaffolding work order (features K and L)
 
 Same rules as section 4: one implementer per repo, application first

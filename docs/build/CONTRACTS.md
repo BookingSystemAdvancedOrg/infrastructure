@@ -121,6 +121,7 @@ second part may carry a noun before the verb (`SyncFailed`, `CapReached`,
 | `PhoneAgentMode` (addendum) | `after_hours`, `overflow`, `always` | L |
 | `CallOutcome` (addendum) | `booked`, `moved`, `cancelled`, `info`, `transferred`, `callback`, `abandoned`, `refused`, `error` | L |
 | `CallRefusedReason` (addendum) | `cap`, `kill_switch`, `hours`, `paused`, `entitlement` | L |
+| `CounterOffer` (2026-11-04, ADR-L decision 13) | `none`, `other_time`, `next_day`, `nearby_table` | L (call row, `PhoneCall.Ended`, admin Samtal list) |
 
 ## 2. Entitlements and limits
 
@@ -296,7 +297,7 @@ an SQS DLQ in their own module.
 | `booqy.events-tickets` | `Ticket.Transferred` | `locationId`, `occurrenceId`, `ticketId`, `newTicketId`, `kind: enum[gift,resale]` | events-tickets | none |
 | `booqy.events-tickets` | `Ticket.Refunded` | `locationId`, `occurrenceId`, `ticketId`, `amountOre: int`, `by: enum[owner,cancellation]` | events-tickets | none |
 | `booqy.phone-agent` (addendum) | `PhoneCall.Answered` | `locationId`, `callId`, `language: enum[sv,en]` | phone-agent-call | none |
-| `booqy.phone-agent` | `PhoneCall.Ended` | `locationId`, `callId`, `durationSec: int`, `billedMinutes: int`, `outcome: enum[booked,moved,cancelled,info,transferred,callback,abandoned,refused,error]`, `reservationId?`, `callbackId?` | phone-agent-call, phone-agent-jobs | none |
+| `booqy.phone-agent` | `PhoneCall.Ended` | `locationId`, `callId`, `durationSec: int`, `billedMinutes: int`, `outcome: enum[booked,moved,cancelled,info,transferred,callback,abandoned,refused,error]`, `reservationId?`, `callbackId?`, `counterOffer?: enum[none,other_time,next_day,nearby_table]` (ADR-L decision 13) | phone-agent-call, phone-agent-jobs | none |
 | `booqy.phone-agent` | `PhoneCall.Refused` | `locationId`, `callId`, `reason: enum[cap,kill_switch,hours,paused,entitlement]` | phone-agent-call | none |
 | `booqy.phone-agent` | `PhoneCallback.Requested` | `locationId`, `callbackId`, `callId` | phone-agent-call | none |
 | `booqy.phone-agent` | `PhoneCallback.Closed` | `locationId`, `callbackId` | phone-agent | none |
@@ -551,11 +552,11 @@ events-tickets (section 9.2).
 | L1 | GET `/tenant/phone-agent` | jwt | owner | `phoneAgent` | -> `{config, locations[{locationId, enabled, killSwitch, mode, number?, minutesThisPeriod}], usage{minutes, cap, includedMinutes, periodEnd}}` | none | n/a |
 | L2 | PUT `/tenant/phone-agent/config` | jwt | owner | `phoneAgent` | `{agentName, tone, languages, recording{enabled, purpose?, retentionDays?}, minutesCapPerMonth, version}` -> config | 400 `purpose_required`, `invalid_retention`, `invalid_cap`, `text_too_long` | `version` |
 | L3 | GET `/locations/{locationId}/phone-agent` | jwt | owner, staff | `phoneAgent` | -> location config + `forwarding{number, codes[]}` (staff: read-only view) | none | n/a |
-| L4 | PUT `/locations/{locationId}/phone-agent` | jwt | owner | `phoneAgent` | `{enabled, mode, agentHours, greetingExtraSv, greetingExtraEn, transferTo, maxCallSeconds, version}` -> config; first enable 202 `{status: provisioning}` then 200 | 400 `invalid_hours`, `invalid_phone`, `invalid_max_call`, `text_too_long`; 409 `provisioning`, `number_unavailable`; 502 `telephony_unavailable`, `voice_provider_unavailable` | `version`; second enable never provisions a second number |
+| L4 | PUT `/locations/{locationId}/phone-agent` | jwt | owner | `phoneAgent` | `{enabled, mode, agentHours, greetingExtraSv, greetingExtraEn, transferTo, maxCallSeconds, counterOffers{nearbyTables: bool, phoneOnlyTables: bool}, version}` -> config (`counterOffers` optional in the request, both default `true`; ADR-L decision 13) | 400 `invalid_hours`, `invalid_phone`, `invalid_max_call`, `text_too_long`, `invalid_counter_offers`; 409 `provisioning`, `number_unavailable`; 502 `telephony_unavailable`, `voice_provider_unavailable` | `version`; second enable never provisions a second number |
 | L5 | POST `/locations/{locationId}/phone-agent/kill-switch` | jwt | owner, staff | `phoneAgent` | `{on, version}` -> config | 400 missing `on` | same state 200 |
 | L6 | POST `/locations/{locationId}/phone-agent/simulate` | jwt | owner | `phoneAgent` | `{sessionId, text, language?}` -> `{reply, toolCalls[{name, ok}], state, disclosure: bool}` (writes no booking: dry run) | 400 `text_too_long`; 502 `ai_unavailable` | `sessionId` + turn index |
-| L7 | GET `/locations/{locationId}/phone-agent/calls?from&to&cursor` | jwt | owner, staff | `phoneAgent` | -> `{calls[{callId, startedAt, durationSec, language, outcome, reservationId?, callbackId?, summary}], cursor}` (staff: no caller number) | 400 `invalid_range` | n/a |
-| L8 | GET `/locations/{locationId}/phone-agent/calls/{callId}` | jwt | owner, staff | `phoneAgent` | -> call + `turns[]` + `recordingUrl?` (owner only) | none | n/a |
+| L7 | GET `/locations/{locationId}/phone-agent/calls?from&to&cursor` | jwt | owner, staff | `phoneAgent` | -> `{calls[{callId, startedAt, durationSec, language, outcome, counterOffer, reservationId?, callbackId?, summary}], cursor}` (staff: no caller number; `counterOffer` is the `CounterOffer` enum, ADR-L decision 13) | 400 `invalid_range` | n/a |
+| L8 | GET `/locations/{locationId}/phone-agent/calls/{callId}` | jwt | owner, staff | `phoneAgent` | -> call (incl. `counterOffer`) + `turns[]` + `recordingUrl?` (owner only) | none | n/a |
 | L9 | DELETE `/locations/{locationId}/phone-agent/calls/{callId}/recording` | jwt | owner | `phoneAgent` | -> 204 | none | second 204 |
 | L10 | GET `/locations/{locationId}/phone-agent/callbacks?status=` | jwt | owner, staff | `phoneAgent` | -> `{callbacks[]}` | 400 bad status | n/a |
 | L11 | POST `/locations/{locationId}/phone-agent/callbacks/{callbackId}/close` | jwt | owner, staff | `phoneAgent` | `{version, note?}` -> callback | 409 `invalid_state` | second close -> same |
@@ -572,6 +573,27 @@ Not an API Gateway route: the agent turn endpoint `POST /v1/chat/completions`
 `${prefix}phone-agent/llm-endpoint-key` in a header and bound to a known,
 live `callId`. Tool execution invokes the existing functions listed in
 ADR-L "Bedrock agent" directly (no new routes on them).
+
+**Agent tools that changed on 2026-11-04 (ADR-L decision 13, counter-offers;
+the tool list itself is unchanged).** `get_availability(date, partySize,
+time?, timeFrom?, timeTo?)` -> `{times[], requestedTime?, before[],
+after[], nearby[{tableIds[], seats, kind: adjacent_pair | larger |
+phone_only}], dayFull}`; `hold_table(date, time, partySize, tableIds?)`
+-> `{holdId, date, time, partySize, tableIds}` or `{held: false, reason:
+time_taken | day_full, time, before[], after[], nearby[], dayFull?}`
+(a bookability check with a proposal id, no server-side hold);
+`create_reservation` books through the staff route
+`POST /locations/{l}/reservations/manual` with `source: "phone"` and the
+proposal's `tableIds`. Both availability tools read `get-availability:live`
+(guest and staff views) and `list-layout-version:live` (`GET
+/locations/{l}/layout/active`, the floor plan for `adjacent_pair`), so the
+`phone-agent-call` role invokes eight existing functions (section 14).
+The order the agent offers in is fixed by the ADR: requested time, nearby
+table at that time, the three closest same-day times on both sides, the
+next day once, then a callback. The simulator (`shared/agent_model.py`
+`COUNTER_OFFERS`, `NEARBY_TABLE`, `nearest_times`) and
+`tests/test_phone_agent_counter_offers.py` are the executable form of
+that order in Swedish and English.
 
 ## 7. `/site-config` additions
 
@@ -995,7 +1017,7 @@ first n calls (for idempotency and resume tests). Errors: one
 | `TextModel` (`shared/bedrock.py`) | `complete(system, prompt, *, max_tokens, json_schema=None) -> str` | with `json_schema`: the smallest valid instance (strings "Simulerad text" cut to `maxLength`, arrays at `minItems`, enums first value); without: `"Simulerad text: " + prompt[:40]`; `responses=[...]` queues canned answers | A |
 | `VoiceProvider` (`shared/voice_provider.py`, addendum) | `create_agent(config) -> provider_agent_id`, `update_agent(id, config)`, `delete_agent(id)`, `sip_target(id) -> SipTarget{uri, auth?}`, `say(call_ref, text)`, `transfer(call_ref, to_e164, timeout_s) -> TransferResult{answered}`, `end(call_ref, reason)`, `recording_url(call_ref) -> url \| None`, `parse_webhook(headers, body) -> list[VoiceEvent]` (`call_started`, `transcript`, `language_detected`, `interrupted`, `transfer_result`, `call_ended`); error `VoiceProviderError(code, retryable)` | ids `sim-agent-<sha1(name)[:10]>`, idempotent by name; `sip_target` = `sip:<id>@sim.invalid`; `say`/`transfer`/`end` recorded in `calls`; `transfer` answers per `transfer_answered=True\|False` set on the instance; `parse_webhook` accepts the simulator's own JSON (`{"events": [...]}`) with a `X-Sim-Signature: ok` header, anything else raises `unauthorized`; `recording_url` returns a `file://` fixture only when `recording=True` | L (real: `shared/voice_provider_real.py`, ElevenLabs) |
 | `Telephony` (`shared/telephony.py`, addendum) | `provision_number(country, label) -> Number{e164, provider_id}`, `release_number(provider_id)`, `set_inbound(provider_id, sip, fallback_e164)`, `transfer(call_ref, to_e164, timeout_s) -> TransferResult`, `parse_webhook(headers, body) -> list[TelephonyEvent]` (`inbound`, `ended`), `verify_forwarding(e164) -> ForwardingCheck`; error `TelephonyError(code, retryable)` | numbers `+4610000<n:04d>` handed out in order, `numbers_left=0` makes `provision_number` raise `number_unavailable`; `set_inbound` stores the target per number; webhook auth = Basic `sim:sim`; `verify_forwarding` returns `unsupported` | L (real: `shared/telephony_real.py`, 46elks) |
-| `AgentModel` (`shared/agent_model.py`, addendum) | `converse(system, messages, tools, *, max_tokens) -> Turn{text?, tool_uses[{id, name, input}], stop_reason}`; error `AgentModelError(code, retryable)` | **scripted intent table**: the last caller message is matched against Swedish and English patterns shipped with the simulator (book, availability, move, cancel, menu, hours, human, callback, yes, no, number, date, time, party size) and turned into the matching tool use or a fixed Swedish/English sentence; a `tool_result` message produces the confirmation sentence for that tool; `responses=[...]` overrides with canned turns; `delay_ms` sleeps to exercise the latency harness | L (real: `shared/agent_model_real.py`, Bedrock Converse stream) |
+| `AgentModel` (`shared/agent_model.py`, addendum) | `converse(system, messages, tools, *, max_tokens) -> Turn{text?, tool_uses[{id, name, input}], stop_reason}`; error `AgentModelError(code, retryable)` | **scripted intent table**: the last caller message is matched against Swedish and English patterns shipped with the simulator (book, availability, move, cancel, menu, hours, human, callback, yes, no, number, date, time, party size) and turned into the matching tool use or a fixed Swedish/English sentence; a `tool_result` message produces the confirmation sentence for that tool; `responses=[...]` overrides with canned turns; `delay_ms` sleeps to exercise the latency harness. **Counter-offers (2026-11-04, ADR-L decision 13):** a `hold_table` result `{held: false, ...}` produces the nearby-table sentence (first), else the `MAX_OFFERS = 3` closest same-day times on both sides (`nearest_times`: by distance, tie to the earlier time, spoken in clock order), else the next-day question; "yes" holds the nearby `tableIds`, asks for a time, or moves to the next day once (then offers a callback); "no" to a nearby table falls back to the times; the day the agent moved to stays the booked day until the caller names another, and a date the caller names starts the next-day count again (once per requested day); a `get_availability` result with `requestedTime` is spoken as "Närmast klockan ..." | L (real: `shared/agent_model_real.py`, Bedrock Converse stream) |
 
 Terraform: each feature module sets the env var from the root variable for
 the functions that use the client; `bedrock:InvokeModel` only on the
@@ -1040,8 +1062,10 @@ Also flagged (addendum, new roles touching existing resources, built by
 the features in Run 2): the phone-agent roles get `lambda:InvokeFunction`
 on `tenant-site-config:live`, `get-availability:live`,
 `create-pending-reservation:live`, `get-reservation:live`,
-`mark-arrived:live`, `cancel-reservation:live`, `get-menu:live` (the
-agent's tools, ADR-L) and `PutItem/DeleteItem` on the user table limited by
+`mark-arrived:live`, `cancel-reservation:live`, `get-menu:live`,
+`list-layout-version:live` (the agent's tools, ADR-L; the last one added
+2026-11-04 for the floor plan behind the nearby-table counter-offer,
+decision 13) and `PutItem/DeleteItem` on the user table limited by
 `dynamodb:LeadingKeys` to `USER#agent:*`; the events-tickets role gets the
 reservation and slot-occupancy item actions of `create-pending-reservation`
 for table pick (or invoke on it; decided in Run 2); both get invoke on
@@ -1184,6 +1208,27 @@ consoleForwardOps:
   phone-agent.settings.get:  {route: L17, target: phone-agent, audit: null}
   phone-agent.settings.put:  {route: L18, target: phone-agent, audit: phone_agent_settings_changed}
 ```
+
+### 17.1 Counter-offer additions (2026-11-04, ADR-L decision 13; on `dev` via the `claude/spec-*` PRs)
+
+```yaml
+events:
+  sources:
+    booqy.phone-agent:
+      PhoneCall.Ended: {..., counterOffer?: "enum[none,other_time,next_day,nearby_table]"}
+
+enums:
+  CounterOffer: [none, other_time, next_day, nearby_table]
+```
+
+`application/shared/contracts.py` gains the `CounterOffer` Literal, the
+optional `counterOffer` on `PhoneCallEndedDetail` and `EVENTS`; the two
+TypeScript targets that emit enums (`admin-front-end/src/shared/contracts.ts`
+and `booqy-console/web/src/contracts.ts`) gain the `CounterOffer` type and
+their new `CONTRACTS_HASH`; the console API (`booqy-console/api/src/app/contracts.py`)
+and site-kit (`customer-front-end/packages/site-kit/src/shared/contracts.ts`)
+change only their `CONTRACTS_HASH` line. All five are regenerated in the
+same change so `--check` stays clean.
 
 The generator's detail-type pattern already accepts every name above
 (`Published`, `Cancelled`, `Sold`, `CheckedIn`, `Transferred`, `Refunded`,

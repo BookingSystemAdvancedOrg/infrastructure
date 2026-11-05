@@ -3,7 +3,42 @@
 Ledger for the multi-agent build in `docs/build/PROMPTS.md`. Read this
 first when a run starts or resumes; skip anything already verified or merged.
 
-Last updated: 2026-11-04 (Run 2 batch 1: D, E, F, G built on `build/run-2-<feature>` and merged into `build/run-2-integration`; draft PRs against `dev`; NOT yet reviewed by a fresh code reviewer or brand guardian, see Run 2 batch 1 below).
+Last updated: 2026-11-04 (Run 2 batch 1: D, E, F, G built on `build/run-2-<feature>`, merged into `build/run-2-integration` and then to `dev`, awaiting the owner's go-ahead, see Run 2 batch 1 below; spec change after the Run 1 merges: ADR-L counter-offers settled and the ADR-A2 all-platform ads addendum written on draft PRs, see "Spec change 2026-11-04" below; Run 1 A, B1, C are on `dev` awaiting the owner's go-ahead).
+
+## Spec change 2026-11-04 (owner instructions of 2026-11-04, Fable-led, no code behind a flag changes)
+
+Branches `claude/spec-<repo>-*` with **draft PRs against `dev`** (listed
+in PIPELINE.md); nothing merged, nothing to main, every feature stays
+off.
+
+- **L counter-offers (ADR-L decision 13, DECISIONS.md 2026-11-04 x2,
+  CONTRACTS.md 1.3/5/6.L/13/14/17.1):** book if free; else the three
+  closest same-day times on both sides; else the next day once, then a
+  callback; a nearby table (adjacent pair within 1.0 m on the published
+  floor plan, a larger table, a phone-only table) offered first at the
+  requested time; the agent books through the staff manual route with
+  `source: phone`, no server-side hold. Contract: enum `CounterOffer`,
+  `PhoneCall.Ended.counterOffer?`, L4 `counterOffers{}`, L7/L8
+  `counterOffer`; `booqy.yaml` changed and all five generated files
+  regenerated (`gen_contracts.py --check` clean with the siblings beside
+  it). Simulator (`shared/agent_model.py`) carries the counter-offer
+  sentences and flow in Swedish and English;
+  `tests/test_phone_agent_counter_offers.py` (30 cases, incl. the review
+  fix: the next day is offered once per day the caller asks for) green;
+  full application suite 4032 passed, 3 skipped; ruff: 3 pre-existing
+  findings (not a CI gate). Unverified: the tool side (`offers()` from
+  the real availability responses, the layout read) is Run 2 work.
+- **A all platforms (ADR-A2, DECISIONS.md 2026-11-04):** platform
+  adapter port behind the existing wizard; Meta then Google Ads then
+  TikTok, Snapchat/Pinterest only on demand, others not suitable or
+  not possible; per platform API access, approval, ad rules, cost
+  stated with owner choices marked; spend confirmation enforced by
+  `confirmedTotalSek`; schedules with limits and self-stop; first-time
+  guide, daily view, plain tracking; brand only; **money-screen rule
+  flagged** (owner-only/hidden-amount kept until the owner decides).
+  Split A2 (Run 2) / A3 Google, A4 TikTok (Run 3); no run of its own.
+  Contract rows are written at the Run 2 cut; nothing in `booqy.yaml`
+  changed for A.
 
 ## Run 0: Foundations
 
@@ -504,6 +539,7 @@ merged.
 | Feature | Status | Branch | Attempts | Open issues | Unverified | Human actions needed |
 |---|---|---|---|---|---|---|
 | A. Meta ads | on dev, awaiting owner go-ahead (merged to dev 2026-11-04; CI dev smoke tests passed in all repos; real Meta/Bedrock/Step Functions runtime unverified) | `build/run-1-meta-ads` -> `build/run-1-integration` | 1 | see Run 1 open findings 4 | real Meta API, Bedrock, Step Functions runtime, screenshots | Meta Business Verification, App Review, Login for Business config, `meta-ads/app` secret value, Bedrock model access |
+| A2. Ads on all platforms (ADR-A2 addendum: adapter port, spend confirmation, schedules, guide, daily view; Run 2) / A3 Google Ads, A4 TikTok (Run 3) | spec written 2026-11-04 (draft PR), todo | `claude/spec-infrastructure-l-counter-offers-a-platforms` | 0 | owner choices in ADR-A2 [NEEDS YOUR OK]: money screens (a/b/c), Google account model, TikTok creative, entitlement keys, schedule auto-activate, Snapchat/Pinterest | real Google Ads and TikTok adapters (simulators only until approvals) | Owner: Google manager account, developer token, Explorer/Basic access, brand verification, OAuth app verification; TikTok developer app, app review, data-security check; lawyer: alcohol per platform, recurring-ad rules |
 | B. Site builder | on dev, awaiting owner go-ahead (merged to dev 2026-11-04; CI dev smoke tests passed in all repos; real Meta/Bedrock/Step Functions runtime unverified) | `build/run-1-site-builder` -> `build/run-1-integration` | 1 | Run 1 open findings 1, 2, 4, 5 | render image build, Step Functions runtime, screenshots | Owner: render image job in customer-front-end pipeline |
 | C. Guest CRM | on dev, awaiting owner go-ahead (merged to dev 2026-11-04; CI dev smoke tests passed in all repos; real Meta/Bedrock/Step Functions runtime unverified) | `build/run-1-guest-crm` -> `build/run-1-integration` | 1 | Run 1 open finding 3 (stream readers) | stream throttling, screenshots | Lawyer: legitimate-interest assessment template; marketing 19 § existing-customer exception |
 | D. Google Business Profile + reviews | on dev, awaiting owner go-ahead (merged 2026-11-04: infra#42, application#73, console#16, admin#26, customer#18; simulators/fakes only, no real-provider tests) | `build/run-2-google-business` -> `build/run-2-integration` | 1 | Run 2 batch 1 findings 1, 2 | real GBP API, Scheduler/bus rule runtime, SES/SNS delivery, screenshots | Google Business Profile API access and OAuth verification of `business.manage`; `google-business/app` secret value; lawyer: review request as marketing / soft opt-in |
@@ -514,4 +550,4 @@ merged.
 | I. Fortnox and Visma posting | todo | | 0 | | | Fortnox and Visma developer access |
 | J. Margin per dish | todo | | 0 | | | |
 | K. Events and tickets (addendum, Run 2) | scaffolding in production, dark (merged to main by owner 2026-11-02; feature code is Run 2) | `build/run-0-addendum-kl` (all repos) | 1 | ADR-K, contracts, scaffolding AK1-7, IK1-6, ADK1-5, COK1-3, CUK1-3 and brand BRK1 (Chip, Card ticket) done, awaiting fresh review; IAM rows 11-16 need owner approval; feature code itself is Run 2 | Wallet pass signing against real Apple/Google accounts | Accountant: VAT rate list and BAS accounts for tickets (needs accountant review); lawyer: receipt by email, withdrawal-right text, resale terms; Apple Developer Pass Type ID and Google Wallet issuer; owner: plan rows, per-ticket fee or none [NEEDS YOUR OK] |
-| L. AI phone agent (addendum, Run 2) | scaffolding in production, dark (merged to main by owner 2026-11-02; feature code is Run 2) | `build/run-0-addendum-kl` (all repos) | 1 | ADR-L, contracts, scaffolding AK1-7, IK1-6, ADK1-5, COK1-3 and brand BRK1 (Bar live, Chip) done, awaiting fresh review; transcript list style not built (open brand item, Run 2); `settings.phoneAgent` fixed to `feature: null` (DECISIONS.md); IAM rows 11-16 need owner approval; 46elks SIP-forward capability to verify in sandbox week 1 of Run 2 | Real voice latency and Swedish quality (Run 3 voice QA); Nova Sonic language list (quarterly) | Voice provider account, EU residency and DPA (ElevenLabs proposed); SIP provider account, KYC and Swedish numbers (46elks proposed); Bedrock model access for `phone_agent_model_id`; lawyer: art. 50 wording, recording notice and basis, privacy notice paragraph; accountant: VAT on per-location and per-minute lines; owner: plans, included minutes, prices, retention options, default agent name, reserved concurrency [NEEDS YOUR OK]; IAM rows 11-16 approval |
+| L. AI phone agent (addendum, Run 2) | scaffolding in production, dark (merged to main by owner 2026-11-02; feature code is Run 2); **counter-offer flow settled 2026-11-04** (ADR-L decision 13, contract and simulator on the `claude/spec-*` draft PRs) | `build/run-0-addendum-kl` (all repos); spec: `claude/spec-application-l-counter-offers`, `claude/spec-infrastructure-l-counter-offers-a-platforms` | 1 | ADR-L, contracts, scaffolding AK1-7, IK1-6, ADK1-5, COK1-3 and brand BRK1 (Bar live, Chip) done, awaiting fresh review; transcript list style not built (open brand item, Run 2); `settings.phoneAgent` fixed to `feature: null` (DECISIONS.md); IAM rows 11-16 need owner approval; 46elks SIP-forward capability to verify in sandbox week 1 of Run 2; Run 2 builder brief: counter-offers per decision 13 (tool-side `offers()`, staff manual route with `source: phone`, `list-layout-version:live` invoke, L4 `counterOffers`), guarantee-size parties get a callback until the manual-route hotspot upgrade | Real voice latency and Swedish quality (Run 3 voice QA); Nova Sonic language list (quarterly); counter-offer tool side (simulator scripts only so far) | Voice provider account, EU residency and DPA (ElevenLabs proposed); SIP provider account, KYC and Swedish numbers (46elks proposed); Bedrock model access for `phone_agent_model_id`; lawyer: art. 50 wording, recording notice and basis, privacy notice paragraph; accountant: VAT on per-location and per-minute lines; owner: plans, included minutes, prices, retention options, default agent name, reserved concurrency, counter-offer choices of decision 13 (three offers, earlier-wins tie, one next day then callback, nearby-table interpretation and 1.0 m gap, nearby before times, toggle defaults, manual-route guarantee upgrade) [NEEDS YOUR OK]; IAM rows 11-16 approval; new IAM row for Run 2: `phone-agent-call` invoke on `list-layout-version:live` |
