@@ -1,7 +1,7 @@
 # Pipeline
 
 ## Lock
-LOCKED 2026-11-05T13:25Z run-20261105T1140Z (refreshed)
+LOCKED 2026-11-05T14:21Z run-20261105T1140Z (refreshed)
 
 ## Position
 Step: Run 0 addendum (K events & tickets, L phone agent). Review round 1 done, fix round 1 pushed (infra 4b251cb, console 05fb778, customer ecf187b).
@@ -187,3 +187,6 @@ Needs owner: confirm via Jarvis (a) consolidation is cancelled, (b) keep or drop
 ## Position update 2026-11-05 (run-20261105T1140Z)
 Dev apply of infra#43 now passes (route quota 600; run 228 success). Reverted the unreviewed greedy-route resolver from application#74 (9310945; tree identical to the reviewed 497e9b5, owner had cancelled consolidation). Merged to dev, CI green: application#74 (e71c6f5, deploy + smoke test success), admin-front-end#27 (10e8483, success), booqy-console#17 (135d1c1, deploy still running at 13:25Z: verify). H Personalliggare and L phone agent (simulators only) are on dev, off by default. application#75 (greedy helper, draft) left open: owner to confirm closing it. No branch deleted (proxy denies deletion; build/run-2b-integration and build/greedy-routes-helper are contained/obsolete: owner or a run with delete rights to remove).
 Next: K events & tickets, B2 builder AI, A2 ads adapters, rest of L (real adapters), Run 3.
+
+## Position update 2026-11-05 (K built, review round 1)
+K events & tickets built by worker on build/run-2c-integration: infrastructure#44 (91d3071), application#76 (feed11d), admin-front-end#28 (c61c929); console no change. Fable review: infra merge (after owner IAM approval K-IAM-1..9, in-place X1-X3), application and admin merge after fixes (refund retry txId/orphans, K9 sync mass refund vs 30s, public partition scans, midnight events, transfer spam, type_sold_out). Fable-led fix round 1 launched. No screenshots/brand-guardian yet. Next: re-review, then owner IAM approval for infra#44, then merge infra, application, admin.
