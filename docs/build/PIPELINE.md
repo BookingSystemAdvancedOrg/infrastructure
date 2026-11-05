@@ -1,7 +1,7 @@
 # Pipeline
 
 ## Lock
-LOCKED 2026-11-05T05:40Z run run-20261105T0540Z (took over stale lock from run-20261104T2332Z, no repo activity since 22:47Z)
+unlocked (released 2026-11-05, run-20261105T0540Z)
 
 ## Position
 Step: Run 0 addendum (K events & tickets, L phone agent). Review round 1 done, fix round 1 pushed (infra 4b251cb, console 05fb778, customer ecf187b).
@@ -151,3 +151,12 @@ Next: review and merge the spec PRs infrastructure#41, application#72, admin-fro
 ## Position update 2026-11-05 (run-20261105T0540Z)
 Took over stale lock (6h01m, no repo activity). Spec PRs reviewed by fresh Fable (merge after fixes), fixed (infra 3e3ecc3/f4184df, application abcd8f2), Fable diff check = merge. Merged to dev (squash): infrastructure#41 (f0ea3e1), application#72 (9b977c7), booqy-console#15 (7328cf4), admin-front-end#25 (da3cf6d), customer-front-end#17 (60db531). ADR-L decision 13 (counter-offers) and ADR-A2 (all-platform ads) are now on dev. Docs/contract only, no deploy changes. Hash daf7d40d380a in all four. No open dev->main PRs. Production: owner merged the Run 0 addendum PRs earlier; nothing pending for me.
 Next: Run 2 batch 2 (H personalliggare, L phone agent with counter-offers, K events & tickets, B2 builder AI, A2 ads platform adapters), then Run 3.
+
+## Position update 2026-11-05 (Run 2 batch 2 H + L built, waiting on owner IAM approval)
+Built by worker on build/run-2b-integration; draft PRs against dev: infrastructure#43, application#74, admin-front-end#27, booqy-console#17 (customer untouched). H Personalliggare complete; L phone agent partial (simulators only; real ElevenLabs/46elks/Bedrock adapters, recording copy, streaming, guarantee-link path not built). Fresh Fable review round 1: all four = merge (go-live blockers for L only). Fable-led fix round 1 pushed (application 497e9b5, admin 4e115c9, infra 24e0cdb): agent system user (staff_location + user list), privacy double count, personalliggare purge/HEAD, correction personId, Art.50 evidence. CI green on all four. Application pytest 4269 passed / 2 skipped; gen_contracts --check clean.
+NOT MERGED: infrastructure#43 needs the owner's IAM approval (rows in PR body; adds only on new roles; touches tenant/user table rows by leading key, invoke of 7+5 existing :live aliases, Bedrock only when model id set). Merge order after approval: infra#43 (apply first), application#74, admin#27, console#17; do a quick fresh Fable diff check of fix round 1 before merging. Plan not seen by me beyond CI comment.
+Still to do in the programme: K events & tickets, B2 builder AI + custom code, A2 ads platform adapters, then Run 3.
+## Needs owner (Run 2 batch 2)
+- Approve IAM rows in infrastructure#43 (H1-H5, L1-L16 per PR body).
+- Decide: reserved concurrency (ADR says 2) and throttle for the public phone-agent-call Function URL; Function URL has no API Gateway throttle.
+- Test H and L on dev after merge: entitlements off; enable per test tenant in the console; simulated providers only. H needs legal review before any use; never call it compliant.
