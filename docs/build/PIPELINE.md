@@ -147,3 +147,7 @@ Next: review and merge the spec PRs infrastructure#41, application#72, admin-fro
 - D Google Business, E Gift cards, F Waitlist, G Social posting are on dev, all entitlements off; enable per test tenant in the console and use the admin tabs (Google, Presentkort, Kö/Waitlist, Inlägg). Simulated Google/Meta and fake Stripe only.
 - Delete the merged build/run-2-* branches (see above).
 - External: Google Business API access + OAuth verification and the google-business/app secret value; Meta App Review for pages_manage_posts and instagram_content_publish; accountant on gift-card VAT (2421/3990); lawyer on gift-card validity/withdrawal and review-request marketing.
+
+## Position update 2026-11-05 (run-20261105T0540Z)
+Took over stale lock (6h01m, no repo activity). Spec PRs reviewed by fresh Fable (merge after fixes), fixed (infra 3e3ecc3/f4184df, application abcd8f2), Fable diff check = merge. Merged to dev (squash): infrastructure#41 (f0ea3e1), application#72 (9b977c7), booqy-console#15 (7328cf4), admin-front-end#25 (da3cf6d), customer-front-end#17 (60db531). ADR-L decision 13 (counter-offers) and ADR-A2 (all-platform ads) are now on dev. Docs/contract only, no deploy changes. Hash daf7d40d380a in all four. No open dev->main PRs. Production: owner merged the Run 0 addendum PRs earlier; nothing pending for me.
+Next: Run 2 batch 2 (H personalliggare, L phone agent with counter-offers, K events & tickets, B2 builder AI, A2 ads platform adapters), then Run 3.
