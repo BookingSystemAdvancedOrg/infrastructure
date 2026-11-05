@@ -784,3 +784,12 @@ in the account, so the dev account's concurrency quota must be at least 12
 
 ## 2026-11-05: dev reserved concurrency for phone-agent-call set to -1 (unreserved) until the quota is raised
 The dev apply of infrastructure#43 failed: AWS refused reserved concurrency 2 because the dev account would drop below the minimum 10 unreserved executions (quota below 12). Dev was left partly applied. To unblock all dev deploys, dev.tfvars now sets phone_agent_call_reserved_concurrency = -1. This departs from the owner's cap of 2 and is temporary: raise the dev Lambda concurrency quota (owner, AWS Service Quotas) to at least 12, then set it back to 2. Feature is off for every tenant; the exposure is the public Function URL (simulator webhooks, see review finding F3).
+
+## 2026-11-05 K-finish decisions (run-20261105T1510Z)
+- K ticket-type edits after sales: price and VAT may change; existing orders, tickets and TX rows keep theirs. A VAT change is flagged needs_accountant_review with an append-only trail, not blocked. The flag stays until a later accountant-review clear flow exists (needs owner/accountant decision). Reviewed by Fable (application#77).
+- Ticket type "description" = existing `includes` field (label "Beskrivning").
+- Cap guard on every type counter write (add/remove of a cap during checkout, refund, expiry or late issue cannot break seatsLeft = cap - taken).
+- Edits frozen once a published event can no longer sell (409 invalid_state).
+- Customer pages (customer#19): when `events` is off keep the existing redirect to the start page (no 404 page); gift transfer built, resale and Wallet hidden until backend has them; no QR on the thank-you page (tickets issued by webhook, link by email only); held seats expire by the 15-minute TTL, no release route (accepted).
+- Ownership: root package.json/lock (Playwright devDependency), playwright.config.ts, e2e/**, docs/screenshots/** in customer-front-end accepted as orchestrator-shared paths; re-frozen after customer#19.
+- Open note: ticket tokens travel in the API path (/public/tickets/{token}), so API Gateway access logs may contain them; consider a header in a later contract change.
