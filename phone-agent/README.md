@@ -58,5 +58,7 @@ simulators unless `var.voice_client`, `var.telephony_client`, `var.agent_model_c
 
 - Everything against real providers (ElevenLabs, 46elks, Bedrock); the Function URL's exposure is
   limited by the endpoint key and the provider signatures only (no API Gateway throttle on L13/L14).
-- Reserved or provisioned concurrency for `phone-agent-call` (ADR-L latency budget) is not set:
+- Reserved concurrency for `phone-agent-call` is a per-environment variable
+  (`phone_agent_call_reserved_concurrency`, default -1 = unreserved): dev reserves 2, prod is
+  undecided (owner, before L goes live). Provisioned concurrency (ADR-L latency budget) is not set:
   owner decision on cost.

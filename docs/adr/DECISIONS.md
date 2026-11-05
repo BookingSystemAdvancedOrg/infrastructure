@@ -752,3 +752,32 @@ human actions, so their adapters cannot be verified in Run 2 anyway.
 **Files.** `docs/adr/ADR-A2-ad-platforms.md` (new),
 `docs/adr/ADR-A-meta-ads.md` (addendum pointer), `docs/build/STATUS.md`,
 `docs/build/PIPELINE.md`.
+
+## 2026-11-05: `phone-agent-call` reserved concurrency is 2 in dev only; prod is undecided
+
+**Defect.** `phone-agent-call` answers the provider webhooks and the agent
+turn endpoint on a public Function URL with no API Gateway throttle and no
+reserved concurrency (Run 2 batch 2 review follow-up). The key and
+signatures refuse a forged request, but a flood still runs, and bills, the
+function.
+
+**Decision.** New root variable `phone_agent_call_reserved_concurrency`
+(number, default -1 = unreserved, validated as -1 or a whole number >= 0),
+passed to the `phone-agent` module as `call_reserved_concurrency` and set
+on `phone-agent-call` only. `dev.tfvars` sets 2; `prod.tfvars` does not set
+it, so prod stays unreserved. The prod value is an open owner decision
+(PIPELINE.md "Needs owner") to be made before L goes live.
+
+**Reason.** Dev only ever sees test calls, so 2 caps what a flood can cost
+there without getting in the way of testing. In prod one live call holds
+an execution per turn, so 2 would turn away real callers at the second
+simultaneous restaurant call; the right number depends on the plan matrix
+and expected call volume, which the owner has not decided. Adds no IAM and
+changes no existing resource (the three phone-agent Lambdas are new in
+this PR). AWS refuses a reservation that leaves fewer than 10 unreserved
+in the account, so the dev account's concurrency quota must be at least 12
+(unverified: no AWS access in the run).
+
+**Files.** `phone-agent.tf`, `phone-agent/main.tf`,
+`phone-agent/variables.tf`, `phone-agent/tests/concurrency.tftest.hcl`,
+`phone-agent/README.md`, `dev.tfvars`, `docs/build/PIPELINE.md`.

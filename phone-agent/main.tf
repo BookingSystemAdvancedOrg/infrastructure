@@ -54,22 +54,27 @@ locals {
 
   functions = {
     phone-agent = {
-      timeout = 28
-      memory  = 512
-      env     = merge(local.common_env, { RECORDINGS_BUCKET = aws_s3_bucket.recordings.bucket })
+      timeout     = 28
+      memory      = 512
+      concurrency = -1
+      env         = merge(local.common_env, { RECORDINGS_BUCKET = aws_s3_bucket.recordings.bucket })
     }
     phone-agent-call = {
       timeout = 30
       memory  = 1024
+      # Caps what a flood of calls on the public Function URL can cost. Dev
+      # sets 2; prod stays unreserved (-1) until the owner decides a value.
+      concurrency = var.call_reserved_concurrency
       env = merge(local.common_env, {
         NOTIFICATION_FUNCTION_NAME  = var.notification_function_arn
         LLM_ENDPOINT_KEY_SECRET_ARN = aws_secretsmanager_secret.llm_key.arn
       })
     }
     phone-agent-jobs = {
-      timeout = 300
-      memory  = 512
-      env     = local.common_env
+      timeout     = 300
+      memory      = 512
+      concurrency = -1
+      env         = local.common_env
     }
   }
 
@@ -452,6 +457,8 @@ resource "aws_lambda_function" "fn" {
   architectures = ["arm64"]
   timeout       = each.value.timeout
   memory_size   = each.value.memory
+
+  reserved_concurrent_executions = each.value.concurrency
 
   lifecycle {
     ignore_changes = [image_uri]

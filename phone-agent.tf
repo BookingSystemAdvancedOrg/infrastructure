@@ -33,4 +33,17 @@ module "phone_agent" {
   telephony_client          = var.telephony_client
   agent_model_client        = var.agent_model_client
   phone_agent_model_id      = var.phone_agent_model_id
+  call_reserved_concurrency = var.phone_agent_call_reserved_concurrency
+}
+
+variable "phone_agent_call_reserved_concurrency" {
+  type        = number
+  description = "Reserved concurrent executions for phone-agent-call (caps what a flood on its public Function URL can cost); -1 = unreserved. Dev sets 2; prod is UNDECIDED and stays -1 until the owner sets a value (2 is far too low for real restaurants). AWS refuses a reservation that leaves fewer than 10 unreserved in the account."
+  sensitive   = false
+  default     = -1
+
+  validation {
+    condition     = var.phone_agent_call_reserved_concurrency >= -1 && floor(var.phone_agent_call_reserved_concurrency) == var.phone_agent_call_reserved_concurrency
+    error_message = "phone_agent_call_reserved_concurrency must be -1 (unreserved) or a whole number >= 0."
+  }
 }

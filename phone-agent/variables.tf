@@ -88,3 +88,14 @@ variable "daily_minutes_alarm" {
   type        = number
   default     = 600
 }
+
+variable "call_reserved_concurrency" {
+  description = "Reserved concurrent executions for phone-agent-call; -1 = unreserved"
+  type        = number
+  default     = -1
+
+  validation {
+    condition     = var.call_reserved_concurrency >= -1 && floor(var.call_reserved_concurrency) == var.call_reserved_concurrency
+    error_message = "call_reserved_concurrency must be -1 (unreserved) or a whole number >= 0."
+  }
+}
