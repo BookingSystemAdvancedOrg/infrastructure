@@ -1,7 +1,7 @@
 # Pipeline
 
 ## Lock
-unlocked (released 2026-11-05, run-20261105T0540Z)
+locked 2026-11-05T08:45Z run-20261105T0845Z (lock was explicitly released 08:14Z; branch commits at 07:57Z belong to that released run)
 
 ## Position
 Step: Run 0 addendum (K events & tickets, L phone agent). Review round 1 done, fix round 1 pushed (infra 4b251cb, console 05fb778, customer ecf187b).
