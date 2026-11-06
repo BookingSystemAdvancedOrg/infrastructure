@@ -70,16 +70,30 @@ anything a browser keeps. It has no event model, no QR, no Wallet passes.
    without a lookup; the server re-verifies on sync. Codes are stored as
    `codeHmac` only (ADR-E rule). The ticket page link is an HMAC token in
    the URL fragment like the booking manage links.
-6. **Wallet passes.** Apple Wallet `.pkpass` (event ticket style, QR,
-   event, time, holder, location) signed with the platform Pass Type ID
-   certificate in `${prefix}events-tickets/apple-pass`; Google Wallet
-   through a signed "Save to Google Wallet" JWT (`${prefix}events-tickets/google-wallet`).
-   Both are generated on request from the ticket page (never stored). v1
-   has no pass push updates: a transferred or refunded ticket is simply
-   refused at the door and the ticket page says so. When a secret is
-   missing the links are hidden (feature works without Wallet).
+6. **Wallet passes.** Both are generated on request from the ticket page
+   (never stored) and show the same facts: event title, start time, place
+   (the location's name), ticket type, holder name and the QR (the same
+   `<ticketId>.<sig>` payload the door scanner verifies, with the last 8
+   characters of the ticket id as the printed code). Apple Wallet: a
+   `.pkpass` (event ticket style: title primary; start time and place
+   secondary; holder and ticket type auxiliary; `relevantDate` = start,
+   `expirationDate` = end) signed with the platform Pass Type ID
+   certificate in `${prefix}events-tickets/apple-pass`. Google Wallet:
+   a "Save to Google Wallet" link carrying a JWT signed with the service
+   account in `${prefix}events-tickets/google-wallet`. The Google
+   `EventTicketClass` (`<issuerId>.<classId or booqy-event-ticket>`) is
+   created once by hand and the JWT references it by id; it is never sent
+   inline, because an inline class pushed the live JWT over the 1800
+   character limit of the save link. The JWT carries only the ticket
+   object, with the long strings capped (event title and place 40, holder
+   name 30, ticket type 20 characters, an ellipsis when cut; the full
+   values stay on the ticket page and the Apple pass). v1 has no pass push
+   updates: a transferred or refunded ticket is simply refused at the door
+   and the ticket page says so. When a secret is missing, empty or broken
+   the links are hidden, and a pass that cannot be built answers 404 with
+   no detail (feature works without Wallet).
    **[Human actions: Apple Developer account and Pass Type ID; Google
-   Wallet issuer account.]**
+   Wallet issuer account and the one-time EventTicketClass.]**
 7. **QR scanning and guest list in admin** (`/evenemang/<eventId>/insläpp`,
    owner and staff): camera scanning with the browser `BarcodeDetector`
    API and a typed-code fallback (no new dependency in v1; a decoding
@@ -296,7 +310,9 @@ signing, tested with a test certificate in `tests/fixtures/events_tickets/`.
   across orders, tickets, transfers (names and emails removed; ticket
   validity and TX rows kept as bookkeeping records); `tenant.purge`
   deletes everything but TX rows get a 7-year `ttl` like gift cards.
-- Wallet passes contain the holder name and the QR only; Apple and Google
+- Wallet passes contain event title, time, place, ticket type, holder
+  name and the QR, and nothing else (no email, phone or price); Google's
+  copy has the holder name capped at 30 characters. Apple and Google
   receive what the pass shows (sub-processor note for the DPA list, human
   action).
 - Storage registry: site-kit `TICKET_PURCHASE_KEY` = sessionStorage
