@@ -85,13 +85,19 @@ anything a browser keeps. It has no event model, no QR, no Wallet passes.
    created once by hand and the JWT references it by id; it is never sent
    inline, because an inline class pushed the live JWT over the 1800
    character limit of the save link. The JWT carries only the ticket
-   object, with the long strings capped (event title and place 40, holder
-   name 30, ticket type 20 characters, an ellipsis when cut; the full
-   values stay on the ticket page and the Apple pass). v1 has no pass push
+   object, with the long strings capped (event title, place and holder
+   name 30, ticket type 20 characters, at most 3 UTF-8 bytes per
+   character, an ellipsis when cut; the full values stay on the ticket
+   page and the Apple pass). The JWT length follows UTF-8 bytes, so the
+   finished link is measured: over 1700 characters the strings are
+   shortened step by step and last the optional text modules dropped. The
+   start time is only in `validTimeInterval`. v1 has no pass push
    updates: a transferred or refunded ticket is simply refused at the door
-   and the ticket page says so. When a secret is missing, empty or broken
-   the links are hidden, and a pass that cannot be built answers 404 with
-   no detail (feature works without Wallet).
+   and the ticket page says so. When a secret is missing, empty, unparseable
+   or lacks a field the kind is hidden; a complete secret with bad key
+   material still shows the kind and answers 404 on click, as does any
+   pass that cannot be built, with no detail (feature works without
+   Wallet).
    **[Human actions: Apple Developer account and Pass Type ID; Google
    Wallet issuer account and the one-time EventTicketClass.]**
 7. **QR scanning and guest list in admin** (`/evenemang/<eventId>/insläpp`,

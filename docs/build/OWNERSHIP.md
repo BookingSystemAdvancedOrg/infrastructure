@@ -557,5 +557,5 @@ Rows missing from the Run 0 review (PIPELINE.md re-review note 2026-11-02), adde
 |---|---|---|---|---|
 | booqy-console | `api/src/app/features/__init__.py` | CO2, CO3 | package marker for the feature modules (`_forward.py`, `phone_agent.py`) | the console API imports the feature modules as a package; section 3 listed `_forward.py` but not the marker (recorded in review, Run 0) |
 | booqy-console | `web/src/pages/NewTenantPage.tsx` | CO5 | feature checkboxes over `FEATURE_KEYS` and generic limit inputs, as for `TenantPage.tsx` | listed in task CO5 but missing from the deviations table (recorded in review, Run 0) |
-| application | edited existing `tests/test_*.py` files | AP-series, Run 0 | existing tests updated for the new features and contract hash, with no assertion removed or weakened | the review found these edits outside the test paths of 6.1; the file-by-file list is in the Run 0 PRs and was not reconstructed here |
+| application | edited existing `tests/test_*.py` files | AP-series, Run 0 | existing tests updated for the new features and contract hash; that no assertion was removed or weakened is not verified | the review found these edits outside the test paths of 6.1; the file-by-file list is in the Run 0 PRs and was not reconstructed here |
 
