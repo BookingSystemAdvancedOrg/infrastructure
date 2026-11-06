@@ -95,17 +95,23 @@ anything a browser keeps. It has no event model, no QR, no Wallet passes.
    happens on the guest's phone, so no Kassa changes are needed for v1.
 8. **Transfer and resale at face value.** The holder opens the ticket page
    and either gives the ticket away (transfer: new holder's email, free) or
-   lists it for resale at face value. Resale: the feature emails the
-   restaurant's public event page link with the ticket "ledig igen" only
-   when the occurrence is sold out (otherwise resale makes no sense) and
-   the next checkout for that type takes the listed ticket first: the buyer
-   pays face value on the restaurant's account, the seller is refunded the
-   same amount on the original PaymentIntent (partial refund, idempotency
-   key `ticket-resale-<transferId>`), the old ticket is voided and a new
-   one issued. Stripe fees on both legs are the restaurant's
+   lists it for resale at its own price (what was paid, never the type's
+   current price; free tickets cannot be listed). The listing is shown on
+   the restaurant's public event page whenever resale is on (K16
+   `resale[]`), and the buyer picks listed tickets explicitly (K17
+   `resaleTransferIds`, 1-4 per order): the buyer pays face value on the
+   restaurant's account, the seller is refunded the same amount on the
+   original PaymentIntent (partial refund, idempotency key
+   `ticket-resale-<transferId>`), the old ticket is voided and a new one
+   issued with the same type, price and VAT rate, all in one DynamoDB
+   transaction. The 15-minute hold is a claim on the listing, no capacity
+   moves. The ADR's earlier "next checkout takes the listed ticket first" and
+   "ledig igen" email are not built (see DECISIONS.md 2026-11-06). A resale
+   publishes `Ticket.Transferred kind=resale` only, not `Ticket.Sold`.
+   Stripe fees on both legs are the restaurant's
    **[NEEDS YOUR OK: or add a resale fee; v1 has none]**. Owners may turn
-   transfer and resale off per event. Both are refused within 2 hours of
-   the start.
+   transfer and resale off per event (resale default off). Both are refused
+   within 2 hours of the start.
 9. **Refunds.** Owner refund per ticket or whole order (Stripe refund on the
    connected account, key `ticket-refund-<ticketId>`), and **cancel an
    occurrence = mass refund** as a 202 job that refunds every paid order
@@ -163,7 +169,7 @@ contact data.
 | # | Method | Path | Auth | Role | Request -> response |
 |---|---|---|---|---|---|
 | K1 | GET | `/locations/{locationId}/events?status=&cursor=` | JWT | owner, staff | -> `{events[{eventId, title, status, nextOccurrence?, sold, capacity}], cursor}` |
-| K2 | POST | `/locations/{locationId}/events` | JWT | owner | `{eventId, title, description, imageKey?, occurrences[{startAt, endAt, capacity, salesOpenAt?, salesCloseAt?}], series?, ticketTypes[], settings}` -> 201 event (draft) |
+| K2 | POST | `/locations/{locationId}/events` | JWT | owner | `{eventId, title, description, imageKey?, imageAlt?, occurrences[{startAt, endAt, capacity, salesOpenAt?, salesCloseAt?}], series?, ticketTypes[], settings}` -> 201 event (draft) |
 | K3 | GET | `/locations/{locationId}/events/{eventId}` | JWT | owner, staff | -> event + occurrences + ticketTypes (staff: no revenue) |
 | K4 | PUT | `/locations/{locationId}/events/{eventId}` | JWT | owner | event fields + `version` -> event |
 | K5 | POST | `/locations/{locationId}/events/{eventId}/publish` | JWT | owner | `{version}` -> event (`published`), series occurrences generated |
@@ -176,10 +182,10 @@ contact data.
 | K12 | GET | `/locations/{locationId}/events/{eventId}/orders?cursor=` | JWT | owner | -> `{orders[], cursor}` |
 | K13 | POST | `/locations/{locationId}/events/tickets/{ticketId}/refund` | JWT | owner | `{txId, reason}` -> ticket (`refunded`) |
 | K14 | GET | `/locations/{locationId}/events/jobs/{jobId}` | JWT | owner | -> `{kind, done, counts}` |
-| K15 | GET | `/public/locations/{locationId}/events` | public | guest | -> `{events[{eventId, title, imageUrl?, nextOccurrence, fromPriceSek, soldOut}]}` |
+| K15 | GET | `/public/locations/{locationId}/events` | public | guest | -> `{events[{eventId, title, imageKey?, imageAlt?, nextOccurrence, fromPriceSek, soldOut}]}` |
 | K16 | GET | `/public/locations/{locationId}/events/{eventId}` | public | guest | -> event + `occurrences[{occurrenceId, startAt, left, soldOut}]` + `ticketTypes[{typeId, name, priceSek, left?, available}]` + `tablePick?` |
 | K17 | POST | `/public/locations/{locationId}/events/checkout` | public (Turnstile + request guard, throttle `public`) | guest | `{orderId, occurrenceId, lines[{typeId, qty}], buyerName, buyerEmail, buyerPhone?, tableIds?, turnstileToken}` -> `{clientSecret?, amountSek, expiresAt}` (no `clientSecret` when free: tickets issued at once) |
-| K18 | GET | `/public/tickets/{token}` | public (token) | guest | -> `{event, occurrence, tickets[{ticketId, typeName, holderName, status, qr}], wallet{apple: bool, google: bool}, transferAllowed, resaleAllowed}` |
+| K18 | GET | `/public/tickets/{token}` | public (token) | guest | -> `{event, occurrence, tickets[{ticketId, typeName, holderName, status, qr, priceOre, resale?, pendingTransfer?}], wallet{apple: bool, google: bool}, transferAllowed, resaleAllowed}` |
 | K19 | GET | `/public/tickets/{token}/pass?ticketId=&kind=apple\|google` | public (token) | guest | -> `.pkpass` file or 302 to the Google save link |
 | K20 | POST | `/public/tickets/{token}/transfers` | public (token) | guest | `{transferId, ticketId, kind, toEmail?}` -> 201 transfer |
 | K21 | POST | `/public/ticket-transfers/{transferToken}/accept` | public (token) | guest | `{name}` -> `{ticketToken}` (gift) |
