@@ -1,7 +1,7 @@
 # Pipeline
 
 ## Lock
-LOCKED 2026-11-06T01:35Z (refreshed) by run-20261106T0033Z
+unlocked (released 2026-11-06 ~02:00Z by run-20261106T0033Z)
 
 ## Position
 Step: Run 0 addendum (K events & tickets, L phone agent). Review round 1 done, fix round 1 pushed (infra 4b251cb, console 05fb778, customer ecf187b).
@@ -218,3 +218,12 @@ Then: finish K (table pick, occurrence capacity if remaining), B2, A2, rest of L
 ## Owner instruction appended 2026-11-05 23:46Z (via the owner's Claude Code session, API fire, by a run that found the lock live)
 Routine re-enabled on Sonnet. Owner's session is merging the reviewed resale PRs application#78, customer-front-end#20 and admin-front-end#30 to dev and deleting their branches; skip any already merged. Next: fix the K media PRs (admin#31 stray admin-front-end symlink; save orphans the upload; Google Wallet JWT over 1800 chars in live mode; Wallet label-in-name; CONTRACTS.md 6.K and DECISIONS.md for imageKey/imageAlt and K19 params; resale CONTRACTS.md and ADR-K 8 text from application#78), rebase application#79, admin-front-end#31, customer-front-end#21 onto dev after resale lands, re-review, record as ready under Needs owner (owner's session merges). Then rest of K (table pick, occurrence capacity if missing), B2, A2 ads adapters with guided connect and tracking UI, rest of L, I, J, Run 3. Release the stale lock if dead. Nothing to main; all features off by default.
 Run note: lock treated as live because build/run-2d-k-resale in application (22:03Z) and admin-front-end (22:16Z) have commits younger than 2h; next run after ~00:20Z may proceed.
+
+## Position update 2026-11-06 (run-20261106T0033Z) K media ready for owner's session to merge
+Resale (application#78) already on dev; admin#30/customer#20 were still open at run start. K media fix rounds done (3 rounds, two fresh Sonnet reviewers on the money-path/contract round). Final fresh diff check = MERGE for application#79 (d567694; 4406 passed; JWT URL <=1700 at max lengths incl. emoji; CI build-and-deploy still in_progress at 02:00Z: confirm green) and infrastructure#45 (docs, 08dd81d, CI green). admin-front-end#31 (574d6f0) and customer-front-end#21 (b14297b): rebased onto dev, reviewer verdict merge, CI green (check that both still merge cleanly if admin#30/customer#20 land first).
+Merge order: infrastructure#45, application#79, admin#31, customer#21 (all draft: mark ready). Owner's session merges (instruction 23:46Z). Not verified: real Apple/Google Wallet acceptance; brand-guardian/a11y full pass; admin has no Playwright screenshots for this change.
+## Needs owner (K media)
+- Confirm Google Wallet title/place caps of 30 chars (was 40) so the save link stays <1800.
+- Before live Wallet: hand-create one Google EventTicketClass; infra PR for Wallet secrets/IAM needs your approval; Apple/Google accounts.
+- Merge the four PRs above (draft -> ready) in that order.
+Next run: remaining K (table pick, occurrence capacity if missing), then B2, A2, rest of L, I, J, Run 3.
