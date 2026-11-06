@@ -1,7 +1,7 @@
 # Pipeline
 
 ## Lock
-unlocked (released 2026-11-05 ~23:20Z by run-20261105T2133Z)
+LOCKED 2026-11-06T00:36Z by run-20261106T0033Z
 
 ## Position
 Step: Run 0 addendum (K events & tickets, L phone agent). Review round 1 done, fix round 1 pushed (infra 4b251cb, console 05fb778, customer ecf187b).
