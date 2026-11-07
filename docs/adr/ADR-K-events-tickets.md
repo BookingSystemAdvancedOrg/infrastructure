@@ -70,16 +70,36 @@ anything a browser keeps. It has no event model, no QR, no Wallet passes.
    without a lookup; the server re-verifies on sync. Codes are stored as
    `codeHmac` only (ADR-E rule). The ticket page link is an HMAC token in
    the URL fragment like the booking manage links.
-6. **Wallet passes.** Apple Wallet `.pkpass` (event ticket style, QR,
-   event, time, holder, location) signed with the platform Pass Type ID
-   certificate in `${prefix}events-tickets/apple-pass`; Google Wallet
-   through a signed "Save to Google Wallet" JWT (`${prefix}events-tickets/google-wallet`).
-   Both are generated on request from the ticket page (never stored). v1
-   has no pass push updates: a transferred or refunded ticket is simply
-   refused at the door and the ticket page says so. When a secret is
-   missing the links are hidden (feature works without Wallet).
+6. **Wallet passes.** Both are generated on request from the ticket page
+   (never stored) and show the same facts: event title, start time, place
+   (the location's name), ticket type, holder name and the QR (the same
+   `<ticketId>.<sig>` payload the door scanner verifies, with the last 8
+   characters of the ticket id as the printed code). Apple Wallet: a
+   `.pkpass` (event ticket style: title primary; start time and place
+   secondary; holder and ticket type auxiliary; `relevantDate` = start,
+   `expirationDate` = end) signed with the platform Pass Type ID
+   certificate in `${prefix}events-tickets/apple-pass`. Google Wallet:
+   a "Save to Google Wallet" link carrying a JWT signed with the service
+   account in `${prefix}events-tickets/google-wallet`. The Google
+   `EventTicketClass` (`<issuerId>.<classId or booqy-event-ticket>`) is
+   created once by hand and the JWT references it by id; it is never sent
+   inline, because an inline class pushed the live JWT over the 1800
+   character limit of the save link. The JWT carries only the ticket
+   object, with the long strings capped (event title, place and holder
+   name 30, ticket type 20 characters, at most 3 UTF-8 bytes per
+   character, an ellipsis when cut; the full values stay on the ticket
+   page and the Apple pass). The JWT length follows UTF-8 bytes, so the
+   finished link is measured: over 1700 characters the strings are
+   shortened step by step and last the optional text modules dropped. The
+   start time is only in `validTimeInterval`. v1 has no pass push
+   updates: a transferred or refunded ticket is simply refused at the door
+   and the ticket page says so. When a secret is missing, empty, unparseable
+   or lacks a field the kind is hidden; a complete secret with bad key
+   material still shows the kind and answers 404 on click, as does any
+   pass that cannot be built, with no detail (feature works without
+   Wallet).
    **[Human actions: Apple Developer account and Pass Type ID; Google
-   Wallet issuer account.]**
+   Wallet issuer account and the one-time EventTicketClass.]**
 7. **QR scanning and guest list in admin** (`/evenemang/<eventId>/insläpp`,
    owner and staff): camera scanning with the browser `BarcodeDetector`
    API and a typed-code fallback (no new dependency in v1; a decoding
@@ -95,17 +115,23 @@ anything a browser keeps. It has no event model, no QR, no Wallet passes.
    happens on the guest's phone, so no Kassa changes are needed for v1.
 8. **Transfer and resale at face value.** The holder opens the ticket page
    and either gives the ticket away (transfer: new holder's email, free) or
-   lists it for resale at face value. Resale: the feature emails the
-   restaurant's public event page link with the ticket "ledig igen" only
-   when the occurrence is sold out (otherwise resale makes no sense) and
-   the next checkout for that type takes the listed ticket first: the buyer
-   pays face value on the restaurant's account, the seller is refunded the
-   same amount on the original PaymentIntent (partial refund, idempotency
-   key `ticket-resale-<transferId>`), the old ticket is voided and a new
-   one issued. Stripe fees on both legs are the restaurant's
+   lists it for resale at its own price (what was paid, never the type's
+   current price; free tickets cannot be listed). The listing is shown on
+   the restaurant's public event page whenever resale is on (K16
+   `resale[]`), and the buyer picks listed tickets explicitly (K17
+   `resaleTransferIds`, 1-4 per order): the buyer pays face value on the
+   restaurant's account, the seller is refunded the same amount on the
+   original PaymentIntent (partial refund, idempotency key
+   `ticket-resale-<transferId>`), the old ticket is voided and a new one
+   issued with the same type, price and VAT rate, all in one DynamoDB
+   transaction. The 15-minute hold is a claim on the listing, no capacity
+   moves. The ADR's earlier "next checkout takes the listed ticket first" and
+   "ledig igen" email are not built (see DECISIONS.md 2026-11-06). A resale
+   publishes `Ticket.Transferred kind=resale` only, not `Ticket.Sold`.
+   Stripe fees on both legs are the restaurant's
    **[NEEDS YOUR OK: or add a resale fee; v1 has none]**. Owners may turn
-   transfer and resale off per event. Both are refused within 2 hours of
-   the start.
+   transfer and resale off per event (resale default off). Both are refused
+   within 2 hours of the start.
 9. **Refunds.** Owner refund per ticket or whole order (Stripe refund on the
    connected account, key `ticket-refund-<ticketId>`), and **cancel an
    occurrence = mass refund** as a 202 job that refunds every paid order
@@ -163,7 +189,7 @@ contact data.
 | # | Method | Path | Auth | Role | Request -> response |
 |---|---|---|---|---|---|
 | K1 | GET | `/locations/{locationId}/events?status=&cursor=` | JWT | owner, staff | -> `{events[{eventId, title, status, nextOccurrence?, sold, capacity}], cursor}` |
-| K2 | POST | `/locations/{locationId}/events` | JWT | owner | `{eventId, title, description, imageKey?, occurrences[{startAt, endAt, capacity, salesOpenAt?, salesCloseAt?}], series?, ticketTypes[], settings}` -> 201 event (draft) |
+| K2 | POST | `/locations/{locationId}/events` | JWT | owner | `{eventId, title, description, imageKey?, imageAlt?, occurrences[{startAt, endAt, capacity, salesOpenAt?, salesCloseAt?}], series?, ticketTypes[], settings}` -> 201 event (draft) |
 | K3 | GET | `/locations/{locationId}/events/{eventId}` | JWT | owner, staff | -> event + occurrences + ticketTypes (staff: no revenue) |
 | K4 | PUT | `/locations/{locationId}/events/{eventId}` | JWT | owner | event fields + `version` -> event |
 | K5 | POST | `/locations/{locationId}/events/{eventId}/publish` | JWT | owner | `{version}` -> event (`published`), series occurrences generated |
@@ -176,10 +202,10 @@ contact data.
 | K12 | GET | `/locations/{locationId}/events/{eventId}/orders?cursor=` | JWT | owner | -> `{orders[], cursor}` |
 | K13 | POST | `/locations/{locationId}/events/tickets/{ticketId}/refund` | JWT | owner | `{txId, reason}` -> ticket (`refunded`) |
 | K14 | GET | `/locations/{locationId}/events/jobs/{jobId}` | JWT | owner | -> `{kind, done, counts}` |
-| K15 | GET | `/public/locations/{locationId}/events` | public | guest | -> `{events[{eventId, title, imageUrl?, nextOccurrence, fromPriceSek, soldOut}]}` |
+| K15 | GET | `/public/locations/{locationId}/events` | public | guest | -> `{events[{eventId, title, imageKey?, imageAlt?, nextOccurrence, fromPriceSek, soldOut}]}` |
 | K16 | GET | `/public/locations/{locationId}/events/{eventId}` | public | guest | -> event + `occurrences[{occurrenceId, startAt, left, soldOut}]` + `ticketTypes[{typeId, name, priceSek, left?, available}]` + `tablePick?` |
 | K17 | POST | `/public/locations/{locationId}/events/checkout` | public (Turnstile + request guard, throttle `public`) | guest | `{orderId, occurrenceId, lines[{typeId, qty}], buyerName, buyerEmail, buyerPhone?, tableIds?, turnstileToken}` -> `{clientSecret?, amountSek, expiresAt}` (no `clientSecret` when free: tickets issued at once) |
-| K18 | GET | `/public/tickets/{token}` | public (token) | guest | -> `{event, occurrence, tickets[{ticketId, typeName, holderName, status, qr}], wallet{apple: bool, google: bool}, transferAllowed, resaleAllowed}` |
+| K18 | GET | `/public/tickets/{token}` | public (token) | guest | -> `{event, occurrence, tickets[{ticketId, typeName, holderName, status, qr, priceOre, resale?, pendingTransfer?}], wallet{apple: bool, google: bool}, transferAllowed, resaleAllowed}` |
 | K19 | GET | `/public/tickets/{token}/pass?ticketId=&kind=apple\|google` | public (token) | guest | -> `.pkpass` file or 302 to the Google save link |
 | K20 | POST | `/public/tickets/{token}/transfers` | public (token) | guest | `{transferId, ticketId, kind, toEmail?}` -> 201 transfer |
 | K21 | POST | `/public/ticket-transfers/{transferToken}/accept` | public (token) | guest | `{name}` -> `{ticketToken}` (gift) |
@@ -290,7 +316,9 @@ signing, tested with a test certificate in `tests/fixtures/events_tickets/`.
   across orders, tickets, transfers (names and emails removed; ticket
   validity and TX rows kept as bookkeeping records); `tenant.purge`
   deletes everything but TX rows get a 7-year `ttl` like gift cards.
-- Wallet passes contain the holder name and the QR only; Apple and Google
+- Wallet passes contain event title, time, place, ticket type, holder
+  name and the QR, and nothing else (no email, phone or price); Google's
+  copy has the holder name capped at 30 characters. Apple and Google
   receive what the pass shows (sub-processor note for the DPA list, human
   action).
 - Storage registry: site-kit `TICKET_PURCHASE_KEY` = sessionStorage
