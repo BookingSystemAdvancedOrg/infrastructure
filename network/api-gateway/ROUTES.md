@@ -202,6 +202,8 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | POST | `/tenant/guests/search` | JWT | guest-crm |
 | GET | `/tenant/guest-segments` | JWT | guest-crm |
 | POST | `/tenant/guests/rebuild` | JWT | guest-crm |
+| GET | `/tenant/help-assistant` | JWT | help-assistant |
+| POST | `/tenant/help-assistant/answers` | JWT | help-assistant |
 | GET | `/tenant/meta-ads/connection` | JWT | meta-ads |
 | POST | `/tenant/meta-ads/connection/start` | JWT | meta-ads |
 | POST | `/tenant/meta-ads/connection/callback` | JWT | meta-ads |
@@ -210,6 +212,11 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | DELETE | `/tenant/meta-ads/connection` | JWT | meta-ads |
 | GET | `/platform/meta-ads/settings` | JWT (operator) | platform-tenants |
 | PUT | `/platform/meta-ads/settings` | JWT (operator) | platform-tenants |
+| GET | `/tenant/personalliggare/persons` | JWT | personalliggare |
+| GET | `/tenant/phone-agent` | JWT | phone-agent |
+| PUT | `/tenant/phone-agent/config` | JWT | phone-agent |
+| GET | `/platform/phone-agent/settings` | JWT (operator) | platform-tenants |
+| PUT | `/platform/phone-agent/settings` | JWT (operator) | platform-tenants |
 | GET | `/tenant/site-builder` | JWT | site-builder |
 | PUT | `/tenant/site-builder/draft` | JWT | site-builder |
 | POST | `/tenant/site-builder/preview-links` | JWT | site-builder |

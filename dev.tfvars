@@ -167,3 +167,7 @@ site_link_prod_account_id = "343695380960"
 # (unreserved) so dev can deploy; set back to 2 once the quota is raised.
 # Prod is UNDECIDED (owner, before L goes live) and stays unreserved.
 phone_agent_call_reserved_concurrency = -1
+
+# In-app help assistant in Admin (help-assistant.tf). On in dev; answers come
+# from the help texts until bedrock_client = "real" and a bedrock_model_id are set.
+help_assistant_enabled = true

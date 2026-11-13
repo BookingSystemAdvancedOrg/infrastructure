@@ -1100,6 +1100,12 @@ module "phone_agent_jobs_ecr" {
   environment = var.env
   function    = "phone-agent-jobs"
 }
+# In-app help assistant (help-assistant.tf); same repository settings.
+module "help_assistant_ecr" {
+  source      = "./storage/ecr/terminal-payments"
+  environment = var.env
+  function    = "help-assistant"
+}
 module "catering_requests_ecr" {
   source      = "./storage/ecr/catering-requests"
   environment = var.env
@@ -2370,6 +2376,7 @@ locals {
     module.dish_margin.wiring,
     module.events_tickets.wiring,
     module.phone_agent.wiring,
+    module.help_assistant.wiring,
   ]
   feature_lambda_releases         = merge([for w in local.feature_wiring : w.lambda_releases]...)
   feature_tenant_aware_role_names = merge([for w in local.feature_wiring : w.tenant_aware_role_names]...)
