@@ -171,3 +171,10 @@ phone_agent_call_reserved_concurrency = -1
 # In-app help assistant in Admin (help-assistant.tf). On in dev; answers come
 # from the help texts until bedrock_client = "real" and a bedrock_model_id are set.
 help_assistant_enabled = true
+
+# AI phone agent brain (owner 2026-11-13): Claude Haiku 5.5 on Bedrock (EU
+# inference profile). The model client is real in dev, so the Telefon
+# "Prova" simulator talks to the real model; voice and telephony stay
+# simulators until the ElevenLabs and 46elks accounts exist.
+agent_model_client   = "real"
+phone_agent_model_id = "eu.anthropic.claude-haiku-5-5"

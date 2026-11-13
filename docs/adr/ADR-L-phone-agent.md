@@ -418,13 +418,21 @@ Swedish first and English second.
       as an ElevenLabs SIP trunk number that accepts 46elks' SIP addresses
       over TCP only (46elks has no SIP digest auth). Privacy at ElevenLabs:
       no audio recorded, audio deleted, 30 days retention **[NEEDS YOUR OK]**.
-    - **Language**: the call starts in Swedish; Booqy decides the caller's
-      language from each utterance (`shared/features/phone_agent/language.py`,
-      a switch only on a clear win: short answers never flip it), says the
-      short disclosure once in the new language, asks the model to answer in
-      it and tells ElevenLabs to switch (`language_detection`). Call
-      languages: `sv en no da fi de fr es it pl ar` (`languages` in L2 picks
-      which; Swedish always). Confirmation texts stay Swedish or English.
+    - **Language**: the call starts in Swedish and follows whatever the
+      caller speaks, among the 32 languages of the voice model
+      (`language.VOICE_LANGUAGES`, eleven_flash_v2_5). The model starts every
+      reply with a `[<code>]` tag of its language; a word-list detector for
+      eleven common languages sets the prompt's language before the model
+      runs. On a change Booqy says the fixed short disclosure in the new
+      language (`copy.DISCLOSURE_SHORT`, all 32, wording **[NEEDS YOUR OK:
+      lawyer]**), and tells ElevenLabs to switch (`language_detection`; the
+      agent has presets for all 32). Confirmation texts stay Swedish or
+      English.
+    - **Brain**: Claude Haiku 5.5 (`eu.anthropic.claude-haiku-5-5`) in dev and
+      prod (owner 2026-11-13); Haiku 4.5 answered faster in a first
+      measurement but needs the Anthropic use-case form in the account. The
+      prompt lists today and the next seven days with weekdays. In dev the
+      model client is real, so the wizard's "Prova" talks to the real model.
     - **Location**: one number per location names the location. A location
       may answer on another location's number (L4 `shareNumberWith`; the
       `NUMBER#` row lists `locationIds`); the greeting then asks which

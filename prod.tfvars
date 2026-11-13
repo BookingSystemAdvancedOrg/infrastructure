@@ -138,3 +138,7 @@ site_link_dev_account_id = "877653167825"
 # this account's SMS quota to 50 USD and moved it out of the SMS sandbox
 # (support case, 2026-10-27). Ask for more once usage passes half of it.
 sms_monthly_spend_limit_usd = 50
+
+# AI phone agent brain (owner 2026-11-13): Claude Haiku 5.5, as in dev. The
+# clients stay simulators (the feature is off in every plan) until go-live.
+phone_agent_model_id = "eu.anthropic.claude-haiku-5-5"
