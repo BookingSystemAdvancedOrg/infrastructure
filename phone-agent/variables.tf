@@ -83,6 +83,24 @@ variable "phone_agent_model_id" {
   type = string
 }
 
+variable "phone_agent_voice_id" {
+  description = "ElevenLabs stock library voice id for every location's agent (never a clone); empty until chosen"
+  type        = string
+  default     = ""
+}
+
+variable "phone_agent_tts_model" {
+  description = "ElevenLabs TTS model: multilingual, low latency, Swedish"
+  type        = string
+  default     = "eleven_flash_v2_5"
+}
+
+variable "elevenlabs_api_base" {
+  description = "ElevenLabs API base URL (EU residency: https://api.eu.residency.elevenlabs.io)"
+  type        = string
+  default     = "https://api.elevenlabs.io"
+}
+
 variable "daily_minutes_alarm" {
   description = "Alarm when all tenants together use more minutes than this in a day [NEEDS YOUR OK]"
   type        = number

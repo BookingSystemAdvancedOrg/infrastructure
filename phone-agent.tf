@@ -33,6 +33,9 @@ module "phone_agent" {
   telephony_client          = var.telephony_client
   agent_model_client        = var.agent_model_client
   phone_agent_model_id      = var.phone_agent_model_id
+  phone_agent_voice_id      = var.phone_agent_voice_id
+  phone_agent_tts_model     = var.phone_agent_tts_model
+  elevenlabs_api_base       = var.elevenlabs_api_base
   call_reserved_concurrency = var.phone_agent_call_reserved_concurrency
 }
 

@@ -5,6 +5,25 @@ first when a run starts or resumes; skip anything already verified or merged.
 
 Last updated: 2026-11-05 (Run 2 batch 2: H Personalliggare and L AI phone agent built on `build/run-2b-integration`, draft PRs against `dev`, reviewed once, fix round 1 applied, see "Fix round 1" under Run 2 batch 2 below). Previously: 2026-11-04 (Run 2 batch 1: D, E, F, G built on `build/run-2-<feature>`, merged into `build/run-2-integration` and then to `dev`, awaiting the owner's go-ahead, see Run 2 batch 1 below; spec change after the Run 1 merges: ADR-L counter-offers settled and the ADR-A2 all-platform ads addendum written on draft PRs, see "Spec change 2026-11-04" below; Run 1 A, B1, C are on `dev` awaiting the owner's go-ahead).
 
+## Feature L going live, 2026-11-13 (ADR-L decision 14)
+
+On `dev` in infrastructure, application and admin-front-end. Real adapters
+for ElevenLabs (`shared/voice_provider_real.py`), 46elks
+(`shared/telephony_real.py`) and Bedrock (`shared/agent_model_real.py`),
+all behind `voice_client` / `telephony_client` / `agent_model_client`
+(still `simulator`); automatic language switching (11 call languages,
+disclosure in each); location from the called number and shared numbers
+(L4 `shareNumberWith`, the agent asks which location); `get_restaurant_info`
+with special days and booking rules of the called location only; admin
+Telefon: language choices, shared number, simulator shows the language.
+Tests: `test_phone_agent_live.py` (language switch, shared number,
+multi-location and foreign-tenant isolation, counter-offers end to end
+through L6 in Swedish and English, a whole ElevenLabs call),
+`test_phone_agent_adapters.py`. New IAM row for owner approval:
+`phone-agent` `EndpointKeyForVoiceAgent` (GetSecretValue on the endpoint
+key secret). Owner actions before go-live: see `phone-agent/README.md`
+"Going live".
+
 ## Spec change 2026-11-04 (owner instructions of 2026-11-04, Fable-led, no code behind a flag changes)
 
 Branches `claude/spec-<repo>-*` with **draft PRs against `dev`** (listed
@@ -691,4 +710,4 @@ merged.
 | I. Fortnox and Visma posting | todo | | 0 | | | Fortnox and Visma developer access |
 | J. Margin per dish | todo | | 0 | | | |
 | K. Events and tickets (addendum, Run 2) | scaffolding in production, dark (merged to main by owner 2026-11-02; feature code is Run 2) | `build/run-0-addendum-kl` (all repos) | 1 | ADR-K, contracts, scaffolding AK1-7, IK1-6, ADK1-5, COK1-3, CUK1-3 and brand BRK1 (Chip, Card ticket) done, awaiting fresh review; IAM rows 11-16 need owner approval; feature code itself is Run 2 | Wallet pass signing against real Apple/Google accounts | Accountant: VAT rate list and BAS accounts for tickets (needs accountant review); lawyer: receipt by email, withdrawal-right text, resale terms; Apple Developer Pass Type ID and Google Wallet issuer; owner: plan rows, per-ticket fee or none [NEEDS YOUR OK] |
-| L. AI phone agent (addendum, Run 2) | built (partial), NOT reviewed (Run 2 batch 2, draft PRs 2026-11-05): API, call Lambda, jobs, tools with counter-offers, admin Telefon, console view on simulators; real provider adapters not built | `build/run-2b-integration` (infrastructure, application, admin-front-end, booqy-console) | 2 | Run 2 batch 2 findings 1-9, 11 (finding 1 blocks go-live: agent principal status vs `staff_location()`) | Real voice latency and Swedish quality (Run 3 voice QA); Nova Sonic language list (quarterly); counter-offer tool side (simulator scripts only so far) | Voice provider account, EU residency and DPA (ElevenLabs proposed); SIP provider account, KYC and Swedish numbers (46elks proposed); Bedrock model access for `phone_agent_model_id`; lawyer: art. 50 wording, recording notice and basis, privacy notice paragraph; accountant: VAT on per-location and per-minute lines; owner: plans, included minutes, prices, retention options, default agent name, reserved concurrency, counter-offer choices of decision 13 (three offers, earlier-wins tie, one next day then callback, nearby-table interpretation and 1.0 m gap, nearby before times, toggle defaults, manual-route guarantee upgrade) [NEEDS YOUR OK]; IAM rows 11-16 approval; new IAM row for Run 2: `phone-agent-call` invoke on `list-layout-version:live` |
+| L. AI phone agent (addendum, Run 2) | built on `dev`, real adapters behind config (2026-11-13, ADR-L decision 14): ElevenLabs (custom LLM, language switching, SIP trunk), 46elks, Bedrock ConverseStream; per-location knowledge and shared numbers; simulators stay the default; not yet run against real accounts | `build/run-2b-integration` (infrastructure, application, admin-front-end, booqy-console) | 2 | Run 2 batch 2 findings 1-9, 11 (finding 1 blocks go-live: agent principal status vs `staff_location()`) | Real voice latency and Swedish quality (Run 3 voice QA); Nova Sonic language list (quarterly); counter-offer tool side (simulator scripts only so far) | Voice provider account, EU residency and DPA (ElevenLabs proposed); SIP provider account, KYC and Swedish numbers (46elks proposed); Bedrock model access for `phone_agent_model_id`; lawyer: art. 50 wording, recording notice and basis, privacy notice paragraph; accountant: VAT on per-location and per-minute lines; owner: plans, included minutes, prices, retention options, default agent name, reserved concurrency, counter-offer choices of decision 13 (three offers, earlier-wins tie, one next day then callback, nearby-table interpretation and 1.0 m gap, nearby before times, toggle defaults, manual-route guarantee upgrade) [NEEDS YOUR OK]; IAM rows 11-16 approval; new IAM row for Run 2: `phone-agent-call` invoke on `list-layout-version:live` |

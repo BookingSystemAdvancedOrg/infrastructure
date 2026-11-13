@@ -393,6 +393,61 @@ Swedish first and English second.
     `tests/test_phone_agent_counter_offers.py` drives every step above in
     both languages.
 
+14. **Going live: the owner's choices (2026-11-13).** ElevenLabs is the
+    voice provider with a stock library voice (never a clone), language
+    switching follows the caller, knowledge is per location, and the tone
+    is natural. Built behind config; simulators stay the default until the
+    accounts exist.
+
+    - **ElevenLabs adapter** (`shared/voice_provider_real.py`): one agent per
+      location (idempotent by name) on the custom LLM option pointed at
+      `<callUrl>v1` (the turn endpoint) with the endpoint key as an
+      ElevenLabs workspace secret; `agent.language = sv`, `language_presets`
+      for the tenant's other languages, a multilingual low-latency TTS model
+      (`phone_agent_tts_model`, default `eleven_flash_v2_5`) and the voice
+      `phone_agent_voice_id`; barge-in on, but the first message (the
+      disclosure) cannot be interrupted; `end_call`, `language_detection`
+      and (with a transfer number) `transfer_to_number` system tools, which
+      the turn endpoint calls as OpenAI tool calls. Per call, ElevenLabs'
+      conversation initiation webhook (L14, header token) gets the greeting
+      or the refusal as the first message and `tenantId`/`callId` as dynamic
+      variables and custom LLM extra body; the signed post-call webhook
+      gives the art. 50 evidence (the first agent message) and ends and
+      meters the call. ElevenLabs cannot speak outside an LLM turn, so
+      `say()` is not used with it (`inline_speech`). The number is imported
+      as an ElevenLabs SIP trunk number that accepts 46elks' SIP addresses
+      over TCP only (46elks has no SIP digest auth). Privacy at ElevenLabs:
+      no audio recorded, audio deleted, 30 days retention **[NEEDS YOUR OK]**.
+    - **Language**: the call starts in Swedish; Booqy decides the caller's
+      language from each utterance (`shared/features/phone_agent/language.py`,
+      a switch only on a clear win: short answers never flip it), says the
+      short disclosure once in the new language, asks the model to answer in
+      it and tells ElevenLabs to switch (`language_detection`). Call
+      languages: `sv en no da fi de fr es it pl ar` (`languages` in L2 picks
+      which; Swedish always). Confirmation texts stay Swedish or English.
+    - **Location**: one number per location names the location. A location
+      may answer on another location's number (L4 `shareNumberWith`; the
+      `NUMBER#` row lists `locationIds`); the greeting then asks which
+      restaurant (only locations that would answer now are offered), the
+      answer is matched on the words that tell them apart (for Malmö and
+      Norrmalm: those two words) and no tool runs until a location is
+      chosen. Every tool is bound to the chosen location and the call's
+      tenant; `get_restaurant_info` returns only that location's address,
+      hours, special days and booking rules.
+    - **Tone**: the system prompt asks for short sentences, one question at
+      a time, no lists or ids, times and dates said the way people say them,
+      the caller's name now and then; `tone` adds formal or friendly.
+    - **46elks adapter** (`shared/telephony_real.py`): Swedish voice numbers;
+      `voice_start` connects to the ElevenLabs SIP target and rings the
+      restaurant's own phone on `failed` or `busy`; callbacks only from
+      46elks' webhook addresses with a token; transfers go through
+      ElevenLabs.
+    - **Bedrock adapter** (`shared/agent_model_real.py`): ConverseStream
+      (the one Bedrock action the roles already have), read to the end.
+    - **Owner to choose [NEEDS YOUR OK]**: the voice (2 or 3 Swedish stock
+      voices, listened to in the ElevenLabs library), the model id, the
+      transfer type (`sip_refer` default, verify with 46elks).
+
 ## Data model
 
 Table `<prefix>phone-agent` (PAY_PER_REQUEST, PITR, deletion protection in
@@ -402,7 +457,7 @@ prod, TTL `ttl`, no stream). Tenant in every partition key.
 |---|---|---|
 | `TENANT#<t>` | `CONFIG` | `agentName`, `tone`, `languages` (`[sv, en]`), `recording{enabled, purpose?, retentionDays?}`, `minutesCapPerMonth`, `version`, `updatedAt`, `updatedBy` |
 | `TENANT#<t>` | `LOC#<l>#CONFIG` | `enabled`, `killSwitch`, `mode` (`after_hours` \| `overflow` \| `always`), `agentHours{mon..sun: [{from, to}]}`, `greetingExtraSv`, `greetingExtraEn`, `transferTo` (E.164), `maxCallSeconds`, `counterOffers{nearbyTables, phoneOnlyTables}` (decision 13, both default true), `number?{e164, providerId, provisionedAt, releaseAfter?}`, `providerAgentId?`, `forwardingVerifiedAt?`, `version` |
-| `TENANT#<t>` | `NUMBER#<e164>` | pointer `{locationId}`; GSI `byNumber` |
+| `TENANT#<t>` | `NUMBER#<e164>` | pointer `{locationId, locationIds[]}` (the owner location, and every location answering on the number, decision 14); GSI `byNumber` |
 | `TENANT#<t>` | `CALL#<yyyy-mm-dd>#<callId>` | `locationId`, `callRef` (provider), `from` (E.164, removed at contact retention), `fromHash` (`sha256(tenant\|phone)`), `status`, `startedAt`, `answeredAt?`, `endedAt?`, `durationSec`, `billedMinutes`, `metered`, `language`, `outcome` (`booked` \| `moved` \| `cancelled` \| `info` \| `transferred` \| `callback` \| `abandoned` \| `refused` \| `error`), `refusedReason?`, `disclosure{text, playedAt, repeats, languages[]}`, `counterOffer` (`none` \| `other_time` \| `next_day` \| `nearby_table`, decision 13), `reservationId?`, `callbackId?`, `transfer?{startedAt, answered, at}`, `recording?{key, expiresAt}`, `summary?` (one line by the agent, no phone number), `turnCount`, `version`, `ttl` (7 years) |
 | `TENANT#<t>` | `CALL#<day>#<callId>#T#<seq:05d>` | transcript turn: `role` (`agent` \| `caller` \| `system` \| `tool`), `text`, `at`, `toolName?`, `toolArgsRedacted?`, `toolOk?`, `ttl` (24 months) |
 | `TENANT#<t>` | `CALLBACK#<callbackId>` | `locationId`, `callId`, `name?`, `phone`, `phoneHash`, `topic`, `preferredTime?`, `status` (`open` \| `closed`), `createdAt`, `closedAt?`, `closedBy?`, `note?`, `version`, `ttl` (90 days after close) |

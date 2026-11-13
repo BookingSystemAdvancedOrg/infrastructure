@@ -50,6 +50,11 @@ locals {
     PHONE_AGENT_MODEL_ID   = var.phone_agent_model_id
     VOICE_SECRET_ARN       = aws_secretsmanager_secret.voice.arn
     TELEPHONY_SECRET_ARN   = aws_secretsmanager_secret.telephony.arn
+    # ElevenLabs (the real voice client): the stock library voice, the TTS
+    # model and the API base (EU residency changes it).
+    PHONE_AGENT_VOICE_ID  = var.phone_agent_voice_id
+    PHONE_AGENT_TTS_MODEL = var.phone_agent_tts_model
+    ELEVENLABS_API_BASE   = var.elevenlabs_api_base
   }
 
   functions = {
@@ -57,7 +62,12 @@ locals {
       timeout     = 28
       memory      = 512
       concurrency = -1
-      env         = merge(local.common_env, { RECORDINGS_BUCKET = aws_s3_bucket.recordings.bucket })
+      env = merge(local.common_env, {
+        RECORDINGS_BUCKET = aws_s3_bucket.recordings.bucket
+        # The ElevenLabs agent per location references this key (stored as an
+        # ElevenLabs workspace secret) for its custom LLM calls.
+        LLM_ENDPOINT_KEY_SECRET_ARN = aws_secretsmanager_secret.llm_key.arn
+      })
     }
     phone-agent-call = {
       timeout = 30
@@ -356,7 +366,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "recordings" {
 
 resource "aws_secretsmanager_secret" "voice" {
   name                    = "${local.prefix}phone-agent/voice-provider"
-  description             = "Voice provider API key and webhook signing secret, JSON; set by hand"
+  description             = "ElevenLabs, JSON {apiKey, webhookSecret, initiationToken, callUrl}; set by hand"
   recovery_window_in_days = var.environment == "prod" ? 30 : 7
 
   tags = {
@@ -366,7 +376,7 @@ resource "aws_secretsmanager_secret" "voice" {
 
 resource "aws_secretsmanager_secret" "telephony" {
   name                    = "${local.prefix}phone-agent/telephony"
-  description             = "SIP provider API credentials and webhook secret, JSON; set by hand"
+  description             = "46elks, JSON {username, password, webhookToken}; set by hand"
   recovery_window_in_days = var.environment == "prod" ? 30 : 7
 
   tags = {

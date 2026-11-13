@@ -30,12 +30,15 @@ simulators unless `var.voice_client`, `var.telephony_client`, `var.agent_model_c
 
 ## IAM (new roles; no existing role changed)
 
+New row proposed 2026-11-13, **not applied, waiting for the owner's approval**: `phone-agent` / `EndpointKeyForVoiceAgent` (below). Only needed once `voice_client = "real"`; until it is added, enabling a location with the real voice client fails with `voice_provider_unavailable`.
+
 | Role | Statement | Actions | Resource |
 |---|---|---|---|
 | all three | PhoneAgentTable | Get/Put/Update/DeleteItem, Query, BatchWriteItem | the new table and its indexes |
 | all three | PublishPhoneAgentEvents | events:PutEvents | the bus, `events:source = booqy.phone-agent` |
 | all three | ReadPlatformSettings | dynamodb:GetItem | **existing tenant table**, `LeadingKeys = PLATFORM#PHONE_AGENT` only |
 | all three | ProviderSecrets | secretsmanager:GetSecretValue | the two new provider secrets |
+| phone-agent | EndpointKeyForVoiceAgent (proposed 2026-11-13, not applied) | secretsmanager:GetSecretValue | the endpoint key secret (the real voice client stores it once as an ElevenLabs workspace secret for the location agents' custom LLM) |
 | phone-agent | WritePlatformSettings | dynamodb:PutItem | **existing tenant table**, `LeadingKeys = PLATFORM#PHONE_AGENT` only |
 | phone-agent | AgentSystemUsers | dynamodb:PutItem, DeleteItem | **existing user table**, `LeadingKeys` like `USER#agent:*` only |
 | phone-agent | InvokeReadTools | lambda:InvokeFunction | **existing** `tenant-site-config:live`, `get-availability:live`, `get-reservation:live`, `get-menu:live`, `list-layout-version:live` (the dry-run simulator) |
@@ -54,10 +57,23 @@ simulators unless `var.voice_client`, `var.telephony_client`, `var.agent_model_c
 `mark-arrived` (the guest route needs the manage-link token). The hook callers' invoke grants on
 `phone-agent:live` exist since the Run 0 addendum (CONTRACTS.md 14 rows 11, 12, 16).
 
+## Going live (real providers, ADR-L decision 14)
+
+Set `voice_client`, `telephony_client`, `agent_model_client` to `real` per environment, plus
+`phone_agent_model_id`, `phone_agent_voice_id` (and `elevenlabs_api_base` with EU residency).
+Secrets (by hand, JSON): `${prefix}phone-agent/voice-provider` `{apiKey, webhookSecret,
+initiationToken, callUrl}` (`callUrl` = output `turn_endpoint_url`), `${prefix}phone-agent/telephony`
+`{username, password, webhookToken}`. ElevenLabs workspace: a post-call webhook to
+`<callUrl>public/phone-agent/voice/webhook` with transcript events (its HMAC secret is
+`webhookSecret`). The location agents, the SIP trunk numbers and the initiation webhook are created
+by the API when a location is enabled.
+
 ## Unverified
 
-- Everything against real providers (ElevenLabs, 46elks, Bedrock); the Function URL's exposure is
-  limited by the endpoint key and the provider signatures only (no API Gateway throttle on L13/L14).
+- Everything against real providers (ElevenLabs, 46elks, Bedrock): adapters are built and unit
+  tested with faked HTTP; shapes the provider docs did not confirm are marked `[VERIFY IN SANDBOX]`
+  in `shared/voice_provider_real.py`. The Function URL's exposure is limited by the endpoint key and
+  the provider signatures only (no API Gateway throttle on L13/L14).
 - Reserved concurrency for `phone-agent-call` is a per-environment variable
   (`phone_agent_call_reserved_concurrency`, default -1 = unreserved): dev reserves 2, prod is
   undecided (owner, before L goes live). Provisioned concurrency (ADR-L latency budget) is not set:

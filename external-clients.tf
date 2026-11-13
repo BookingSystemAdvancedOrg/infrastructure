@@ -114,3 +114,34 @@ variable "phone_agent_model_id" {
   sensitive   = false
   default     = ""
 }
+
+variable "phone_agent_voice_id" {
+  type        = string
+  description = "ElevenLabs stock library voice id for the phone agent (PHONE_AGENT_VOICE_ID; owner's choice, never a cloned voice). Empty = none; the real voice client refuses to create an agent without it."
+  sensitive   = false
+  default     = ""
+}
+
+variable "phone_agent_tts_model" {
+  type        = string
+  description = "ElevenLabs TTS model for the phone agent (PHONE_AGENT_TTS_MODEL): multilingual and low latency, Swedish included."
+  sensitive   = false
+  default     = "eleven_flash_v2_5"
+
+  validation {
+    condition     = contains(["eleven_flash_v2_5", "eleven_turbo_v2_5", "eleven_v4_turbo", "eleven_multilingual_v2"], var.phone_agent_tts_model)
+    error_message = "phone_agent_tts_model must be a multilingual ElevenLabs model that speaks Swedish."
+  }
+}
+
+variable "elevenlabs_api_base" {
+  type        = string
+  description = "ElevenLabs API base URL (ELEVENLABS_API_BASE); https://api.eu.residency.elevenlabs.io with EU data residency (Enterprise)."
+  sensitive   = false
+  default     = "https://api.elevenlabs.io"
+
+  validation {
+    condition     = startswith(var.elevenlabs_api_base, "https://")
+    error_message = "elevenlabs_api_base must be an https URL."
+  }
+}
