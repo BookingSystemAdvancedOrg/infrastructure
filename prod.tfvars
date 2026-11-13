@@ -23,6 +23,12 @@ alert_emails = [
 platform_domain         = "booqy.se"
 platform_domain_zone_id = "Z04764661GIIKO8677SYH"
 
+# Both Cognito pools email invitations and password resets through SES from
+# mail.booqy.se (verified; SES production access granted), and the reset
+# email carries a link. Cognito's built-in sender (verificationemail.com,
+# 50 a day) was not reaching staff inboxes, e.g. on ithjalparna.se.
+cognito_invites_via_ses = true
+
 # Restaurant websites on each restaurant's own domain (e.g. www.arya.se),
 # attached from Booqy Console: the restaurant adds one CNAME, CloudFront
 # issues the certificate.
