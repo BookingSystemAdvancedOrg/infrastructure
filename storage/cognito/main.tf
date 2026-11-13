@@ -1,6 +1,7 @@
 locals {
-  # One shift plus margin; also the lifetime of manage-auth's refresh cookie.
-  refresh_token_validity_hours = 12
+  # 30 days (owner 2026-11-13: sign in about once a month); also the
+  # lifetime of manage-auth's refresh cookie.
+  refresh_token_validity_hours = 720
 }
 
 
@@ -140,7 +141,7 @@ resource "aws_cognito_user_pool_client" "this" {
   # for. The session instead lives on the refresh token: the admin app
   # keeps it in an HttpOnly cookie (manage-auth) and silently uses it to
   # mint new 1-hour access tokens through a shift; a real login is needed
-  # once 12 hours (one shift plus margin) have passed.
+  # once 30 days have passed.
   access_token_validity  = 1
   id_token_validity      = 1
   refresh_token_validity = local.refresh_token_validity_hours

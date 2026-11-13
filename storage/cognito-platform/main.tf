@@ -122,9 +122,10 @@ resource "aws_cognito_user_pool_client" "platform_admin" {
     "ALLOW_REFRESH_TOKEN_AUTH",
   ]
 
-  access_token_validity  = 1
-  id_token_validity      = 1
-  refresh_token_validity = 8
+  access_token_validity = 1
+  id_token_validity     = 1
+  # 30 days (owner 2026-11-13): operators sign in about once a month.
+  refresh_token_validity = 720
 
   token_validity_units {
     access_token  = "hours"
