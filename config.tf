@@ -1005,16 +1005,6 @@ module "print_device_ecr" {
   environment = var.env
   function    = "print-device"
 }
-# Card payments at the till were removed (2026-11-13). Step 1 of 2: the
-# repository still holds images, so it is marked force_delete and applied
-# first; step 2 removes this module and its output line.
-module "terminal_payments_ecr" {
-  source       = "./storage/ecr/function"
-  environment  = var.env
-  function     = "terminal-payments"
-  force_delete = true
-}
-
 # Kassa, the till (kassa.tf)
 module "kassa_ecr" {
   source      = "./storage/ecr/function"
