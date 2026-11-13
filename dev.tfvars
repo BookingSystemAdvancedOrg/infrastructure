@@ -178,3 +178,7 @@ help_assistant_enabled = true
 # simulators until the ElevenLabs and 46elks accounts exist.
 agent_model_client   = "real"
 phone_agent_model_id = "eu.anthropic.claude-haiku-5-5"
+
+# The AWS-only phone test line (owner 2026-11-13): Amazon Connect + Lex sv_SE +
+# Polly Elin in Frankfurt, a real number that reaches the agent.
+phone_test_line_enabled = true

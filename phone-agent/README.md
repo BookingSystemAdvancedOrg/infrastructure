@@ -78,3 +78,16 @@ by the API when a location is enabled.
   (`phone_agent_call_reserved_concurrency`, default -1 = unreserved): dev reserves 2, prod is
   undecided (owner, before L goes live). Provisioned concurrency (ADR-L latency budget) is not set:
   owner decision on cost.
+
+## AWS-only test line (dev, owner 2026-11-13)
+
+`phone-test-line/` (root `phone-test-line.tf`, `phone_test_line_enabled = true` in dev only): Amazon
+Connect in eu-central-1 with a DID number (output `phone_test_line_number`), a call flow that speaks
+the greeting with Polly Elin (neural, sv-SE) and hands the call to a Lex V2 bot (sv_SE, CloudFormation
+stack: bot, version, alias with the code hook, Connect association). A relay Lambda in eu-central-1
+passes each Lex turn to `phone-agent-call:live` as `{"lexV2": event}`; the agent answers on the same
+loop and tools as every other channel. The test number needs a `NUMBER#<e164>` row pointing at the
+test location (dev data). IAM, approved by the owner 2026-11-13, all new: the Lex service role
+(polly:SynthesizeSpeech), the Lex alias's permission to invoke the relay, the relay role (invoke
+`phone-agent-call:live` only, own logs) and Connect's service-linked role. Connect's association with
+the bot adds Connect to the bot alias's resource policy (part of the integration).

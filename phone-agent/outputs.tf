@@ -22,3 +22,8 @@ output "turn_endpoint_url" {
   description = "The agent turn endpoint (Function URL) to set in the voice provider's custom LLM settings"
   value       = aws_lambda_function_url.turn.function_url
 }
+
+output "call_alias_arn" {
+  description = "phone-agent-call:live (the Connect test line's relay invokes it)"
+  value       = aws_lambda_alias.live["phone-agent-call"].arn
+}
