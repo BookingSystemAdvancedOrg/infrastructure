@@ -1604,10 +1604,12 @@ locals {
     "GET /platform/finance/invoices",
     # Website page: booqy.se's cookieless statistics (site-analytics/)
     "GET /platform/website",
-    # The signed-in operator's own background image (user-backdrops bucket)
-    "GET /platform/me/backdrop",
-    "POST /platform/me/backdrop/upload",
-    "DELETE /platform/me/backdrop",
+    # The signed-in operator's background image library (user-backdrops)
+    "GET /platform/me/backdrops",
+    "POST /platform/me/backdrops/upload",
+    "POST /platform/me/backdrops/{id}/complete",
+    "PUT /platform/me/backdrops/selected",
+    "DELETE /platform/me/backdrops/{id}",
   ]
 }
 

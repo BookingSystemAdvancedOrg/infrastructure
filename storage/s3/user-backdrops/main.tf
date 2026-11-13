@@ -1,16 +1,17 @@
-# Each signed-in user's own background image (the blurred backdrop behind
-# the glass UI in Booqy Admin and Booqy Console). One object per user at a
-# fixed key, so no pointer table is needed: HeadObject says whether there is
-# one, LastModified is updatedAt, and a new upload overwrites the old one.
+# Each signed-in user's background image library (blurred behind the glass
+# UI in Booqy Admin and Booqy Console), up to 20 images per user:
 #
-#   admin/<tenantId>/<userSub>/backdrop   Booqy Admin (user-backdrop Lambda)
-#   console/<operatorSub>/backdrop        Booqy Console (platform-tenants)
+#   admin/<tenantId>/<sub>/backdrops/<id>[.thumb.webp]   Booqy Admin (user-backdrop)
+#   console/<sub>/backdrops/<id>[.thumb.webp]            Booqy Console (platform-tenants)
 #
-# The browser uploads straight here with a presigned POST (JPEG, PNG or
-# WebP, max 10 MB, exact key and Content-Type) and shows the image through a
-# one-hour presigned GET. Deleted by the user, with the user (manage-user,
-# operator deletion) and with the restaurant (tenant-purge). Private,
-# TLS-only, encrypted, no versioning (a replaced image is gone at once).
+# The items (and which image is selected) are in the user-backdrops table
+# (storage/dynamodb/user-backdrops). The browser uploads straight here with
+# a presigned POST (JPEG, PNG or WebP, max 10 MB, exact key and
+# Content-Type); the Lambda then writes a WebP thumbnail. Images are shown
+# through one-hour presigned GETs. Deleted by the user, with the user
+# (manage-user, operator deletion) and with the restaurant (tenant-purge).
+# Private, TLS-only, encrypted, no versioning. The first version kept one
+# image at .../backdrop; the Lambdas move it into the library.
 
 data "aws_caller_identity" "current" {}
 

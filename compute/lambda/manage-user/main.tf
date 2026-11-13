@@ -44,8 +44,9 @@ resource "aws_lambda_function" "this" {
       USER_TABLE_NAME        = var.user_table_name
       USER_TENANT_INDEX_NAME = var.user_tenant_index_name
       COGNITO_USER_POOL_ID   = var.cognito_user_pool_id
-      # Own background image (user-backdrop), deleted with the user
+      # Background image library (user-backdrop), deleted with the user
       USER_BACKDROPS_BUCKET_NAME = var.user_backdrops_bucket_name
+      USER_BACKDROPS_TABLE_NAME  = var.user_backdrops_table_name
     }
   }
 

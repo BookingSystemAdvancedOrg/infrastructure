@@ -93,9 +93,9 @@ resource "aws_iam_role_policy" "cognito_user_management" {
   })
 }
 
-# Deleting a user also deletes their own background image
-# (admin/<tenantId>/<sub>/backdrop, user-backdrop). One known key per user,
-# so DeleteObject alone; no ListBucket.
+# Deleting a user also deletes their background image library
+# (user-backdrop): every object under admin/<tenantId>/<sub>/ and the
+# user's items in the user-backdrops table.
 resource "aws_iam_role_policy" "user_backdrops" {
   name = "user-backdrop-delete"
   role = aws_iam_role.this.id
@@ -104,10 +104,25 @@ resource "aws_iam_role_policy" "user_backdrops" {
     Version = "2012-10-17"
     Statement = [
       {
+        Sid      = "ListUserBackdrops"
+        Effect   = "Allow"
+        Action   = "s3:ListBucket"
+        Resource = var.user_backdrops_bucket_arn
+        Condition = {
+          StringLike = { "s3:prefix" = ["admin/*"] }
+        }
+      },
+      {
         Sid      = "DeleteUserBackdrop"
         Effect   = "Allow"
         Action   = "s3:DeleteObject"
         Resource = "${var.user_backdrops_bucket_arn}/admin/*"
+      },
+      {
+        Sid      = "DeleteUserBackdropItems"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query", "dynamodb:DeleteItem", "dynamodb:BatchWriteItem"]
+        Resource = var.user_backdrops_table_arn
       }
     ]
   })

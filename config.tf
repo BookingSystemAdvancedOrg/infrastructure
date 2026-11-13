@@ -211,6 +211,11 @@ module "user_backdrops" {
     local.admin_app_url,
   ], local.platform_admin_app_urls))
 }
+# Each user's backdrop image library (items + selected pointer), with the bucket above.
+module "user_backdrops_table" {
+  source      = "./storage/dynamodb/user-backdrops"
+  environment = var.env
+}
 module "catering_documents" {
   source      = "./storage/s3/catering-documents"
   environment = var.env
@@ -325,6 +330,7 @@ module "manage_user_role" {
   region         = var.aws_region
 
   user_backdrops_bucket_arn = module.user_backdrops.bucket_arn
+  user_backdrops_table_arn  = module.user_backdrops_table.table_arn
 }
 module "get_reservation_role" {
   source                = "./security/iam/get-reservation"
@@ -661,6 +667,7 @@ module "tenant_purge_role" {
   tenant_user_pool_arn      = module.cognito.user_pool_arn
   menu_image_bucket_arn     = module.menu_image.bucket_arn
   user_backdrops_bucket_arn = module.user_backdrops.bucket_arn
+  user_backdrops_table_arn  = module.user_backdrops_table.table_arn
   alert_topic_arn           = module.alerts.topic_arn
   protected_zone_ids        = local.platform_domain_enabled ? [module.platform_domain[0].zone_id] : []
   site_repo_function_arn    = module.sites.enabled ? module.sites.alias_arn : ""
@@ -740,6 +747,7 @@ module "platform_tenants_role" {
   domain_provision_state_machine_arn = module.tenant_workflows.domain_provision_state_machine_arn
   domain_documents_bucket_arn        = module.domain_documents.bucket_arn
   user_backdrops_bucket_arn          = module.user_backdrops.bucket_arn
+  user_backdrops_table_arn           = module.user_backdrops_table.table_arn
   platform_zone_id                   = local.platform_domain_enabled ? module.platform_domain[0].zone_id : ""
   mail_outbox_enabled                = local.mail_outbox_enabled
   mail_outbox_bucket_arn             = local.mail_outbox_arn
@@ -1507,6 +1515,7 @@ module "manage_user_fn" {
   location_id_index_name = module.location.location_id_index_name
 
   user_backdrops_bucket_name = module.user_backdrops.bucket_name
+  user_backdrops_table_name  = module.user_backdrops_table.table_name
 }
 module "mark_arrived_fn" {
   source                               = "./compute/lambda/mark-arrived"
@@ -1820,6 +1829,7 @@ module "tenant_purge_fn" {
   marketing_table_name                = module.marketing.table_name
   menu_image_bucket_name              = module.menu_image.bucket_name
   user_backdrops_bucket_name          = module.user_backdrops.bucket_name
+  user_backdrops_table_name           = module.user_backdrops_table.table_name
   alert_topic_arn                     = module.alerts.topic_arn
   protected_zone_ids                  = local.platform_domain_enabled ? [module.platform_domain[0].zone_id] : []
   site_repo_function_arn              = module.sites.enabled ? module.sites.alias_arn : ""
@@ -1855,6 +1865,7 @@ module "platform_tenants_fn" {
   domain_provision_state_machine_arn = module.tenant_workflows.domain_provision_state_machine_arn
   domain_documents_bucket_name       = module.domain_documents.bucket_name
   user_backdrops_bucket_name         = module.user_backdrops.bucket_name
+  user_backdrops_table_name          = module.user_backdrops_table.table_name
   finance_table_name                 = module.finance.table_name
   finance_rollup_alias_arn           = module.finance_rollup_fn.alias_arn
   site_repo_function_arn             = module.sites.alias_arn

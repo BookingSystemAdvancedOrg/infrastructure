@@ -109,6 +109,12 @@ variable "user_backdrops_bucket_arn" {
   sensitive   = false
 }
 
+variable "user_backdrops_table_arn" {
+  description = "ARN of the user-backdrops table (storage/dynamodb/user-backdrops) - operators' items (OPERATOR#<sub>)"
+  type        = string
+  sensitive   = false
+}
+
 variable "platform_zone_id" {
   description = "Hosted zone of the platform domain - this role may never change it. Empty while no platform domain is set"
   type        = string

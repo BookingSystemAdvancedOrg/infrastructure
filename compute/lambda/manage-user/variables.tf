@@ -63,3 +63,9 @@ variable "user_backdrops_bucket_name" {
   type        = string
   sensitive   = false
 }
+
+variable "user_backdrops_table_name" {
+  description = "User-backdrops table - a deleted user's library items are deleted with them"
+  type        = string
+  sensitive   = false
+}

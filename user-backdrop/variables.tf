@@ -36,3 +36,12 @@ variable "bucket_arn" {
 variable "alert_topic_arn" {
   type = string
 }
+
+variable "table_name" {
+  description = "The user-backdrops table (storage/dynamodb/user-backdrops)"
+  type        = string
+}
+
+variable "table_arn" {
+  type = string
+}

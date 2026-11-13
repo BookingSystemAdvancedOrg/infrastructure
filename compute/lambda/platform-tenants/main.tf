@@ -78,8 +78,9 @@ resource "aws_lambda_function" "this" {
       # Restaurant domains bought / connected from Booqy Console
       DOMAIN_PROVISION_STATE_MACHINE_ARN = var.domain_provision_state_machine_arn
       DOMAIN_DOCUMENTS_BUCKET            = var.domain_documents_bucket_name
-      # Each operator's own background image (GET/POST/DELETE /platform/me/backdrop)
-      USER_BACKDROPS_BUCKET = var.user_backdrops_bucket_name
+      # Each operator's background image library (/platform/me/backdrops)
+      USER_BACKDROPS_BUCKET     = var.user_backdrops_bucket_name
+      USER_BACKDROPS_TABLE_NAME = var.user_backdrops_table_name
       # Website page: booqy.se's cookieless statistics (site-analytics/)
       SITE_ANALYTICS_TABLE_NAME = var.site_analytics_table_name
       # Finance: subscriptions (Stripe Billing), the Finance page, dunning

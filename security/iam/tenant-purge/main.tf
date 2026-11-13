@@ -113,6 +113,19 @@ resource "aws_iam_role_policy" "data" {
         Resource = "${var.user_backdrops_bucket_arn}/admin/*"
       },
       {
+        # The restaurant's users' library items (byTenant index, then delete)
+        Sid      = "FindUserBackdropItems"
+        Effect   = "Allow"
+        Action   = "dynamodb:Query"
+        Resource = "${var.user_backdrops_table_arn}/index/byTenant"
+      },
+      {
+        Sid      = "DeleteUserBackdropItems"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query", "dynamodb:BatchWriteItem", "dynamodb:DeleteItem"]
+        Resource = var.user_backdrops_table_arn
+      },
+      {
         Sid      = "NotifyOperators"
         Effect   = "Allow"
         Action   = "sns:Publish"

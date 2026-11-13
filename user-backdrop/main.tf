@@ -1,9 +1,9 @@
-# Own background image per user in Booqy Admin. Application:
-# functions/user-backdrop. The image is one object per user at
-# admin/<tenantId>/<sub>/backdrop in the user-backdrops bucket
-# (storage/s3/user-backdrops); the Lambda signs a presigned POST for the
-# upload and a one-hour presigned GET for showing it, and deletes it.
-# Tenant and user come from the token only.
+# Personal background image library per user in Booqy Admin (up to 20).
+# Application: functions/user-backdrop. Images at
+# admin/<tenantId>/<sub>/backdrops/<id> (+ <id>.thumb.webp, made by the
+# Lambda with Pillow) in the user-backdrops bucket; one item per image and a
+# selected pointer in the user-backdrops table. The Lambda signs presigned
+# POSTs (upload) and GETs (showing). Tenant and user come from the token only.
 
 data "aws_caller_identity" "current" {}
 
@@ -30,20 +30,29 @@ resource "aws_iam_role" "fn" {
   }
 }
 
-# PutObject only signs the presigned POST (the browser uploads); GetObject
-# signs the presigned GET and answers HeadObject; DeleteObject is DELETE.
-# No ListBucket: a missing object answers 403, which the code reads as "none".
+# PutObject signs the presigned POST and writes thumbnails; GetObject signs
+# the presigned GETs, answers HeadObject and reads an upload to make its
+# thumbnail; DeleteObject removes images. No ListBucket: a missing object
+# answers 403, which the code reads as "none". Table: the caller's items.
 resource "aws_iam_role_policy" "fn" {
   name = "user-backdrop-access"
   role = aws_iam_role.fn.id
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [{
-      Sid      = "OwnBackdropImages"
-      Effect   = "Allow"
-      Action   = ["s3:PutObject", "s3:GetObject", "s3:DeleteObject"]
-      Resource = "${var.bucket_arn}/admin/*"
-    }]
+    Statement = [
+      {
+        Sid      = "OwnBackdropImages"
+        Effect   = "Allow"
+        Action   = ["s3:PutObject", "s3:GetObject", "s3:DeleteObject"]
+        Resource = "${var.bucket_arn}/admin/*"
+      },
+      {
+        Sid      = "OwnBackdropLibrary"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query", "dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:DeleteItem"]
+        Resource = var.table_arn
+      },
+    ]
   })
 }
 
@@ -77,8 +86,8 @@ resource "aws_lambda_function" "fn" {
   image_uri     = "${var.ecr_repository_url}:latest"
   publish       = true
   architectures = ["arm64"]
-  timeout       = 10
-  memory_size   = 256
+  timeout       = 29   # thumbnails of up to 10 MB images (API Gateway waits 30 s)
+  memory_size   = 1024 # decoding a large photo
 
   lifecycle {
     ignore_changes = [image_uri]
@@ -91,6 +100,7 @@ resource "aws_lambda_function" "fn" {
       LOCATION_TABLE_NAME        = var.location_table_name
       LOCATION_ID_INDEX_NAME     = var.location_id_index_name
       USER_BACKDROPS_BUCKET_NAME = var.bucket_name
+      USER_BACKDROPS_TABLE_NAME  = var.table_name
     }
   }
 

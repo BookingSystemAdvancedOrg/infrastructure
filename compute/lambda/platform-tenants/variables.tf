@@ -161,6 +161,12 @@ variable "user_backdrops_bucket_name" {
   sensitive   = false
 }
 
+variable "user_backdrops_table_name" {
+  description = "Table of each operator's background image library, passed as an environment variable"
+  type        = string
+  sensitive   = false
+}
+
 variable "no_reply_email_address" {
   description = "The no-reply address news to restaurant owners is sent from (Mail page), passed as an environment variable"
   type        = string
