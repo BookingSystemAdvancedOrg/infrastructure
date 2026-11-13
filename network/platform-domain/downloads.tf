@@ -42,23 +42,10 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "downloads" {
   }
 }
 
-# Every upload lands under downloads/<app>/<version>/ as well as latest/.
-# Old versions are only kept for a rollback window.
+# Versions under downloads/versions/ stay (latest.json points at them); a
+# build only happens when desktop/ changes, so this grows slowly.
 resource "aws_s3_bucket_lifecycle_configuration" "downloads" {
   bucket = aws_s3_bucket.downloads.id
-
-  rule {
-    id     = "expire-old-versions"
-    status = "Enabled"
-
-    filter {
-      prefix = "downloads/versions/"
-    }
-
-    expiration {
-      days = 90
-    }
-  }
 
   rule {
     id     = "abort-incomplete-uploads"
