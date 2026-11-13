@@ -93,6 +93,26 @@ resource "aws_iam_role_policy" "cognito_user_management" {
   })
 }
 
+# Deleting a user also deletes their own background image
+# (admin/<tenantId>/<sub>/backdrop, user-backdrop). One known key per user,
+# so DeleteObject alone; no ListBucket.
+resource "aws_iam_role_policy" "user_backdrops" {
+  name = "user-backdrop-delete"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "DeleteUserBackdrop"
+        Effect   = "Allow"
+        Action   = "s3:DeleteObject"
+        Resource = "${var.user_backdrops_bucket_arn}/admin/*"
+      }
+    ]
+  })
+}
+
 # Scoped to exactly this function's own log group - not logs:* on everything.
 #
 # No logs:CreateLogGroup - the log group is expected to be provisioned

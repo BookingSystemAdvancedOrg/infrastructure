@@ -153,6 +153,9 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | POST | `/platform/tenants/{tenantId}/billing/invoices/{invoiceId}/remind` | JWT (operator) | platform-tenants |
 | GET | `/platform/finance/invoices` | JWT (operator) | platform-tenants |
 | GET | `/platform/website` | JWT (operator) | platform-tenants |
+| GET | `/platform/me/backdrop` | JWT (operator) | platform-tenants |
+| POST | `/platform/me/backdrop/upload` | JWT (operator) | platform-tenants |
+| DELETE | `/platform/me/backdrop` | JWT (operator) | platform-tenants |
 | GET | `/tenant` | JWT | tenant-account |
 | PATCH | `/tenant` | JWT | tenant-account |
 | POST | `/tenant/stripe/account-link` | JWT | tenant-account |
@@ -227,3 +230,6 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | GET | `/tenant/social-posts` | JWT | social-posting |
 | POST | `/tenant/social-posts` | JWT | social-posting |
 | POST | `/tenant/social-posts/drafts` | JWT | social-posting |
+| GET | `/me/backdrop` | JWT | user-backdrop |
+| POST | `/me/backdrop/upload` | JWT | user-backdrop |
+| DELETE | `/me/backdrop` | JWT | user-backdrop |

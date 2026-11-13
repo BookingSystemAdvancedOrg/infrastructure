@@ -82,6 +82,10 @@ variable "menu_image_bucket_name" {
   type = string
 }
 
+variable "user_backdrops_bucket_name" {
+  type = string
+}
+
 variable "alert_topic_arn" {
   type = string
 }

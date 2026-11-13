@@ -337,6 +337,19 @@ resource "aws_iam_role_policy" "domains" {
           "s3:DeleteObject",
         ]
         Resource = "${var.domain_documents_bucket_arn}/tenants/*"
+      },
+      {
+        # Each operator's own background image (console/<sub>/backdrop):
+        # PutObject signs the presigned POST, GetObject the presigned GET
+        # and HeadObject, DeleteObject is DELETE and operator deletion.
+        Sid    = "OperatorBackdropImages"
+        Effect = "Allow"
+        Action = [
+          "s3:PutObject",
+          "s3:GetObject",
+          "s3:DeleteObject",
+        ]
+        Resource = "${var.user_backdrops_bucket_arn}/console/*"
       }
       ], var.platform_zone_id == "" ? [] : [
       {

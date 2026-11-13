@@ -33,7 +33,8 @@ locals {
   # 'self' covers almost all of it. Exceptions:
   #   - img-src https: menu photos come from the public distribution's
   #     domain; blob:/data: for the image preview before upload and QR codes
-  #   - connect-src: the menu-image bucket, for presigned PUT uploads
+  #   - connect-src: the menu-image bucket, for presigned PUT uploads, and
+  #     the user-backdrops bucket, for the own background image (POST)
   #   - style-src 'unsafe-inline': React style={{}} attributes
   admin_csp = join("; ", [
     "default-src 'self'",
@@ -41,7 +42,7 @@ locals {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https:",
     "font-src 'self'",
-    "connect-src 'self' https://${local.menu_bucket}.s3.eu-north-1.amazonaws.com https://${local.menu_bucket}.s3.amazonaws.com",
+    "connect-src 'self' https://${local.menu_bucket}.s3.eu-north-1.amazonaws.com https://${local.menu_bucket}.s3.amazonaws.com https://${var.backdrop_bucket_name}.s3.eu-north-1.amazonaws.com https://${var.backdrop_bucket_name}.s3.amazonaws.com",
     "worker-src 'self' blob:",
     "object-src 'none'",
     "base-uri 'self'",

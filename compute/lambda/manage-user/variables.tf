@@ -57,3 +57,9 @@ variable "user_tenant_index_name" {
   type        = string
   sensitive   = false
 }
+
+variable "user_backdrops_bucket_name" {
+  description = "User backdrop image bucket - a deleted user's image is deleted with them"
+  type        = string
+  sensitive   = false
+}

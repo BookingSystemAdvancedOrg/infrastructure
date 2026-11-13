@@ -54,6 +54,7 @@ resource "aws_lambda_function" "this" {
       CATERING_REQUEST_HISTORY_TABLE_NAME = var.catering_request_history_table_name
       MARKETING_TABLE_NAME                = var.marketing_table_name
       MENU_IMAGES_BUCKET_NAME             = var.menu_image_bucket_name
+      USER_BACKDROPS_BUCKET_NAME          = var.user_backdrops_bucket_name
       RETENTION_DAYS                      = tostring(var.retention_days)
       BACKFILL_GRACE_DAYS                 = "7"
       ALERT_TOPIC_ARN                     = var.alert_topic_arn

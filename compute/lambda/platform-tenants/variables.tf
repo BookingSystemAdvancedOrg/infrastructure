@@ -155,6 +155,12 @@ variable "domain_documents_bucket_name" {
   sensitive   = false
 }
 
+variable "user_backdrops_bucket_name" {
+  description = "Bucket for each operator's own background image (console/<sub>/backdrop), passed as an environment variable"
+  type        = string
+  sensitive   = false
+}
+
 variable "no_reply_email_address" {
   description = "The no-reply address news to restaurant owners is sent from (Mail page), passed as an environment variable"
   type        = string

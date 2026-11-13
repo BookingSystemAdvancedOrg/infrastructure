@@ -202,6 +202,15 @@ module "domain_documents" {
   environment     = var.env
   allowed_origins = local.platform_admin_app_urls
 }
+# Own background image per user, admin app and console (user-backdrop.tf).
+module "user_backdrops" {
+  source      = "./storage/s3/user-backdrops"
+  environment = var.env
+  allowed_origins = distinct(concat([
+    "https://${module.cloudfront_private.distribution_domain_name}",
+    local.admin_app_url,
+  ], local.platform_admin_app_urls))
+}
 module "catering_documents" {
   source      = "./storage/s3/catering-documents"
   environment = var.env
@@ -314,6 +323,8 @@ module "manage_user_role" {
   user_table_arn = module.user.table_arn
   user_pool_arn  = module.cognito.user_pool_arn
   region         = var.aws_region
+
+  user_backdrops_bucket_arn = module.user_backdrops.bucket_arn
 }
 module "get_reservation_role" {
   source                = "./security/iam/get-reservation"
@@ -640,18 +651,19 @@ module "scheduler_invoke_catering_lifecycle_role" {
 
 # --- Platform / tenant control plane Lambdas -----------------------------------
 module "tenant_purge_role" {
-  source                 = "./security/iam/tenant-purge"
-  environment            = var.env
-  region                 = var.aws_region
-  tenant_table_arn       = module.tenant.table_arn
-  data_table_arns        = values(local.tenant_purge_tables)[*].arn
-  user_table_arn         = module.user.table_arn
-  user_tenant_index_name = module.user.tenant_index_name
-  tenant_user_pool_arn   = module.cognito.user_pool_arn
-  menu_image_bucket_arn  = module.menu_image.bucket_arn
-  alert_topic_arn        = module.alerts.topic_arn
-  protected_zone_ids     = local.platform_domain_enabled ? [module.platform_domain[0].zone_id] : []
-  site_repo_function_arn = module.sites.enabled ? module.sites.alias_arn : ""
+  source                    = "./security/iam/tenant-purge"
+  environment               = var.env
+  region                    = var.aws_region
+  tenant_table_arn          = module.tenant.table_arn
+  data_table_arns           = values(local.tenant_purge_tables)[*].arn
+  user_table_arn            = module.user.table_arn
+  user_tenant_index_name    = module.user.tenant_index_name
+  tenant_user_pool_arn      = module.cognito.user_pool_arn
+  menu_image_bucket_arn     = module.menu_image.bucket_arn
+  user_backdrops_bucket_arn = module.user_backdrops.bucket_arn
+  alert_topic_arn           = module.alerts.topic_arn
+  protected_zone_ids        = local.platform_domain_enabled ? [module.platform_domain[0].zone_id] : []
+  site_repo_function_arn    = module.sites.enabled ? module.sites.alias_arn : ""
 }
 module "scheduler_invoke_tenant_purge_role" {
   source                  = "./security/iam/scheduler-invoke-tenant-purge"
@@ -727,6 +739,7 @@ module "platform_tenants_role" {
   domains_enabled                    = local.tenant_sites_enabled
   domain_provision_state_machine_arn = module.tenant_workflows.domain_provision_state_machine_arn
   domain_documents_bucket_arn        = module.domain_documents.bucket_arn
+  user_backdrops_bucket_arn          = module.user_backdrops.bucket_arn
   platform_zone_id                   = local.platform_domain_enabled ? module.platform_domain[0].zone_id : ""
   mail_outbox_enabled                = local.mail_outbox_enabled
   mail_outbox_bucket_arn             = local.mail_outbox_arn
@@ -1109,6 +1122,12 @@ module "help_assistant_ecr" {
   environment = var.env
   function    = "help-assistant"
 }
+# Own background image per user (user-backdrop.tf); same repository settings.
+module "user_backdrop_ecr" {
+  source      = "./storage/ecr/terminal-payments"
+  environment = var.env
+  function    = "user-backdrop"
+}
 module "catering_requests_ecr" {
   source      = "./storage/ecr/catering-requests"
   environment = var.env
@@ -1486,6 +1505,8 @@ module "manage_user_fn" {
   tenant_table_name      = module.tenant.table_name
   location_table_name    = module.location.table_name
   location_id_index_name = module.location.location_id_index_name
+
+  user_backdrops_bucket_name = module.user_backdrops.bucket_name
 }
 module "mark_arrived_fn" {
   source                               = "./compute/lambda/mark-arrived"
@@ -1798,6 +1819,7 @@ module "tenant_purge_fn" {
   catering_request_history_table_name = module.catering_request_history.table_name
   marketing_table_name                = module.marketing.table_name
   menu_image_bucket_name              = module.menu_image.bucket_name
+  user_backdrops_bucket_name          = module.user_backdrops.bucket_name
   alert_topic_arn                     = module.alerts.topic_arn
   protected_zone_ids                  = local.platform_domain_enabled ? [module.platform_domain[0].zone_id] : []
   site_repo_function_arn              = module.sites.enabled ? module.sites.alias_arn : ""
@@ -1832,6 +1854,7 @@ module "platform_tenants_fn" {
   mail_outbox_bucket_name            = local.mail_outbox_bucket
   domain_provision_state_machine_arn = module.tenant_workflows.domain_provision_state_machine_arn
   domain_documents_bucket_name       = module.domain_documents.bucket_name
+  user_backdrops_bucket_name         = module.user_backdrops.bucket_name
   finance_table_name                 = module.finance.table_name
   finance_rollup_alias_arn           = module.finance_rollup_fn.alias_arn
   site_repo_function_arn             = module.sites.alias_arn
@@ -2383,6 +2406,7 @@ locals {
     module.events_tickets.wiring,
     module.phone_agent.wiring,
     module.help_assistant.wiring,
+    module.user_backdrop.wiring,
   ]
   feature_lambda_releases         = merge([for w in local.feature_wiring : w.lambda_releases]...)
   feature_tenant_aware_role_names = merge([for w in local.feature_wiring : w.tenant_aware_role_names]...)
@@ -2496,6 +2520,7 @@ module "cloudfront_private" {
   environment                            = var.env
   admin_bucket_regional_domain_name      = module.admin_front_end_asset.bucket_regional_domain_name
   menu_image_bucket_regional_domain_name = module.menu_image.bucket_regional_domain_name
+  backdrop_bucket_name                   = module.user_backdrops.bucket_name
   aliases                                = local.platform_domain_enabled ? [local.admin_app_hostname, local.legacy_admin_app_hostname] : []
   canonical_host                         = local.platform_domain_enabled ? local.admin_app_hostname : ""
   legacy_hosts                           = local.platform_domain_enabled ? [local.legacy_admin_app_hostname] : []
@@ -2518,6 +2543,8 @@ module "cloudfront_platform_admin" {
   region     = var.aws_region
   # DomainWizard posts domain-transfer PDFs straight to this bucket
   upload_bucket_name = module.domain_documents.bucket_name
+  # Each operator's own background image (presigned POST and GET)
+  backdrop_bucket_name = module.user_backdrops.bucket_name
 }
 
 #OIDC

@@ -97,6 +97,22 @@ resource "aws_iam_role_policy" "data" {
         Resource = "${var.menu_image_bucket_arn}/menu-images/*"
       },
       {
+        # Every staff user's own background image (admin/<tenantId>/<sub>/backdrop)
+        Sid      = "ListUserBackdrops"
+        Effect   = "Allow"
+        Action   = "s3:ListBucket"
+        Resource = var.user_backdrops_bucket_arn
+        Condition = {
+          StringLike = { "s3:prefix" = ["admin/*"] }
+        }
+      },
+      {
+        Sid      = "DeleteUserBackdrops"
+        Effect   = "Allow"
+        Action   = "s3:DeleteObject"
+        Resource = "${var.user_backdrops_bucket_arn}/admin/*"
+      },
+      {
         Sid      = "NotifyOperators"
         Effect   = "Allow"
         Action   = "sns:Publish"

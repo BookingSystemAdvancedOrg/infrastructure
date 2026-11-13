@@ -103,6 +103,12 @@ variable "domain_documents_bucket_arn" {
   sensitive   = false
 }
 
+variable "user_backdrops_bucket_arn" {
+  description = "ARN of the user backdrop image bucket (storage/s3/user-backdrops) - operators' images under console/"
+  type        = string
+  sensitive   = false
+}
+
 variable "platform_zone_id" {
   description = "Hosted zone of the platform domain - this role may never change it. Empty while no platform domain is set"
   type        = string

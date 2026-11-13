@@ -21,3 +21,9 @@ variable "region" {
   type        = string
   sensitive   = false
 }
+
+variable "user_backdrops_bucket_arn" {
+  description = "ARN of the user backdrop image bucket (storage/s3/user-backdrops) - DeleteObject under admin/ when a user is deleted"
+  type        = string
+  sensitive   = false
+}
