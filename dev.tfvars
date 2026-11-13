@@ -182,5 +182,6 @@ phone_agent_model_id = "eu.anthropic.claude-haiku-5-5"
 # The AWS-only phone test line (owner 2026-11-13): Amazon Connect + Lex sv_SE +
 # Polly Elin in Frankfurt, a real number that reaches the agent.
 phone_test_line_enabled = true
+phone_test_line_country = "FI" # no Swedish DID stock in Connect eu-central-1 (2026-11-13); FI keeps the call inside the EU price cap
 # Restaurant 1 (tenant RADIN DJ AB, dev test data): tables and availability.
 phone_test_line_location = { tenant_id = "01m4fqaga9r6s2e1pcx7t0wx3z", location_id = "01m4fqaga9ca7cfvybw0ptzezr" }

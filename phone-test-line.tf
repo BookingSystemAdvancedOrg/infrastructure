@@ -20,7 +20,7 @@ variable "phone_test_line_enabled" {
 
 variable "phone_test_line_country" {
   type        = string
-  description = "Country code of the test line's number (SE, or DE when Swedish numbers need paperwork)."
+  description = "Country code of the test line's number (Connect had no SE, DE, NL or DK DID stock in eu-central-1 on 2026-11-13; FI and GB had)."
   sensitive   = false
   default     = "SE"
 }
