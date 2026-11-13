@@ -15,6 +15,11 @@ blurred behind the glass UI, follows the user across devices), up to 20.
   `USER#<tenantId>#<sub>`, SK `IMG#<id>` / `SELECTED`. Booqy Console's
   operators: `console/<sub>/backdrops/...`, PK `OPERATOR#<sub>`, through
   platform-tenants.
+- Optional profile picture (same Lambda): `GET /me/avatar`,
+  `POST /me/avatar/upload` (presigned POST to `admin/<tenantId>/<sub>/avatar.upload`,
+  max 5 MB), `POST /me/avatar/complete` (256x256 WebP at `.../avatar.webp`),
+  `DELETE /me/avatar`. manage-user shows `avatarUrl` on the user list and lets
+  owners `DELETE /users/{sub}/avatar` (its role may read `admin/*/avatar.webp`).
 - Deleted with the user (manage-user) and the restaurant (tenant-purge).
 - IAM: role `user-backdrop`: `s3:PutObject`, `s3:GetObject`,
   `s3:DeleteObject` on `<bucket>/admin/*`; `dynamodb:Query`, `GetItem`,

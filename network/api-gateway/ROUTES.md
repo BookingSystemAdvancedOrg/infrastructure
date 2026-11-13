@@ -230,3 +230,7 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | GET | `/me/backdrops` | JWT | user-backdrop |
 | POST | `/me/backdrops/upload` | JWT | user-backdrop |
 | PUT | `/me/backdrops/selected` | JWT | user-backdrop |
+| GET | `/me/avatar` | JWT | user-backdrop |
+| POST | `/me/avatar/upload` | JWT | user-backdrop |
+| POST | `/me/avatar/complete` | JWT | user-backdrop |
+| DELETE | `/me/avatar` | JWT | user-backdrop |
