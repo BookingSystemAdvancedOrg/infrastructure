@@ -44,6 +44,30 @@ module "phone_test_line" {
   country_code   = var.phone_test_line_country
 }
 
+variable "phone_test_line_location" {
+  type        = object({ tenant_id = string, location_id = string })
+  description = "The dev test restaurant the test line's number answers for (its NUMBER# row in the phone-agent table)."
+  sensitive   = false
+  default     = null
+}
+
+# The number -> location pointer the agent resolves a call by (ADR-L data model, GSI byNumber).
+resource "aws_dynamodb_table_item" "phone_test_line_number" {
+  count      = var.phone_test_line_enabled && var.phone_test_line_location != null ? 1 : 0
+  table_name = module.phone_agent.table_name
+  hash_key   = "PK"
+  range_key  = "SK"
+  item = jsonencode({
+    PK          = { S = "TENANT#${var.phone_test_line_location.tenant_id}" }
+    SK          = { S = "NUMBER#${module.phone_test_line[0].phone_number}" }
+    tenantId    = { S = var.phone_test_line_location.tenant_id }
+    locationId  = { S = var.phone_test_line_location.location_id }
+    locationIds = { L = [{ S = var.phone_test_line_location.location_id }] }
+    GSI1PK      = { S = "NUMBER#${module.phone_test_line[0].phone_number}" }
+    GSI1SK      = { S = "${var.phone_test_line_location.tenant_id}#${var.phone_test_line_location.location_id}" }
+  })
+}
+
 output "phone_test_line_number" {
   description = "Call this number to talk to the phone agent (dev test line)"
   value       = try(module.phone_test_line[0].phone_number, null)

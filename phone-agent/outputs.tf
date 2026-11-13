@@ -27,3 +27,7 @@ output "call_alias_arn" {
   description = "phone-agent-call:live (the Connect test line's relay invokes it)"
   value       = aws_lambda_alias.live["phone-agent-call"].arn
 }
+
+output "table_name" {
+  value = aws_dynamodb_table.this.name
+}
