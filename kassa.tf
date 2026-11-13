@@ -17,8 +17,6 @@ module "kassa" {
   order_table_arn        = module.order.table_arn
   print_table_name       = module.print.table_name
   print_table_arn        = module.print.table_arn
-  stripe_secret_arn      = module.platform_secrets.stripe_secret_arn
-  stripe_api_version     = var.stripe_api_version
   alert_topic_arn        = module.alerts.topic_arn
   certified              = var.kassa_certified
   control_system         = var.kassa_control_system

@@ -20,7 +20,7 @@ variable "tenant_table_name" {
 }
 
 variable "location_table_name" {
-  description = "Location table (tenant context; address, terminal)"
+  description = "Location table (tenant context; address)"
   type        = string
 }
 
@@ -45,7 +45,7 @@ variable "menu_table_arn" {
 }
 
 variable "order_table_name" {
-  description = "Order table: card payment records and receipt e-mail notices"
+  description = "Order table: receipt e-mail notices"
   type        = string
 }
 
@@ -61,16 +61,6 @@ variable "print_table_name" {
 
 variable "print_table_arn" {
   description = "Print table ARN"
-  type        = string
-}
-
-variable "stripe_secret_arn" {
-  description = "Secrets Manager secret with the platform Stripe key"
-  type        = string
-}
-
-variable "stripe_api_version" {
-  description = "Stripe-Version header"
   type        = string
 }
 

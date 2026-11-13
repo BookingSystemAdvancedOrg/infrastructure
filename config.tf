@@ -832,8 +832,6 @@ module "tenant_context_policy" {
     insights = module.insights_role.role_name
     # Kitchen printing: staff reprint and test on their own location.
     print_jobs = module.printing.role_names["print-jobs"]
-    # Card payments at the till: staff charge on their own location's readers.
-    terminal_payments = module.terminal.role_name
     # Kassa: staff sell on their own location's registers.
     kassa = module.kassa.role_name
   }, local.feature_staff_check_role_names)
@@ -1007,132 +1005,136 @@ module "print_device_ecr" {
   environment = var.env
   function    = "print-device"
 }
-# Card payments at the till (terminal.tf)
+# Card payments at the till were removed (2026-11-13). Step 1 of 2: the
+# repository still holds images, so it is marked force_delete and applied
+# first; step 2 removes this module and its output line.
 module "terminal_payments_ecr" {
-  source      = "./storage/ecr/terminal-payments"
-  environment = var.env
-  function    = "terminal-payments"
+  source       = "./storage/ecr/function"
+  environment  = var.env
+  function     = "terminal-payments"
+  force_delete = true
 }
-# Kassa, the till (kassa.tf); same repository settings
+
+# Kassa, the till (kassa.tf)
 module "kassa_ecr" {
-  source      = "./storage/ecr/terminal-payments"
+  source      = "./storage/ecr/function"
   environment = var.env
   function    = "kassa"
 }
 # Restaurant site repos (sites.tf); same repository settings
 module "site_repo_ecr" {
-  source      = "./storage/ecr/terminal-payments"
+  source      = "./storage/ecr/function"
   environment = var.env
   function    = "site-repo"
 }
 # Accounting export (accounting.tf); same repository settings
 module "accounting_ecr" {
-  source      = "./storage/ecr/terminal-payments"
+  source      = "./storage/ecr/function"
   environment = var.env
   function    = "accounting"
 }
 # Run 0 feature functions (CONTRACTS.md 12.2): created ahead so CI's
 # bootstrap pushes their placeholder images; same repository settings.
 module "meta_ads_ecr" {
-  source      = "./storage/ecr/terminal-payments"
+  source      = "./storage/ecr/function"
   environment = var.env
   function    = "meta-ads"
 }
 module "meta_ads_jobs_ecr" {
-  source      = "./storage/ecr/terminal-payments"
+  source      = "./storage/ecr/function"
   environment = var.env
   function    = "meta-ads-jobs"
 }
 module "site_builder_ecr" {
-  source      = "./storage/ecr/terminal-payments"
+  source      = "./storage/ecr/function"
   environment = var.env
   function    = "site-builder"
 }
 module "site_builder_render_ecr" {
-  source      = "./storage/ecr/terminal-payments"
+  source      = "./storage/ecr/function"
   environment = var.env
   function    = "site-builder-render"
 }
 module "guest_crm_ecr" {
-  source      = "./storage/ecr/terminal-payments"
+  source      = "./storage/ecr/function"
   environment = var.env
   function    = "guest-crm"
 }
 module "guest_crm_sync_ecr" {
-  source      = "./storage/ecr/terminal-payments"
+  source      = "./storage/ecr/function"
   environment = var.env
   function    = "guest-crm-sync"
 }
 module "google_business_ecr" {
-  source      = "./storage/ecr/terminal-payments"
+  source      = "./storage/ecr/function"
   environment = var.env
   function    = "google-business"
 }
 module "google_business_jobs_ecr" {
-  source      = "./storage/ecr/terminal-payments"
+  source      = "./storage/ecr/function"
   environment = var.env
   function    = "google-business-jobs"
 }
 module "gift_cards_ecr" {
-  source      = "./storage/ecr/terminal-payments"
+  source      = "./storage/ecr/function"
   environment = var.env
   function    = "gift-cards"
 }
 module "waitlist_ecr" {
-  source      = "./storage/ecr/terminal-payments"
+  source      = "./storage/ecr/function"
   environment = var.env
   function    = "waitlist"
 }
 module "social_posting_ecr" {
-  source      = "./storage/ecr/terminal-payments"
+  source      = "./storage/ecr/function"
   environment = var.env
   function    = "social-posting"
 }
 module "personalliggare_ecr" {
-  source      = "./storage/ecr/terminal-payments"
+  source      = "./storage/ecr/function"
   environment = var.env
   function    = "personalliggare"
 }
 module "accounting_sync_ecr" {
-  source      = "./storage/ecr/terminal-payments"
+  source      = "./storage/ecr/function"
   environment = var.env
   function    = "accounting-sync"
 }
 module "dish_margin_ecr" {
-  source      = "./storage/ecr/terminal-payments"
+  source      = "./storage/ecr/function"
   environment = var.env
   function    = "dish-margin"
 }
 # Run 0 addendum feature functions (features K and L, CONTRACTS.md 12.2).
 module "events_tickets_ecr" {
-  source      = "./storage/ecr/terminal-payments"
+  source      = "./storage/ecr/function"
   environment = var.env
   function    = "events-tickets"
 }
 module "phone_agent_ecr" {
-  source      = "./storage/ecr/terminal-payments"
+  source      = "./storage/ecr/function"
   environment = var.env
   function    = "phone-agent"
 }
 module "phone_agent_call_ecr" {
-  source      = "./storage/ecr/terminal-payments"
+  source      = "./storage/ecr/function"
   environment = var.env
   function    = "phone-agent-call"
 }
 module "phone_agent_jobs_ecr" {
-  source      = "./storage/ecr/terminal-payments"
+  source      = "./storage/ecr/function"
   environment = var.env
   function    = "phone-agent-jobs"
 }
 # In-app help assistant (help-assistant.tf); same repository settings.
 module "help_assistant_ecr" {
-  source      = "./storage/ecr/terminal-payments"
+  source      = "./storage/ecr/function"
   environment = var.env
   function    = "help-assistant"
 }
 # Own background image per user (user-backdrop.tf); same repository settings.
 module "user_backdrop_ecr" {
-  source      = "./storage/ecr/terminal-payments"
+  source      = "./storage/ecr/function"
   environment = var.env
   function    = "user-backdrop"
 }
@@ -2108,7 +2110,6 @@ module "lambda_releases" {
     (module.marketing.function_names["marketing-sync"])   = { alias_name = module.marketing.alias_names["marketing-sync"] }
     (module.printing.function_names["print-jobs"])        = { alias_name = module.printing.alias_names["print-jobs"] }
     (module.printing.function_names["print-device"])      = { alias_name = module.printing.alias_names["print-device"] }
-    (module.terminal.function_name)                       = { alias_name = module.terminal.alias_name }
     (module.kassa.function_name)                          = { alias_name = module.kassa.alias_name }
     (module.accounting.function_name)                     = { alias_name = module.accounting.alias_name }
     (module.sites.function_name)                          = { alias_name = module.sites.alias_name }
@@ -2200,9 +2201,6 @@ module "api_gateway" {
   print_jobs_invoke_arn      = module.printing.alias_invoke_arns["print-jobs"]
   print_device_function_name = module.printing.function_names["print-device"]
   print_device_invoke_arn    = module.printing.alias_invoke_arns["print-device"]
-  # Card payments at the till (terminal.tf, network/api-gateway/terminal-routes.tf)
-  terminal_payments_function_name = module.terminal.function_name
-  terminal_payments_invoke_arn    = module.terminal.alias_invoke_arn
   # Kassa (kassa.tf, network/api-gateway/kassa-routes.tf)
   kassa_function_name = module.kassa.function_name
   kassa_invoke_arn    = module.kassa.alias_invoke_arn
@@ -2271,7 +2269,6 @@ module "stripe_webhooks" {
   reservation_webhook_url = module.stripe_webhook_fn.function_url
   order_webhook_url       = module.webhook_payment_intent_fn.function_url
   catering_webhook_url    = module.catering_stripe_webhook_fn.function_url
-  terminal_webhook_url    = module.terminal.webhook_url
   platform_webhook_url    = module.platform_stripe_webhook_fn.function_url
 }
 
@@ -2394,7 +2391,6 @@ locals {
     marketing_sync             = module.marketing.role_names["marketing-sync"]
     print_jobs                 = module.printing.role_names["print-jobs"]
     print_device               = module.printing.role_names["print-device"]
-    terminal_payments          = module.terminal.role_name
     kassa                      = module.kassa.role_name
     accounting                 = module.accounting.role_name
   }, local.feature_tenant_aware_role_names)

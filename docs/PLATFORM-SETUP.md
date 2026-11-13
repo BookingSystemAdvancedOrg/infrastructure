@@ -34,7 +34,7 @@ workflow. You never handle a restaurant's keys.
 | Key | Where | Needs |
 |---|---|---|
 | Pipeline key (`rk_...` or `sk_...`) | GitHub secrets `STRIPE_SECRET_KEY_DEV` / `STRIPE_SECRET_KEY_PROD` | Webhook Endpoints: Write, Connect → Accounts: Write (v1 + v2), Tax Rates: Write, Products: Write, Prices: Write (the subscription catalog, payments/billing). Used by Terraform (webhook endpoints), the onboarding workflow (creating connected accounts + their VAT rates) and to seed the Lambda secret on first apply. |
-| Lambda key (`rk_...`) | Secrets Manager `<env->stripe/api-key` as `{"apiKey":"rk_..."}` | Checkout Sessions, PaymentIntents, SetupIntents, Customers, Subscriptions, Invoices, Invoice items, Credit notes, Refunds, Charges, Payment Methods, Tax IDs, Tax Rates: Write; Account Links: Write (v2); Accounts: Read; Terminal Locations + Readers: Write. Replace the seeded pipeline key after the first apply - Terraform never overwrites it. |
+| Lambda key (`rk_...`) | Secrets Manager `<env->stripe/api-key` as `{"apiKey":"rk_..."}` | Checkout Sessions, PaymentIntents, SetupIntents, Customers, Subscriptions, Invoices, Invoice items, Credit notes, Refunds, Charges, Payment Methods, Tax IDs, Tax Rates: Write; Account Links: Write (v2); Accounts: Read. Replace the seeded pipeline key after the first apply - Terraform never overwrites it. |
 | Publishable key (`pk_...`) | `stripe_publishable_key` in `dev.tfvars` / `prod.tfvars` | Not secret. Websites get it from `GET /site-config`. |
 
   ```

@@ -4,8 +4,8 @@
 # functions/accounting, shared/accounting.py, shared/accounting_export.py,
 # docs/ACCOUNTING-EXPORT.md.
 #
-# Read only on the money: the function only reads orders, card payments,
-# reservations (card guarantee fees), catering requests and offers, the
+# Read only on the money: the function only reads orders, reservations
+# (card guarantee fees), catering requests and offers, the
 # Kassa journal and the connected account's Stripe balance transactions.
 # Its one write is the mapping on the caller's own location item.
 

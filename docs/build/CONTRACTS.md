@@ -164,7 +164,6 @@ and is changed only by the owner, never by a feature agent.
 | `reservations` | true | true | true | true | existing |
 | `ordering` | true | true | true | true | existing |
 | `catering` | false | true | false | true | existing |
-| `terminal` | true | true | true | true | existing |
 | `marketing` | false | true | false | true | existing |
 | `kassa` | false | false | false | false (per tenant in console) | existing |
 | `metaAds` | false | false | false | true | ADR-A |
@@ -962,7 +961,7 @@ needs is a constant in its module or a `module` input from its own root file.
 | `infrastructure/<feature-id>.tf` (10) | `module "<snake>" { source = "./<feature-id>", environment = var.env }` | inputs from shared modules (read-only references) |
 | `infrastructure/network/api-gateway/<feature-id>-routes.tf` (10) | `locals { <snake>_routes = [] }` | route list (12.3) |
 | `infrastructure/network/api-gateway/feature-routes.tf` | built: integrations, permissions, routes for every feature route | unchanged by features |
-| ECR modules `<snake>_ecr` / `<snake>_jobs_ecr` etc. in `config.tf` (14) | built, `./storage/ecr/terminal-payments` with `function = "<lambda name>"`; listed in `outputs.tf` `ecr_repository_urls` | unchanged |
+| ECR modules `<snake>_ecr` / `<snake>_jobs_ecr` etc. in `config.tf` (14) | built, `./storage/ecr/function` with `function = "<lambda name>"`; listed in `outputs.tf` `ecr_repository_urls` | unchanged |
 
 ECR repos (Run 0, because CI derives its bootstrap targets from `module
 "*_ecr"` in config.tf): `meta-ads`, `meta-ads-jobs`, `site-builder`,

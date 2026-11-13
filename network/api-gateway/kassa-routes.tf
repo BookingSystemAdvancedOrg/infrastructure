@@ -3,7 +3,8 @@
 #   GET          /locations/{locationId}/kassa          registers, open bills, test mode
 #   GET|POST|PUT /locations/{locationId}/kassa/{proxy+} registers, bills, payments, receipts,
 #                returns, copies, X/Z reports, journal export
-# Card payment polling, cancel and retry stay on terminal-payments.
+# Card payments are taken on the restaurant's own card machine and confirmed
+# in Kassa; Booqy calls no payment provider for them.
 
 resource "aws_apigatewayv2_integration" "kassa" {
   api_id                 = aws_apigatewayv2_api.this.id

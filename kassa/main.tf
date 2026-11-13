@@ -5,10 +5,10 @@
 #
 # Everything the feature owns lives in this module except the ECR repository
 # (config.tf, CI bootstraps images from it) and the API routes
-# (network/api-gateway/kassa-routes.tf). Card payments reuse the
-# terminal-payments records in the order table; prints go to the print
-# table; e-mailed receipts are order-table notices the notification
-# function sends.
+# (network/api-gateway/kassa-routes.tf). Card payments are taken on the
+# restaurant's own card machine and confirmed in Kassa (no Stripe call); prints
+# go to the print table; e-mailed receipts are order-table notices the
+# notification function sends.
 #
 #   kassa          registers, open bills, receipt pointers (mutable)
 #   kassa-journal  the journal memory: append-only, kept at least 7 years
@@ -205,9 +205,8 @@ resource "aws_iam_role_policy" "fn" {
         Resource = var.menu_table_arn
       },
       {
-        # Card payment records (CARD#, CID#) of the bill, and the receipt
-        # e-mail notices (KASSAMAIL#, expire after a day).
-        Sid      = "CardPaymentsAndReceiptMail"
+        # Receipt e-mail notices (KASSAMAIL#, expire after a day).
+        Sid      = "ReceiptMail"
         Effect   = "Allow"
         Action   = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:Query"]
         Resource = var.order_table_arn
@@ -218,13 +217,6 @@ resource "aws_iam_role_policy" "fn" {
         Effect   = "Allow"
         Action   = ["dynamodb:GetItem", "dynamodb:PutItem"]
         Resource = var.print_table_arn
-      },
-      {
-        # The platform Stripe key (Stripe-Account header = the restaurant).
-        Sid      = "ReadStripeSecret"
-        Effect   = "Allow"
-        Action   = "secretsmanager:GetSecretValue"
-        Resource = var.stripe_secret_arn
       },
     ]
   })
@@ -297,8 +289,8 @@ resource "aws_lambda_function" "fn" {
   image_uri     = "${var.ecr_repository_url}:latest"
   publish       = true
   architectures = ["arm64"]
-  # A receipt is a lock, the control system and one transaction; a return
-  # also refunds on Stripe. API Gateway stops at 30 s.
+  # A receipt is a lock, the control system and one transaction. API
+  # Gateway stops at 30 s.
   timeout     = 29
   memory_size = 512
 
@@ -319,8 +311,6 @@ resource "aws_lambda_function" "fn" {
       MENU_TABLE_NAME          = var.menu_table_name
       ORDER_TABLE_NAME         = var.order_table_name
       PRINT_TABLE_NAME         = var.print_table_name
-      STRIPE_SECRET_ARN        = var.stripe_secret_arn
-      STRIPE_API_VERSION       = var.stripe_api_version
       # "true" only with a certified control system connected; the simulator
       # ignores it. Until then every screen and receipt says "Testläge".
       KASSA_CERTIFIED = var.certified ? "true" : "false"

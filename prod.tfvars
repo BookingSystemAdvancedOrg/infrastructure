@@ -71,7 +71,7 @@ plans = {
     name          = "Starter"
     max_locations = 1
     features = {
-      reservations = true, ordering = true, catering = false, terminal = true, marketing = false, kassa = false,
+      reservations = true, ordering = true, catering = false, marketing = false, kassa = false,
       metaAds      = false, siteBuilder = false, guestCrm = false, googleBusiness = false, giftCards = false,
       waitlist     = false, socialPosting = false, personalliggare = false, accountingSync = false, dishMargin = false,
       events       = false, phoneAgent = false,
@@ -83,7 +83,7 @@ plans = {
     name          = "Growth"
     max_locations = 3
     features = {
-      reservations = true, ordering = true, catering = true, terminal = true, marketing = true, kassa = false,
+      reservations = true, ordering = true, catering = true, marketing = true, kassa = false,
       metaAds      = false, siteBuilder = false, guestCrm = false, googleBusiness = false, giftCards = false,
       waitlist     = false, socialPosting = false, personalliggare = false, accountingSync = false, dishMargin = false,
       events       = false, phoneAgent = false,

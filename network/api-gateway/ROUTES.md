@@ -122,12 +122,6 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | POST | `/platform/tenants/{tenantId}/zones/{domain}/transfer` | JWT (operator) | platform-tenants |
 | POST | `/platform/tenants/{tenantId}/stripe/account-link` | JWT (operator) | platform-tenants |
 | POST | `/platform/tenants/{tenantId}/stripe/sync` | JWT (operator) | platform-tenants |
-| GET | `/platform/tenants/{tenantId}/locations/{locationId}/terminal` | JWT (operator) | platform-tenants |
-| POST | `/platform/tenants/{tenantId}/locations/{locationId}/terminal` | JWT (operator) | platform-tenants |
-| PATCH | `/platform/tenants/{tenantId}/locations/{locationId}/terminal` | JWT (operator) | platform-tenants |
-| POST | `/platform/tenants/{tenantId}/locations/{locationId}/terminal/readers` | JWT (operator) | platform-tenants |
-| DELETE | `/platform/tenants/{tenantId}/locations/{locationId}/terminal/readers/{readerId}` | JWT (operator) | platform-tenants |
-| GET | `/platform/terminal/readers` | JWT (operator) | platform-tenants |
 | GET | `/platform/operators` | JWT (operator) | platform-tenants |
 | POST | `/platform/operators` | JWT (operator) | platform-tenants |
 | PATCH | `/platform/operators/{username}` | JWT (operator) | platform-tenants |
@@ -192,10 +186,6 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | GET | `/print/cloudprnt/{deviceId}` | NONE | print-device |
 | DELETE | `/print/cloudprnt/{deviceId}` | NONE | print-device |
 | POST | `/print/epson/{deviceId}` | NONE | print-device |
-| GET | `/locations/{locationId}/card-payments` | JWT | terminal-payments |
-| POST | `/locations/{locationId}/card-payments` | JWT | terminal-payments |
-| GET | `/locations/{locationId}/card-payments/{proxy+}` | JWT | terminal-payments |
-| POST | `/locations/{locationId}/card-payments/{proxy+}` | JWT | terminal-payments |
 | GET | `/tenant/gift-cards/settings` | JWT | gift-cards |
 | PUT | `/tenant/gift-cards/settings` | JWT | gift-cards |
 | GET | `/tenant/gift-cards` | JWT | gift-cards |

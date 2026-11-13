@@ -40,7 +40,7 @@ variable "user_table_name" {
 }
 
 variable "order_table_name" {
-  description = "Order table: orders and card payments"
+  description = "Order table: orders"
   type        = string
 }
 
