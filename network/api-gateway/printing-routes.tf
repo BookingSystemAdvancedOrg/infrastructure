@@ -12,6 +12,8 @@
 #   POST   /print/cloudprnt/{deviceId}   CloudPRNT poll (status in, jobReady out)
 #   GET    /print/cloudprnt/{deviceId}   fetch the job (StarPRNT bytes)
 #   DELETE /print/cloudprnt/{deviceId}   confirm printed / report an error
+#   POST   /print/epson/{deviceId}       Epson Server Direct Print: GetRequest
+#                                        (ePOS-Print XML out) and SetResponse
 # The stage has no access log, so a ?k= secret (fallback for firmware
 # without Basic auth) is never written anywhere by API Gateway.
 
@@ -69,7 +71,7 @@ resource "aws_apigatewayv2_route" "print_jobs" {
 # --- print-device ---
 locals {
   print_device_routes = ["POST /print/cloudprnt/{deviceId}", "GET /print/cloudprnt/{deviceId}",
-  "DELETE /print/cloudprnt/{deviceId}"]
+  "DELETE /print/cloudprnt/{deviceId}", "POST /print/epson/{deviceId}"]
 }
 
 resource "aws_apigatewayv2_route" "print_device" {
