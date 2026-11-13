@@ -255,6 +255,17 @@ output "booqy_website_deploy" {
   } : null
 }
 
+# admin-front-end and booqy-console: the desktop installer workflow.
+#   terraform output -json desktop_downloads
+output "desktop_downloads" {
+  description = "Where the desktop installer workflow uploads, and the public base URL"
+  value = local.platform_domain_enabled ? {
+    OIDC_ROLE_ARN = module.desktop_release_role[0].role_arn
+    S3_BUCKET     = module.platform_domain[0].downloads_bucket_name
+    BASE_URL      = "https://${var.platform_domain}/downloads"
+  } : null
+}
+
 # Read by the smoke test in reusable_cicd.yml (and copied into the app
 # repos' project.env): what a release must answer right after deploying.
 output "smoke_test" {

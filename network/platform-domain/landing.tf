@@ -144,6 +144,13 @@ resource "aws_cloudfront_distribution" "landing" {
     origin_access_control_id = aws_cloudfront_origin_access_control.landing.id
   }
 
+  # Desktop installers (downloads.tf).
+  origin {
+    origin_id                = "downloads"
+    domain_name              = aws_s3_bucket.downloads.bucket_regional_domain_name
+    origin_access_control_id = aws_cloudfront_origin_access_control.downloads.id
+  }
+
   dynamic "origin" {
     for_each = var.demo_request_enabled ? [1] : []
     content {
@@ -174,6 +181,19 @@ resource "aws_cloudfront_distribution" "landing" {
         origin_ssl_protocols   = ["TLSv1.2"]
       }
     }
+  }
+
+  # The uploads set Cache-Control (latest/: 5 minutes, versions/: a year),
+  # which CachingOptimized follows, so a new build needs no invalidation.
+  ordered_cache_behavior {
+    path_pattern               = "/downloads/*"
+    target_origin_id           = "downloads"
+    viewer_protocol_policy     = "redirect-to-https"
+    allowed_methods            = ["GET", "HEAD"]
+    cached_methods             = ["GET", "HEAD"]
+    compress                   = false
+    cache_policy_id            = "658327ea-f89d-4fab-a63d-7e88639e58f6" # AWS managed "CachingOptimized"
+    response_headers_policy_id = "67f7725c-6f97-4210-82d7-5512b31e9d03" # AWS managed "SecurityHeadersPolicy"
   }
 
   # Before /api/* (behaviours match in order).

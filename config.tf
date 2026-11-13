@@ -2618,6 +2618,19 @@ module "website_deploy_role" {
   website_bucket_arn          = module.platform_domain[0].landing_bucket_arn
   cloudfront_distribution_arn = module.platform_domain[0].landing_distribution_arn
 }
+# Desktop installers: CI in admin-front-end and booqy-console uploads to
+# https://<platform_domain>/downloads/ (network/platform-domain/downloads.tf).
+module "desktop_release_role" {
+  count             = local.platform_domain_enabled ? 1 : 0
+  source            = "./security/iam/oidc/desktop-release-role"
+  environment       = var.env
+  oidc_provider_arn = module.github_oidc_provider.provider_arn
+  github_repos = [
+    "${var.github_org}@*/${var.admin_frontend_repo}",
+    "${var.github_org}@*/${var.platform_admin_frontend_repo}",
+  ]
+  downloads_bucket_arn = module.platform_domain[0].downloads_bucket_arn
+}
 module "back_end_role" {
   source              = "./security/iam/oidc/back-end-role"
   environment         = var.env
