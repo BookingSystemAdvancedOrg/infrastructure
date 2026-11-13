@@ -19,9 +19,9 @@ Telefon: language choices, shared number, simulator shows the language.
 Tests: `test_phone_agent_live.py` (language switch, shared number,
 multi-location and foreign-tenant isolation, counter-offers end to end
 through L6 in Swedish and English, a whole ElevenLabs call),
-`test_phone_agent_adapters.py`. New IAM row for owner approval:
-`phone-agent` `EndpointKeyForVoiceAgent` (GetSecretValue on the endpoint
-key secret). Owner actions before go-live: see `phone-agent/README.md`
+`test_phone_agent_adapters.py`. New IAM row, approved by the owner
+2026-11-13: `phone-agent` `EndpointKeyForVoiceAgent` (GetSecretValue on
+the endpoint key secret). Owner actions before go-live: see `phone-agent/README.md`
 "Going live".
 
 ## Spec change 2026-11-04 (owner instructions of 2026-11-04, Fable-led, no code behind a flag changes)

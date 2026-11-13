@@ -30,7 +30,7 @@ simulators unless `var.voice_client`, `var.telephony_client`, `var.agent_model_c
 
 ## IAM (new roles; no existing role changed)
 
-New row proposed 2026-11-13, **not applied, waiting for the owner's approval**: `phone-agent` / `EndpointKeyForVoiceAgent` (below). Only needed once `voice_client = "real"`; until it is added, enabling a location with the real voice client fails with `voice_provider_unavailable`.
+New row 2026-11-13, approved by the owner the same day: `phone-agent` / `EndpointKeyForVoiceAgent` (below).
 
 | Role | Statement | Actions | Resource |
 |---|---|---|---|
@@ -38,7 +38,7 @@ New row proposed 2026-11-13, **not applied, waiting for the owner's approval**: 
 | all three | PublishPhoneAgentEvents | events:PutEvents | the bus, `events:source = booqy.phone-agent` |
 | all three | ReadPlatformSettings | dynamodb:GetItem | **existing tenant table**, `LeadingKeys = PLATFORM#PHONE_AGENT` only |
 | all three | ProviderSecrets | secretsmanager:GetSecretValue | the two new provider secrets |
-| phone-agent | EndpointKeyForVoiceAgent (proposed 2026-11-13, not applied) | secretsmanager:GetSecretValue | the endpoint key secret (the real voice client stores it once as an ElevenLabs workspace secret for the location agents' custom LLM) |
+| phone-agent | EndpointKeyForVoiceAgent (approved 2026-11-13) | secretsmanager:GetSecretValue | the endpoint key secret (the real voice client stores it once as an ElevenLabs workspace secret for the location agents' custom LLM) |
 | phone-agent | WritePlatformSettings | dynamodb:PutItem | **existing tenant table**, `LeadingKeys = PLATFORM#PHONE_AGENT` only |
 | phone-agent | AgentSystemUsers | dynamodb:PutItem, DeleteItem | **existing user table**, `LeadingKeys` like `USER#agent:*` only |
 | phone-agent | InvokeReadTools | lambda:InvokeFunction | **existing** `tenant-site-config:live`, `get-availability:live`, `get-reservation:live`, `get-menu:live`, `list-layout-version:live` (the dry-run simulator) |

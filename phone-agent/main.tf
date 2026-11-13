@@ -128,6 +128,14 @@ locals {
     phone-agent = concat([
       local.table_statement, local.events_statement, local.platform_row_read, local.provider_secrets,
       {
+        # Approved by the owner 2026-11-13: the real voice client registers the
+        # endpoint key with ElevenLabs when it creates a location's agent.
+        Sid      = "EndpointKeyForVoiceAgent"
+        Effect   = "Allow"
+        Action   = ["secretsmanager:GetSecretValue"]
+        Resource = aws_secretsmanager_secret.llm_key.arn
+      },
+      {
         # Console forward L18 writes the platform row.
         Sid       = "WritePlatformSettings"
         Effect    = "Allow"
