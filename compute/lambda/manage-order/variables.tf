@@ -81,3 +81,9 @@ variable "site_domain" {
   type        = string
   default     = ""
 }
+
+variable "published_layout_snapshot_table_name" {
+  description = "Name of the Published Layout Snapshot table (the tables behind the QR codes)"
+  type        = string
+  sensitive   = false
+}

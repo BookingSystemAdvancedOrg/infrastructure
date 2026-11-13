@@ -63,3 +63,9 @@ variable "stripe_secret_arn" {
   type        = string
   sensitive   = false
 }
+
+variable "published_layout_snapshot_table_name" {
+  description = "Name of the Published Layout Snapshot table (the tables behind the QR codes)"
+  type        = string
+  sensitive   = false
+}

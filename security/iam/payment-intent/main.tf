@@ -117,6 +117,26 @@ resource "aws_iam_role_policy" "order_protection" {
   })
 }
 
+# Table QR codes: the active published floor plan (activation state and
+# the current snapshot, read by key) decides that a code's table still exists
+# and what it is called. Read only, item level.
+resource "aws_iam_role_policy" "layout_read" {
+  name = "published-layout-read"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "ReadActiveLayout"
+        Effect   = "Allow"
+        Action   = "dynamodb:GetItem"
+        Resource = var.published_layout_snapshot_table_arn
+      }
+    ]
+  })
+}
+
 # Scoped to exactly this function's own log group - not logs:* on everything.
 #
 # No logs:CreateLogGroup - the log group is expected to be provisioned
