@@ -12,8 +12,33 @@ module "help_assistant" {
   alert_topic_arn          = module.alerts.topic_arn
   enabled                  = var.help_assistant_enabled
   monthly_answers          = var.help_assistant_monthly_answers
-  bedrock_client           = var.bedrock_client
-  bedrock_model_id         = var.bedrock_model_id
+  # The assistant's own model settings, else the shared Bedrock ones.
+  bedrock_client   = var.help_assistant_bedrock_client != "" ? var.help_assistant_bedrock_client : var.bedrock_client
+  bedrock_model_id = var.help_assistant_model_id != "" ? var.help_assistant_model_id : var.bedrock_model_id
+  # Each app deploys the corpus it builds from its own code; its index.html names the file.
+  app_urls = {
+    admin   = local.admin_app_url
+    console = local.platform_admin_app_url
+  }
+}
+
+variable "help_assistant_bedrock_client" {
+  type        = string
+  description = "Bedrock client for the help assistant only (simulator or real); empty = bedrock_client. Lets the assistant use the real model while meta-ads and site-builder stay on the simulator."
+  sensitive   = false
+  default     = ""
+
+  validation {
+    condition     = contains(["", "simulator", "real"], var.help_assistant_bedrock_client)
+    error_message = "help_assistant_bedrock_client must be empty, simulator or real."
+  }
+}
+
+variable "help_assistant_model_id" {
+  type        = string
+  description = "Bedrock model or EU inference profile id for the help assistant only; empty = bedrock_model_id. bedrock:InvokeModel is granted only on this model."
+  sensitive   = false
+  default     = ""
 }
 
 variable "help_assistant_enabled" {

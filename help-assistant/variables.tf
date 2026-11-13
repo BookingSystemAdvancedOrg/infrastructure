@@ -54,3 +54,8 @@ variable "bedrock_client" {
 variable "bedrock_model_id" {
   type = string
 }
+
+variable "app_urls" {
+  description = "The apps whose deployed help corpus the assistant reads (index.html names it): { admin, console } (https)."
+  type        = map(string)
+}

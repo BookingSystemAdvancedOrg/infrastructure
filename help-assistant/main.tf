@@ -94,7 +94,7 @@ resource "aws_lambda_function" "fn" {
   publish       = true
   architectures = ["arm64"]
   timeout       = 28
-  memory_size   = 512
+  memory_size   = 1024
 
   lifecycle {
     ignore_changes = [image_uri]
@@ -112,6 +112,8 @@ resource "aws_lambda_function" "fn" {
       HELP_ASSISTANT_PLATFORM_MONTHLY = tostring(var.monthly_answers.total)
       BEDROCK_CLIENT                  = var.bedrock_client
       BEDROCK_MODEL_ID                = var.bedrock_model_id
+      HELP_APP_URL_ADMIN              = var.app_urls["admin"]
+      HELP_APP_URL_CONSOLE            = var.app_urls["console"]
     }
   }
 

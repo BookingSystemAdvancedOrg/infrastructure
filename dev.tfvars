@@ -168,9 +168,14 @@ site_link_prod_account_id = "343695380960"
 # Prod is UNDECIDED (owner, before L goes live) and stays unreserved.
 phone_agent_call_reserved_concurrency = -1
 
-# In-app help assistant in Admin (help-assistant.tf). On in dev; answers come
-# from the help texts until bedrock_client = "real" and a bedrock_model_id are set.
-help_assistant_enabled = true
+# In-app help assistant in Admin and Console (help-assistant.tf). On in dev,
+# with Claude Haiku 5.5 on Bedrock through the EU inference profile (data stays
+# in the EU); only the assistant uses the real model, meta-ads and
+# site-builder stay on the simulator. Capped per tenant and platform
+# (help_assistant_monthly_answers); answers come from the corpus alone past a cap.
+help_assistant_enabled        = true
+help_assistant_bedrock_client = "real"
+help_assistant_model_id       = "eu.anthropic.claude-haiku-5-5"
 
 # AI phone agent brain (owner 2026-11-13): Claude Haiku 5.5 on Bedrock (EU
 # inference profile). The model client is real in dev, so the Telefon
