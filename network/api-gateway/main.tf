@@ -1602,6 +1602,11 @@ locals {
     "POST /platform/me/backdrops/{id}/complete",
     "PUT /platform/me/backdrops/selected",
     "DELETE /platform/me/backdrops/{id}",
+    # The signed-in operator's profile picture (user-backdrops bucket, console/<sub>/avatar.webp)
+    "GET /platform/me/avatar",
+    "POST /platform/me/avatar/upload",
+    "POST /platform/me/avatar/complete",
+    "DELETE /platform/me/avatar",
   ]
 }
 

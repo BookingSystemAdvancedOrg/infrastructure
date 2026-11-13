@@ -152,6 +152,10 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | POST | `/platform/me/backdrops/{id}/complete` | JWT (operator) | platform-tenants |
 | PUT | `/platform/me/backdrops/selected` | JWT (operator) | platform-tenants |
 | DELETE | `/platform/me/backdrops/{id}` | JWT (operator) | platform-tenants |
+| GET | `/platform/me/avatar` | JWT (operator) | platform-tenants |
+| POST | `/platform/me/avatar/upload` | JWT (operator) | platform-tenants |
+| POST | `/platform/me/avatar/complete` | JWT (operator) | platform-tenants |
+| DELETE | `/platform/me/avatar` | JWT (operator) | platform-tenants |
 | GET | `/tenant` | JWT | tenant-account |
 | PATCH | `/tenant` | JWT | tenant-account |
 | POST | `/tenant/stripe/account-link` | JWT | tenant-account |
