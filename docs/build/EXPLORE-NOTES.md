@@ -10,7 +10,7 @@ named in each section unless they start with `../`.
 
 Kassa, the till, was removed on 2026-11-14 (Booqy is online only): the kassa
 function, routes, plan feature and fiskaly access are gone; prod keeps the two
-empty kassa tables for 7 years (`kassa-records.tf`). Kassa mentions in the
+kassa tables for 7 years (`kassa.tf`). Kassa mentions in the
 application and front-end sections below describe the code as explored then.
 
 ## Most important findings for Run 0

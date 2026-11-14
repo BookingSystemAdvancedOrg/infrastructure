@@ -1,16 +1,11 @@
-# Kassa records, prod only (kassa-records.tf). Kassa, the till, was removed on
-# 2026-11-14: Booqy is online only. Its two tables stay in prod because
-# kassaregister data is bookkeeping material, kept at least 7 years after the
-# end of the calendar year (BFL 7 kap. 2 §). Nothing reads or writes them any
-# more; they are kept exactly as Kassa defined them (attributes, PITR,
-# deletion protection, the journal's append-only Deny policy).
+# What is left of Kassa (kassa.tf): its two tables, kept because kassaregister
+# data is bookkeeping material, kept at least 7 years after the end of the
+# calendar year (BFL 7 kap. 2 §). Nothing reads or writes them any more; they
+# are kept exactly as Kassa defined them (attributes, PITR, deletion
+# protection in prod, the journal's append-only Deny policy).
 #
 #   kassa          registers, closed bills, receipt pointers
 #   kassa-journal  the journal memory: append-only, no TTL
-#
-# No lifecycle.prevent_destroy: in dev the moved blocks in kassa-records.tf
-# land on an instance that is not declared (count = 0) and Terraform must be
-# able to destroy it there. Prod relies on deletion_protection_enabled.
 
 locals {
   prefix = var.environment == "prod" ? "" : "${var.environment}-"

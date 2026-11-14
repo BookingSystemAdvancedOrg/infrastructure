@@ -3,7 +3,7 @@
 **Status:** Proposed. **NEEDS LEGAL REVIEW** before any tenant uses it.
 **Date:** 2026-11-01
 **Deciders:** Owner (product), legal reviewer (Swedish tax law), orchestrator
-**Kassa removed 2026-11-14:** Booqy is online only; Kassa, the till, its routes, plan feature and fiskaly access are gone (prod keeps the two empty kassa tables for 7 years, `infrastructure/kassa-records.tf`). The pattern this ADR copied from the kassa journal stays in personalliggare.
+**Kassa removed 2026-11-14:** Booqy is online only; Kassa, the till, its routes, plan feature and fiskaly access are gone (the two kassa tables are kept for 7 years, `infrastructure/kassa.tf`). The pattern this ADR copied from the kassa journal stays in personalliggare.
 
 > This feature must never be described as compliant, approved or certified
 > ("uppfyller kraven", "godkänd", "certifierad", "Skatteverket-godkänd") in
