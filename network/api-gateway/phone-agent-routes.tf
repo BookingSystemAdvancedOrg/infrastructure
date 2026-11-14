@@ -19,6 +19,8 @@ locals {
     { route_key = "GET /locations/{locationId}/phone-agent/callbacks", auth = "jwt" },
     { route_key = "POST /locations/{locationId}/phone-agent/callbacks/{callbackId}/close", auth = "jwt" },
     { route_key = "GET /locations/{locationId}/phone-agent/reservations/{reservationId}/call", auth = "jwt" },
+    # L19: setup checklist progress (same Lambda, no provider calls).
+    { route_key = "POST /locations/{locationId}/phone-agent/setup", auth = "jwt" },
     # Operator routes L15-L18: Booqy Console's platform-tenants forwards them (CONTRACTS.md 9.3).
     { route_key = "GET /platform/tenants/{tenantId}/phone-agent", auth = "operator" },
     { route_key = "PUT /platform/tenants/{tenantId}/phone-agent", auth = "operator" },

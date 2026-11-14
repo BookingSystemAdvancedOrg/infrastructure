@@ -63,8 +63,10 @@ resource "aws_dynamodb_table_item" "phone_test_line_number" {
     tenantId    = { S = var.phone_test_line_location.tenant_id }
     locationId  = { S = var.phone_test_line_location.location_id }
     locationIds = { L = [{ S = var.phone_test_line_location.location_id }] }
-    GSI1PK      = { S = "NUMBER#${module.phone_test_line[0].phone_number}" }
-    GSI1SK      = { S = "${var.phone_test_line_location.tenant_id}#${var.phone_test_line_location.location_id}" }
+    # The admin setup reads the test line from this row (phone_agent.test_line).
+    testLine = { BOOL = true }
+    GSI1PK   = { S = "NUMBER#${module.phone_test_line[0].phone_number}" }
+    GSI1SK   = { S = "${var.phone_test_line_location.tenant_id}#${var.phone_test_line_location.location_id}" }
   })
 }
 
