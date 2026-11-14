@@ -1,6 +1,7 @@
 # ADR-E: Gift cards (sell online, redeem online and in Kassa, accounting)
 
 **Status:** Proposed
+**Kassa removed 2026-11-14:** Booqy is online only; Kassa, the till, its routes, plan feature and fiskaly access are gone (prod keeps the two empty kassa tables for 7 years, `infrastructure/kassa-records.tf`). Kassa redemption below (decision 6, E12, E13, `kassa.giftcard`) is history.
 **Date:** 2026-11-01
 **Deciders:** Owner (product), orchestrator (contracts); **accountant** (VAT and BAS treatment) and lawyer (validity, withdrawal right)
 **Run:** built in Run 2

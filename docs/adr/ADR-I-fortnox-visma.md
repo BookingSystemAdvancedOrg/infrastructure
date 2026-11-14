@@ -4,6 +4,7 @@
 **Date:** 2026-11-01
 **Deciders:** Owner (product), accountant reviewer, orchestrator
 **Run:** built in Run 3
+**Kassa removed 2026-11-14:** Booqy is online only; Kassa, the till, its routes, plan feature and fiskaly access are gone (prod keeps the two empty kassa tables for 7 years, `infrastructure/kassa-records.tf`). Kassa parts below are history.
 
 ## Context
 

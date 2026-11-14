@@ -20,7 +20,7 @@ every plan).
 |---|---|---|
 | DynamoDB table | `<prefix>personalliggare` | state: persons, user pointers, HEAD, presence, REQ markers (TTL 7 d); PITR; deletion protection in prod; purged by the `tenant.purge` hook |
 | DynamoDB table | `<prefix>personalliggare-ledger` | append-only ledger, GSI `byDay`, TTL `ttl` (end of the 2nd calendar year, legal to confirm), PITR, deletion protection in **every** environment; never purged |
-| DynamoDB resource policy | on the ledger | `Deny` UpdateItem, DeleteItem, BatchWriteItem, PartiQLUpdate, PartiQLDelete for `Principal: *` (same shape as kassa's journal) |
+| DynamoDB resource policy | on the ledger | `Deny` UpdateItem, DeleteItem, BatchWriteItem, PartiQLUpdate, PartiQLDelete for `Principal: *` (same shape as the catering request history) |
 | Lambda + alias `live` | `<prefix>personalliggare` | image from ECR, arm64, 28 s |
 | IAM role | `<prefix>personalliggare-role` | see below |
 | Log group, Errors alarm | | alarm to the existing alert topic |

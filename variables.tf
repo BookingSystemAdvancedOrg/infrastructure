@@ -134,19 +134,19 @@ variable "plans" {
     price_sek     = number
     limits        = optional(map(number), {})
   }))
-  description = "Plan catalog (packages you sell). A tenant's limits are copied from its plan when the plan is assigned and can be overridden per tenant from the platform dashboard - no deploy either way. Feature keys: reservations, ordering, catering, marketing (visit statistics and email campaigns to guests who opted in), kassa (the till, off by default: turn it on per tenant in Booqy Console; test mode until a certified control system is connected); metaAds, siteBuilder, guestCrm, googleBusiness, giftCards, waitlist, socialPosting, personalliggare, accountingSync, dishMargin, events, phoneAgent (the Run 0 and Run 0 addendum features, false until each ships). limits: numeric plan limits, siteBuilderAiEditsPerMonth (0-1000) and phoneAgentMinutesPerMonth (0-100000), missing = 0. price_sek: the monthly price excluding VAT, invoiced in arrears on the 25th through Stripe on the platform account; a changed price applies to customers on the plan's price from the next billing period (a customer's own price is not affected)."
+  description = "Plan catalog (packages you sell). A tenant's limits are copied from its plan when the plan is assigned and can be overridden per tenant from the platform dashboard - no deploy either way. Feature keys: reservations, ordering, catering, marketing (visit statistics and email campaigns to guests who opted in); metaAds, siteBuilder, guestCrm, googleBusiness, giftCards, waitlist, socialPosting, personalliggare, accountingSync, dishMargin, events, phoneAgent (the Run 0 and Run 0 addendum features, false until each ships). limits: numeric plan limits, siteBuilderAiEditsPerMonth (0-1000) and phoneAgentMinutesPerMonth (0-100000), missing = 0. price_sek: the monthly price excluding VAT, invoiced in arrears on the 25th through Stripe on the platform account; a changed price applies to customers on the plan's price from the next billing period (a customer's own price is not affected)."
   sensitive   = false
   default = {
     starter = {
       name          = "Starter"
       max_locations = 1
-      features      = { reservations = true, ordering = true, catering = false, marketing = false, kassa = false }
+      features      = { reservations = true, ordering = true, catering = false, marketing = false }
       price_sek     = 3950
     }
     growth = {
       name          = "Growth"
       max_locations = 3
-      features      = { reservations = true, ordering = true, catering = true, marketing = true, kassa = false }
+      features      = { reservations = true, ordering = true, catering = true, marketing = true }
       price_sek     = 8295
     }
   }

@@ -8,6 +8,11 @@ booqy-console with booqy-website and the email templates. These are their
 conclusions, kept close to what they reported. Paths are relative to the repo
 named in each section unless they start with `../`.
 
+Kassa, the till, was removed on 2026-11-14 (Booqy is online only): the kassa
+function, routes, plan feature and fiskaly access are gone; prod keeps the two
+empty kassa tables for 7 years (`kassa-records.tf`). Kassa mentions in the
+application and front-end sections below describe the code as explored then.
+
 ## Most important findings for Run 0
 
 - **Entitlements live on the tenant row, not in a resolver.** Plans are
@@ -286,10 +291,10 @@ Repo: `booqy-run0/infrastructure` (worktree of `booqy/infrastructure`).
   max_locations, features=map(bool), price_sek}))`, validation: `price_sek`
   whole and >= 0. `dev.tfvars` and `prod.tfvars` set the same matrix:
 
-| id | name | max_locations | reservations | ordering | catering | marketing | kassa | price_sek |
-|---|---|---|---|---|---|---|---|---|
-| starter | Starter | 1 | T | T | F | F | F | 3950 |
-| growth | Growth | 3 | T | T | T | T | F | 8295 |
+| id | name | max_locations | reservations | ordering | catering | marketing | price_sek |
+|---|---|---|---|---|---|---|---|
+| starter | Starter | 1 | T | T | F | F | 3950 |
+| growth | Growth | 3 | T | T | T | T | 8295 |
 
 - Path to Lambdas (not env vars or SSM): `config.tf` passes `var.plans` to
   `module "tenant"` (`storage/dynamodb/tenant`), which writes one
@@ -301,8 +306,7 @@ Repo: `booqy-run0/infrastructure` (worktree of `booqy/infrastructure`).
   `TENANT#<t>|PROFILE.entitlements`; operators override per tenant in the
   console with no deploy. Lambdas read via `TENANT_TABLE_NAME` and the shared
   tenant-context policy.
-- Enforcement is in application code. kassa is off in every plan and is
-  switched on per tenant in the console.
+- Enforcement is in application code.
 
 ### 2.2 Module layout and naming
 - Legacy per-Lambda (e.g. get-menu): `compute/lambda/<name>/` (`main.tf`:
@@ -312,12 +316,12 @@ Repo: `booqy-run0/infrastructure` (worktree of `booqy/infrastructure`).
   `${fn}-role`, named-Sid item-level statements, logs policy only on its own
   log group), `storage/ecr/<name>/` (scan on push, keep 30 images), wired in
   `config.tf`.
-- Newer feature modules (kassa, printing, accounting, marketing,
-  sites, site-analytics): root file such as `kassa.tf` with `module "kassa"`
-  and the feature's variables, and a directory `kassa/` (`main.tf`,
+- Newer feature modules (printing, accounting, marketing,
+  sites, site-analytics): root file such as `accounting.tf` with `module "accounting"`
+  and the feature's variables, and a directory `accounting/` (`main.tf`,
   `variables.tf`, `outputs.tf`) with tables, role, policies, log group,
   function, `live` alias and an Errors alarm to `alert_topic_arn`.
-  `locals { prefix = env=="prod" ? "" : "${env}-"; function="kassa";
+  `locals { prefix = env=="prod" ? "" : "${env}-"; function="accounting";
   name="${prefix}${function}" }`.
 - Naming: `dev-` prefix except prod. Only tag `Environment = var.environment`;
   no `default_tags`.
@@ -342,8 +346,8 @@ Repo: `booqy-run0/infrastructure` (worktree of `booqy/infrastructure`).
   `env=="prod" ? "<name>" : "${env}-<name>"`; `PAY_PER_REQUEST`, `PK`/`SK`
   strings, SSE (AWS-owned key), PITR on every table, deletion protection in
   prod (except `insights`, `request-guard`, `site-analytics`).
-- Append-only Deny resource policies on the kassa journal and
-  `catering-request-history`. TTL attribute `ttl`. Streams to Lambdas via
+- Append-only Deny resource policies on `catering-request-history`, the
+  personalliggare ledger and (prod only, retained) the kassa journal. TTL attribute `ttl`. Streams to Lambdas via
   `aws_lambda_event_source_mapping`.
 
 ### 2.4 Eventing
@@ -367,9 +371,7 @@ Repo: `booqy-run0/infrastructure` (worktree of `booqy/infrastructure`).
   `catering/link-signing-key`, `catering/signing-provider`,
   `catering/turnstile`, `reservations/link-signing-key`); 30-day recovery in
   prod, 7 elsewhere; hand-set values use `ignore_changes`.
-- Hand-made or runtime: `booqy/<env>/...` (`booqy/dev/fiskaly-sign-se`,
-  `booqy/<env>/github-app-sites`, per tenant
-  `booqy/<env>/fiskaly-unit/<tenantId>`).
+- Hand-made or runtime: `booqy/<env>/...` (`booqy/<env>/github-app-sites`).
 - Access: ARN via env var; `GetSecretValue` on exact ARN, `-??????` suffix,
   or a prefix `*` for per-tenant secrets. Never secrets in plain env vars.
 
@@ -378,11 +380,6 @@ Repo: `booqy-run0/infrastructure` (worktree of `booqy/infrastructure`).
   key from GitHub secrets.
 - `dev.tfvars` / `prod.tfvars`: env, emails, `platform_domain`, `plans`,
   retention, `dlq_replay_interval_minutes`, toggles.
-- Kassa toggles (`kassa.tf`): `kassa_control_system` (`simulator` default or
-  `fiskaly`, validated; dev `fiskaly`, prod default), `kassa_certified`
-  (default false, set nowhere), passed as `KASSA_CONTROL_SYSTEM`,
-  `KASSA_CERTIFIED`, `FISKALY_SECRET_ID`, `FISKALY_UNIT_PREFIX`; IAM policies
-  `count`-gated on the secret name.
 - Other: signing provider chosen by the secret's JSON; `x_enabled = var.y !=
   ""` locals with `count` (`platform_domain_enabled`, `site_repos_enabled`,
   `mail_outbox_enabled`, `rollback_alarms_enabled`); booleans

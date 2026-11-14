@@ -3,6 +3,9 @@
 Who may create or edit which files. Paths are relative to the repo named in
 the heading. `**` = everything below, including tests in that folder.
 
+Kassa, the till, was removed on 2026-11-14 (`functions/kassa`, `kassa/**`,
+`KassaGiftCardButton.tsx` and the rest); rows naming it are history.
+
 **Default rule: a file not listed under a feature is read-only for that
 feature.** Reading, importing and referencing shared code (Python imports,
 TS imports, Terraform `module.<x>.<output>` references) is always allowed;

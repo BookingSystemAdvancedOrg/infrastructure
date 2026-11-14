@@ -1,7 +1,7 @@
 # gift-cards
 
 Gift cards (feature E, `giftCards`): presentkort sold on the restaurant site,
-issued only from Stripe, redeemed partly online and in Kassa, booked in
+issued only from Stripe, redeemed partly online (Kassa removed 2026-11-14), booked in
 Bokföring. **VAT treatment (multi-purpose voucher) needs accountant review.**
 
 - Decision record: `docs/adr/ADR-E-gift-cards.md`; contract: `docs/build/CONTRACTS.md`
@@ -18,10 +18,11 @@ Bokföring. **VAT treatment (multi-purpose voucher) needs accountant review.**
   `notification:live` (code email); `events:PutEvents` with
   `events:source = booqy.gift-cards`; the tenant-context and staff-check
   read policies (wiring). Scheduler role: invoke `gift-cards:live`.
-- No existing role changes here: the eight callers' invoke grants on
+- No existing role changes here: the seven callers' invoke grants on
   `gift-cards:live` exist since Run 0 (CONTRACTS.md 14 rows 1-7, 5b).
 - New stateful resources: the table and the pepper secret (deleting the
   pepper makes every issued code unusable).
 - Routes: `network/api-gateway/gift-cards-routes.tf` (3 public with the
-  public throttle, 10 jwt).
+  public throttle, 8 jwt; the Kassa redemption routes E12 and E13 went with
+  Kassa).
 - ECR repository already exists (`module "gift_cards_ecr"` in `config.tf`).

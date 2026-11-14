@@ -1,14 +1,15 @@
 # Gift cards (feature E, ADR-E, CONTRACTS.md 4, 6.E, 9, 11): sold on the
-# restaurant site, issued from Stripe only, redeemed online and in Kassa, booked
+# restaurant site, issued from Stripe only, redeemed online, booked
 # in Bokföring (multi-purpose voucher: NEEDS ACCOUNTANT REVIEW). Application:
-# functions/gift-cards (public E1-E3, JWT E4-E13, hooks stripe.event,
-# checkout.giftcard, kassa.giftcard, accounting.events, privacy.*,
+# functions/gift-cards (public E1-E3, JWT E4-E11, hooks stripe.event,
+# checkout.giftcard, accounting.events, privacy.*,
 # tenant.purge, the nightly expiry), shared/features/gift_cards.
 #
 # All access is on the NEW role. The callers' invoke grants on
 # gift-cards:live (stripe-webhook, payment-intent, webhook-payment-intent,
-# manage-order, kassa, accounting, guest-privacy, tenant-purge) exist since
-# Run 0 (security/iam/feature-hooks); no existing role changes here.
+# manage-order, accounting, guest-privacy, tenant-purge) exist since
+# Run 0 (security/iam/feature-hooks); no existing role changes here. Kassa
+# redemption (E12, E13, the kassa.giftcard hook) went with Kassa on 2026-11-14.
 
 data "aws_caller_identity" "current" {}
 

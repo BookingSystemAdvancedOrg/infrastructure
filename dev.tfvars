@@ -87,7 +87,7 @@ plans = {
     name          = "Starter"
     max_locations = 1
     features = {
-      reservations = true, ordering = true, catering = false, marketing = false, kassa = false,
+      reservations = true, ordering = true, catering = false, marketing = false,
       metaAds      = false, siteBuilder = false, guestCrm = false, googleBusiness = false, giftCards = false,
       waitlist     = false, socialPosting = false, personalliggare = false, accountingSync = false, dishMargin = false,
       events       = false, phoneAgent = false,
@@ -99,7 +99,7 @@ plans = {
     name          = "Growth"
     max_locations = 3
     features = {
-      reservations = true, ordering = true, catering = true, marketing = true, kassa = false,
+      reservations = true, ordering = true, catering = true, marketing = true,
       metaAds      = false, siteBuilder = false, guestCrm = false, googleBusiness = false, giftCards = false,
       waitlist     = false, socialPosting = false, personalliggare = false, accountingSync = false, dishMargin = false,
       events       = false, phoneAgent = false,
@@ -138,14 +138,6 @@ data_retention_dry_run = true
 
 # DMARC aggregate reports (privacy-variables.tf). The mailbox must exist.
 dmarc_report_address = "dmarc@booqy.se"
-
-# Kassa's control system: fiskaly SIGN SE, TEST environment. Booqy's GROUP
-# key lives in this secret (created by hand: JSON {"api_key", "api_secret",
-# "env": "TEST"}); each restaurant's own key is created by the kassa function
-# in booqy/dev/fiskaly-unit/<tenantId>. Checked end to end against fiskaly
-# TEST on 2026-10-26. Registers made under the simulator show "inte kopplad".
-kassa_fiskaly_secret_name = "booqy/dev/fiskaly-sign-se"
-kassa_control_system      = "fiskaly"
 
 # Restaurant websites, one private repo site-<slug> per customer (sites.tf,
 # docs/CUSTOMER-SITE-RUNBOOK.md). Off until the "Booqy Sites" GitHub App's

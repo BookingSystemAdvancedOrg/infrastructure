@@ -21,10 +21,6 @@ module "accounting" {
   catering_requests_table_arn  = module.catering_requests.table_arn
   catering_history_table_name  = module.catering_request_history.table_name
   catering_history_table_arn   = module.catering_request_history.table_arn
-  kassa_table_name             = module.kassa.table_name
-  kassa_table_arn              = module.kassa.table_arn
-  kassa_journal_table_name     = module.kassa.journal_table_name
-  kassa_journal_table_arn      = module.kassa.journal_table_arn
   stripe_secret_arn            = module.platform_secrets.stripe_secret_arn
   stripe_api_version           = var.stripe_api_version
   alert_topic_arn              = module.alerts.topic_arn

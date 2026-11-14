@@ -47,7 +47,7 @@ are the same everywhere; the names and the semantic layer are not.
 | guest | `booqy-look.css` l. 79 | Admin's values copied, plus `--paper* --print* --steel*` aliases; **hard-codes `--accent: #1a120e`**, so the restaurant colour never shows (known gap, section 6 of DESIGN.md). |
 | kit | `styles/theme.css` | Bongrail defaults, `--accent: var(--tenant-accent, #350001)`. Overridden by guest's `booqy-look.css`. |
 | site | `assets/booqy.css` l. 64, l. 1303, l. 2928 ("glass room") | One look. `--paper-line` is tan here, sand in console, `#e3d6c4` in admin. `data-theme="dark"` is on every page but means the one light look. |
-| emails | `app/shared/messages.py` (`#f4f2ee`, `_brand_color` default `#1f2a24`), `order_messages.py`, `catering_messages.py`, `card_messages.py`, `kassa_receipt.py`, `marketing.py`; console `api/src/app/mail.py` (`#f1eee6`, `#fbfaf6`, accent `#1a120e`); `infra/compute/lambda/demo-request`, `cognito-custom-message` | Inline hex, no shared source; transactional mails grey/green, the console newsletter paper/rail. **Dup x8.** |
+| emails | `app/shared/messages.py` (`#f4f2ee`, `_brand_color` default `#1f2a24`), `order_messages.py`, `catering_messages.py`, `card_messages.py`, `marketing.py`; console `api/src/app/mail.py` (`#f1eee6`, `#fbfaf6`, accent `#1a120e`); `infra/compute/lambda/demo-request`, `cognito-custom-message` | Inline hex, no shared source; transactional mails grey/green, the console newsletter paper/rail. **Dup x8.** |
 
 Line colours disagree: `#e3d6c4` (admin, guest), `#d5c4ae` (console glass),
 `#a88462` (site paper-line). Brand: `line` `#e3d6c4`, `line-strong` tan.
@@ -142,10 +142,10 @@ in TS. Durations are inline everywhere. Brand: `--bq-ease-*`, `--bq-duration-*`.
 | Progress | site `.show-prog` hairline (`booqy.js` l. 136, `booqy.css` l. 1893) (**migrated**); site "Så funkar det" tab pill `--p`; kit `.hold-bar` (`BokaBordPage.tsx` l. 102, `world.css`); kit `.order-steps` / `FlowSteps.tsx`; admin `.sk-progress` (statistik), `.printer-steps` (`printer.css`); site `.mini-steps`, `.g-steps` | x7 | `progress` |
 | Chart bars | admin `.sk-bar` (`statistik.css`, `charts.tsx` l. 168, 278); console `.chart__bar` (`charts.tsx`), `.web-bar` (`WebsitePage.css`); site `.fp-bar`, drum-fill bars (`booqy.js` l. 484) | x4 | `chart` (BarChart, ColumnChart) |
 | Meters and rings | admin `.sk-ring` (statistik `Ring`), `.side-ring` (layout editor); console `Ring.tsx` (`.ring__seg`); site `.term-ring`, `.fp-ring`, `.pb-ring`; sound volume rails (admin `SoundVolume`, console `SoundVolume`) | x5 | `meter` (`line`, `ring`) |
-| Tab bars / segmented | admin `.settings-tabs`, `.mk-tabs`, `.mk-segment`, `.sk-chips`, `.segmented`, `.kassa-switch`, `.kassa-cats`, `.kassa-chips`, `.floor-tabs`, `.view-toggle`, `.shape-toggle`, `.floor-list`, `.pay-mode` (all glide groups); console `.tabs` (`styles.css` l. 335), `.web-tabs`; kit `.floor-view-toggle`, `.offer-tab`; guest `.chip-rail`; site `.scene-tabs`, `.g-switch`, `.ph-tabs` | x20+ | `tab` (`track`, `bare`) |
+| Tab bars / segmented | admin `.settings-tabs`, `.mk-tabs`, `.mk-segment`, `.sk-chips`, `.segmented`, `.floor-tabs`, `.view-toggle`, `.shape-toggle`, `.floor-list`, `.pay-mode` (all glide groups); console `.tabs` (`styles.css` l. 335), `.web-tabs`; kit `.floor-view-toggle`, `.offer-tab`; guest `.chip-rail`; site `.scene-tabs`, `.g-switch`, `.ph-tabs` | x20+ | `tab` (`track`, `bare`) |
 | Top and nav bars | admin `.admin-topbar` (`AdminTopbar.tsx`), `.admin-nav*`; console `.topbar`, `.topbar__nav`; guest `.site-header-nav` (`CustomerLayout.tsx`); kit `.category-sidebar` (`CategoryNav.tsx`); site sticky header, `.lnav` chapter bar, `.subnav`, `.r-nav`, "Tjänster" menu | x8 | `nav` |
 | Sidebar | admin `.admin-sidebar` (with liquid pour); site none; console none | none | `nav vertical` + `useLiquidFill` |
-| Toolbars and action bars | console `.submit-bar` (12 rules), `.toolbar`, `.finance-toolbar`, `.web-toolbar`; admin `.mk-toolbar`, `.mk-bar`, `.editor-toolbar`, `.sk-filterbar`, `.kassa-bar`, `.kassa-print-bar`; kit `.checkout-bar`, `.order-mobile-bar` (also in guest `site.css`, `booqy-look.css`) | x12 | `action` |
+| Toolbars and action bars | console `.submit-bar` (12 rules), `.toolbar`, `.finance-toolbar`, `.web-toolbar`; admin `.mk-toolbar`, `.mk-bar`, `.editor-toolbar`, `.sk-filterbar`; kit `.checkout-bar`, `.order-mobile-bar` (also in guest `site.css`, `booqy-look.css`) | x12 | `action` |
 | Status bars | admin `.editor-statusbar` (layout editor) | none | `action` (status slot) |
 | Banners | admin `.orders-banner` (bestallningar), `.dpa-banner` (DPA prompt, seen on Översikt), `.layout-viewmode-banner` (layout editor and cateringkalkyl); kit `.hold-banner`; console `Notice` | x5 | `banner` |
 | Toasts | none today (saves flash in place); console `saved-stamp` | none | `banner` in `Toaster` |
@@ -157,7 +157,7 @@ All inline-styled Python strings with a text twin; no shared values.
 | Template | File | Look |
 |---|---|---|
 | Booking guest/staff, SMS | `app/shared/messages.py` (`guest_email`, `staff_email`, `guest_sms`) | 560 px, `#f4f2ee`, white card radius 10, tenant colour (`_brand_color`, default `#1f2a24`) top border and CTA, system fonts |
-| Order, catering, card, Kassa receipt | `app/shared/order_messages.py`, `catering_messages.py`, `card_messages.py`, `kassa_receipt.py` | same shape as messages.py (**dup x4**) |
+| Order, catering, card receipt | `app/shared/order_messages.py`, `catering_messages.py`, `card_messages.py` | same shape as messages.py (**dup x3**; the Kassa receipt went with Kassa on 2026-11-14) |
 | Marketing campaigns | `app/shared/marketing.py` `render_email` (editor `admin/features/marknadsforing/TemplateEditor.tsx`) | 600 px, menu images, template colour theme |
 | Operator newsletter | `booqy-console/api/src/app/mail.py` `render_html` | 600 px table, steel rail, `#fbfaf6` paper, torn edge, accent `#1a120e` (the only Booqy-looking mail, old palette) |
 | Demo request | `infra/compute/lambda/demo-request/src/handler.py` `build_email` | own inline look |

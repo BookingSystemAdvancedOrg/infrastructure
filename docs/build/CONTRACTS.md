@@ -165,7 +165,6 @@ and is changed only by the owner, never by a feature agent.
 | `ordering` | true | true | true | true | existing |
 | `catering` | false | true | false | true | existing |
 | `marketing` | false | true | false | true | existing |
-| `kassa` | false | false | false | false (per tenant in console) | existing |
 | `metaAds` | false | false | false | true | ADR-A |
 | `siteBuilder` | false | false | true | true | ADR-B |
 | `guestCrm` | false | false | false | true | ADR-C |
@@ -269,7 +268,7 @@ an SQS DLQ in their own module.
 | `booqy.google-business` | `GoogleHours.SyncFailed` | `locationId`, `code` | google-business, -jobs | none |
 | `booqy.google-business` | `ReviewRequest.Sent` | `locationId`, `kind: enum[booking,order]`, `sourceId`, `channel: enum[email,sms]` | google-business-jobs | none |
 | `booqy.gift-cards` | `GiftCard.Sold` | `cardId`, `locationId`, `amountOre: int`, `expiresAt: datetime` | gift-cards | none |
-| `booqy.gift-cards` | `GiftCard.Redeemed` | `cardId`, `locationId`, `amountOre: int`, `balanceAfterOre: int`, `channel: enum[online,kassa]`, `txId` | gift-cards | none |
+| `booqy.gift-cards` | `GiftCard.Redeemed` | `cardId`, `locationId`, `amountOre: int`, `balanceAfterOre: int`, `channel: enum[online]` (`kassa` until Kassa was removed 2026-11-14), `txId` | gift-cards | none |
 | `booqy.gift-cards` | `GiftCard.RedemptionReversed` | `cardId`, `locationId`, `amountOre: int`, `txId` | gift-cards | none |
 | `booqy.gift-cards` | `GiftCard.Expired` | `cardId`, `amountOre: int` | gift-cards | none |
 | `booqy.gift-cards` | `GiftCard.Refunded` | `cardId`, `amountOre: int` | gift-cards | none |
@@ -431,8 +430,8 @@ are among them.
 | E9 | POST `/tenant/gift-cards/{cardId}/refund` | jwt | owner | `giftCards` | `{txId, reason}` -> card (`void`). The card first: one `refund` TX of the balance the request read, conditional on the card `version`; then a Stripe refund of exactly that amount (key `giftcard-refund-<txId>`), after which `stripeRefundId` on the TX marks the Stripe side done | 409 `refund_window_passed`, `card_void`, `changed_retry` (a redemption moved the balance in between: nothing refunded, read the card and call again); 502 `stripe_unavailable` (the card is already void; call again with the same `txId`) | `txId`: a retry returns the card and finishes the Stripe refund only while the TX has no `stripeRefundId`; one TX, one Stripe refund |
 | E10 | POST `/tenant/gift-cards/{cardId}/resend` | jwt | owner | `giftCards` | `{to: buyer \| recipient}` -> 202 `{last4}`; codes are never stored, so "Skicka ny kod" **rotates** the code: new CODE# row, old one deleted, `codeHmac`/`last4` replaced on the card in one transaction, then the new code is mailed (`gift-cards.code-resend`); the old code stops working at once, which the admin confirms with the owner first | 400 bad target, no email for that target; 409 `card_expired`, `card_void`, `changed_retry`; 502 `notification_unavailable` (notification did not take the email: the code is already rotated and unsent, so the old code no longer works; calling again is safe and rotates once more, then mails the new code) | not idempotent by design (every call is a new code; only the latest works) |
 | E11 | POST `/locations/{locationId}/gift-cards/lookup` | jwt | owner, staff | `giftCards` | `{code}` -> `{cardId, last4, balanceSek, expiresAt, status}` | 400 missing code | n/a |
-| E12 | POST `/locations/{locationId}/gift-cards/redemptions` | jwt | owner, staff | `giftCards` and `kassa` | `{txId (= Kassa paymentId), code, amountOre, billId}` -> `{balanceAfterSek, txId}` | 409 `insufficient_balance`, `card_expired`, `card_void` | `txId`; same id other amount 409 |
-| E13 | POST `/locations/{locationId}/gift-cards/redemptions/{txId}/reverse` | jwt | owner, staff | `giftCards` and `kassa` | `{}` -> `{balanceAfterSek}` | 409 `receipt_issued` | second reverse same balance |
+| E12 | POST `/locations/{locationId}/gift-cards/redemptions` | removed 2026-11-14 with Kassa (it served only Kassa redemptions) | | | | | | |
+| E13 | POST `/locations/{locationId}/gift-cards/redemptions/{txId}/reverse` | removed 2026-11-14 with Kassa | | | | | | |
 
 Existing route change (Run 0, hotspot): the order checkout body
 (`payment-intent`) gains optional `giftCardCode: string`; with `giftCards`
@@ -625,9 +624,9 @@ Backend `functions/tenant-site-config/app.py` and site-kit
 | `locations[].waitlist` | `{publicJoin: bool}` | `waitlist` on and the location row has `waitlist` | location row `waitlist`, written by waitlist F6 |
 | `tenant.features.events` (addendum) | bool | always | entitlements (`siteConfig: true` in the YAML; `SITE_CONFIG_FEATURES` grows to nine) |
 
-`tenant.features` keeps its existing five keys and does **not** gain `kassa`
-or the other new keys (staff-only features, nothing guest-facing). That is
-the deliberate answer to the "`_FEATURES` lacks kassa" mismatch.
+`tenant.features` keeps its existing keys and does **not** gain the other
+new keys (staff-only features, nothing guest-facing). The `kassa` key went
+with Kassa on 2026-11-14.
 `phoneAgent` adds nothing to `/site-config` (the guest site shows the
 restaurant's own number as today; the Booqy number is only a forwarding
 target).
@@ -691,7 +690,7 @@ when their feature is on; the existing six tabs are shown only when
 | `installningar.bokforing.sync` | section `ekonomi`, tab `bokforing`, above `BokforingCard` | `accountingSync` | yes | `{}` | `src/features/accounting-sync/DirektbokforingCard.tsx` |
 | `bokningar.panel.waitlist` | BokningarPage, next to the day list | `waitlist` | no | `{locationId, date}` | `src/features/waitlist/QueuePanel.tsx` |
 | `bokningar.reservation.badge` | BokningarPage reservation row | `guestCrm` | no | `{locationId, reservationId, email?, phone?}` (component batches C5 itself) | `src/features/guest-crm/GuestBadge.tsx` |
-| `kassa.payment.giftcard` | KassaPage bill payment actions | `giftCards` | no | `{locationId, billId, remainingOre, onPaid(p: {paymentId; amountOre}): void}` | `src/features/gift-cards/KassaGiftCardButton.tsx` |
+| `kassa.payment.giftcard` | removed 2026-11-14 with Kassa | | | | |
 | `meny.dish.cost` | DishModal, below price | `dishMargin` | yes | `{locationId, menuItemId, priceSek, alcohol}` | `src/features/dish-margin/DishCostField.tsx` |
 | `meny.dish.share` | MenyPage dish actions | `socialPosting` | yes | `{locationId, menuItemId}` | `src/features/social-posting/ShareDishAction.tsx` |
 | `statistik.dishes.margin` | StatistikPage dishes section | `dishMargin` | yes | `{insights, locationId, from, to}` | `src/features/dish-margin/MarginChart.tsx` |
@@ -796,7 +795,7 @@ still lets erase, export, SIE history and gift card events reach its data.
 | `tenant.purge` | tenant-purge, per purged tenant per round | all ten | always | `locationIds[]`, `round` | `done: bool`, `counts{}`; not done -> called again next round |
 | `stripe.event` | stripe-webhook, when `metadata.kind = giftcard` | gift-cards | on or ever on | `type`, `account`, `object` | `result: string`: `issued`, `already_issued`, `code_resent` (a `payment_intent.succeeded` replay for an issued, active card without `codeSentAt` and older than 2 minutes: the code is rotated and `gift-cards.code` sent again), `voided`, `already_void`, `flagged:partial_refund` (`charge.refunded` with `amount_refunded != amount`: `partialRefundOre` / `partialRefundAt` on the card, no balance change), `ignored:*`. **gift-cards must ignore the event (`result: ignored:account_mismatch`) unless `account` equals the `stripeAccountId` stored on the card's own purchase or TX row**: the caller only checks the signature and live mode, and `metadata.tenantId` comes from whoever created the PaymentIntent on their connected account |
 | `checkout.giftcard` | payment-intent (`op: reserve`); webhook-payment-intent on `checkout.session.expired` / payment failed (`op: reverse`); manage-order staff cancel (`op: refund`, after the Stripe refund) | gift-cards | `giftCards` on and `giftCardCode` present (reserve); order carries `giftCard` (reverse, refund: regardless of the flag) | `op` (`reserve`, `reverse`, `refund`), `locationId`, `orderId`, `code?`, `totalOre?` | reserve: `debitedOre`, `cardId`, `cardLast4`; reverse and refund: `reversedOre` |
-| `kassa.giftcard` | kassa bill payment `kind: giftcard` (`op: verify`), undo before receipt (`op: reverse`) | gift-cards | `giftCards` and `kassa` on, and the control system port has a voucher payment means (`ControlSystem.voucher_method`; while it is `None` the payment is refused 501 before any hook call, so no card is debited on a bill whose receipt cannot be made) | `op`, `locationId`, `billId`, `paymentId` | `amountOre`, `cardId`, `cardLast4`, `balanceAfterOre` |
+| `kassa.giftcard` | removed 2026-11-14 with Kassa (Kassa, the till, was removed; Booqy is online only) | | | | |
 | `accounting.events` | `shared/accounting.location_events` (accounting export and accounting-sync) | gift-cards | on or ever on | `locationId`, `first`, `last` | `events[{day, postings[{role, amount, text}], warnings[]}]` (shape of `shared.accounting.Event`) |
 | `insights.dishCosts` | insights `GET /insights?locationId=` | dish-margin | `dishMargin` on and caller is owner | `locationIds[]`, `first`, `last` | `targetMarginPct`, `costs{menuItemId: [{validFrom, costOre}]}` |
 | `marketing.segment` | marketing (campaign save, `op: describe`), marketing-send (`op: page`) | guest-crm | audience `{type: "segment", exportId}` | `op`, `exportId`, `cursor?` | describe: `count`; page: `subscriberIds[]`, `cursor?` |
@@ -815,8 +814,8 @@ with target events-tickets when `metadata.kind == "ticket"` (same
 Margin math stays in `shared/dish_margin.py` `apply(summary, costs)`
 (Run 0 stub returns `summary` unchanged; J owns the file afterwards).
 Gift card accounting roles `giftCardLiability` (2421) and
-`giftCardBreakage` (3990) are added to `shared/accounting.py` in Run 0;
-Kassa payments with method `Presentkort` debit `giftCardLiability`.
+`giftCardBreakage` (3990) are added to `shared/accounting.py` in Run 0
+(Kassa `Presentkort` payments went with Kassa on 2026-11-14).
 
 ### 9.3 Console forward ops (`CONSOLE_FORWARD_OPS`)
 
@@ -1061,7 +1060,7 @@ sites bucket policy.
 | 4 | payment-intent | invoke gift-cards | `checkout.giftcard` reserve |
 | 5 | webhook-payment-intent | invoke gift-cards | `checkout.giftcard` reverse |
 | 5b | manage-order | invoke gift-cards | `checkout.giftcard` refund (added in review round 1) |
-| 6 | kassa | invoke gift-cards | `kassa.giftcard` |
+| 6 | kassa | removed 2026-11-14 (the kassa role went with Kassa) | `kassa.giftcard` |
 | 7 | accounting | invoke gift-cards | `accounting.events` (replaces Query on `byLocationDay`) |
 | 8 | insights | invoke dish-margin | `insights.dishCosts` (replaces Query on the dish-margin table) |
 | 9 | marketing, marketing-send | invoke guest-crm | `marketing.segment` (replaces GetItem/Query on CRM exports) |

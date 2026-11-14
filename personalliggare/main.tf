@@ -4,7 +4,7 @@
 # Application: functions/personalliggare (JWT routes H1-H8, hooks platform
 # (H9 export) and tenant.purge), shared/features/personalliggare.
 #
-# Two tables, the kassa journal pattern: a mutable state table and an
+# Two tables: a mutable state table and an
 # append-only ledger with an explicit Deny resource policy on Update/Delete.
 # All access below is on the NEW personalliggare role; no existing role is
 # changed here (the hook callers' invoke grants on personalliggare:live,
@@ -154,8 +154,8 @@ resource "aws_dynamodb_table" "ledger" {
 
 # On top of IAM (the role has only PutItem/GetItem/Query on the ledger): an
 # explicit Deny for every principal, so nothing can change or delete a
-# record. Appending stays allowed. Same shape as kassa's journal_append_only;
-# removing this policy is itself a deliberate, logged act.
+# record. Appending stays allowed (same shape as the catering request
+# history); removing this policy is itself a deliberate, logged act.
 resource "aws_dynamodb_resource_policy" "ledger_append_only" {
   resource_arn = aws_dynamodb_table.ledger.arn
 

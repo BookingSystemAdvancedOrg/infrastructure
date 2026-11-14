@@ -13,8 +13,5 @@ locals {
     { route_key = "POST /tenant/gift-cards/{cardId}/adjust", auth = "jwt" },
     { route_key = "POST /tenant/gift-cards/{cardId}/refund", auth = "jwt" },
     { route_key = "POST /tenant/gift-cards/{cardId}/resend", auth = "jwt" },
-    { route_key = "POST /locations/{locationId}/gift-cards/lookup", auth = "jwt" },
-    { route_key = "POST /locations/{locationId}/gift-cards/redemptions", auth = "jwt" },
-    { route_key = "POST /locations/{locationId}/gift-cards/redemptions/{txId}/reverse", auth = "jwt" },
   ]
 }

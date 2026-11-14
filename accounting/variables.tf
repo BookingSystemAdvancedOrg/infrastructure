@@ -79,25 +79,9 @@ variable "catering_history_table_arn" {
   type        = string
 }
 
-variable "kassa_table_name" {
-  description = "Kassa table: the location's registers"
-  type        = string
-}
 
-variable "kassa_table_arn" {
-  description = "Kassa table ARN"
-  type        = string
-}
 
-variable "kassa_journal_table_name" {
-  description = "Kassa journal: receipts and returns per day"
-  type        = string
-}
 
-variable "kassa_journal_table_arn" {
-  description = "Kassa journal table ARN"
-  type        = string
-}
 
 variable "stripe_secret_arn" {
   description = "Secrets Manager secret with the platform Stripe key"

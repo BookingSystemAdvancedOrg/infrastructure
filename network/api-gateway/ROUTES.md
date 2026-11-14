@@ -177,10 +177,6 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | GET | `/locations/{locationId}/accounting` | JWT | accounting |
 | PUT | `/locations/{locationId}/accounting` | JWT | accounting |
 | GET | `/locations/{locationId}/accounting/export` | JWT | accounting |
-| GET | `/locations/{locationId}/kassa` | JWT | kassa |
-| GET | `/locations/{locationId}/kassa/{proxy+}` | JWT | kassa |
-| POST | `/locations/{locationId}/kassa/{proxy+}` | JWT | kassa |
-| PUT | `/locations/{locationId}/kassa/{proxy+}` | JWT | kassa |
 | GET | `/locations/{locationId}/print` | JWT | print-jobs |
 | GET | `/locations/{locationId}/print/{proxy+}` | JWT | print-jobs |
 | POST | `/locations/{locationId}/print/{proxy+}` | JWT | print-jobs |

@@ -4,7 +4,7 @@ variable "environment" {
 }
 
 variable "function" {
-  description = "Function folder name in the application repo, for example kassa"
+  description = "Function folder name in the application repo, for example accounting"
   type        = string
 }
 

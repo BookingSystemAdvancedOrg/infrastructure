@@ -832,8 +832,6 @@ module "tenant_context_policy" {
     insights = module.insights_role.role_name
     # Kitchen printing: staff reprint and test on their own location.
     print_jobs = module.printing.role_names["print-jobs"]
-    # Kassa: staff sell on their own location's registers.
-    kassa = module.kassa.role_name
   }, local.feature_staff_check_role_names)
 }
 
@@ -851,7 +849,6 @@ module "feature_hooks" {
     payment_intent         = module.payment_intent_role.role_name
     webhook_payment_intent = module.webhook_payment_intent_role.role_name
     manage_order           = module.manage_order_role.role_name
-    kassa                  = module.kassa.role_name
     accounting             = module.accounting.role_name
     insights               = module.insights_role.role_name
     marketing              = module.marketing.role_names["marketing"]
@@ -1005,11 +1002,14 @@ module "print_device_ecr" {
   environment = var.env
   function    = "print-device"
 }
-# Kassa, the till (kassa.tf)
+# Kassa, the till, was removed (2026-11-14). Step 1 of 2: the repository
+# still holds images, so it is marked force_delete and applied first; step 2
+# removes this module and its output line.
 module "kassa_ecr" {
-  source      = "./storage/ecr/function"
-  environment = var.env
-  function    = "kassa"
+  source       = "./storage/ecr/function"
+  environment  = var.env
+  function     = "kassa"
+  force_delete = true
 }
 # Restaurant site repos (sites.tf); same repository settings
 module "site_repo_ecr" {
@@ -2100,7 +2100,6 @@ module "lambda_releases" {
     (module.marketing.function_names["marketing-sync"])   = { alias_name = module.marketing.alias_names["marketing-sync"] }
     (module.printing.function_names["print-jobs"])        = { alias_name = module.printing.alias_names["print-jobs"] }
     (module.printing.function_names["print-device"])      = { alias_name = module.printing.alias_names["print-device"] }
-    (module.kassa.function_name)                          = { alias_name = module.kassa.alias_name }
     (module.accounting.function_name)                     = { alias_name = module.accounting.alias_name }
     (module.sites.function_name)                          = { alias_name = module.sites.alias_name }
   }, local.feature_lambda_releases)
@@ -2191,9 +2190,6 @@ module "api_gateway" {
   print_jobs_invoke_arn      = module.printing.alias_invoke_arns["print-jobs"]
   print_device_function_name = module.printing.function_names["print-device"]
   print_device_invoke_arn    = module.printing.alias_invoke_arns["print-device"]
-  # Kassa (kassa.tf, network/api-gateway/kassa-routes.tf)
-  kassa_function_name = module.kassa.function_name
-  kassa_invoke_arn    = module.kassa.alias_invoke_arn
   # Accounting export (accounting.tf, network/api-gateway/accounting-routes.tf)
   accounting_function_name = module.accounting.function_name
   accounting_invoke_arn    = module.accounting.alias_invoke_arn
@@ -2381,7 +2377,6 @@ locals {
     marketing_sync             = module.marketing.role_names["marketing-sync"]
     print_jobs                 = module.printing.role_names["print-jobs"]
     print_device               = module.printing.role_names["print-device"]
-    kassa                      = module.kassa.role_name
     accounting                 = module.accounting.role_name
   }, local.feature_tenant_aware_role_names)
 

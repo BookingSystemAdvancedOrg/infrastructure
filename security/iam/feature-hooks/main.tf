@@ -1,6 +1,7 @@
 # IAM change: owner to approve before merge (Run 0).
 #
-# Adds one inline policy "feature-hooks" to twelve EXISTING execution roles:
+# Adds one inline policy "feature-hooks" to eleven EXISTING execution roles
+# (kassa, the twelfth, went with Kassa on 2026-11-14):
 # lambda:InvokeFunction on the exact live alias ARN of the feature API
 # Lambdas each caller sends a feature hook to (CONTRACTS.md sections 9 and
 # 14, rows 1-10; the Run 0 addendum adds rows 11-16, events-tickets and
@@ -32,7 +33,6 @@ locals {
     payment_intent         = [{ sid = "CheckoutGiftcardReserveHook", targets = ["gift-cards"] }]
     webhook_payment_intent = [{ sid = "CheckoutGiftcardReverseHook", targets = ["gift-cards"] }]
     manage_order           = [{ sid = "CheckoutGiftcardRefundHook", targets = ["gift-cards"] }]
-    kassa                  = [{ sid = "KassaGiftcardHook", targets = ["gift-cards"] }]
     accounting             = [{ sid = "AccountingEventsHook", targets = ["gift-cards", "events-tickets"] }] # + row 14
     insights = [
       { sid = "InsightsDishCostsHook", targets = ["dish-margin"] },

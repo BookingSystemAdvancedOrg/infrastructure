@@ -60,7 +60,6 @@ resource "aws_lambda_function" "this" {
       BACKFILL_GRACE_DAYS                 = "7"
       ALERT_TOPIC_ARN                     = var.alert_topic_arn
       PROTECTED_ZONE_IDS                  = jsonencode(var.protected_zone_ids)
-      FISKALY_UNIT_PREFIX                 = "booqy/${var.environment}/fiskaly-unit/"
       SITE_REPO_FUNCTION_ARN              = var.site_repo_function_arn
     }, var.privacy_env) # consent log (root privacy-consent.tf)
   }

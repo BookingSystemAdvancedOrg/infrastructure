@@ -4,6 +4,7 @@
 **Date:** 2026-11-02
 **Deciders:** Owner (product, pricing of the feature, transfer and resale policy), orchestrator (contracts); **accountant** (Swedish VAT on tickets, advance payments, BAS accounts); lawyer (distance-sale withdrawal right for dated events, resale terms)
 **Run:** scaffolded in the Run 0 addendum, built in Run 2
+**Kassa removed 2026-11-14:** Booqy is online only; Kassa, the till, its routes, plan feature and fiskaly access are gone (prod keeps the two empty kassa tables for 7 years, `infrastructure/kassa-records.tf`). Kassa parts below are history.
 
 Anything marked **[NEEDS YOUR OK]** is a proposal for the owner, not a
 decision.

@@ -5,8 +5,8 @@
 # docs/ACCOUNTING-EXPORT.md.
 #
 # Read only on the money: the function only reads orders, reservations
-# (card guarantee fees), catering requests and offers, the
-# Kassa journal and the connected account's Stripe balance transactions.
+# (card guarantee fees), catering requests and offers and the connected
+# account's Stripe balance transactions.
 # Its one write is the mapping on the caller's own location item.
 
 data "aws_caller_identity" "current" {}
@@ -76,9 +76,6 @@ resource "aws_iam_role_policy" "fn" {
           var.reservation_table_arn,
           var.catering_requests_table_arn,
           var.catering_history_table_arn,
-          var.kassa_table_arn,
-          var.kassa_journal_table_arn,
-          "${var.kassa_journal_table_arn}/index/byDay",
         ]
       },
       {
@@ -144,8 +141,6 @@ resource "aws_lambda_function" "fn" {
       RESERVATION_TABLE_NAME              = var.reservation_table_name
       CATERING_REQUESTS_TABLE_NAME        = var.catering_requests_table_name
       CATERING_REQUEST_HISTORY_TABLE_NAME = var.catering_history_table_name
-      KASSA_TABLE_NAME                    = var.kassa_table_name
-      KASSA_JOURNAL_TABLE_NAME            = var.kassa_journal_table_name
       STRIPE_SECRET_ARN                   = var.stripe_secret_arn
       STRIPE_API_VERSION                  = var.stripe_api_version
     }
