@@ -51,3 +51,15 @@ variable "user_table_name" {
   type        = string
   sensitive   = false
 }
+
+variable "tenant_user_pool_id" {
+  description = "ID of the tenant (owner/staff) Cognito User Pool: staff access tokens on this public route must come from it"
+  type        = string
+  sensitive   = false
+}
+
+variable "tenant_app_client_id" {
+  description = "ID of the staff app client in the tenant pool: staff access tokens on this public route must be issued to it"
+  type        = string
+  sensitive   = false
+}

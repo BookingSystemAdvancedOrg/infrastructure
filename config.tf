@@ -1334,6 +1334,8 @@ module "get_availability_fn" {
   region                               = var.aws_region
   tenant_table_name                    = module.tenant.table_name
   location_id_index_name               = module.location.location_id_index_name
+  tenant_user_pool_id                  = module.cognito.user_pool_id
+  tenant_app_client_id                 = module.cognito.user_pool_client_id
 }
 module "get_location_fn" {
   source                 = "./compute/lambda/get-location"
@@ -1422,6 +1424,8 @@ module "list_layout_version_fn" {
   user_table_name                      = module.user.table_name
   location_table_name                  = module.location.table_name
   location_id_index_name               = module.location.location_id_index_name
+  tenant_user_pool_id                  = module.cognito.user_pool_id
+  tenant_app_client_id                 = module.cognito.user_pool_client_id
 }
 module "manage_auth_fn" {
   source                   = "./compute/lambda/manage-auth"
