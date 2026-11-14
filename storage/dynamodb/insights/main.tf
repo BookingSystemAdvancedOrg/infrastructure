@@ -3,7 +3,7 @@
 # histograms only (no names, phone numbers or emails).
 #
 # Separate from the finance table on purpose: finance holds the operator's
-# figures (AWS cost, MRR, SMS revenue) that must never reach a restaurant,
+# figures (AWS cost, MRR, SMS cost) that must never reach a restaurant,
 # and the restaurant-facing insights Lambda gets no access to it.
 #
 # Keyed like the operational tables (LOCATION#<locationId>), so tenant-purge

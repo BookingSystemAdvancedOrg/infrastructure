@@ -253,7 +253,11 @@ Swedish first and English second.
     lines per period: "Telefonassistent, <n> platser" at
     `phone_agent_location_price_sek` and "Telefonminuter utöver
     <included>: <m> x <price>" at `phone_agent_minute_price_sek`, idempotent
-    like the SMS line (`phone-<tenant>-<periodEnd>`). Prices and included
+    like the monthly fee line (`fee-<tenant>-<periodEnd>`), as
+    `phone-<tenant>-<periodEnd>`. These lines are invoiced on the Free plan
+    too: `invoice_plan` sets `nothingToInvoice` when the monthly fee is 0, so
+    the run must count usage lines before it skips a period, or phone
+    minutes on Free go uninvoiced. Prices and included
     minutes are **[NEEDS YOUR OK]**; the Terraform variables are named in
     CONTRACTS.md 12.1 with placeholder defaults 0 so nothing is invoiced
     until the owner sets them. VAT 25 % on both lines (accountant to
