@@ -154,7 +154,9 @@ resource "aws_cognito_user_pool_client" "this" {
 
   # Every refresh hands out a new refresh token and retires the old one, so
   # a stolen refresh token stops working the next time the real user's app
-  # refreshes. The grace period covers two tabs refreshing at once.
+  # refreshes. The grace period (60 s, the maximum) covers two tabs
+  # refreshing at once and a refresh whose response was lost (offline, wake
+  # from sleep): the app retries within seconds with the old token.
   # Requires GetTokensFromRefreshToken (manage-auth); InitiateAuth
   # REFRESH_TOKEN_AUTH is refused while this is on. Switched on in a later
   # apply (var.refresh_token_rotation_enabled), once the manage-auth release
@@ -163,7 +165,7 @@ resource "aws_cognito_user_pool_client" "this" {
     for_each = var.refresh_token_rotation_enabled ? [1] : []
     content {
       feature                    = "ENABLED"
-      retry_grace_period_seconds = 30
+      retry_grace_period_seconds = 60
     }
   }
 
