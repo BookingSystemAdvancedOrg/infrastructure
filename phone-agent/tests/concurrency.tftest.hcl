@@ -20,6 +20,7 @@ variables {
   tenant_table_name      = "dev-tenant"
   tenant_table_arn       = "arn:aws:dynamodb:eu-north-1:123456789012:table/dev-tenant"
   location_table_name    = "dev-location"
+  location_table_arn     = "arn:aws:dynamodb:eu-north-1:123456789012:table/dev-location"
   location_id_index_name = "byLocationId"
   user_table_name        = "dev-user"
   user_table_arn         = "arn:aws:dynamodb:eu-north-1:123456789012:table/dev-user"

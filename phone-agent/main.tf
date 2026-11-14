@@ -128,6 +128,15 @@ locals {
     phone-agent = concat([
       local.table_statement, local.events_statement, local.platform_row_read, local.provider_secrets,
       {
+        # GET /tenant/phone-agent lists the tenant's locations (tenant.list_locations:
+        # Query on TENANT#<id>, SK begins_with LOCATION#). Without it the owner's
+        # Telefon > Inställningar failed with AccessDenied (2026-11-14).
+        Sid      = "ListTenantLocations"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = var.location_table_arn
+      },
+      {
         # Approved by the owner 2026-11-13: the real voice client registers the
         # endpoint key with ElevenLabs when it creates a location's agent.
         Sid      = "EndpointKeyForVoiceAgent"

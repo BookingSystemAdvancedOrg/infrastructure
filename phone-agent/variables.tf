@@ -21,6 +21,11 @@ variable "tenant_table_arn" {
   type = string
 }
 
+variable "location_table_arn" {
+  type        = string
+  description = "Location table: the API lists a tenant's locations (Query on its own partition) for the phone settings overview."
+}
+
 variable "location_table_name" {
   type = string
 }

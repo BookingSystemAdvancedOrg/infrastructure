@@ -11,6 +11,7 @@ module "phone_agent" {
   tenant_table_name      = module.tenant.table_name
   tenant_table_arn       = module.tenant.table_arn
   location_table_name    = module.location.table_name
+  location_table_arn     = module.location.table_arn
   location_id_index_name = module.location.location_id_index_name
   user_table_name        = module.user.table_name
   user_table_arn         = module.user.table_arn
