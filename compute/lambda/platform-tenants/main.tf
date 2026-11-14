@@ -150,13 +150,14 @@ resource "aws_scheduler_schedule" "dunning" {
   }
 }
 
-# Invoicing: on the 25th, after the period from the 25th to the 24th has
-# ended, the function builds one Stripe invoice per restaurant for that
-# period (the monthly price pro rata by days; SMS are included and the
-# Free plan has no charge) and Stripe emails or charges it. It runs
-# every day: on any other day it only invoices what a failed or unfinished
-# run left (a period ended and not invoiced), so a Stripe outage on the
-# 25th is caught up the next morning. Idempotent per restaurant and period
+# Invoicing: on the 1st the function builds one Stripe invoice per
+# restaurant for that calendar month, in advance (the monthly price; the
+# first month pro rata from the start day; SMS are included and the Free
+# plan has no charge), and Stripe charges the saved card or emails it. It
+# runs every day: on a start day (or the first paid day after Free) it
+# invoices the rest of that month, on other days only what a failed or
+# unfinished run left, so a Stripe outage on the 1st is caught up the
+# next morning. Idempotent per restaurant and period
 # (the ledger, PROFILE.billing and a look-up in Stripe before anything is
 # created); "Run invoicing" in Booqy Console does the same by hand.
 resource "aws_scheduler_schedule" "invoicing" {

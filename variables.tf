@@ -134,7 +134,7 @@ variable "plans" {
     price_sek     = number
     limits        = optional(map(number), {})
   }))
-  description = "Plan catalog (packages you sell). A tenant's limits are copied from its plan when the plan is assigned and can be overridden per tenant from the platform dashboard - no deploy either way. Feature keys: reservations, ordering, catering, marketing (visit statistics and email campaigns to guests who opted in); metaAds, siteBuilder, guestCrm, googleBusiness, giftCards, waitlist, socialPosting, personalliggare, accountingSync, dishMargin, events, phoneAgent (the Run 0 and Run 0 addendum features, false until each ships). limits: numeric plan limits, siteBuilderAiEditsPerMonth (0-1000) and phoneAgentMinutesPerMonth (0-100000), missing = 0. price_sek: the monthly price excluding VAT (SMS included), invoiced in arrears on the 25th through Stripe on the platform account; a changed price applies to customers on the plan's price from the next billing period (a customer's own price is not affected). \"free\" is reserved: Booqy Console's Free plan (no charge, growth's features) is derived from growth, not listed here."
+  description = "Plan catalog (packages you sell). A tenant's limits are copied from its plan when the plan is assigned and can be overridden per tenant from the platform dashboard - no deploy either way. Feature keys: reservations, ordering, catering, marketing (visit statistics and email campaigns to guests who opted in); metaAds, siteBuilder, guestCrm, googleBusiness, giftCards, waitlist, socialPosting, personalliggare, accountingSync, dishMargin, events, phoneAgent (the Run 0 and Run 0 addendum features, false until each ships). limits: numeric plan limits, siteBuilderAiEditsPerMonth (0-1000) and phoneAgentMinutesPerMonth (0-100000), missing = 0. price_sek: the monthly price excluding VAT (SMS included), invoiced in advance on the 1st for that calendar month through Stripe on the platform account; a changed price applies to customers on the plan's price from the next billing period (a customer's own price is not affected). \"free\" is reserved: Booqy Console's Free plan (no charge, growth's features) is derived from growth, not listed here."
   sensitive   = false
   default = {
     starter = {
@@ -245,7 +245,7 @@ variable "billing_seller" {
     seat       = string
     f_skatt    = bool
   })
-  description = "Booqy's own details printed on every invoice (mervärdesskattelagen 17 kap 24 §): legal name, address, organisation number, VAT number, registered office (säte) and F-skatt. Not secret. Prod refuses to invoice while name, address, org_number or vat_number is empty."
+  description = "Booqy's own details printed on every invoice (mervärdesskattelagen 17 kap 24 §): legal name, address, organisation number, VAT number, registered office (säte) and F-skatt. Not secret. Prod refuses to invoice while name, address, org_number or vat_number is empty (each run emails the operators the failure); a prod plan warns until they are set (check billing_seller_prod)."
   sensitive   = false
   default = {
     name       = "IT Hjälparna Nordic AB"

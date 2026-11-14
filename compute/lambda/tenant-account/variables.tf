@@ -63,3 +63,15 @@ variable "location_id_index_name" {
   type        = string
   sensitive   = false
 }
+
+variable "billing_days_until_due" {
+  description = "Days to pay an emailed monthly invoice when Booqy agreed to invoice the restaurant (shown in Booqy Admin)"
+  type        = number
+  sensitive   = false
+}
+
+variable "billing_days_until_due_no_card" {
+  description = "Days to pay an emailed monthly invoice while the restaurant has no card on file (shown in Booqy Admin)"
+  type        = number
+  sensitive   = false
+}

@@ -49,6 +49,10 @@ resource "aws_lambda_function" "this" {
       STRIPE_SECRET_ARN      = var.stripe_secret_arn
       STRIPE_API_VERSION     = var.stripe_api_version
       ADMIN_APP_URL          = var.admin_app_url
+      # What Booqy Admin tells the owner about the payment terms (the same
+      # values platform-tenants invoices with).
+      BILLING_DAYS_UNTIL_DUE         = tostring(var.billing_days_until_due)
+      BILLING_DAYS_UNTIL_DUE_NO_CARD = tostring(var.billing_days_until_due_no_card)
     }
   }
 

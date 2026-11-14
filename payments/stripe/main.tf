@@ -80,8 +80,9 @@ resource "stripe_webhook_endpoint" "catering" {
 #             from the platform. Keeps PROFILE.stripe.* in the tenant table
 #             truthful without anyone polling Stripe.
 #   billing - YOUR platform account's own invoices to the restaurants
-#             (built by platform-tenants on the 25th for the period 25th
-#             to 24th: monthly price plus SMS). Invoice events keep the
+#             (built by platform-tenants on the 1st for that calendar
+#             month in advance: the monthly price, SMS included; charged
+#             to the saved card or emailed). Invoice events keep the
 #             invoice ledger, the revenue figures and the past-due state
 #             on the tenant row truthful.
 resource "stripe_webhook_endpoint" "platform_connect" {

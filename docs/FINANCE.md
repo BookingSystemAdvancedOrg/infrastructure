@@ -1,4 +1,4 @@
-# Finance: invoicing in arrears and the Finance page
+# Finance: invoicing in advance and the Finance page
 
 What every customer pays and what they cost, per day, and how Booqy
 Console shows it. Code: `payments/billing` (Stripe VAT rate and plan catalog),
@@ -152,13 +152,15 @@ every `<env>-*` function and ECR repository.
 
 The late fee and the interest are the statutory defaults for a company
 customer in Sweden (lag 1981:739 om ersättning för inkassokostnader §4a,
-räntelagen §6), but say so in the customer contract: payment terms 30
-days, förseningsavgift 450 kr, dröjsmålsränta referensränta + 8 %. Update
+räntelagen §6); the påminnelseavgift (60 kr) only because the restaurant
+terms (Allmänna villkor för restauranger, 2026-11-v1) state it, and only
+on invoices created after the restaurant accepted them (2 § lagen
+1981:739); without it the förseningsersättning is the full 450 kr, with it
+450 kr less the reminder fee. Dröjsmålsränta referensränta + 8 %. Update
 `billing_reference_rate_pct` in tfvars when the Riksbank sets a new
-reference rate (1 January and 1 July). The contract should also state
-that the monthly price is invoiced in arrears for the period from the
-25th to the 24th, pro rata for a part period, and that SMS are included
-in the monthly price.
+reference rate (1 January and 1 July). The terms state that the monthly
+price is invoiced in advance on the 1st for that calendar month, pro rata
+for a part month, and that SMS are included in the monthly price.
 
 ## 6. Hand set-up (Terraform cannot)
 

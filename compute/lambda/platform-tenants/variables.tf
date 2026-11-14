@@ -250,7 +250,7 @@ variable "billing_trial_months" {
 }
 
 variable "invoicing_schedule_expression" {
-  description = "When the invoicing run happens (cron(), UTC): daily, it invoices every period that has ended and is not invoiced yet (on the 25th, the period just ended)"
+  description = "When the invoicing run happens (cron(), UTC): daily; on the 1st it invoices that calendar month in advance, on a start day the rest of the month, otherwise it catches up what is not invoiced yet"
   type        = string
 }
 

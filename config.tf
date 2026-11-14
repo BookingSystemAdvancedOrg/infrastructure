@@ -1950,6 +1950,9 @@ module "tenant_account_fn" {
   admin_app_url          = local.admin_app_url
   region                 = var.aws_region
   location_id_index_name = module.location.location_id_index_name
+
+  billing_days_until_due         = var.billing_days_until_due
+  billing_days_until_due_no_card = var.billing_days_until_due_no_card
 }
 module "tenant_site_config_fn" {
   source                 = "./compute/lambda/tenant-site-config"
@@ -2665,4 +2668,17 @@ module "back_end_role" {
   region              = var.aws_region
   codedeploy_app_name = module.lambda_releases.app_name
   alert_topic_arn     = module.alerts.topic_arn
+}
+
+# Prod invoices nothing while Booqy's own invoice details are missing
+# (platform-tenants refuses: mervärdesskattelagen 17 kap 24 §). A warning in
+# the plan, not an error, so other prod changes still deploy.
+check "billing_seller_prod" {
+  assert {
+    condition = var.env != "prod" || alltrue([
+      for v in [var.billing_seller.name, var.billing_seller.address, var.billing_seller.org_number, var.billing_seller.vat_number] :
+      trimspace(v) != ""
+    ])
+    error_message = "billing_seller lacks name, address, org_number or vat_number in prod.tfvars: prod invoices nothing until they are set."
+  }
 }

@@ -61,7 +61,8 @@ platform_subdomain_delegations = {
 # stripe_publishable_key = "pk_live_..."
 # turnstile_site_key     = "0x..."
 
-# Monthly prices (SEK, excluding VAT), invoiced in arrears on the 25th
+# Monthly prices (SEK, excluding VAT), invoiced in advance on the 1st for
+# that calendar month (the first month pro rata from the start day)
 # through Stripe on the platform account (live mode). Growth = 3 x Starter
 # with 30 % off (3950 x 3 x 0.7). A changed price applies to customers on
 # the plan's price from the next month (the daily task records
@@ -142,3 +143,17 @@ sms_monthly_spend_limit_usd = 50
 # AI phone agent brain (owner 2026-11-13): Claude Haiku 5.5, as in dev. The
 # clients stay simulators (the feature is off in every plan) until go-live.
 phone_agent_model_id = "eu.anthropic.claude-haiku-5-5"
+
+# [NEEDS YOUR DETAILS] Booqy's address, organisation number, VAT number,
+# registered office (säte) and F-skatt for every invoice (not secret). Set
+# them before this reaches main: without name, address, org_number and
+# vat_number prod invoices nothing (every run emails the failure) and the
+# plan warns (check billing_seller_prod in config.tf).
+billing_seller = {
+  name       = "IT Hjälparna Nordic AB"
+  address    = ""
+  org_number = ""
+  vat_number = ""
+  seat       = ""
+  f_skatt    = false
+}
