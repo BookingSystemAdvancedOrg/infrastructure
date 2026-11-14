@@ -78,6 +78,9 @@ resource "aws_lambda_function" "this" {
       # Restaurant domains bought / connected from Booqy Console
       DOMAIN_PROVISION_STATE_MACHINE_ARN = var.domain_provision_state_machine_arn
       DOMAIN_DOCUMENTS_BUCKET            = var.domain_documents_bucket_name
+      # Each operator's background image library (/platform/me/backdrops)
+      USER_BACKDROPS_BUCKET     = var.user_backdrops_bucket_name
+      USER_BACKDROPS_TABLE_NAME = var.user_backdrops_table_name
       # Website page: booqy.se's cookieless statistics (site-analytics/)
       SITE_ANALYTICS_TABLE_NAME = var.site_analytics_table_name
       # Finance: subscriptions (Stripe Billing), the Finance page, dunning
@@ -90,18 +93,22 @@ resource "aws_lambda_function" "this" {
       BILLING_TAX_RATE_ID        = var.billing_tax_rate_id
       BILLING_DAYS_UNTIL_DUE     = tostring(var.billing_days_until_due)
       BILLING_SUSPEND_AFTER_DAYS = tostring(var.billing_suspend_after_days)
-      # Reminders, late fee and interest on unpaid invoices (dunning task)
-      BILLING_REMINDER_INTERVAL_DAYS = tostring(var.billing_reminder_interval_days)
-      BILLING_LATE_FEE_SEK           = tostring(var.billing_late_fee_sek)
-      BILLING_LATE_FEE_AFTER_DAYS    = tostring(var.billing_late_fee_after_days)
-      BILLING_REFERENCE_RATE_PCT     = tostring(var.billing_reference_rate_pct)
-      BILLING_INTEREST_MARGIN_PCT    = tostring(var.billing_interest_margin_pct)
+      # In advance on the 1st: no card yet = emailed, due in this many days
+      BILLING_DAYS_UNTIL_DUE_NO_CARD = tostring(var.billing_days_until_due_no_card)
+      # Booqy's details on every invoice (mervärdesskattelagen 17 kap 24 §), not secret
+      BILLING_SELLER_JSON = jsonencode(var.billing_seller)
+      # Reminders (restaurant and operators), fees and interest (dunning task)
+      BILLING_REMINDER_STEPS      = join(",", [for d in var.billing_reminder_steps : tostring(d)])
+      BILLING_FINAL_NOTICE_DAYS   = tostring(var.billing_final_notice_days)
+      BILLING_REMINDER_FEE_SEK    = tostring(var.billing_reminder_fee_sek)
+      BILLING_LATE_FEE_SEK        = tostring(var.billing_late_fee_sek)
+      BILLING_LATE_FEE_AFTER_DAYS = tostring(var.billing_late_fee_after_days)
+      BILLING_REFERENCE_RATE_PCT  = tostring(var.billing_reference_rate_pct)
+      BILLING_INTEREST_MARGIN_PCT = tostring(var.billing_interest_margin_pct)
       # Terms: try-out (leave at the end of any month, becomes a subscription
       # after BILLING_TRIAL_MONTHS) or subscription (BILLING_NOTICE_MONTHS notice)
       BILLING_NOTICE_MONTHS = tostring(var.billing_notice_months)
       BILLING_TRIAL_MONTHS  = tostring(var.billing_trial_months)
-      # Invoiced in arrears on the 25th for the period 25th to 24th; SMS per part
-      BILLING_SMS_PRICE_SEK = tostring(var.sms_price_sek)
     }
   }
 
@@ -115,7 +122,10 @@ resource "aws_lambda_function" "this" {
 # Dunning: once a day the function checks every customer's subscription
 # (PROFILE.billing, kept current by platform-stripe-webhook) and suspends
 # those past due longer than BILLING_SUSPEND_AFTER_DAYS, resumes the ones
-# it suspended that have paid since, and emails the operators. The same
+# it suspended that have paid since, and emails the operators. It also runs
+# the Free plan: the owner's email 14 days before a free period ends (SES,
+# the same no-reply sender as the console's news) and, the day after the
+# last free day, the move to the plan chosen for afterwards. The same
 # code path as Suspend / Resume in Booqy Console; the event carries no
 # routeKey, so API Gateway's JWT check does not apply and only the
 # scheduler role may invoke it this way.
@@ -140,13 +150,14 @@ resource "aws_scheduler_schedule" "dunning" {
   }
 }
 
-# Invoicing: on the 25th, after the period from the 25th to the 24th has
-# ended, the function builds one Stripe invoice per restaurant for that
-# period (the monthly price pro rata by days, plus the SMS parts sent at
-# the restaurant's SMS price) and Stripe emails or charges it. It runs
-# every day: on any other day it only invoices what a failed or unfinished
-# run left (a period ended and not invoiced), so a Stripe outage on the
-# 25th is caught up the next morning. Idempotent per restaurant and period
+# Invoicing: on the 1st the function builds one Stripe invoice per
+# restaurant for that calendar month, in advance (the monthly price; the
+# first month pro rata from the start day; SMS are included and the Free
+# plan has no charge), and Stripe charges the saved card or emails it. It
+# runs every day: on a start day (or the first paid day after Free) it
+# invoices the rest of that month, on other days only what a failed or
+# unfinished run left, so a Stripe outage on the 1st is caught up the
+# next morning. Idempotent per restaurant and period
 # (the ledger, PROFILE.billing and a look-up in Stripe before anything is
 # created); "Run invoicing" in Booqy Console does the same by hand.
 resource "aws_scheduler_schedule" "invoicing" {

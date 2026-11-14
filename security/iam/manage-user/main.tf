@@ -93,6 +93,51 @@ resource "aws_iam_role_policy" "cognito_user_management" {
   })
 }
 
+# Deleting a user also deletes their background image library and profile
+# picture (user-backdrop): every object under admin/<tenantId>/<sub>/ and
+# the user's items in the user-backdrops table. The user list shows each
+# user's picture (presigned GET of .../avatar.webp); owners may delete a
+# staff member's picture (DELETE /users/{sub}/avatar).
+resource "aws_iam_role_policy" "user_backdrops" {
+  name = "user-backdrop-delete"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "ListUserBackdrops"
+        Effect   = "Allow"
+        Action   = "s3:ListBucket"
+        Resource = var.user_backdrops_bucket_arn
+        Condition = {
+          StringLike = { "s3:prefix" = ["admin/*"] }
+        }
+      },
+      {
+        Sid      = "DeleteUserBackdrop"
+        Effect   = "Allow"
+        Action   = "s3:DeleteObject"
+        Resource = "${var.user_backdrops_bucket_arn}/admin/*"
+      },
+      {
+        # Staff profile pictures: HeadObject and the presigned GET links on
+        # GET /list-users and GET /users/{sub} (admin/<tenantId>/<sub>/avatar.webp only).
+        Sid      = "ReadUserAvatars"
+        Effect   = "Allow"
+        Action   = "s3:GetObject"
+        Resource = "${var.user_backdrops_bucket_arn}/admin/*/avatar.webp"
+      },
+      {
+        Sid      = "DeleteUserBackdropItems"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query", "dynamodb:DeleteItem", "dynamodb:BatchWriteItem"]
+        Resource = var.user_backdrops_table_arn
+      }
+    ]
+  })
+}
+
 # Scoped to exactly this function's own log group - not logs:* on everything.
 #
 # No logs:CreateLogGroup - the log group is expected to be provisioned

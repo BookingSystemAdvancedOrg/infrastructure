@@ -34,7 +34,7 @@ workflow. You never handle a restaurant's keys.
 | Key | Where | Needs |
 |---|---|---|
 | Pipeline key (`rk_...` or `sk_...`) | GitHub secrets `STRIPE_SECRET_KEY_DEV` / `STRIPE_SECRET_KEY_PROD` | Webhook Endpoints: Write, Connect → Accounts: Write (v1 + v2), Tax Rates: Write, Products: Write, Prices: Write (the subscription catalog, payments/billing). Used by Terraform (webhook endpoints), the onboarding workflow (creating connected accounts + their VAT rates) and to seed the Lambda secret on first apply. |
-| Lambda key (`rk_...`) | Secrets Manager `<env->stripe/api-key` as `{"apiKey":"rk_..."}` | Checkout Sessions, PaymentIntents, SetupIntents, Customers, Subscriptions, Invoices, Invoice items, Credit notes, Refunds, Charges, Payment Methods, Tax IDs, Tax Rates: Write; Account Links: Write (v2); Accounts: Read; Terminal Locations + Readers: Write. Replace the seeded pipeline key after the first apply - Terraform never overwrites it. |
+| Lambda key (`rk_...`) | Secrets Manager `<env->stripe/api-key` as `{"apiKey":"rk_..."}` | Checkout Sessions, PaymentIntents, SetupIntents, Customers, Subscriptions, Invoices, Invoice items, Credit notes, Refunds, Charges, Payment Methods, Tax IDs, Tax Rates: Write; Account Links: Write (v2); Accounts: Read. Replace the seeded pipeline key after the first apply - Terraform never overwrites it. |
 | Publishable key (`pk_...`) | `stripe_publishable_key` in `dev.tfvars` / `prod.tfvars` | Not secret. Websites get it from `GET /site-config`. |
 
   ```
@@ -229,15 +229,14 @@ apps run on `*.cloudfront.net` and restaurants have no website URL yet.
       placeholders. Apply: Terraform creates the 25 % VAT rate (and a
       catalog product and price per plan) in the platform account
       (sandbox for dev, live for production) and writes the prices on the
-      plan rows. Customers are invoiced in arrears on the 25th for the
-      period from the 25th to the 24th (`billing_invoicing_schedule`),
-      the monthly price pro rata plus SMS per part at `sms_price_sek`
-      (0,70 kr ex VAT; change it in tfvars, or per customer on the Billing
-      tab). SMS sent before this deploy are not charged.
-- [ ] Stripe Dashboard, per mode: Billing → Settings → Subscriptions and
-      emails (invoice emails, reminders, Smart Retries) and the invoice
-      template (company details, org. number, "Godkänd för F-skatt",
-      bankgiro in the footer). See docs/FINANCE.md §6.
+      plan rows. Customers are invoiced in advance on the 1st for the
+      calendar month (`billing_invoicing_schedule`), the first month pro
+      rata; SMS are included in the price. Fill in `billing_seller`.
+- [ ] Stripe Dashboard, per mode (test first): Billing, Settings: Smart
+      Retries on for invoices, failed-payment emails to the customer,
+      invoice numbering per account (sequential), public business details.
+      Booqy's own reminders replace Stripe's reminder emails. See
+      docs/FINANCE.md §6.
 - [ ] AWS: open Cost Explorer once in each account to enable it; the
       nightly `finance-rollup` reads it from the next day. Until then the
       Finance page shows a warning and cost 0.

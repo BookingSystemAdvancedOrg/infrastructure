@@ -46,6 +46,18 @@ variable "menu_image_bucket_arn" {
   sensitive   = false
 }
 
+variable "user_backdrops_bucket_arn" {
+  description = "ARN of the user backdrop image bucket (admin/<tenantId>/...)"
+  type        = string
+  sensitive   = false
+}
+
+variable "user_backdrops_table_arn" {
+  description = "ARN of the user-backdrops table (USER#<tenantId>#... items, GSI byTenant)"
+  type        = string
+  sensitive   = false
+}
+
 variable "alert_topic_arn" {
   description = "ARN of the operator alert topic (summary email per run)"
   type        = string

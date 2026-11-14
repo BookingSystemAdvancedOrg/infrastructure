@@ -67,3 +67,13 @@ output "landing_distribution_arn" {
   description = "ARN of the public page distribution"
   value       = aws_cloudfront_distribution.landing.arn
 }
+
+output "downloads_bucket_name" {
+  description = "Bucket behind https://<domain>/downloads/* (desktop installers)"
+  value       = aws_s3_bucket.downloads.id
+}
+
+output "downloads_bucket_arn" {
+  description = "ARN of the desktop installer bucket (security/iam/oidc/desktop-release-role uploads to it)"
+  value       = aws_s3_bucket.downloads.arn
+}

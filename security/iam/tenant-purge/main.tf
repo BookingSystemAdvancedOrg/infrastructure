@@ -97,17 +97,39 @@ resource "aws_iam_role_policy" "data" {
         Resource = "${var.menu_image_bucket_arn}/menu-images/*"
       },
       {
+        # Every staff user's own background image (admin/<tenantId>/<sub>/backdrop)
+        Sid      = "ListUserBackdrops"
+        Effect   = "Allow"
+        Action   = "s3:ListBucket"
+        Resource = var.user_backdrops_bucket_arn
+        Condition = {
+          StringLike = { "s3:prefix" = ["admin/*"] }
+        }
+      },
+      {
+        Sid      = "DeleteUserBackdrops"
+        Effect   = "Allow"
+        Action   = "s3:DeleteObject"
+        Resource = "${var.user_backdrops_bucket_arn}/admin/*"
+      },
+      {
+        # The restaurant's users' library items (byTenant index, then delete)
+        Sid      = "FindUserBackdropItems"
+        Effect   = "Allow"
+        Action   = "dynamodb:Query"
+        Resource = "${var.user_backdrops_table_arn}/index/byTenant"
+      },
+      {
+        Sid      = "DeleteUserBackdropItems"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query", "dynamodb:BatchWriteItem", "dynamodb:DeleteItem"]
+        Resource = var.user_backdrops_table_arn
+      },
+      {
         Sid      = "NotifyOperators"
         Effect   = "Allow"
         Action   = "sns:Publish"
         Resource = var.alert_topic_arn
-      },
-      {
-        # The restaurant's fiskaly API key (Kassa), one secret per tenant.
-        Sid      = "DeleteFiskalyUnitKey"
-        Effect   = "Allow"
-        Action   = "secretsmanager:DeleteSecret"
-        Resource = "arn:aws:secretsmanager:${var.region}:${data.aws_caller_identity.current.account_id}:secret:booqy/${var.environment}/fiskaly-unit/*"
       },
       {
         # Carries on in a new invocation when a run gets close to its timeout.

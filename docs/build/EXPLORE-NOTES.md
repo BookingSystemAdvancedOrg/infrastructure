@@ -8,6 +8,11 @@ booqy-console with booqy-website and the email templates. These are their
 conclusions, kept close to what they reported. Paths are relative to the repo
 named in each section unless they start with `../`.
 
+Kassa, the till, was removed on 2026-11-14 (Booqy is online only): the kassa
+function, routes, plan feature and fiskaly access are gone; prod keeps the two
+kassa tables for 7 years (`kassa.tf`). Kassa mentions in the
+application and front-end sections below describe the code as explored then.
+
 ## Most important findings for Run 0
 
 - **Entitlements live on the tenant row, not in a resolver.** Plans are
@@ -70,11 +75,11 @@ Repo: `booqy-run0/application`.
   `overrides.maxLocations` are merged in at create and in `set_plan`.
 - **Refusal when a feature is off:** JWT routes 403
   `{"error":"feature_not_in_plan"}` (`TenantError`); public routes 404 "not
-  found". Some handlers check a flag directly instead: `kassa/app.py:152`
-  (terminal), `payment-intent:163` and `catering-requests:265` (marketing),
+  found". Some handlers check a flag directly instead: `payment-intent:163`
+  and `catering-requests:265` (marketing),
   `marketing-public:162` (ordering), `marketing-sync:74`,
   `reservation-reminders:186`.
-- **Flag names:** `reservations`, `ordering`, `catering`, `terminal`, `kassa`,
+- **Flag names:** `reservations`, `ordering`, `catering`, `kassa`,
   `marketing`. The lists disagree:
 
 | List | Where | Missing |
@@ -82,7 +87,7 @@ Repo: `booqy-run0/application`.
 | `FEATURES` | `shared/tenant.py` | `marketing` |
 | `_FEATURES` | `tenant-site-config/app.py` | `kassa` |
 | `ALL_FEATURES` | `tests/tenant_support.py` | `kassa`, `marketing` |
-| dev plans | `../infrastructure/dev.tfvars` | none (all six) |
+| dev plans | `../infrastructure/dev.tfvars` | none (all five) |
 
 - `maxLocations` is enforced with a conditional write in
   `create-location/app.py:~726` (409 `plan_limit_reached`).
@@ -173,7 +178,6 @@ Repo: `booqy-run0/application`.
 | Service | Client | Real vs fake |
 |---|---|---|
 | Stripe | `shared/stripe_client.py` | `STRIPE_SECRET_ARN`; mode set by the key |
-| Stripe Terminal reader | `shared/card_payments.py` `simulate()` | simulated readers via `/v1/test_helpers/...` |
 | Signing (BankID / Scrive / simulator) | `shared/bankid.py`, `shared/signing.py`, `shared/signing_scrive.py` | secret `SIGNING_PROVIDER_SECRET_ARN` `{"provider": ...}`; simulator and Scrive testbed refused when `ENVIRONMENT=prod` |
 | Kassa control system | `shared/control_system.py` (`ControlSystem`, `SimulatedControlSystem`, `for_location()`), `shared/control_system_fiskaly.py` | `KASSA_CONTROL_SYSTEM` from Terraform `var.kassa_control_system`; `KASSA_CERTIFIED`; fiskaly TEST/LIVE from `FISKALY_SECRET_ID` |
 | SES email | `functions/notification`, `shared/marketing_mail.py` | dev outbox `MAIL_OUTBOX_BUCKET_NAME` (Terraform `var.mail_outbox`, refused in prod) |
@@ -231,14 +235,14 @@ Repo: `booqy-run0/application`.
   `POST /locations/{l}/holds`.
 - Kassa (`shared/kassa.py`): kassa table `REGISTER#`, `BILL#`, `RCPT#`,
   `SETUP`, `AUDIT#`; append-only journal `REG#<id>/J#<jseq>` with hash chain
-  and `byDay` index. Card-only payments `CARD#<date>#<paymentId>` in the order
-  table (`shared/card_payments.py`). Gift card redemption needs a new payment
+  and `byDay` index. Card payments are taken on the restaurant's own card
+  machine and confirmed in Kassa. Gift card redemption needs a new payment
   kind on `BILL#` plus journal and accounting support.
 - Staff users: `USER#<sub>/PROFILE` (`tenantId`, `role`, `locationId`,
   `name`, `email`, `phone`, `status`, `createdAt`), GSI `byTenant`, managed by
   `manage-user`.
 - Locations: `TENANT#<t>/LOCATION#<l>` (`name`, `address`, `timezone`,
-  `businessHours`, `terminal`, `stripeAccountId`, `accounting`, ...); legal
+  `businessHours`, `stripeAccountId`, `accounting`, ...); legal
   entity on the tenant row.
 
 ### 1.10 `/site-config`
@@ -287,10 +291,10 @@ Repo: `booqy-run0/infrastructure` (worktree of `booqy/infrastructure`).
   max_locations, features=map(bool), price_sek}))`, validation: `price_sek`
   whole and >= 0. `dev.tfvars` and `prod.tfvars` set the same matrix:
 
-| id | name | max_locations | reservations | ordering | catering | terminal | marketing | kassa | price_sek |
-|---|---|---|---|---|---|---|---|---|---|
-| starter | Starter | 1 | T | T | F | T | F | F | 3950 |
-| growth | Growth | 3 | T | T | T | T | T | F | 8295 |
+| id | name | max_locations | reservations | ordering | catering | marketing | price_sek |
+|---|---|---|---|---|---|---|---|
+| starter | Starter | 1 | T | T | F | F | 3950 |
+| growth | Growth | 3 | T | T | T | T | 8295 |
 
 - Path to Lambdas (not env vars or SSM): `config.tf` passes `var.plans` to
   `module "tenant"` (`storage/dynamodb/tenant`), which writes one
@@ -302,8 +306,7 @@ Repo: `booqy-run0/infrastructure` (worktree of `booqy/infrastructure`).
   `TENANT#<t>|PROFILE.entitlements`; operators override per tenant in the
   console with no deploy. Lambdas read via `TENANT_TABLE_NAME` and the shared
   tenant-context policy.
-- Enforcement is in application code. kassa is off in every plan and is
-  switched on per tenant in the console.
+- Enforcement is in application code.
 
 ### 2.2 Module layout and naming
 - Legacy per-Lambda (e.g. get-menu): `compute/lambda/<name>/` (`main.tf`:
@@ -313,12 +316,12 @@ Repo: `booqy-run0/infrastructure` (worktree of `booqy/infrastructure`).
   `${fn}-role`, named-Sid item-level statements, logs policy only on its own
   log group), `storage/ecr/<name>/` (scan on push, keep 30 images), wired in
   `config.tf`.
-- Newer feature modules (kassa, terminal, printing, accounting, marketing,
-  sites, site-analytics): root file such as `kassa.tf` with `module "kassa"`
-  and the feature's variables, and a directory `kassa/` (`main.tf`,
+- Newer feature modules (printing, accounting, marketing,
+  sites, site-analytics): root file such as `accounting.tf` with `module "accounting"`
+  and the feature's variables, and a directory `accounting/` (`main.tf`,
   `variables.tf`, `outputs.tf`) with tables, role, policies, log group,
   function, `live` alias and an Errors alarm to `alert_topic_arn`.
-  `locals { prefix = env=="prod" ? "" : "${env}-"; function="kassa";
+  `locals { prefix = env=="prod" ? "" : "${env}-"; function="accounting";
   name="${prefix}${function}" }`.
 - Naming: `dev-` prefix except prod. Only tag `Environment = var.environment`;
   no `default_tags`.
@@ -343,8 +346,8 @@ Repo: `booqy-run0/infrastructure` (worktree of `booqy/infrastructure`).
   `env=="prod" ? "<name>" : "${env}-<name>"`; `PAY_PER_REQUEST`, `PK`/`SK`
   strings, SSE (AWS-owned key), PITR on every table, deletion protection in
   prod (except `insights`, `request-guard`, `site-analytics`).
-- Append-only Deny resource policies on the kassa journal and
-  `catering-request-history`. TTL attribute `ttl`. Streams to Lambdas via
+- Append-only Deny resource policies on `catering-request-history`, the
+  personalliggare ledger and (prod only, retained) the kassa journal. TTL attribute `ttl`. Streams to Lambdas via
   `aws_lambda_event_source_mapping`.
 
 ### 2.4 Eventing
@@ -368,9 +371,7 @@ Repo: `booqy-run0/infrastructure` (worktree of `booqy/infrastructure`).
   `catering/link-signing-key`, `catering/signing-provider`,
   `catering/turnstile`, `reservations/link-signing-key`); 30-day recovery in
   prod, 7 elsewhere; hand-set values use `ignore_changes`.
-- Hand-made or runtime: `booqy/<env>/...` (`booqy/dev/fiskaly-sign-se`,
-  `booqy/<env>/github-app-sites`, per tenant
-  `booqy/<env>/fiskaly-unit/<tenantId>`).
+- Hand-made or runtime: `booqy/<env>/...` (`booqy/<env>/github-app-sites`).
 - Access: ARN via env var; `GetSecretValue` on exact ARN, `-??????` suffix,
   or a prefix `*` for per-tenant secrets. Never secrets in plain env vars.
 
@@ -379,11 +380,6 @@ Repo: `booqy-run0/infrastructure` (worktree of `booqy/infrastructure`).
   key from GitHub secrets.
 - `dev.tfvars` / `prod.tfvars`: env, emails, `platform_domain`, `plans`,
   retention, `dlq_replay_interval_minutes`, toggles.
-- Kassa toggles (`kassa.tf`): `kassa_control_system` (`simulator` default or
-  `fiskaly`, validated; dev `fiskaly`, prod default), `kassa_certified`
-  (default false, set nowhere), passed as `KASSA_CONTROL_SYSTEM`,
-  `KASSA_CERTIFIED`, `FISKALY_SECRET_ID`, `FISKALY_UNIT_PREFIX`; IAM policies
-  `count`-gated on the secret name.
 - Other: signing provider chosen by the secret's JSON; `x_enabled = var.y !=
   ""` locals with `count` (`platform_domain_enabled`, `site_repos_enabled`,
   `mail_outbox_enabled`, `rollback_alarms_enabled`); booleans
@@ -463,7 +459,7 @@ Repo: `booqy-run0/admin-front-end` (React, Vite, TypeScript; Swedish UI).
 - `src/shared/AdminLayout.tsx`: `NavItem = { to, label, tour, end?, feature?,
   ownerOnly?, insights? }`; `NAV_GROUPS` of `{ id, label, items }`:
   `overblick` (`/` Översikt, `/statistik` insights), `passet` ("Under
-  passet": `/bokningar`, `/bestallningar` ordering, `/ta-betalt` terminal,
+  passet": `/bokningar`, `/bestallningar` ordering,
   `/kassa` kassa, `/catering` catering), `restaurangen` ("Restaurangen":
   `/meny`, `/layout`, `/marknadsforing` marketing + ownerOnly,
   `/installningar`).
@@ -477,7 +473,7 @@ Repo: `booqy-run0/admin-front-end` (React, Vite, TypeScript; Swedish UI).
   skeleton fallback around `<Outlet key={locationId}>`.
 - Routes are not gated; only the sidebar. Pages guard themselves
   (`MarknadsforingPage` "Ingår inte i er plan" / "Bara för ägare";
-  `StatistikPage` `canSeeInsights`; Kassa, TaBetalt, Catering no check).
+  `StatistikPage` `canSeeInsights`; Kassa, Catering no check).
 - Adding an entitlement-gated slot: feature folder with a default-export page
   (`AdminTopbar` + `admin-main`, guard like `MarknadsforingPage`), `pages`
   entry, `lazy` + `Route` in `App.tsx`, a `NavItem` with `feature`, optional
@@ -499,7 +495,7 @@ Repo: `booqy-run0/admin-front-end` (React, Vite, TypeScript; Swedish UI).
   nav item is hidden locally.
 - Components read features ad hoc (`OversiktPage:134`,
   `InstallningarPage:449/765/776`, `MarknadsforingPage:43`, `OfferTab:81`,
-  `StatistikPage:140`). Known flags: `ordering`, `terminal`, `kassa`,
+  `StatistikPage:140`). Known flags: `ordering`, `kassa`,
   `catering`, `marketing`. Tests mock `useTenant` with `vi.mock`.
 
 ### 3.3 API client
@@ -522,8 +518,8 @@ Repo: `booqy-run0/admin-front-end` (React, Vite, TypeScript; Swedish UI).
 - `src/shared/storageRegistry.ts`: `REFRESH_COOKIE`, `LOCATION_KEY_PREFIX`,
   `LEGACY_LOCATION_KEY`, `GUIDE_KEY_PREFIX`, `LEGACY_SESSION_KEY`,
   `MOCK_SESSION_KEY`, `LOGOUT_PENDING_KEY`, `MOTION_SEEN_KEY`, `THEME_KEY`,
-  `SOUND_KEY`, `SOUND_VOLUME_KEY`, `NAV_CLOSED_KEY`, `SAMPLE_DATA_KEY`,
-  `CARD_READER_KEY_PREFIX`; `STORAGE_REGISTRY: StorageEntry[]` (`name`,
+  `SOUND_KEY`, `SOUND_VOLUME_KEY`, `NAV_CLOSED_KEY`, `SAMPLE_DATA_KEY`;
+  `STORAGE_REGISTRY: StorageEntry[]` (`name`,
   `kind`, `setBy`, `purpose` in Swedish, `lifetime`, `category`).
 - Adding a key: export a constant, add an entry, import the constant in the
   writing file. `features/cookies/CookiesPage.tsx` renders the table.
@@ -536,7 +532,7 @@ Repo: `booqy-run0/admin-front-end` (React, Vite, TypeScript; Swedish UI).
   (dashboard, `MonthCard`, sample mode; duplicates `StatTile`, `countUp`,
   `liquid` from `shared/motion`); `statistik` (`GET /insights`, charts,
   filters in URL, gated by `canSeeInsights`); `bokningar`; `bestallningar`
-  (kitchen/till screen, printer status); `tabetalt` (Stripe Terminal);
+  (kitchen/till screen, printer status);
   `kassa` (till, `KassaGuide`, in-memory mock); `catering`;
   `cateringkalkyl`; `meny` (dishes, schedule, images via
   `VITE_MENU_IMAGE_BASE_URL`); `layout-editor` (3D floor plan in CSS);

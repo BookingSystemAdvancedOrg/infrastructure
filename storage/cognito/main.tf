@@ -1,6 +1,7 @@
 locals {
-  # One shift plus margin; also the lifetime of manage-auth's refresh cookie.
-  refresh_token_validity_hours = 12
+  # 30 days (owner 2026-11-13: sign in about once a month); also the
+  # lifetime of manage-auth's refresh cookie.
+  refresh_token_validity_hours = 720
 }
 
 
@@ -140,7 +141,7 @@ resource "aws_cognito_user_pool_client" "this" {
   # for. The session instead lives on the refresh token: the admin app
   # keeps it in an HttpOnly cookie (manage-auth) and silently uses it to
   # mint new 1-hour access tokens through a shift; a real login is needed
-  # once 12 hours (one shift plus margin) have passed.
+  # once 30 days have passed.
   access_token_validity  = 1
   id_token_validity      = 1
   refresh_token_validity = local.refresh_token_validity_hours
@@ -153,7 +154,9 @@ resource "aws_cognito_user_pool_client" "this" {
 
   # Every refresh hands out a new refresh token and retires the old one, so
   # a stolen refresh token stops working the next time the real user's app
-  # refreshes. The grace period covers two tabs refreshing at once.
+  # refreshes. The grace period (60 s, the maximum) covers two tabs
+  # refreshing at once and a refresh whose response was lost (offline, wake
+  # from sleep): the app retries within seconds with the old token.
   # Requires GetTokensFromRefreshToken (manage-auth); InitiateAuth
   # REFRESH_TOKEN_AUTH is refused while this is on. Switched on in a later
   # apply (var.refresh_token_rotation_enabled), once the manage-auth release
@@ -162,7 +165,7 @@ resource "aws_cognito_user_pool_client" "this" {
     for_each = var.refresh_token_rotation_enabled ? [1] : []
     content {
       feature                    = "ENABLED"
-      retry_grace_period_seconds = 30
+      retry_grace_period_seconds = 60
     }
   }
 

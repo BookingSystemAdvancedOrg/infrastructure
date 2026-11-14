@@ -135,7 +135,12 @@ Errors: 400 `unsupported fields`, `schema_invalid`, `contrast_too_low`,
 `prompt_too_long`; 403 `feature_not_in_plan`, `owner_only`; 404 unknown or
 foreign publish, version, proposal, token, release; 409 `changed_retry`,
 `publish_running` (one at a time per tenant), `wrong_mode`; 429
-`quota_exceeded`; 502 `ai_unavailable`.
+`quota_exceeded`; 502 `ai_unavailable`. Route 5 `error.code` is one of the
+400 codes above or `start_failed` (StartExecution failed after the
+`PUBLISH#` row was written; routes 4 and 7 with the same `publishId` start
+it again). A page `slug` the customer app routes itself or an S3 prefix
+(`v`, `releases`, `preview`, `assets`) is 400 `schema_invalid` at
+`/pages/<i>/slug` (`RESERVED_SLUGS`, CONTRACTS.md 6.B).
 
 Idempotency: `publishId` / `proposalId` are client ULIDs (conditional Put;
 execution name = `publishId`, so a retry returns the same status); draft
@@ -234,8 +239,8 @@ refused, idempotent retry.
 | 1 | n/a | staff 403 | own tenant only | 403 | n/a |
 | 2 | bad block type, 151 KB | staff 403 | n/a | 403 | stale version 409 |
 | 3 | unknown field | staff 403 | n/a | 403 | new token each call |
-| 4 | contrast 3:1, unknown image | staff 403 | B's commitSha 404 | 403 | same publishId -> same execution |
-| 5 | bad id 400 | staff 403 | B's publishId 404 | 403 | n/a |
+| 4 | a 3:1 theme colour is nudged to >= 4.5:1 and recorded in `contrast[]` (no 400); unknown image | staff 403 | B's commitSha 404 | 403 | same publishId -> same execution; a `start_failed` row is restarted |
+| 5 | bad id 400; `error.code = start_failed` when StartExecution failed | staff 403 | B's publishId 404 | 403 | n/a |
 | 6 | n/a | staff 403 | n/a | 403 | n/a |
 | 7 | version 999 404 | staff 403 | B's version 404 | 403 | same publishId once; live version no-op |
 | 8 | malformed token 404 | n/a | A's token with B's tenantId 404 | 404 | n/a |
@@ -246,7 +251,10 @@ refused, idempotent retry.
 Plus: workflow idempotent (rerun Promote: same objects) and resumable (fail
 after Render, redrive); rollback never re-renders; root never references
 another tenant's prefix; render output of every block matches site-kit
-client render (snapshot); contrast vectors identical in Python and TS; UI at
+client render (snapshot); contrast vectors identical in Python and TS;
+`contrast_too_low` is a safety net that the nudge (decision 3) makes
+unreachable for any valid hex colour, so it is tested by stubbing
+`accent_pair`, not with a 3:1 input (DECISIONS.md 2026-11-03); UI at
 mobile/tablet/desktop, light/dark, keyboard-reorderable blocks. **Two-tenant
 isolation test:** A publishes; every S3 key written starts with
 `sites/<A>/`; A's routes with B's ids 404; B's site unchanged.

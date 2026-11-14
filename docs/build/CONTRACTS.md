@@ -121,6 +121,7 @@ second part may carry a noun before the verb (`SyncFailed`, `CapReached`,
 | `PhoneAgentMode` (addendum) | `after_hours`, `overflow`, `always` | L |
 | `CallOutcome` (addendum) | `booked`, `moved`, `cancelled`, `info`, `transferred`, `callback`, `abandoned`, `refused`, `error` | L |
 | `CallRefusedReason` (addendum) | `cap`, `kill_switch`, `hours`, `paused`, `entitlement` | L |
+| `CounterOffer` (2026-11-04, ADR-L decision 13) | `none`, `other_time`, `next_day`, `nearby_table` | L (call row, `PhoneCall.Ended`, admin Samtal list) |
 
 ## 2. Entitlements and limits
 
@@ -163,9 +164,7 @@ and is changed only by the owner, never by a feature agent.
 | `reservations` | true | true | true | true | existing |
 | `ordering` | true | true | true | true | existing |
 | `catering` | false | true | false | true | existing |
-| `terminal` | true | true | true | true | existing |
 | `marketing` | false | true | false | true | existing |
-| `kassa` | false | false | false | false (per tenant in console) | existing |
 | `metaAds` | false | false | false | true | ADR-A |
 | `siteBuilder` | false | false | true | true | ADR-B |
 | `guestCrm` | false | false | false | true | ADR-C |
@@ -202,9 +201,9 @@ only after the tenant/location check. "Purge" = handled by the feature's
 | `<prefix>site-builder` | B | `TENANT#<t>` / `SITE`, `DRAFT`, `VERSION#<n:06d>`, `PUBLISHED`, `PUBLISH#<id>`, `PREVIEW#<hash>`, `AIUSE#<month>`, `AIPROP#<id>`, `CUSTOM#<sha>` | none | yes | no | yes (S3 `sites/<t>/` already removed via site-repo) |
 | `<prefix>guest-crm` | C | `TENANT#<t>` / `IDENT#<channel>#<subject>`, `PROFILE#<guestId>`, `HIST#<guestId>#<at>#<kind>#<sourceId>`, `SEGMENT#<id>`, `EXPORT#<id>`, `EXPORT#<id>#<chunk:04d>`, `BACKFILL` | `byLastSeen` sparse: `GSI1PK=TENANT#<t>#GUESTS`, `GSI1SK=<lastSeenAt>#<guestId>` | yes | no | yes |
 | `<prefix>google-business` | D | `TENANT#<t>` / `CONNECTION`, `OAUTH#<state>`, `GLOC#<googleLocationId>`, `REVSENT#<guestKey>`; `LOCATION#<l>` / `LINK`, `REVIEWSETTINGS`, `REVJOB#<kind>#<sourceId>` | `byLinked` sparse: `GSI1PK=LINKED`, `GSI1SK=<t>#<l>` | yes | no | yes, plus secret and pending schedules |
-| `<prefix>gift-cards` | E | `TENANT#<t>` / `SETTINGS`, `PURCHASE#<id>`, `CARD#<cardId>`, `CODE#<codeHmac>`, `CARD#<cardId>#TX#<txId>` | `byLocationDay`: `GSI1PK=TENANT#<t>#LOC#<l>#<day>`, `GSI1SK=<at>#<txId>` (TX only); `byExpiry` sparse: `GSI2PK=EXPIRY#<day>`, `GSI2SK=<t>#<cardId>` | yes (holds; on purge, CARD/CODE/TX get `ttl` = end of 7th year after the last TX) | no | partial: SETTINGS, PURCHASE, contact fields now; bookkeeping rows by TTL |
+| `<prefix>gift-cards` | E | `TENANT#<t>` / `SETTINGS`, `PURCHASE#<id>`, `CARD#<cardId>` (also `codeSentAt?`, stamped once notification has accepted the code email; `partialRefundOre?` / `partialRefundAt?`, set by a partial `charge.refunded`), `CODE#<codeHmac>`, `CARD#<cardId>#TX#<txId>` (a `refund` TX also gets `stripeRefundId?` once Stripe has the refund), `TXREF#<txId>` (`cardId`, `verifiedAt?`: Kassa finds a redemption by its `paymentId`; written in the same transaction as the TX row); `JOB` / `NIGHTLY` (one row per table, no tenant: `lastDay` = resume point of the nightly job) | `byLocationDay`: `GSI1PK=TENANT#<t>#LOC#<l>#<day>`, `GSI1SK=<at>#<txId>` (TX only); `byExpiry` sparse, three day-buckets read only by the nightly job: `GSI2PK=EXPIRY#<day>` (active CARD, `GSI2SK=<t>#<cardId>`), `GSI2PK=CLEANUP#<day>` (used/expired/void CARD, day = last TX + 24 months, contact fields removed then), `GSI2PK=UNVERIFIED#<day>` (TXREF of a Kassa redeem Kassa has not verified, `GSI2SK=<t>#<txId>`; reversed after 30 min, removed on verify, reverse or purge) | yes (holds; on purge, CARD/CODE/TX/TXREF get `ttl` = end of 7th year after the last TX) | no | partial: SETTINGS, PURCHASE, contact fields now; bookkeeping rows by TTL |
 | `<prefix>waitlist` | F | `LOCATION#<l>` / `ENTRY#<day>#<entryId>`, `SETTINGS` | none | yes (end of day + 30 d) | **no** (SMS via notification invoke, section 9.4) | yes |
-| `<prefix>social-posting` | G | `TENANT#<t>` / `POST#<postId>` | none | yes | no | yes |
+| `<prefix>social-posting` | G | `TENANT#<t>` / `POST#<postId>` (each channel state also carries `firstAttemptAt`, set with its first publish lease; FB `needs_check` recovery adopts only a Page post created at or after it) | none | yes | no | yes |
 | `<prefix>personalliggare` | H | `TENANT#<t>` / `PERSON#<id>`, `USER#<sub>`; `LOCATION#<l>` / `HEAD`, `PRESENT#<personId>`, `REQ#<recordId>` | none | yes (REQ 7 d) | no | yes, after a final export is offered |
 | `<prefix>personalliggare-ledger` | H | `LOCATION#<l>` / `SEQ#<12-digit seq>` | `byDay`: `GSI1PK=DAY#<l>#<day>`, `GSI1SK=SEQ#<12-digit seq>` | yes (end of 2nd calendar year, legal to confirm) | no | **never** (Deny resource policy, deletion protection everywhere) |
 | `<prefix>accounting-sync` | I | `TENANT#<t>` / `CONNECTION`, `OAUTH#<nonce>`, `COMPANY#<companyKey>#DAY#<day>`; `LOCATION#<l>` / `DAY#<day>` | none | yes (DAY 7 years, OAUTH 10 min) | no | yes, plus secret |
@@ -234,7 +233,7 @@ IAM-scoped with `dynamodb:Attributes`):
 | location table `TENANT#<t>/LOCATION#<l>` | `waitlist = {publicJoin}` | `waitlist` | `tenant-site-config` |
 | tenant table `PLATFORM#META_ADS/SETTINGS` (new row) | `killSwitch`, `maxMonthlyCapSek` | `meta-ads` (via console forward) | `meta-ads`, `meta-ads-jobs` |
 | tenant table `PLATFORM#PHONE_AGENT/SETTINGS` (new row, addendum) | `killSwitch`, `maxMinutesCap` | `phone-agent` (via console forward) | `phone-agent`, `phone-agent-call` |
-| user table `USER#agent:<l>/PROFILE` (new rows, addendum) | whole row `{tenantId, role: "staff", locationId, name: "Telefonassistent", status: "system"}` | `phone-agent` (Put/Delete, `dynamodb:LeadingKeys` `StringLike USER#agent:*`) | `staff_location()` in the existing Lambdas the agent invokes (ADR-L "agent principal") |
+| user table `USER#agent:<l>/PROFILE` (new rows, addendum) | whole row `{tenantId, role: "staff", locationId, name: "Telefonassistent", status: "system"}` | `phone-agent` (Put/Delete, `dynamodb:LeadingKeys` `StringLike USER#agent:*`) | `staff_location()` in the existing Lambdas the agent invokes (ADR-L "agent principal"): status `system` counts as active **only** for a sub with the `agent:` prefix (`shared/tenant.SYSTEM_SUB_PREFIX`), for its own location; `manage-user` leaves `USER#agent:*` / status `system` rows out of the tenant's user list |
 
 ## 5. Events
 
@@ -269,7 +268,7 @@ an SQS DLQ in their own module.
 | `booqy.google-business` | `GoogleHours.SyncFailed` | `locationId`, `code` | google-business, -jobs | none |
 | `booqy.google-business` | `ReviewRequest.Sent` | `locationId`, `kind: enum[booking,order]`, `sourceId`, `channel: enum[email,sms]` | google-business-jobs | none |
 | `booqy.gift-cards` | `GiftCard.Sold` | `cardId`, `locationId`, `amountOre: int`, `expiresAt: datetime` | gift-cards | none |
-| `booqy.gift-cards` | `GiftCard.Redeemed` | `cardId`, `locationId`, `amountOre: int`, `balanceAfterOre: int`, `channel: enum[online,kassa]`, `txId` | gift-cards | none |
+| `booqy.gift-cards` | `GiftCard.Redeemed` | `cardId`, `locationId`, `amountOre: int`, `balanceAfterOre: int`, `channel: enum[online]` (`kassa` until Kassa was removed 2026-11-14), `txId` | gift-cards | none |
 | `booqy.gift-cards` | `GiftCard.RedemptionReversed` | `cardId`, `locationId`, `amountOre: int`, `txId` | gift-cards | none |
 | `booqy.gift-cards` | `GiftCard.Expired` | `cardId`, `amountOre: int` | gift-cards | none |
 | `booqy.gift-cards` | `GiftCard.Refunded` | `cardId`, `amountOre: int` | gift-cards | none |
@@ -296,7 +295,7 @@ an SQS DLQ in their own module.
 | `booqy.events-tickets` | `Ticket.Transferred` | `locationId`, `occurrenceId`, `ticketId`, `newTicketId`, `kind: enum[gift,resale]` | events-tickets | none |
 | `booqy.events-tickets` | `Ticket.Refunded` | `locationId`, `occurrenceId`, `ticketId`, `amountOre: int`, `by: enum[owner,cancellation]` | events-tickets | none |
 | `booqy.phone-agent` (addendum) | `PhoneCall.Answered` | `locationId`, `callId`, `language: enum[sv,en]` | phone-agent-call | none |
-| `booqy.phone-agent` | `PhoneCall.Ended` | `locationId`, `callId`, `durationSec: int`, `billedMinutes: int`, `outcome: enum[booked,moved,cancelled,info,transferred,callback,abandoned,refused,error]`, `reservationId?`, `callbackId?` | phone-agent-call, phone-agent-jobs | none |
+| `booqy.phone-agent` | `PhoneCall.Ended` | `locationId`, `callId`, `durationSec: int`, `billedMinutes: int`, `outcome: enum[booked,moved,cancelled,info,transferred,callback,abandoned,refused,error]`, `reservationId?`, `callbackId?`, `counterOffer?: enum[none,other_time,next_day,nearby_table]` (ADR-L decision 13) | phone-agent-call, phone-agent-jobs | none |
 | `booqy.phone-agent` | `PhoneCall.Refused` | `locationId`, `callId`, `reason: enum[cap,kill_switch,hours,paused,entitlement]` | phone-agent-call | none |
 | `booqy.phone-agent` | `PhoneCallback.Requested` | `locationId`, `callbackId`, `callId` | phone-agent-call | none |
 | `booqy.phone-agent` | `PhoneCallback.Closed` | `locationId`, `callbackId` | phone-agent | none |
@@ -341,9 +340,9 @@ where noted, else a token). Roles: `owner` = `owner_user`, `staff` =
 | A5 | PUT `/tenant/meta-ads/connection` | jwt | owner | `metaAds` or `socialPosting` | `{adAccountId?, pageId, instagramId?, dsa{beneficiary, payor}?, monthlyCapSek?, version}` -> connection (`adAccountId`, `dsa`, cap required when `metaAds` on) | 400 `invalid_cap`, `unknown_asset` | `version` |
 | A6 | DELETE `/tenant/meta-ads/connection` | jwt | owner | `metaAds` or `socialPosting` | -> 204; pauses campaigns, deletes secret | none | second call 204 |
 | A7 | POST `/locations/{locationId}/meta-ads/copy` | jwt | owner | `metaAds` | `{menuItemId, goal}` -> `{suggestions[{headline, primaryText}]}` | 429 `quota_exceeded`, 502 `ai_unavailable` | counted once per call |
-| A8 | POST `/locations/{locationId}/meta-ads/campaigns` | jwt | owner | `metaAds` | `{campaignId, goal, menuItemId, headline, primaryText, budgetSek, days, radiusKm}` -> 202 campaign (`publishing`) | 400 `invalid_budget`, `invalid_radius`, `invalid_days`, `alcohol_not_allowed`, `text_too_long`; 409 `not_connected`, `assets_missing`, `cap_exceeded`, `kill_switch` | client ULID `campaignId` = execution name |
-| A9 | GET `/locations/{locationId}/meta-ads/campaigns` | jwt | owner | `metaAds` | -> `{campaigns[], cursor?}` | 400 bad cursor | n/a |
-| A10 | GET `/locations/{locationId}/meta-ads/campaigns/{campaignId}` | jwt | owner | `metaAds` | -> campaign + `previewUrl?` | none | n/a |
+| A8 | POST `/locations/{locationId}/meta-ads/campaigns` | jwt | owner | `metaAds` | `{campaignId, goal, menuItemId, headline, primaryText, budgetSek, days, radiusKm}` -> 202 campaign (`publishing`) | 400 `invalid_budget`, `invalid_radius`, `invalid_days`, `alcohol_not_allowed`, `text_too_long`; 409 `not_connected`, `assets_missing` (ad account, Page, dish image **or the location's stored `position`** missing; `field: "position"` when it is the position), `cap_exceeded`, `kill_switch` | client ULID `campaignId` = execution name; a row still `publishing` without an `executionArn` is started by the retry, and by the 15-minute sweep of `meta-ads-jobs` once it is 10 min old (if that start fails too the sweep marks it `failed`, `error.code = start_failed`) |
+| A9 | GET `/locations/{locationId}/meta-ads/campaigns` | jwt | owner | `metaAds` | -> `{campaigns[]}` (newest first, one page: the response **never** carries a `cursor`) | 400 `cursor` (any `cursor` query parameter) | n/a |
+| A10 | GET `/locations/{locationId}/meta-ads/campaigns/{campaignId}` | jwt | owner | `metaAds` | -> campaign + `previewUrl?`; a `failed` campaign carries `error{code}` (no `field`): a publish-workflow code (`meta_unavailable` unless the cause names `kill_switch`, `not_connected`, `assets_missing`, `unknown_image`, `invalid_status`, `feature_not_in_plan` or `not_found`) or `start_failed` (the sweep could not start a publish stranded for 10 min; admin: "Annonsen kom aldrig i gång. Skapa den igen.") | none | n/a |
 | A11 | POST `.../campaigns/{campaignId}/activate` | jwt | owner | `metaAds` | `{version}` -> campaign (`active`) | 409 `cap_exceeded`, `kill_switch`, `invalid_status` | `version` + status; retry returns active |
 | A12 | POST `.../campaigns/{campaignId}/pause` | jwt | owner | `metaAds` | `{version}` -> campaign (`paused`) | 409 `invalid_status` | retry returns paused |
 | A13 | GET `/locations/{locationId}/meta-ads/insights?from=&to=` | jwt | owner | `metaAds` | -> `{rows[{campaignId, day, spendSek, reach, clicks, bookings, orders, costPerBookingSek, costPerOrderSek}], totals}` | 400 `invalid_range` | n/a |
@@ -361,16 +360,28 @@ where noted, else a token). Roles: `owner` = `owner_user`, `staff` =
 | B1 | GET `/tenant/site-builder` | jwt | owner | `siteBuilder` | -> `{mode, draft{doc, version, basedOn}, published{versionNo, publishedAt}?, aiQuota?{used, limit}}` | none | n/a |
 | B2 | PUT `/tenant/site-builder/draft` | jwt | owner | `siteBuilder` | `{doc, version}` -> draft | 400 `schema_invalid`, `doc_too_large`, `invalid_link`, `unknown_image` (`field` = JSON pointer); 409 `wrong_mode` | `version` |
 | B3 | POST `/tenant/site-builder/preview-links` | jwt | owner | `siteBuilder` | `{}` -> `{url, expiresAt}` | none | new token per call |
-| B4 | POST `/tenant/site-builder/publish` | jwt | owner | `siteBuilder` | `{publishId, draftVersion}` or `{publishId, source: "custom", commitSha}` -> 202 `{publishId, status}` | 400 `contrast_too_low` and B2 errors; 409 `publish_running`, `wrong_mode` | client ULID `publishId` = execution name |
-| B5 | GET `/tenant/site-builder/publish/{publishId}` | jwt | owner | `siteBuilder` | -> `{status, versionNo?, error?{code, field}}` | none | n/a |
+| B4 | POST `/tenant/site-builder/publish` | jwt | owner | `siteBuilder` | `{publishId, draftVersion}` or `{publishId, source: "custom", commitSha}` -> 202 `{publishId, status}` | 400 `contrast_too_low` (safety net: theme pairs are nudged to >= 4.5:1 first, ADR-B 3) and B2 errors; 409 `publish_running`, `wrong_mode` | client ULID `publishId` = execution name; a row whose workflow never started (B5 `start_failed`) is restarted by the retry |
+| B5 | GET `/tenant/site-builder/publish/{publishId}` | jwt | owner | `siteBuilder` | -> `{status, versionNo?, error?{code, field?}}`; `code` is a B2/B4 validation code (with `field`) or `start_failed` (StartExecution failed, no `field`; B4 or B7 with the same `publishId` starts it again) | none | n/a |
 | B6 | GET `/tenant/site-builder/versions` | jwt | owner | `siteBuilder` | -> `{versions[{versionNo, source, publishedAt, publishedBy, live}]}` | none | n/a |
-| B7 | POST `/tenant/site-builder/rollback` | jwt | owner | `siteBuilder` | `{publishId, versionNo}` -> 202 `{publishId}` | 409 `publish_running` | `publishId`; live version = 200 no-op |
+| B7 | POST `/tenant/site-builder/rollback` | jwt | owner | `siteBuilder` | `{publishId, versionNo}` -> 202 `{publishId}` | 409 `publish_running` | `publishId` (a `start_failed` row is restarted by the retry); live version = 200 no-op |
 | B8 | POST `/public/site-builder/preview` | public (token + request guard) | guest | `siteBuilder` | `{tenantId, token}` -> `{doc}` | 404 on any bad token | n/a |
 | B9 | POST `/tenant/site-builder/ai-edits` (B2) | jwt | owner | `siteBuilder` + limit | `{proposalId, prompt, draftVersion}` -> `{patch, before, after, quota{used, limit}}` | 400 `prompt_too_long`, `invalid_patch`; 429 `quota_exceeded`; 502 `ai_unavailable` | `proposalId` counted once |
 | B10 | POST `/tenant/site-builder/ai-edits/{proposalId}/apply` (B2) | jwt | owner | `siteBuilder` | `{draftVersion}` -> draft | 409 `changed_retry` | second apply 200 same draft |
 | B11 | GET `/platform/tenants/{tenantId}/site-builder` (B2) | operator | platform_admin | n/a | -> `{mode, published, releases[{commitSha, prNumber, previewUrl, status}]}` | 404 | n/a |
 | B12 | PUT `/platform/tenants/{tenantId}/site-builder/mode` (B2) | operator | platform_admin | n/a | `{mode, version}` -> `{mode}` | 400 bad mode | `version` |
 | B13 | POST `/platform/tenants/{tenantId}/site-builder/custom/{commitSha}/ready` (B2) | operator | platform_admin | n/a | `{}` -> CUSTOM item | 404 unknown sha | repeat same result |
+
+**Reserved page slugs.** A page `slug` that the customer app routes itself
+as a first path segment (`meny`, `boka-bord`, `bestall`, `catering`,
+`presentkort`, `ko`, `forhandsvisning`, `evenemang`, `biljett`, ...) or that
+is an S3 prefix under `sites/<t>/` (`v`, `releases`, `preview`, `assets`)
+would never be shown, so B2 and B4 refuse it with 400 `schema_invalid`,
+`field` = `/pages/<i>/slug` (the same code and pointer as a duplicate slug).
+The one list is `RESERVED_SLUGS` in
+`application/shared/features/site_builder/__init__.py`; a test asserts it
+covers every `path="..."` in `customer-front-end/src/App.tsx`, so a new
+customer-app route is added there first. Site-kit's `sitePages` keys (8.4)
+are among them.
 
 ### 6.C Guest CRM (`guestCrm`)
 
@@ -409,18 +420,18 @@ where noted, else a token). Roles: `owner` = `owner_user`, `staff` =
 | # | Method + path | Auth | Roles | Entitlement | Request -> response | Feature errors | Idempotency |
 |---|---|---|---|---|---|---|---|
 | E1 | GET `/public/locations/{locationId}/gift-cards/offer` | public | guest | `giftCards` | -> `{amountsSek[], customMinSek, customMaxSek, validityMonths}` | none | n/a |
-| E2 | POST `/public/locations/{locationId}/gift-cards/checkout` | public (Turnstile + request guard, throttle `public`) | guest | `giftCards` | `{purchaseId, amountSek, buyerEmail, recipientName?, recipientEmail?, message?, turnstileToken}` -> `{clientSecret, amountSek, expiresAt}` | 400 `invalid_amount`, `invalid_email`, `message_too_long`, `turnstile_failed`; 429; 502 `stripe_unavailable` | `purchaseId` = Stripe key `giftcard-<purchaseId>` |
+| E2 | POST `/public/locations/{locationId}/gift-cards/checkout` | public (Turnstile + request guard, throttle `public`) | guest | `giftCards` | `{purchaseId, amountSek, buyerEmail, recipientName?, recipientEmail?, message?, turnstileToken}` -> `{clientSecret, stripeAccount, amountSek, expiresAt}` (`stripeAccount` is the connected account id the PaymentIntent lives on; Stripe Elements needs it to confirm the payment) | 400 `invalid_amount`, `invalid_email`, `message_too_long`, `turnstile_failed`; 429; 502 `stripe_unavailable` | `purchaseId` = Stripe key `giftcard-<purchaseId>` |
 | E3 | POST `/public/locations/{locationId}/gift-cards/balance` | public (Turnstile + request guard, throttle `public`) | guest | `giftCards` | `{code, turnstileToken}` -> `{balanceSek, expiresAt, status}` | any miss 404 | n/a |
 | E4 | GET `/tenant/gift-cards/settings` | jwt | owner | `giftCards` | -> settings | none | n/a |
 | E5 | PUT `/tenant/gift-cards/settings` | jwt | owner | `giftCards` | `{enabled, amountsSek, customMinSek, customMaxSek, validityMonths, version}` -> settings | 400 `invalid_validity`, `invalid_amount` | `version` |
 | E6 | GET `/tenant/gift-cards?status=&cursor=` | jwt | owner | `giftCards` | -> `{cards[{cardId, last4, initialSek, balanceSek, status, expiresAt}], liabilitySek, cursor}` | 400 bad status | n/a |
 | E7 | GET `/tenant/gift-cards/{cardId}` | jwt | owner | `giftCards` | -> card + `transactions[]` | none | n/a |
 | E8 | POST `/tenant/gift-cards/{cardId}/adjust` | jwt | owner | `giftCards` | `{txId, expiresAt?, reason}` -> card | 400 shorter expiry | `txId` |
-| E9 | POST `/tenant/gift-cards/{cardId}/refund` | jwt | owner | `giftCards` | `{txId, reason}` -> card (`void`) | 409 `refund_window_passed`, `card_void` | `txId`; Stripe key `giftcard-refund-<txId>` |
-| E10 | POST `/tenant/gift-cards/{cardId}/resend` | jwt | owner | `giftCards` | `{to: buyer \| recipient}` -> 202 | 400 bad target | not idempotent by design |
+| E9 | POST `/tenant/gift-cards/{cardId}/refund` | jwt | owner | `giftCards` | `{txId, reason}` -> card (`void`). The card first: one `refund` TX of the balance the request read, conditional on the card `version`; then a Stripe refund of exactly that amount (key `giftcard-refund-<txId>`), after which `stripeRefundId` on the TX marks the Stripe side done | 409 `refund_window_passed`, `card_void`, `changed_retry` (a redemption moved the balance in between: nothing refunded, read the card and call again); 502 `stripe_unavailable` (the card is already void; call again with the same `txId`) | `txId`: a retry returns the card and finishes the Stripe refund only while the TX has no `stripeRefundId`; one TX, one Stripe refund |
+| E10 | POST `/tenant/gift-cards/{cardId}/resend` | jwt | owner | `giftCards` | `{to: buyer \| recipient}` -> 202 `{last4}`; codes are never stored, so "Skicka ny kod" **rotates** the code: new CODE# row, old one deleted, `codeHmac`/`last4` replaced on the card in one transaction, then the new code is mailed (`gift-cards.code-resend`); the old code stops working at once, which the admin confirms with the owner first | 400 bad target, no email for that target; 409 `card_expired`, `card_void`, `changed_retry`; 502 `notification_unavailable` (notification did not take the email: the code is already rotated and unsent, so the old code no longer works; calling again is safe and rotates once more, then mails the new code) | not idempotent by design (every call is a new code; only the latest works) |
 | E11 | POST `/locations/{locationId}/gift-cards/lookup` | jwt | owner, staff | `giftCards` | `{code}` -> `{cardId, last4, balanceSek, expiresAt, status}` | 400 missing code | n/a |
-| E12 | POST `/locations/{locationId}/gift-cards/redemptions` | jwt | owner, staff | `giftCards` and `kassa` | `{txId (= Kassa paymentId), code, amountOre, billId}` -> `{balanceAfterSek, txId}` | 409 `insufficient_balance`, `card_expired`, `card_void` | `txId`; same id other amount 409 |
-| E13 | POST `/locations/{locationId}/gift-cards/redemptions/{txId}/reverse` | jwt | owner, staff | `giftCards` and `kassa` | `{}` -> `{balanceAfterSek}` | 409 `receipt_issued` | second reverse same balance |
+| E12 | POST `/locations/{locationId}/gift-cards/redemptions` | removed 2026-11-14 with Kassa (it served only Kassa redemptions) | | | | | | |
+| E13 | POST `/locations/{locationId}/gift-cards/redemptions/{txId}/reverse` | removed 2026-11-14 with Kassa | | | | | | |
 
 Existing route change (Run 0, hotspot): the order checkout body
 (`payment-intent`) gains optional `giftCardCode: string`; with `giftCards`
@@ -465,7 +476,7 @@ like `/m/s/{token}`, not contact data.
 | H1 | GET `/locations/{locationId}/personalliggare?day=` | jwt | owner, staff | `personalliggare` | -> `{present[], records[] (corrected view), me?}`; staff see names, no identity numbers | 400 bad day | n/a |
 | H2 | POST `/locations/{locationId}/personalliggare/check-in` | jwt | staff (self), owner (anyone) | `personalliggare` | `{recordId, personId?}` -> 201 record | 409 `already_checked_in`, `no_person_for_user` | `REQ#<recordId>` |
 | H3 | POST `/locations/{locationId}/personalliggare/check-out` | jwt | staff (self), owner (anyone) | `personalliggare` | `{recordId, personId?}` -> 201 record | 409 `not_checked_in`, `no_person_for_user` | `REQ#<recordId>` |
-| H4 | POST `/locations/{locationId}/personalliggare/corrections` | jwt | owner | `personalliggare` | `{recordId, correctsSeq?, personId, kind, eventTime, reason}` -> 201 record | 400 `reason_required`, `invalid_event_time` | `REQ#<recordId>` |
+| H4 | POST `/locations/{locationId}/personalliggare/corrections` | jwt | owner | `personalliggare` | `{recordId, correctsSeq?, personId, kind, eventTime, reason}` -> 201 record | 400 `reason_required`, `invalid_event_time`, `wrong_person` (`correctsSeq` is another person's record) | `REQ#<recordId>` |
 | H5 | GET `/locations/{locationId}/personalliggare/inspection?day=` | jwt | owner, staff | `personalliggare` | -> full view incl. identity numbers; appends `inspection_view` | 400 bad day | appends by design |
 | H6 | GET `/locations/{locationId}/personalliggare/export?from&to&format=csv\|json` | jwt | owner | `personalliggare`, **or** records exist (exception) | -> file + `chainOk`, `firstBadSeq?` | 400 bad range | n/a |
 | H7 | GET `/tenant/personalliggare/persons` | jwt | owner | `personalliggare` | -> `{persons[]}` | none | n/a |
@@ -508,9 +519,9 @@ caller is owner; `without_money` strips all five for staff.
 | K3 | GET `/locations/{locationId}/events/{eventId}` | jwt | owner, staff | `events` | -> event + `occurrences[]` + `ticketTypes[]` (staff: no revenue) | none | n/a |
 | K4 | PUT `/locations/{locationId}/events/{eventId}` | jwt | owner | `events` | event fields + `version` -> event | 400 as K2 | `version` |
 | K5 | POST `/locations/{locationId}/events/{eventId}/publish` | jwt | owner | `events` | `{version}` -> event (`published`), series occurrences generated | 409 `invalid_state` | second publish 200, no duplicates |
-| K6 | PUT `/locations/{locationId}/events/{eventId}/ticket-types/{typeId}` | jwt | owner | `events` | `{name, priceOre, vatRate, capacity?, tier?, includes?, perOrderMax, sortOrder, version?}` -> type | 400 `invalid_price`, `invalid_vat_rate` | client ULID + `version` |
+| K6 | PUT `/locations/{locationId}/events/{eventId}/ticket-types/{typeId}` | jwt | owner | `events` | `{name, priceOre, vatRate, capacity?, tier?, includes?, perOrderMax, sortOrder, version?}` -> type `{..., sold, held, vatReview?, vatChanges?[{fromRate, toRate, at, by, soldBefore}]}`; price/VAT apply to later sales only, a VAT change is flagged needs accountant review | 400 `invalid_price`, `invalid_vat_rate`, `invalid_window`, `invalid_capacity` (below sold + held); 409 `changed_retry`, `invalid_state` (event cancelled or over) | client ULID + `version` |
 | K7 | DELETE `/locations/{locationId}/events/{eventId}/ticket-types/{typeId}` | jwt | owner | `events` | -> 204 | 409 `has_sales` | second 204 |
-| K8 | PUT `/locations/{locationId}/events/{eventId}/occurrences/{occurrenceId}` | jwt | owner | `events` | `{capacity?, salesOpenAt?, salesCloseAt?, doorsAt?, version}` -> occurrence | 400 `invalid_capacity` (below sold) | `version` |
+| K8 | PUT `/locations/{locationId}/events/{eventId}/occurrences/{occurrenceId}` | jwt | owner | `events` | `{capacity?, salesOpenAt?, salesCloseAt?, doorsAt?, version}` -> occurrence | 400 `invalid_capacity` (below sold + held, atomic); 409 `invalid_state` (ended, done or cancelled occurrence, or cancelled event), `changed_retry` | `version` |
 | K9 | POST `/locations/{locationId}/events/{eventId}/occurrences/{occurrenceId}/cancel` | jwt | owner | `events` | `{jobId, version, message?}` -> 202 `{jobId, toRefund}` | 409 `invalid_state` | client ULID `jobId`; each refund once |
 | K10 | GET `/locations/{locationId}/events/{eventId}/occurrences/{occurrenceId}/guest-list` | jwt | owner, staff | `events` | -> `{scanKey, tickets[{ticketId, holderName, typeName, status, checkedInAt?}], counters{sold, checkedIn, capacity}}` | none | n/a |
 | K11 | POST `/locations/{locationId}/events/{eventId}/occurrences/{occurrenceId}/check-ins` | jwt | owner, staff | `events` | `{checkIns[{ticketId, sig, at, clientId}]}` (max 200) -> `{results[{clientId, status: ok \| already \| invalid \| void, at?, by?}]}` | 400 `too_many` | `clientId` |
@@ -537,13 +548,13 @@ events-tickets (section 9.2).
 | # | Method + path | Auth | Roles | Entitlement | Request -> response | Feature errors | Idempotency |
 |---|---|---|---|---|---|---|---|
 | L1 | GET `/tenant/phone-agent` | jwt | owner | `phoneAgent` | -> `{config, locations[{locationId, enabled, killSwitch, mode, number?, minutesThisPeriod}], usage{minutes, cap, includedMinutes, periodEnd}}` | none | n/a |
-| L2 | PUT `/tenant/phone-agent/config` | jwt | owner | `phoneAgent` | `{agentName, tone, languages, recording{enabled, purpose?, retentionDays?}, minutesCapPerMonth, version}` -> config | 400 `purpose_required`, `invalid_retention`, `invalid_cap`, `text_too_long` | `version` |
-| L3 | GET `/locations/{locationId}/phone-agent` | jwt | owner, staff | `phoneAgent` | -> location config + `forwarding{number, codes[]}` (staff: read-only view) | none | n/a |
-| L4 | PUT `/locations/{locationId}/phone-agent` | jwt | owner | `phoneAgent` | `{enabled, mode, agentHours, greetingExtraSv, greetingExtraEn, transferTo, maxCallSeconds, version}` -> config; first enable 202 `{status: provisioning}` then 200 | 400 `invalid_hours`, `invalid_phone`, `invalid_max_call`, `text_too_long`; 409 `provisioning`, `number_unavailable`; 502 `telephony_unavailable`, `voice_provider_unavailable` | `version`; second enable never provisions a second number |
+| L2 | PUT `/tenant/phone-agent/config` | jwt | owner | `phoneAgent` | `{agentName, tone, languages, recording{enabled, purpose?, retentionDays?}, minutesCapPerMonth, version}` -> config (`agentName` is `Booqy` until saved) (`languages`: kept for compatibility; since 2026-11-13 a call starts in Swedish and follows any of the 32 languages the voice model speaks, `language.VOICE_LANGUAGES`) | 400 `agent_name_required`, `purpose_required`, `invalid_retention`, `invalid_cap`, `text_too_long` | `version` |
+| L3 | GET `/locations/{locationId}/phone-agent` | jwt | owner, staff | `phoneAgent` | -> location config (incl. `numberSharedWith?`) + `forwarding{number, codes[]}` (staff: read-only view) | none | n/a |
+| L4 | PUT `/locations/{locationId}/phone-agent` | jwt | owner | `phoneAgent` | `{enabled, mode, agentHours, greetingExtraSv, greetingExtraEn, transferTo, maxCallSeconds, counterOffers{nearbyTables: bool, phoneOnlyTables: bool}, shareNumberWith?, version}` -> config (`counterOffers` optional in the request, both default `true`; ADR-L decision 13; `shareNumberWith`: answer on that enabled location's number, nothing provisioned, the agent asks which location first, ADR-L decision 14) | 400 `invalid_hours`, `invalid_phone`, `invalid_max_call`, `text_too_long`, `invalid_counter_offers`, `transfer_is_forwarded` (transferTo is the restaurant's own, forwarded number); 409 `provisioning`, `number_unavailable`, `share_unavailable`; 502 `telephony_unavailable`, `voice_provider_unavailable` | `version`; second enable never provisions a second number |
 | L5 | POST `/locations/{locationId}/phone-agent/kill-switch` | jwt | owner, staff | `phoneAgent` | `{on, version}` -> config | 400 missing `on` | same state 200 |
-| L6 | POST `/locations/{locationId}/phone-agent/simulate` | jwt | owner | `phoneAgent` | `{sessionId, text, language?}` -> `{reply, toolCalls[{name, ok}], state, disclosure: bool}` (writes no booking: dry run) | 400 `text_too_long`; 502 `ai_unavailable` | `sessionId` + turn index |
-| L7 | GET `/locations/{locationId}/phone-agent/calls?from&to&cursor` | jwt | owner, staff | `phoneAgent` | -> `{calls[{callId, startedAt, durationSec, language, outcome, reservationId?, callbackId?, summary}], cursor}` (staff: no caller number) | 400 `invalid_range` | n/a |
-| L8 | GET `/locations/{locationId}/phone-agent/calls/{callId}` | jwt | owner, staff | `phoneAgent` | -> call + `turns[]` + `recordingUrl?` (owner only) | none | n/a |
+| L6 | POST `/locations/{locationId}/phone-agent/simulate` | jwt | owner | `phoneAgent` | `{sessionId, text, language?}` -> `{reply, language, toolCalls[{name, ok}], state, disclosure: bool}` (starts in Swedish and switches with the text like a call) (writes no booking: dry run) | 400 `text_too_long`; 502 `ai_unavailable` | `sessionId` + turn index |
+| L7 | GET `/locations/{locationId}/phone-agent/calls?from&to&cursor` | jwt | owner, staff | `phoneAgent` | -> `{calls[{callId, startedAt, durationSec, language, outcome, counterOffer, reservationId?, callbackId?, summary}], cursor}` (staff: no caller number; `counterOffer` is the `CounterOffer` enum, ADR-L decision 13) | 400 `invalid_range` | n/a |
+| L8 | GET `/locations/{locationId}/phone-agent/calls/{callId}` | jwt | owner, staff | `phoneAgent` | -> call (incl. `counterOffer`) + `turns[]` + `recordingUrl?` (owner only) | none | n/a |
 | L9 | DELETE `/locations/{locationId}/phone-agent/calls/{callId}/recording` | jwt | owner | `phoneAgent` | -> 204 | none | second 204 |
 | L10 | GET `/locations/{locationId}/phone-agent/callbacks?status=` | jwt | owner, staff | `phoneAgent` | -> `{callbacks[]}` | 400 bad status | n/a |
 | L11 | POST `/locations/{locationId}/phone-agent/callbacks/{callbackId}/close` | jwt | owner, staff | `phoneAgent` | `{version, note?}` -> callback | 409 `invalid_state` | second close -> same |
@@ -554,12 +565,51 @@ events-tickets (section 9.2).
 | L16 | PUT `/platform/tenants/{tenantId}/phone-agent` | operator | platform_admin | n/a | `{paused}` -> `{paused}` | 404 | same body same result |
 | L17 | GET `/platform/phone-agent/settings` | operator | platform_admin | n/a | -> `{killSwitch, maxMinutesCap}` | none | n/a |
 | L18 | PUT `/platform/phone-agent/settings` | operator | platform_admin | n/a | `{killSwitch, maxMinutesCap}` -> settings | 400 `invalid_cap` | same body same result |
+| L19 | POST `/locations/{locationId}/phone-agent/setup` | jwt | owner | `phoneAgent` | `{operator?, forwarded?, tested?, version}` -> location config incl. `setup{operator, forwardedAt, testedAt}`, `simulated`, `testNumber?` (not prod) and `forwarding{number, operator, codes[]}` (admin setup checklist; `forwarded`/`tested` true stores the time, false clears it; never calls the voice or telephony provider) | 400 `invalid_operator`; 409 `changed_retry` | `version` |
 
 Not an API Gateway route: the agent turn endpoint `POST /v1/chat/completions`
 (OpenAI-compatible SSE) on the `phone-agent-call` Function URL, protected by
 `${prefix}phone-agent/llm-endpoint-key` in a header and bound to a known,
 live `callId`. Tool execution invokes the existing functions listed in
 ADR-L "Bedrock agent" directly (no new routes on them).
+
+**ElevenLabs as the voice provider (2026-11-13, ADR-L decision 14).** The
+turn endpoint also answers on `/chat/completions`, `/v1` and `/`, accepts
+the key as `Authorization: Bearer` (ElevenLabs' custom LLM api key), finds
+the call from `booqy` / `elevenlabs_extra_body.booqy` or the
+`booqy-call tenant=<t> call=<id>` marker of the agent prompt, and answers an
+OpenAI SSE stream: the reply, then the provider's system tools it offered
+in `tools` (`language_detection{reason, language}` on a language switch,
+`transfer_to_number{transfer_number, client_message, agent_message, reason}`,
+`end_call{reason}`; an ended or refused call gets `end_call`). L14 also
+takes ElevenLabs' conversation initiation webhook (header
+`x-booqy-webhook-token`, answered with `conversation_initiation_client_data`:
+`dynamic_variables{tenantId, callId}`, first message = the greeting or the
+refusal, `custom_llm_extra_body`) and its `post_call_transcription` webhook
+(`ElevenLabs-Signature: t=..,v0=HMAC-SHA256(secret, "t.body")`, 30 min
+tolerance; the first agent message is the art. 50 evidence, then the call
+ends and is metered once).
+
+**Agent tools that changed on 2026-11-04 (ADR-L decision 13, counter-offers;
+the tool list itself is unchanged).** `get_availability(date, partySize,
+time?, timeFrom?, timeTo?)` -> `{times[], requestedTime?, before[],
+after[], nearby[{tableIds[], seats, kind: adjacent_pair | larger |
+phone_only}], dayFull}`; `hold_table(date, time, partySize, tableIds?)`
+-> `{holdId, date, time, partySize, tableIds}` or `{held: false, reason:
+time_taken | day_full, time, before[], after[], nearby[], dayFull?}`
+(a bookability check with a proposal id, no server-side hold);
+`create_reservation` books through the staff route
+`POST /locations/{l}/reservations/manual` with `source: "phone"` and the
+proposal's `tableIds`. Both availability tools read `get-availability:live`
+(guest and staff views) and `list-layout-version:live` (`GET
+/locations/{l}/layout/active`, the floor plan for `adjacent_pair`), so the
+`phone-agent-call` role invokes eight existing functions (section 14).
+The order the agent offers in is fixed by the ADR: requested time, nearby
+table at that time, the three closest same-day times on both sides, the
+next day once, then a callback. The simulator (`shared/agent_model.py`
+`COUNTER_OFFERS`, `NEARBY_TABLE`, `nearest_times`) and
+`tests/test_phone_agent_counter_offers.py` are the executable form of
+that order in Swedish and English.
 
 ## 7. `/site-config` additions
 
@@ -575,9 +625,9 @@ Backend `functions/tenant-site-config/app.py` and site-kit
 | `locations[].waitlist` | `{publicJoin: bool}` | `waitlist` on and the location row has `waitlist` | location row `waitlist`, written by waitlist F6 |
 | `tenant.features.events` (addendum) | bool | always | entitlements (`siteConfig: true` in the YAML; `SITE_CONFIG_FEATURES` grows to nine) |
 
-`tenant.features` keeps its existing five keys and does **not** gain `kassa`
-or the other new keys (staff-only features, nothing guest-facing). That is
-the deliberate answer to the "`_FEATURES` lacks kassa" mismatch.
+`tenant.features` keeps its existing keys and does **not** gain the other
+new keys (staff-only features, nothing guest-facing). The `kassa` key went
+with Kassa on 2026-11-14.
 `phoneAgent` adds nothing to `/site-config` (the guest site shows the
 restaurant's own number as today; the Booqy number is only a forwarding
 target).
@@ -641,7 +691,7 @@ when their feature is on; the existing six tabs are shown only when
 | `installningar.bokforing.sync` | section `ekonomi`, tab `bokforing`, above `BokforingCard` | `accountingSync` | yes | `{}` | `src/features/accounting-sync/DirektbokforingCard.tsx` |
 | `bokningar.panel.waitlist` | BokningarPage, next to the day list | `waitlist` | no | `{locationId, date}` | `src/features/waitlist/QueuePanel.tsx` |
 | `bokningar.reservation.badge` | BokningarPage reservation row | `guestCrm` | no | `{locationId, reservationId, email?, phone?}` (component batches C5 itself) | `src/features/guest-crm/GuestBadge.tsx` |
-| `kassa.payment.giftcard` | KassaPage bill payment actions | `giftCards` | no | `{locationId, billId, remainingOre, onPaid(p: {paymentId; amountOre}): void}` | `src/features/gift-cards/KassaGiftCardButton.tsx` |
+| `kassa.payment.giftcard` | removed 2026-11-14 with Kassa | | | | |
 | `meny.dish.cost` | DishModal, below price | `dishMargin` | yes | `{locationId, menuItemId, priceSek, alcohol}` | `src/features/dish-margin/DishCostField.tsx` |
 | `meny.dish.share` | MenyPage dish actions | `socialPosting` | yes | `{locationId, menuItemId}` | `src/features/social-posting/ShareDishAction.tsx` |
 | `statistik.dishes.margin` | StatistikPage dishes section | `dishMargin` | yes | `{insights, locationId, from, to}` | `src/features/dish-margin/MarginChart.tsx` |
@@ -744,9 +794,9 @@ still lets erase, export, SIE history and gift card events reach its data.
 | `privacy.export` | guest-privacy `GET /privacy/guests` | guest-crm, google-business, gift-cards, waitlist | on or ever on | `email?`, `phone?`, `subjects{email?, sms?}` | `items: list` (added to the export as `features.<feature-id>`) |
 | `privacy.erase` | guest-privacy `POST /privacy/guests/erase` | same four | on or ever on | same | `erased{kind: count}`, `kept{kind: count}` (counts only) |
 | `tenant.purge` | tenant-purge, per purged tenant per round | all ten | always | `locationIds[]`, `round` | `done: bool`, `counts{}`; not done -> called again next round |
-| `stripe.event` | stripe-webhook, when `metadata.kind = giftcard` | gift-cards | on or ever on | `type`, `account`, `object` | `result: string`. **gift-cards must ignore the event (`result: ignored:account_mismatch`) unless `account` equals the `stripeAccountId` stored on the card's own purchase or TX row**: the caller only checks the signature and live mode, and `metadata.tenantId` comes from whoever created the PaymentIntent on their connected account |
+| `stripe.event` | stripe-webhook, when `metadata.kind = giftcard` | gift-cards | on or ever on | `type`, `account`, `object` | `result: string`: `issued`, `already_issued`, `code_resent` (a `payment_intent.succeeded` replay for an issued, active card without `codeSentAt` and older than 2 minutes: the code is rotated and `gift-cards.code` sent again), `voided`, `already_void`, `flagged:partial_refund` (`charge.refunded` with `amount_refunded != amount`: `partialRefundOre` / `partialRefundAt` on the card, no balance change), `ignored:*`. **gift-cards must ignore the event (`result: ignored:account_mismatch`) unless `account` equals the `stripeAccountId` stored on the card's own purchase or TX row**: the caller only checks the signature and live mode, and `metadata.tenantId` comes from whoever created the PaymentIntent on their connected account |
 | `checkout.giftcard` | payment-intent (`op: reserve`); webhook-payment-intent on `checkout.session.expired` / payment failed (`op: reverse`); manage-order staff cancel (`op: refund`, after the Stripe refund) | gift-cards | `giftCards` on and `giftCardCode` present (reserve); order carries `giftCard` (reverse, refund: regardless of the flag) | `op` (`reserve`, `reverse`, `refund`), `locationId`, `orderId`, `code?`, `totalOre?` | reserve: `debitedOre`, `cardId`, `cardLast4`; reverse and refund: `reversedOre` |
-| `kassa.giftcard` | kassa bill payment `kind: giftcard` (`op: verify`), undo before receipt (`op: reverse`) | gift-cards | `giftCards` and `kassa` on, and the control system port has a voucher payment means (`ControlSystem.voucher_method`; while it is `None` the payment is refused 501 before any hook call, so no card is debited on a bill whose receipt cannot be made) | `op`, `locationId`, `billId`, `paymentId` | `amountOre`, `cardId`, `cardLast4`, `balanceAfterOre` |
+| `kassa.giftcard` | removed 2026-11-14 with Kassa (Kassa, the till, was removed; Booqy is online only) | | | | |
 | `accounting.events` | `shared/accounting.location_events` (accounting export and accounting-sync) | gift-cards | on or ever on | `locationId`, `first`, `last` | `events[{day, postings[{role, amount, text}], warnings[]}]` (shape of `shared.accounting.Event`) |
 | `insights.dishCosts` | insights `GET /insights?locationId=` | dish-margin | `dishMargin` on and caller is owner | `locationIds[]`, `first`, `last` | `targetMarginPct`, `costs{menuItemId: [{validFrom, costOre}]}` |
 | `marketing.segment` | marketing (campaign save, `op: describe`), marketing-send (`op: page`) | guest-crm | audience `{type: "segment", exportId}` | `op`, `exportId`, `cursor?` | describe: `count`; page: `subscriberIds[]`, `cursor?` |
@@ -765,8 +815,8 @@ with target events-tickets when `metadata.kind == "ticket"` (same
 Margin math stays in `shared/dish_margin.py` `apply(summary, costs)`
 (Run 0 stub returns `summary` unchanged; J owns the file afterwards).
 Gift card accounting roles `giftCardLiability` (2421) and
-`giftCardBreakage` (3990) are added to `shared/accounting.py` in Run 0;
-Kassa payments with method `Presentkort` debit `giftCardLiability`.
+`giftCardBreakage` (3990) are added to `shared/accounting.py` in Run 0
+(Kassa `Presentkort` payments went with Kassa on 2026-11-14).
 
 ### 9.3 Console forward ops (`CONSOLE_FORWARD_OPS`)
 
@@ -788,9 +838,11 @@ Kassa payments with method `Presentkort` debit `giftCardLiability`.
 
 ### 9.4 Notification send (direct invoke of `notification:live`)
 
-Features never send email or SMS themselves (D's review requests use the
-existing marketing mail path, ADR-D). Callers invoke `notification:live`
-with `InvocationType=Event`:
+Features never send email or SMS themselves (D's review request **email**
+uses the existing marketing mail path, `shared/marketing_mail.py` with
+List-Unsubscribe, ADR-D; its **SMS** goes through `notification:live` like
+every other feature SMS). Callers invoke `notification:live` with
+`InvocationType=Event`:
 
 `{"notice": {"version": 1, "kind": "<feature-id>.<message>", "tenantId", "locationId"?, "channel": "email" | "sms", "to", "subject"?, "text", "html"?, "replyTo": "location" | "tenant" | null}}`
 
@@ -799,10 +851,27 @@ SMS prefixes and part counting (billing kind = `kind`), the dev outbox, and
 logs counts only. Event-invoke retries on notification are set to 0, so a
 message is never sent twice by Lambda; the caller records "sent" on its own
 item before invoking and owns the Swedish copy (rendered with
-`shared/messages.py` helpers, read-only). Kinds: `gift-cards.code`,
+`shared/messages.py` helpers, read-only). Two callers refine that rule
+(built 2026-11-04, DECISIONS.md): gift-cards stamps `codeSentAt` on the
+card right after the invoke is accepted (status 202; anything else
+raises), and a `payment_intent.succeeded` replay for a card still
+without it after a 2-minute grace rotates the code and sends
+`gift-cards.code` again (`stripe.event` result `code_resent`);
+google-business-jobs claims the job before the invoke and, when the
+invoke (or the email send) fails, releases the claim and the cooldown row
+and raises, so the schedule's retry sends it. Kinds: `gift-cards.code`,
 `gift-cards.code-resend`, `waitlist.joined`, `waitlist.offered`,
-`waitlist.expired`. The gift card code is in the invoke payload only, never
-in a table or log. Addendum kinds: `events-tickets.tickets` (email, the
+`waitlist.expired`, `meta-ads.cap-warning` (email to every active owner
+when month-to-date spend reaches 80 % of the monthly cap, sent by
+`meta-ads-jobs` from the nightly insights run, once per month via
+`SPEND#<month>.warnedAt`; ADR-A 6), `google-business.review-request` (SMS,
+sent by `google-business-jobs` at the review schedule's fire time to a
+guest with SMS consent, `replyTo: null`; the email variant of the same
+request is sent by marketing mail under the same kind string for
+billing, not through notification; ADR-D 7). The gift card code is in the
+invoke payload only, never in a table or log; `gift-cards.code-resend`
+carries a **new** code (E10 rotates it, the old code stops working).
+Addendum kinds: `events-tickets.tickets` (email, the
 tickets with QR and Wallet links), `events-tickets.transfer` (email, gift
 or resale link), `events-tickets.refunded` (email), `events-tickets.cancelled`
 (email, occurrence cancelled); `phone-agent.guarantee-link` (SMS, the
@@ -842,8 +911,8 @@ as a `kind`). The features import the constants.
 | `${prefix}events-tickets/code-pepper` (addendum) | Terraform (K), `random_password` | HMAC pepper for ticket codes and scan keys | K | events-tickets: get |
 | `${prefix}events-tickets/apple-pass` (addendum) | Terraform (K), by hand | Pass Type ID certificate, key, WWDR cert, team id | K | events-tickets: get (empty = Apple Wallet hidden) |
 | `${prefix}events-tickets/google-wallet` (addendum) | Terraform (K), by hand | service account JSON, issuer id | K | events-tickets: get (empty = Google Wallet hidden) |
-| `${prefix}phone-agent/voice-provider` (addendum) | Terraform (L), by hand | voice provider API key, webhook signing secret | L | phone-agent, phone-agent-call: get |
-| `${prefix}phone-agent/telephony` (addendum) | Terraform (L), by hand | SIP provider API credentials, webhook secret | L | phone-agent, phone-agent-call, phone-agent-jobs: get |
+| `${prefix}phone-agent/voice-provider` (addendum) | Terraform (L), by hand | ElevenLabs JSON `{apiKey, webhookSecret, initiationToken, callUrl}` | L | phone-agent, phone-agent-call: get |
+| `${prefix}phone-agent/telephony` (addendum) | Terraform (L), by hand | 46elks JSON `{username, password, webhookToken}` | L | phone-agent, phone-agent-call, phone-agent-jobs: get |
 | `${prefix}phone-agent/llm-endpoint-key` (addendum) | Terraform (L), `random_password` | header secret the voice provider sends to the agent turn endpoint | L | phone-agent (writes it into the provider agent config), phone-agent-call: get |
 
 Per-tenant runtime secrets: IAM on `arn:...:secret:booqy/<env>/<feature-id>/*`,
@@ -868,6 +937,9 @@ hook. Never logged, returned or put in an event.
 | `telephony_client` (addendum) | string / `"simulator"` | same | `external-clients.tf` | `TELEPHONY_CLIENT` | addendum |
 | `agent_model_client` (addendum) | string / `"simulator"` | same | `external-clients.tf` | `AGENT_MODEL_CLIENT` | addendum |
 | `phone_agent_model_id` (addendum) | string / `""` | none (real client refuses empty) | `external-clients.tf` | `PHONE_AGENT_MODEL_ID` | addendum |
+| `phone_agent_voice_id` (2026-11-13) | string / `""` | none (real voice client refuses empty) | `external-clients.tf` | `PHONE_AGENT_VOICE_ID` | L |
+| `phone_agent_tts_model` (2026-11-13) | string / `"eleven_flash_v2_5"` | one of `eleven_flash_v2_5`, `eleven_turbo_v2_5`, `eleven_v4_turbo`, `eleven_multilingual_v2` | `external-clients.tf` | `PHONE_AGENT_TTS_MODEL` | L |
+| `elevenlabs_api_base` (2026-11-13) | string / `"https://api.elevenlabs.io"` | https | `external-clients.tf` | `ELEVENLABS_API_BASE` | L |
 | `phone_agent_location_price_sek` (addendum) | number / `0` | whole, >= 0 | `variables.tf` | `BILLING_PHONE_AGENT_LOCATION_PRICE_SEK` (platform-tenants, Run 2 hotspot) | addendum; value **[NEEDS YOUR OK]** |
 | `phone_agent_minute_price_sek` (addendum) | number / `0` | >= 0, two decimals | `variables.tf` | `BILLING_PHONE_AGENT_MINUTE_PRICE_SEK` | addendum; value **[NEEDS YOUR OK]** |
 | `phone_agent_daily_minutes_alarm` (addendum) | number / `600` | whole, > 0 | `phone-agent.tf` (module input, not shared) | (alarm threshold) | L; value **[NEEDS YOUR OK]** |
@@ -889,7 +961,7 @@ needs is a constant in its module or a `module` input from its own root file.
 | `infrastructure/<feature-id>.tf` (10) | `module "<snake>" { source = "./<feature-id>", environment = var.env }` | inputs from shared modules (read-only references) |
 | `infrastructure/network/api-gateway/<feature-id>-routes.tf` (10) | `locals { <snake>_routes = [] }` | route list (12.3) |
 | `infrastructure/network/api-gateway/feature-routes.tf` | built: integrations, permissions, routes for every feature route | unchanged by features |
-| ECR modules `<snake>_ecr` / `<snake>_jobs_ecr` etc. in `config.tf` (14) | built, `./storage/ecr/terminal-payments` with `function = "<lambda name>"`; listed in `outputs.tf` `ecr_repository_urls` | unchanged |
+| ECR modules `<snake>_ecr` / `<snake>_jobs_ecr` etc. in `config.tf` (14) | built, `./storage/ecr/function` with `function = "<lambda name>"`; listed in `outputs.tf` `ecr_repository_urls` | unchanged |
 
 ECR repos (Run 0, because CI derives its bootstrap targets from `module
 "*_ecr"` in config.tf): `meta-ads`, `meta-ads-jobs`, `site-builder`,
@@ -962,9 +1034,9 @@ first n calls (for idempotency and resume tests). Errors: one
 | `GoogleBusiness` (`shared/google_business.py`) | `authorize_url(state, redirect_uri)`, `exchange_code(code, redirect_uri) -> Token{refresh_token, access_token, account_name}`, `refresh(refresh_token) -> access_token`, `list_locations(token) -> [{name: "locations/<id>", title, address, new_review_uri}]`, `patch_hours(token, location_name, regular_hours, special_hours)`, `revoke(token)` | two locations `locations/sim-1`, `locations/sim-2`, review link `https://example.invalid/review/<id>`; stores patched hours, counts calls | D |
 | `FortnoxClient` (`shared/fortnox.py`), `VismaClient` (`shared/visma.py`), same port `AccountingProviderClient` | `authorize_url(state, redirect_uri)`, `exchange_code(code, redirect_uri) -> Token{access_token, refresh_token, expires_at, company_id, org_number, company_name}`, `refresh(refresh_token) -> Token` (rotating), `post_voucher(token, Voucher{series, date, description, rows[{account, debit_ore, credit_ore, text, cost_center?}]}) -> Ref{id, series, number}`, `find_voucher(token, date, series, text_contains) -> Ref \| None`, `revoke(token)`; errors `account_missing`, `financial_year_missing`, `period_locked`, `unauthorized`, `rate_limited`, `unavailable` | in-memory company ledger, numbering per series; a used refresh token raises `unauthorized`; `missing_accounts={...}` and `org_number=` configurable | I |
 | `TextModel` (`shared/bedrock.py`) | `complete(system, prompt, *, max_tokens, json_schema=None) -> str` | with `json_schema`: the smallest valid instance (strings "Simulerad text" cut to `maxLength`, arrays at `minItems`, enums first value); without: `"Simulerad text: " + prompt[:40]`; `responses=[...]` queues canned answers | A |
-| `VoiceProvider` (`shared/voice_provider.py`, addendum) | `create_agent(config) -> provider_agent_id`, `update_agent(id, config)`, `delete_agent(id)`, `sip_target(id) -> SipTarget{uri, auth?}`, `say(call_ref, text)`, `transfer(call_ref, to_e164, timeout_s) -> TransferResult{answered}`, `end(call_ref, reason)`, `recording_url(call_ref) -> url \| None`, `parse_webhook(headers, body) -> list[VoiceEvent]` (`call_started`, `transcript`, `language_detected`, `interrupted`, `transfer_result`, `call_ended`); error `VoiceProviderError(code, retryable)` | ids `sim-agent-<sha1(name)[:10]>`, idempotent by name; `sip_target` = `sip:<id>@sim.invalid`; `say`/`transfer`/`end` recorded in `calls`; `transfer` answers per `transfer_answered=True\|False` set on the instance; `parse_webhook` accepts the simulator's own JSON (`{"events": [...]}`) with a `X-Sim-Signature: ok` header, anything else raises `unauthorized`; `recording_url` returns a `file://` fixture only when `recording=True` | L (real: `shared/voice_provider_real.py`, ElevenLabs) |
-| `Telephony` (`shared/telephony.py`, addendum) | `provision_number(country, label) -> Number{e164, provider_id}`, `release_number(provider_id)`, `set_inbound(provider_id, sip, fallback_e164)`, `transfer(call_ref, to_e164, timeout_s) -> TransferResult`, `parse_webhook(headers, body) -> list[TelephonyEvent]` (`inbound`, `ended`), `verify_forwarding(e164) -> ForwardingCheck`; error `TelephonyError(code, retryable)` | numbers `+4610000<n:04d>` handed out in order, `numbers_left=0` makes `provision_number` raise `number_unavailable`; `set_inbound` stores the target per number; webhook auth = Basic `sim:sim`; `verify_forwarding` returns `unsupported` | L (real: `shared/telephony_real.py`, 46elks) |
-| `AgentModel` (`shared/agent_model.py`, addendum) | `converse(system, messages, tools, *, max_tokens) -> Turn{text?, tool_uses[{id, name, input}], stop_reason}`; error `AgentModelError(code, retryable)` | **scripted intent table**: the last caller message is matched against Swedish and English patterns shipped with the simulator (book, availability, move, cancel, menu, hours, human, callback, yes, no, number, date, time, party size) and turned into the matching tool use or a fixed Swedish/English sentence; a `tool_result` message produces the confirmation sentence for that tool; `responses=[...]` overrides with canned turns; `delay_ms` sleeps to exercise the latency harness | L (real: `shared/agent_model_real.py`, Bedrock Converse stream) |
+| `VoiceProvider` (`shared/voice_provider.py`, addendum) | `create_agent(config) -> provider_agent_id`, `update_agent(id, config)`, `delete_agent(id)`, `sip_target(id, e164?) -> SipTarget{uri, auth?}`, `say(call_ref, text)`, `transfer(call_ref, to_e164, timeout_s) -> TransferResult{answered}`, `end(call_ref, reason)`, `recording_url(call_ref) -> url \| None`, `parse_webhook(headers, body, **request) -> list[VoiceEvent]` (`call_started`, `transcript`, `language_detected`, `interrupted`, `transfer_result`, `call_ended`), `webhook_response(answer)` (the provider's shape of Booqy's call-start answer); flags `inline_speech` (no `say()`: sentences go first in the next reply) and `deferred_tools` (transfer, hangup, language switch are system tool calls in the turn answer); error `VoiceProviderError(code, retryable)` | ids `sim-agent-<sha1(name)[:10]>`, idempotent by name; `sip_target` = `sip:<id>@sim.invalid`; `say`/`transfer`/`end` recorded in `calls`; `transfer` answers per `transfer_answered=True\|False` set on the instance; `parse_webhook` accepts the simulator's own JSON (`{"events": [...]}`) with a `X-Sim-Signature: ok` header, anything else raises `unauthorized`; `recording_url` returns a `file://` fixture only when `recording=True` | L (real: `shared/voice_provider_real.py`, ElevenLabs) |
+| `Telephony` (`shared/telephony.py`, addendum) | `provision_number(country, label) -> Number{e164, provider_id}`, `release_number(provider_id)`, `set_inbound(provider_id, sip, fallback_e164)`, `transfer(call_ref, to_e164, timeout_s) -> TransferResult`, `parse_webhook(headers, body, *, source_ip?, query?) -> list[TelephonyEvent]` (`inbound`, `ended`), `verify_forwarding(e164) -> ForwardingCheck`; error `TelephonyError(code, retryable)` | numbers `+4610000<n:04d>` handed out in order, `numbers_left=0` makes `provision_number` raise `number_unavailable`; `set_inbound` stores the target per number; webhook auth = Basic `sim:sim`; `verify_forwarding` returns `unsupported` | L (real: `shared/telephony_real.py`, 46elks) |
+| `AgentModel` (`shared/agent_model.py`, addendum) | `converse(system, messages, tools, *, max_tokens) -> Turn{text?, tool_uses[{id, name, input}], stop_reason}`; error `AgentModelError(code, retryable)` | **scripted intent table**: the last caller message is matched against Swedish and English patterns shipped with the simulator (book, availability, move, cancel, menu, hours, human, callback, yes, no, number, date, time, party size) and turned into the matching tool use or a fixed Swedish/English sentence; a `tool_result` message produces the confirmation sentence for that tool; `responses=[...]` overrides with canned turns; `delay_ms` sleeps to exercise the latency harness. **Counter-offers (2026-11-04, ADR-L decision 13):** a `hold_table` result `{held: false, ...}` produces the nearby-table sentence (first), else the `MAX_OFFERS = 3` closest same-day times on both sides (`nearest_times`: by distance, tie to the earlier time, spoken in clock order), else the next-day question; "yes" holds the nearby `tableIds`, asks for a time, or moves to the next day once (then offers a callback); "no" to a nearby table falls back to the times; the day the agent moved to stays the booked day until the caller names another, and a date the caller names starts the next-day count again (once per requested day); a `get_availability` result with `requestedTime` is spoken as "Närmast klockan ..." | L (real: `shared/agent_model_real.py`, Bedrock Converse stream) |
 
 Terraform: each feature module sets the env var from the root variable for
 the functions that use the client; `bedrock:InvokeModel` only on the
@@ -989,7 +1061,7 @@ sites bucket policy.
 | 4 | payment-intent | invoke gift-cards | `checkout.giftcard` reserve |
 | 5 | webhook-payment-intent | invoke gift-cards | `checkout.giftcard` reverse |
 | 5b | manage-order | invoke gift-cards | `checkout.giftcard` refund (added in review round 1) |
-| 6 | kassa | invoke gift-cards | `kassa.giftcard` |
+| 6 | kassa | removed 2026-11-14 (the kassa role went with Kassa) | `kassa.giftcard` |
 | 7 | accounting | invoke gift-cards | `accounting.events` (replaces Query on `byLocationDay`) |
 | 8 | insights | invoke dish-margin | `insights.dishCosts` (replaces Query on the dish-margin table) |
 | 9 | marketing, marketing-send | invoke guest-crm | `marketing.segment` (replaces GetItem/Query on CRM exports) |
@@ -1009,8 +1081,11 @@ Also flagged (addendum, new roles touching existing resources, built by
 the features in Run 2): the phone-agent roles get `lambda:InvokeFunction`
 on `tenant-site-config:live`, `get-availability:live`,
 `create-pending-reservation:live`, `get-reservation:live`,
-`mark-arrived:live`, `cancel-reservation:live`, `get-menu:live` (the
-agent's tools, ADR-L) and `PutItem/DeleteItem` on the user table limited by
+`mark-arrived:live`, `get-menu:live`,
+`list-layout-version:live` (the agent's tools, ADR-L; the last one added
+2026-11-04 for the floor plan behind the nearby-table counter-offer,
+decision 13; `cancel-reservation:live` is not invoked, a cancel goes
+through the staff status route on `mark-arrived`) and `PutItem/DeleteItem` on the user table limited by
 `dynamodb:LeadingKeys` to `USER#agent:*`; the events-tickets role gets the
 reservation and slot-occupancy item actions of `create-pending-reservation`
 for table pick (or invoke on it; decided in Run 2); both get invoke on
@@ -1022,7 +1097,10 @@ site-builder role `UpdateItem` on the tenant table limited by
 on `sites/*` of the sites bucket; waitlist role `UpdateItem` on the
 location table limited to `PK`, `SK`, `waitlist`; meta-ads role
 `GetItem/PutItem` on tenant table key `PLATFORM#META_ADS/SETTINGS`;
-callers of `notification:live` (gift-cards, waitlist) get invoke on it.
+callers of `notification:live` (gift-cards, waitlist, meta-ads-jobs for
+`meta-ads.cap-warning`, google-business-jobs for
+`google-business.review-request` SMS; that role needs no `sns:Publish`)
+get invoke on it.
 Notification itself gets no new permission.
 
 ## 15. OpenAPI
@@ -1150,6 +1228,27 @@ consoleForwardOps:
   phone-agent.settings.get:  {route: L17, target: phone-agent, audit: null}
   phone-agent.settings.put:  {route: L18, target: phone-agent, audit: phone_agent_settings_changed}
 ```
+
+### 17.1 Counter-offer additions (2026-11-04, ADR-L decision 13; on `dev` via the `claude/spec-*` PRs)
+
+```yaml
+events:
+  sources:
+    booqy.phone-agent:
+      PhoneCall.Ended: {..., counterOffer?: "enum[none,other_time,next_day,nearby_table]"}
+
+enums:
+  CounterOffer: [none, other_time, next_day, nearby_table]
+```
+
+`application/shared/contracts.py` gains the `CounterOffer` Literal, the
+optional `counterOffer` on `PhoneCallEndedDetail` and `EVENTS`; the two
+TypeScript targets that emit enums (`admin-front-end/src/shared/contracts.ts`
+and `booqy-console/web/src/contracts.ts`) gain the `CounterOffer` type and
+their new `CONTRACTS_HASH`; the console API (`booqy-console/api/src/app/contracts.py`)
+and site-kit (`customer-front-end/packages/site-kit/src/shared/contracts.ts`)
+change only their `CONTRACTS_HASH` line. All five are regenerated in the
+same change so `--check` stays clean.
 
 The generator's detail-type pattern already accepts every name above
 (`Published`, `Cancelled`, `Sold`, `CheckedIn`, `Transferred`, `Refunded`,

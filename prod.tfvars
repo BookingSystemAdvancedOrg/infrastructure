@@ -23,6 +23,12 @@ alert_emails = [
 platform_domain         = "booqy.se"
 platform_domain_zone_id = "Z04764661GIIKO8677SYH"
 
+# Both Cognito pools email invitations and password resets through SES from
+# mail.booqy.se (verified; SES production access granted), and the reset
+# email carries a link. Cognito's built-in sender (verificationemail.com,
+# 50 a day) was not reaching staff inboxes, e.g. on ithjalparna.se.
+cognito_invites_via_ses = true
+
 # Restaurant websites on each restaurant's own domain (e.g. www.arya.se),
 # attached from Booqy Console: the restaurant adds one CNAME, CloudFront
 # issues the certificate.
@@ -55,17 +61,18 @@ platform_subdomain_delegations = {
 # stripe_publishable_key = "pk_live_..."
 # turnstile_site_key     = "0x..."
 
-# Monthly prices (SEK, excluding VAT), invoiced in arrears on the 25th
+# Monthly prices (SEK, excluding VAT), invoiced in advance on the 1st for
+# that calendar month (the first month pro rata from the start day)
 # through Stripe on the platform account (live mode). Growth = 3 x Starter
 # with 30 % off (3950 x 3 x 0.7). A changed price applies to customers on
-# the plan's price from the next billing period (the daily task records
+# the plan's price from the next month (the daily task records
 # it); a customer's own price in Booqy Console is not affected.
 plans = {
   starter = {
     name          = "Starter"
     max_locations = 1
     features = {
-      reservations = true, ordering = true, catering = false, terminal = true, marketing = false, kassa = false,
+      reservations = true, ordering = true, catering = false, marketing = false,
       metaAds      = false, siteBuilder = false, guestCrm = false, googleBusiness = false, giftCards = false,
       waitlist     = false, socialPosting = false, personalliggare = false, accountingSync = false, dishMargin = false,
       events       = false, phoneAgent = false,
@@ -77,7 +84,7 @@ plans = {
     name          = "Growth"
     max_locations = 3
     features = {
-      reservations = true, ordering = true, catering = true, terminal = true, marketing = true, kassa = false,
+      reservations = true, ordering = true, catering = true, marketing = true,
       metaAds      = false, siteBuilder = false, guestCrm = false, googleBusiness = false, giftCards = false,
       waitlist     = false, socialPosting = false, personalliggare = false, accountingSync = false, dishMargin = false,
       events       = false, phoneAgent = false,
@@ -132,3 +139,21 @@ site_link_dev_account_id = "877653167825"
 # this account's SMS quota to 50 USD and moved it out of the SMS sandbox
 # (support case, 2026-10-27). Ask for more once usage passes half of it.
 sms_monthly_spend_limit_usd = 50
+
+# AI phone agent brain (owner 2026-11-13): Claude Haiku 5.5, as in dev. The
+# clients stay simulators (the feature is off in every plan) until go-live.
+phone_agent_model_id = "eu.anthropic.claude-haiku-5-5"
+
+# [NEEDS YOUR DETAILS] Booqy's address, organisation number, VAT number,
+# registered office (säte) and F-skatt for every invoice (not secret). Set
+# them before this reaches main: without name, address, org_number and
+# vat_number prod invoices nothing (every run emails the failure) and the
+# plan warns (check billing_seller_prod in config.tf).
+billing_seller = {
+  name       = "IT Hjälparna Nordic AB"
+  address    = ""
+  org_number = ""
+  vat_number = ""
+  seat       = ""
+  f_skatt    = false
+}

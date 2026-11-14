@@ -202,6 +202,20 @@ module "domain_documents" {
   environment     = var.env
   allowed_origins = local.platform_admin_app_urls
 }
+# Own background image per user, admin app and console (user-backdrop.tf).
+module "user_backdrops" {
+  source      = "./storage/s3/user-backdrops"
+  environment = var.env
+  allowed_origins = distinct(concat([
+    "https://${module.cloudfront_private.distribution_domain_name}",
+    local.admin_app_url,
+  ], local.platform_admin_app_urls))
+}
+# Each user's backdrop image library (items + selected pointer), with the bucket above.
+module "user_backdrops_table" {
+  source      = "./storage/dynamodb/user-backdrops"
+  environment = var.env
+}
 module "catering_documents" {
   source      = "./storage/s3/catering-documents"
   environment = var.env
@@ -300,12 +314,13 @@ module "manage_menu_role" {
   region                    = var.aws_region
 }
 module "manage_order_role" {
-  source             = "./security/iam/manage-order"
-  environment        = var.env
-  order_table_arn    = module.order.table_arn
-  location_table_arn = module.location.table_arn
-  stripe_secret_arn  = module.platform_secrets.stripe_secret_arn
-  region             = var.aws_region
+  published_layout_snapshot_table_arn = module.published_layout_snapshot.table_arn
+  source                              = "./security/iam/manage-order"
+  environment                         = var.env
+  order_table_arn                     = module.order.table_arn
+  location_table_arn                  = module.location.table_arn
+  stripe_secret_arn                   = module.platform_secrets.stripe_secret_arn
+  region                              = var.aws_region
 }
 module "manage_user_role" {
   source         = "./security/iam/manage-user"
@@ -313,6 +328,9 @@ module "manage_user_role" {
   user_table_arn = module.user.table_arn
   user_pool_arn  = module.cognito.user_pool_arn
   region         = var.aws_region
+
+  user_backdrops_bucket_arn = module.user_backdrops.bucket_arn
+  user_backdrops_table_arn  = module.user_backdrops_table.table_arn
 }
 module "get_reservation_role" {
   source                = "./security/iam/get-reservation"
@@ -321,21 +339,23 @@ module "get_reservation_role" {
   region                = var.aws_region
 }
 module "get_order_role" {
-  source            = "./security/iam/get-order"
-  environment       = var.env
-  order_table_arn   = module.order.table_arn
-  stripe_secret_arn = module.platform_secrets.stripe_secret_arn
-  region            = var.aws_region
+  published_layout_snapshot_table_arn = module.published_layout_snapshot.table_arn
+  source                              = "./security/iam/get-order"
+  environment                         = var.env
+  order_table_arn                     = module.order.table_arn
+  stripe_secret_arn                   = module.platform_secrets.stripe_secret_arn
+  region                              = var.aws_region
 }
 module "payment_intent_role" {
-  source                  = "./security/iam/payment-intent"
-  environment             = var.env
-  order_table_arn         = module.order.table_arn
-  menu_table_arn          = module.menu.table_arn
-  region                  = var.aws_region
-  stripe_secret_arn       = module.platform_secrets.stripe_secret_arn
-  turnstile_secret_arn    = module.catering_secrets.turnstile_secret_arn
-  request_guard_table_arn = module.request_guard.table_arn
+  published_layout_snapshot_table_arn = module.published_layout_snapshot.table_arn
+  source                              = "./security/iam/payment-intent"
+  environment                         = var.env
+  order_table_arn                     = module.order.table_arn
+  menu_table_arn                      = module.menu.table_arn
+  region                              = var.aws_region
+  stripe_secret_arn                   = module.platform_secrets.stripe_secret_arn
+  turnstile_secret_arn                = module.catering_secrets.turnstile_secret_arn
+  request_guard_table_arn             = module.request_guard.table_arn
 }
 module "mark_arrived_role" {
   source                              = "./security/iam/mark-arrived"
@@ -637,18 +657,20 @@ module "scheduler_invoke_catering_lifecycle_role" {
 
 # --- Platform / tenant control plane Lambdas -----------------------------------
 module "tenant_purge_role" {
-  source                 = "./security/iam/tenant-purge"
-  environment            = var.env
-  region                 = var.aws_region
-  tenant_table_arn       = module.tenant.table_arn
-  data_table_arns        = values(local.tenant_purge_tables)[*].arn
-  user_table_arn         = module.user.table_arn
-  user_tenant_index_name = module.user.tenant_index_name
-  tenant_user_pool_arn   = module.cognito.user_pool_arn
-  menu_image_bucket_arn  = module.menu_image.bucket_arn
-  alert_topic_arn        = module.alerts.topic_arn
-  protected_zone_ids     = local.platform_domain_enabled ? [module.platform_domain[0].zone_id] : []
-  site_repo_function_arn = module.sites.enabled ? module.sites.alias_arn : ""
+  source                    = "./security/iam/tenant-purge"
+  environment               = var.env
+  region                    = var.aws_region
+  tenant_table_arn          = module.tenant.table_arn
+  data_table_arns           = values(local.tenant_purge_tables)[*].arn
+  user_table_arn            = module.user.table_arn
+  user_tenant_index_name    = module.user.tenant_index_name
+  tenant_user_pool_arn      = module.cognito.user_pool_arn
+  menu_image_bucket_arn     = module.menu_image.bucket_arn
+  user_backdrops_bucket_arn = module.user_backdrops.bucket_arn
+  user_backdrops_table_arn  = module.user_backdrops_table.table_arn
+  alert_topic_arn           = module.alerts.topic_arn
+  protected_zone_ids        = local.platform_domain_enabled ? [module.platform_domain[0].zone_id] : []
+  site_repo_function_arn    = module.sites.enabled ? module.sites.alias_arn : ""
 }
 module "scheduler_invoke_tenant_purge_role" {
   source                  = "./security/iam/scheduler-invoke-tenant-purge"
@@ -724,6 +746,8 @@ module "platform_tenants_role" {
   domains_enabled                    = local.tenant_sites_enabled
   domain_provision_state_machine_arn = module.tenant_workflows.domain_provision_state_machine_arn
   domain_documents_bucket_arn        = module.domain_documents.bucket_arn
+  user_backdrops_bucket_arn          = module.user_backdrops.bucket_arn
+  user_backdrops_table_arn           = module.user_backdrops_table.table_arn
   platform_zone_id                   = local.platform_domain_enabled ? module.platform_domain[0].zone_id : ""
   mail_outbox_enabled                = local.mail_outbox_enabled
   mail_outbox_bucket_arn             = local.mail_outbox_arn
@@ -770,6 +794,7 @@ module "platform_stripe_webhook_role" {
   stripe_secret_arn          = module.platform_secrets.stripe_secret_arn
   region                     = var.aws_region
   finance_table_arn          = module.finance.table_arn
+  alert_topic_arn            = module.alerts.topic_arn
 }
 
 # Shared tenant-context read policy (tenant table + locationId index) on every
@@ -808,10 +833,6 @@ module "tenant_context_policy" {
     insights = module.insights_role.role_name
     # Kitchen printing: staff reprint and test on their own location.
     print_jobs = module.printing.role_names["print-jobs"]
-    # Card payments at the till: staff charge on their own location's readers.
-    terminal_payments = module.terminal.role_name
-    # Kassa: staff sell on their own location's registers.
-    kassa = module.kassa.role_name
   }, local.feature_staff_check_role_names)
 }
 
@@ -829,7 +850,6 @@ module "feature_hooks" {
     payment_intent         = module.payment_intent_role.role_name
     webhook_payment_intent = module.webhook_payment_intent_role.role_name
     manage_order           = module.manage_order_role.role_name
-    kassa                  = module.kassa.role_name
     accounting             = module.accounting.role_name
     insights               = module.insights_role.role_name
     marketing              = module.marketing.role_names["marketing"]
@@ -983,122 +1003,128 @@ module "print_device_ecr" {
   environment = var.env
   function    = "print-device"
 }
-# Card payments at the till (terminal.tf)
-module "terminal_payments_ecr" {
-  source      = "./storage/ecr/terminal-payments"
-  environment = var.env
-  function    = "terminal-payments"
-}
-# Kassa, the till (kassa.tf); same repository settings
-module "kassa_ecr" {
-  source      = "./storage/ecr/terminal-payments"
-  environment = var.env
-  function    = "kassa"
-}
 # Restaurant site repos (sites.tf); same repository settings
 module "site_repo_ecr" {
-  source      = "./storage/ecr/terminal-payments"
+  source      = "./storage/ecr/function"
   environment = var.env
   function    = "site-repo"
 }
 # Accounting export (accounting.tf); same repository settings
 module "accounting_ecr" {
-  source      = "./storage/ecr/terminal-payments"
+  source      = "./storage/ecr/function"
   environment = var.env
   function    = "accounting"
 }
 # Run 0 feature functions (CONTRACTS.md 12.2): created ahead so CI's
 # bootstrap pushes their placeholder images; same repository settings.
 module "meta_ads_ecr" {
-  source      = "./storage/ecr/terminal-payments"
+  source      = "./storage/ecr/function"
   environment = var.env
   function    = "meta-ads"
 }
 module "meta_ads_jobs_ecr" {
-  source      = "./storage/ecr/terminal-payments"
+  source      = "./storage/ecr/function"
   environment = var.env
   function    = "meta-ads-jobs"
 }
 module "site_builder_ecr" {
-  source      = "./storage/ecr/terminal-payments"
+  source      = "./storage/ecr/function"
   environment = var.env
   function    = "site-builder"
 }
 module "site_builder_render_ecr" {
-  source      = "./storage/ecr/terminal-payments"
+  source      = "./storage/ecr/function"
   environment = var.env
   function    = "site-builder-render"
 }
 module "guest_crm_ecr" {
-  source      = "./storage/ecr/terminal-payments"
+  source      = "./storage/ecr/function"
   environment = var.env
   function    = "guest-crm"
 }
 module "guest_crm_sync_ecr" {
-  source      = "./storage/ecr/terminal-payments"
+  source      = "./storage/ecr/function"
   environment = var.env
   function    = "guest-crm-sync"
 }
 module "google_business_ecr" {
-  source      = "./storage/ecr/terminal-payments"
+  source      = "./storage/ecr/function"
   environment = var.env
   function    = "google-business"
 }
 module "google_business_jobs_ecr" {
-  source      = "./storage/ecr/terminal-payments"
+  source      = "./storage/ecr/function"
   environment = var.env
   function    = "google-business-jobs"
 }
 module "gift_cards_ecr" {
-  source      = "./storage/ecr/terminal-payments"
+  source      = "./storage/ecr/function"
   environment = var.env
   function    = "gift-cards"
 }
 module "waitlist_ecr" {
-  source      = "./storage/ecr/terminal-payments"
+  source      = "./storage/ecr/function"
   environment = var.env
   function    = "waitlist"
 }
 module "social_posting_ecr" {
-  source      = "./storage/ecr/terminal-payments"
+  source      = "./storage/ecr/function"
   environment = var.env
   function    = "social-posting"
 }
 module "personalliggare_ecr" {
-  source      = "./storage/ecr/terminal-payments"
+  source      = "./storage/ecr/function"
   environment = var.env
   function    = "personalliggare"
 }
 module "accounting_sync_ecr" {
-  source      = "./storage/ecr/terminal-payments"
+  source      = "./storage/ecr/function"
   environment = var.env
   function    = "accounting-sync"
 }
 module "dish_margin_ecr" {
-  source      = "./storage/ecr/terminal-payments"
+  source      = "./storage/ecr/function"
   environment = var.env
   function    = "dish-margin"
 }
 # Run 0 addendum feature functions (features K and L, CONTRACTS.md 12.2).
 module "events_tickets_ecr" {
-  source      = "./storage/ecr/terminal-payments"
+  source      = "./storage/ecr/function"
   environment = var.env
   function    = "events-tickets"
 }
 module "phone_agent_ecr" {
-  source      = "./storage/ecr/terminal-payments"
+  source      = "./storage/ecr/function"
   environment = var.env
   function    = "phone-agent"
 }
 module "phone_agent_call_ecr" {
-  source      = "./storage/ecr/terminal-payments"
+  source      = "./storage/ecr/function"
   environment = var.env
   function    = "phone-agent-call"
 }
 module "phone_agent_jobs_ecr" {
-  source      = "./storage/ecr/terminal-payments"
+  source      = "./storage/ecr/function"
   environment = var.env
   function    = "phone-agent-jobs"
+}
+# In-app help assistant (help-assistant.tf); same repository settings.
+module "help_assistant_ecr" {
+  source      = "./storage/ecr/function"
+  environment = var.env
+  function    = "help-assistant"
+}
+# Own background image per user (user-backdrop.tf); same repository settings.
+module "user_backdrop_ecr" {
+  source      = "./storage/ecr/function"
+  environment = var.env
+  function    = "user-backdrop"
+}
+# Error reports from Booqy Admin (support-reports.tf); same repository settings.
+module "support_reports_ecr" {
+  source      = "./storage/ecr/function"
+  environment = var.env
+  function    = "support-reports"
 }
 module "catering_requests_ecr" {
   source      = "./storage/ecr/catering-requests"
@@ -1315,6 +1341,8 @@ module "get_availability_fn" {
   region                               = var.aws_region
   tenant_table_name                    = module.tenant.table_name
   location_id_index_name               = module.location.location_id_index_name
+  tenant_user_pool_id                  = module.cognito.user_pool_id
+  tenant_app_client_id                 = module.cognito.user_pool_client_id
 }
 module "get_location_fn" {
   source                 = "./compute/lambda/get-location"
@@ -1353,36 +1381,38 @@ module "get_reservation_fn" {
   reservation_link_key_secret_arn = module.reservation_secrets.link_signing_key_secret_arn
 }
 module "get_order_fn" {
-  source                          = "./compute/lambda/get-order"
-  environment                     = var.env
-  role_arn                        = module.get_order_role.role_arn
-  ecr_repository_url              = module.get_order_ecr.get_order_ecr_repository_url
-  order_table_name                = module.order.table_name
-  region                          = var.aws_region
-  tenant_table_name               = module.tenant.table_name
-  location_table_name             = module.location.table_name
-  location_id_index_name          = module.location.location_id_index_name
-  reservation_link_key_secret_arn = module.reservation_secrets.link_signing_key_secret_arn
-  stripe_secret_arn               = module.platform_secrets.stripe_secret_arn
-  stripe_api_version              = var.stripe_api_version
+  published_layout_snapshot_table_name = module.published_layout_snapshot.table_name
+  source                               = "./compute/lambda/get-order"
+  environment                          = var.env
+  role_arn                             = module.get_order_role.role_arn
+  ecr_repository_url                   = module.get_order_ecr.get_order_ecr_repository_url
+  order_table_name                     = module.order.table_name
+  region                               = var.aws_region
+  tenant_table_name                    = module.tenant.table_name
+  location_table_name                  = module.location.table_name
+  location_id_index_name               = module.location.location_id_index_name
+  reservation_link_key_secret_arn      = module.reservation_secrets.link_signing_key_secret_arn
+  stripe_secret_arn                    = module.platform_secrets.stripe_secret_arn
+  stripe_api_version                   = var.stripe_api_version
 }
 module "payment_intent_fn" {
-  source                          = "./compute/lambda/payment-intent"
-  environment                     = var.env
-  privacy_env                     = local.privacy_env_consent
-  role_arn                        = module.payment_intent_role.role_arn
-  ecr_repository_url              = module.payment_intent_ecr.payment_intent_ecr_repository_url
-  order_table_name                = module.order.table_name
-  menu_table_name                 = module.menu.table_name
-  stripe_secret_arn               = module.platform_secrets.stripe_secret_arn
-  stripe_api_version              = var.stripe_api_version
-  region                          = var.aws_region
-  tenant_table_name               = module.tenant.table_name
-  location_table_name             = module.location.table_name
-  location_id_index_name          = module.location.location_id_index_name
-  customer_site_url               = local.customer_site_url
-  site_domain                     = local.site_domain
-  reservation_link_key_secret_arn = module.reservation_secrets.link_signing_key_secret_arn
+  published_layout_snapshot_table_name = module.published_layout_snapshot.table_name
+  source                               = "./compute/lambda/payment-intent"
+  environment                          = var.env
+  privacy_env                          = local.privacy_env_consent
+  role_arn                             = module.payment_intent_role.role_arn
+  ecr_repository_url                   = module.payment_intent_ecr.payment_intent_ecr_repository_url
+  order_table_name                     = module.order.table_name
+  menu_table_name                      = module.menu.table_name
+  stripe_secret_arn                    = module.platform_secrets.stripe_secret_arn
+  stripe_api_version                   = var.stripe_api_version
+  region                               = var.aws_region
+  tenant_table_name                    = module.tenant.table_name
+  location_table_name                  = module.location.table_name
+  location_id_index_name               = module.location.location_id_index_name
+  customer_site_url                    = local.customer_site_url
+  site_domain                          = local.site_domain
+  reservation_link_key_secret_arn      = module.reservation_secrets.link_signing_key_secret_arn
   # Bot check on the order form only once the sites show the widget.
   turnstile_required       = var.turnstile_site_key != ""
   turnstile_secret_arn     = module.catering_secrets.turnstile_secret_arn
@@ -1401,6 +1431,8 @@ module "list_layout_version_fn" {
   user_table_name                      = module.user.table_name
   location_table_name                  = module.location.table_name
   location_id_index_name               = module.location.location_id_index_name
+  tenant_user_pool_id                  = module.cognito.user_pool_id
+  tenant_app_client_id                 = module.cognito.user_pool_client_id
 }
 module "manage_auth_fn" {
   source                   = "./compute/lambda/manage-auth"
@@ -1446,21 +1478,22 @@ module "manage_menu_fn" {
   location_id_index_name            = module.location.location_id_index_name
 }
 module "manage_order_fn" {
-  source                          = "./compute/lambda/manage-order"
-  environment                     = var.env
-  role_arn                        = module.manage_order_role.role_arn
-  ecr_repository_url              = module.manage_order_ecr.manage_order_ecr_repository_url
-  order_table_name                = module.order.table_name
-  customer_site_url               = local.customer_site_url
-  site_domain                     = local.site_domain
-  user_table_name                 = module.user.table_name
-  region                          = var.aws_region
-  tenant_table_name               = module.tenant.table_name
-  location_table_name             = module.location.table_name
-  location_id_index_name          = module.location.location_id_index_name
-  reservation_link_key_secret_arn = module.reservation_secrets.link_signing_key_secret_arn
-  stripe_secret_arn               = module.platform_secrets.stripe_secret_arn
-  stripe_api_version              = var.stripe_api_version
+  published_layout_snapshot_table_name = module.published_layout_snapshot.table_name
+  source                               = "./compute/lambda/manage-order"
+  environment                          = var.env
+  role_arn                             = module.manage_order_role.role_arn
+  ecr_repository_url                   = module.manage_order_ecr.manage_order_ecr_repository_url
+  order_table_name                     = module.order.table_name
+  customer_site_url                    = local.customer_site_url
+  site_domain                          = local.site_domain
+  user_table_name                      = module.user.table_name
+  region                               = var.aws_region
+  tenant_table_name                    = module.tenant.table_name
+  location_table_name                  = module.location.table_name
+  location_id_index_name               = module.location.location_id_index_name
+  reservation_link_key_secret_arn      = module.reservation_secrets.link_signing_key_secret_arn
+  stripe_secret_arn                    = module.platform_secrets.stripe_secret_arn
+  stripe_api_version                   = var.stripe_api_version
 }
 module "manage_user_fn" {
   source                 = "./compute/lambda/manage-user"
@@ -1474,6 +1507,9 @@ module "manage_user_fn" {
   tenant_table_name      = module.tenant.table_name
   location_table_name    = module.location.table_name
   location_id_index_name = module.location.location_id_index_name
+
+  user_backdrops_bucket_name = module.user_backdrops.bucket_name
+  user_backdrops_table_name  = module.user_backdrops_table.table_name
 }
 module "mark_arrived_fn" {
   source                               = "./compute/lambda/mark-arrived"
@@ -1786,6 +1822,8 @@ module "tenant_purge_fn" {
   catering_request_history_table_name = module.catering_request_history.table_name
   marketing_table_name                = module.marketing.table_name
   menu_image_bucket_name              = module.menu_image.bucket_name
+  user_backdrops_bucket_name          = module.user_backdrops.bucket_name
+  user_backdrops_table_name           = module.user_backdrops_table.table_name
   alert_topic_arn                     = module.alerts.topic_arn
   protected_zone_ids                  = local.platform_domain_enabled ? [module.platform_domain[0].zone_id] : []
   site_repo_function_arn              = module.sites.enabled ? module.sites.alias_arn : ""
@@ -1820,6 +1858,8 @@ module "platform_tenants_fn" {
   mail_outbox_bucket_name            = local.mail_outbox_bucket
   domain_provision_state_machine_arn = module.tenant_workflows.domain_provision_state_machine_arn
   domain_documents_bucket_name       = module.domain_documents.bucket_name
+  user_backdrops_bucket_name         = module.user_backdrops.bucket_name
+  user_backdrops_table_name          = module.user_backdrops_table.table_name
   finance_table_name                 = module.finance.table_name
   finance_rollup_alias_arn           = module.finance_rollup_fn.alias_arn
   site_repo_function_arn             = module.sites.alias_arn
@@ -1828,15 +1868,18 @@ module "platform_tenants_fn" {
   alert_topic_arn                    = module.alerts.topic_arn
   billing_tax_rate_id                = module.billing_catalog.tax_rate_id
   billing_days_until_due             = var.billing_days_until_due
+  billing_days_until_due_no_card     = var.billing_days_until_due_no_card
+  billing_reminder_steps             = var.billing_reminder_steps
+  billing_final_notice_days          = var.billing_final_notice_days
+  billing_reminder_fee_sek           = var.billing_reminder_fee_sek
+  billing_seller                     = var.billing_seller
   billing_suspend_after_days         = var.billing_suspend_after_days
-  billing_reminder_interval_days     = var.billing_reminder_interval_days
   billing_late_fee_sek               = var.billing_late_fee_sek
   billing_late_fee_after_days        = var.billing_late_fee_after_days
   billing_reference_rate_pct         = var.billing_reference_rate_pct
   billing_interest_margin_pct        = var.billing_interest_margin_pct
   billing_notice_months              = var.billing_notice_months
   billing_trial_months               = var.billing_trial_months
-  sms_price_sek                      = var.sms_price_sek
   invoicing_schedule_expression      = var.billing_invoicing_schedule
   dunning_schedule_expression        = var.billing_dunning_schedule
   scheduler_invoke_role_arn          = module.scheduler_invoke_platform_tenants_role.role_arn
@@ -1858,7 +1901,6 @@ module "finance_rollup_fn" {
   log_group_names           = local.tenant_aware_log_groups
   usd_to_sek                = var.aws_usd_to_sek
   cost_allocation           = var.cost_allocation
-  sms_price_sek             = var.sms_price_sek
   alert_topic_arn           = module.alerts.topic_arn
 }
 # Nightly figures for Statistik in the admin app (per location and day).
@@ -1908,6 +1950,9 @@ module "tenant_account_fn" {
   admin_app_url          = local.admin_app_url
   region                 = var.aws_region
   location_id_index_name = module.location.location_id_index_name
+
+  billing_days_until_due         = var.billing_days_until_due
+  billing_days_until_due_no_card = var.billing_days_until_due_no_card
 }
 module "tenant_site_config_fn" {
   source                 = "./compute/lambda/tenant-site-config"
@@ -1946,6 +1991,8 @@ module "platform_stripe_webhook_fn" {
   stripe_api_version         = var.stripe_api_version
   region                     = var.aws_region
   finance_table_name         = module.finance.table_name
+  alert_topic_arn            = module.alerts.topic_arn
+  platform_admin_app_url     = local.platform_admin_app_url
 }
 
 
@@ -2062,8 +2109,6 @@ module "lambda_releases" {
     (module.marketing.function_names["marketing-sync"])   = { alias_name = module.marketing.alias_names["marketing-sync"] }
     (module.printing.function_names["print-jobs"])        = { alias_name = module.printing.alias_names["print-jobs"] }
     (module.printing.function_names["print-device"])      = { alias_name = module.printing.alias_names["print-device"] }
-    (module.terminal.function_name)                       = { alias_name = module.terminal.alias_name }
-    (module.kassa.function_name)                          = { alias_name = module.kassa.alias_name }
     (module.accounting.function_name)                     = { alias_name = module.accounting.alias_name }
     (module.sites.function_name)                          = { alias_name = module.sites.alias_name }
   }, local.feature_lambda_releases)
@@ -2154,12 +2199,6 @@ module "api_gateway" {
   print_jobs_invoke_arn      = module.printing.alias_invoke_arns["print-jobs"]
   print_device_function_name = module.printing.function_names["print-device"]
   print_device_invoke_arn    = module.printing.alias_invoke_arns["print-device"]
-  # Card payments at the till (terminal.tf, network/api-gateway/terminal-routes.tf)
-  terminal_payments_function_name = module.terminal.function_name
-  terminal_payments_invoke_arn    = module.terminal.alias_invoke_arn
-  # Kassa (kassa.tf, network/api-gateway/kassa-routes.tf)
-  kassa_function_name = module.kassa.function_name
-  kassa_invoke_arn    = module.kassa.alias_invoke_arn
   # Accounting export (accounting.tf, network/api-gateway/accounting-routes.tf)
   accounting_function_name = module.accounting.function_name
   accounting_invoke_arn    = module.accounting.alias_invoke_arn
@@ -2225,7 +2264,6 @@ module "stripe_webhooks" {
   reservation_webhook_url = module.stripe_webhook_fn.function_url
   order_webhook_url       = module.webhook_payment_intent_fn.function_url
   catering_webhook_url    = module.catering_stripe_webhook_fn.function_url
-  terminal_webhook_url    = module.terminal.webhook_url
   platform_webhook_url    = module.platform_stripe_webhook_fn.function_url
 }
 
@@ -2348,8 +2386,6 @@ locals {
     marketing_sync             = module.marketing.role_names["marketing-sync"]
     print_jobs                 = module.printing.role_names["print-jobs"]
     print_device               = module.printing.role_names["print-device"]
-    terminal_payments          = module.terminal.role_name
-    kassa                      = module.kassa.role_name
     accounting                 = module.accounting.role_name
   }, local.feature_tenant_aware_role_names)
 
@@ -2370,6 +2406,9 @@ locals {
     module.dish_margin.wiring,
     module.events_tickets.wiring,
     module.phone_agent.wiring,
+    module.help_assistant.wiring,
+    module.user_backdrop.wiring,
+    module.support_reports.wiring,
   ]
   feature_lambda_releases         = merge([for w in local.feature_wiring : w.lambda_releases]...)
   feature_tenant_aware_role_names = merge([for w in local.feature_wiring : w.tenant_aware_role_names]...)
@@ -2483,6 +2522,7 @@ module "cloudfront_private" {
   environment                            = var.env
   admin_bucket_regional_domain_name      = module.admin_front_end_asset.bucket_regional_domain_name
   menu_image_bucket_regional_domain_name = module.menu_image.bucket_regional_domain_name
+  backdrop_bucket_name                   = module.user_backdrops.bucket_name
   aliases                                = local.platform_domain_enabled ? [local.admin_app_hostname, local.legacy_admin_app_hostname] : []
   canonical_host                         = local.platform_domain_enabled ? local.admin_app_hostname : ""
   legacy_hosts                           = local.platform_domain_enabled ? [local.legacy_admin_app_hostname] : []
@@ -2505,6 +2545,8 @@ module "cloudfront_platform_admin" {
   region     = var.aws_region
   # DomainWizard posts domain-transfer PDFs straight to this bucket
   upload_bucket_name = module.domain_documents.bucket_name
+  # Each operator's own background image (presigned POST and GET)
+  backdrop_bucket_name = module.user_backdrops.bucket_name
 }
 
 #OIDC
@@ -2605,6 +2647,19 @@ module "website_deploy_role" {
   website_bucket_arn          = module.platform_domain[0].landing_bucket_arn
   cloudfront_distribution_arn = module.platform_domain[0].landing_distribution_arn
 }
+# Desktop installers: CI in admin-front-end and booqy-console uploads to
+# https://<platform_domain>/downloads/ (network/platform-domain/downloads.tf).
+module "desktop_release_role" {
+  count             = local.platform_domain_enabled ? 1 : 0
+  source            = "./security/iam/oidc/desktop-release-role"
+  environment       = var.env
+  oidc_provider_arn = module.github_oidc_provider.provider_arn
+  github_repos = [
+    "${var.github_org}@*/${var.admin_frontend_repo}",
+    "${var.github_org}@*/${var.platform_admin_frontend_repo}",
+  ]
+  downloads_bucket_arn = module.platform_domain[0].downloads_bucket_arn
+}
 module "back_end_role" {
   source              = "./security/iam/oidc/back-end-role"
   environment         = var.env
@@ -2613,4 +2668,17 @@ module "back_end_role" {
   region              = var.aws_region
   codedeploy_app_name = module.lambda_releases.app_name
   alert_topic_arn     = module.alerts.topic_arn
+}
+
+# Prod invoices nothing while Booqy's own invoice details are missing
+# (platform-tenants refuses: mervärdesskattelagen 17 kap 24 §). A warning in
+# the plan, not an error, so other prod changes still deploy.
+check "billing_seller_prod" {
+  assert {
+    condition = var.env != "prod" || alltrue([
+      for v in [var.billing_seller.name, var.billing_seller.address, var.billing_seller.org_number, var.billing_seller.vat_number] :
+      trimspace(v) != ""
+    ])
+    error_message = "billing_seller lacks name, address, org_number or vat_number in prod.tfvars: prod invoices nothing until they are set."
+  }
 }

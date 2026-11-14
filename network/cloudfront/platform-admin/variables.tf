@@ -36,6 +36,12 @@ variable "region" {
   sensitive   = false
 }
 
+variable "backdrop_bucket_name" {
+  description = "User backdrop image bucket (storage/s3/user-backdrops): the operator's own background image, presigned POST and GET (CSP connect-src, img-src)"
+  type        = string
+  sensitive   = false
+}
+
 variable "upload_bucket_name" {
   description = "S3 bucket the Console uploads to with presigned POSTs (CSP connect-src)"
   type        = string

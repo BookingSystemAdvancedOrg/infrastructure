@@ -378,8 +378,17 @@ When you paste the Run 2 prompt, add these two builders to its parallel list (ma
     toggle, per-tenant config wizard "Så svarar vi i telefon" (name, greeting, tone, hours,
     recording opt-in), minutes metering + caps + alarm + kill switch, Telefon page in admin
     (calls list, transcripts, callbacks, settings), console view of minutes per tenant.
-    Tests: the scripted call simulator must cover: book inside rules, full day → next day offer,
-    party over guarantee limit → SMS link, move, cancel inside cutoff, special day closed, menu
+    Counter-offers per ADR-L decision 13: requested time taken → the three closest free times
+    the same day on both sides of it; whole day full → the next day once, then a callback;
+    a nearby table at the requested time (adjacent pair, larger table, phone-only table on the
+    published floor plan) offered first; per-location counterOffers toggles in the wizard and
+    L4; counterOffer on the call row, L7/L8 and PhoneCall.Ended; tool side offers() from the
+    real availability responses and the active layout.
+    Tests: the scripted call simulator must cover: book inside rules, time taken → closest
+    same-day times on both sides (three, clock order, tie to the earlier), full day → next day
+    offer, next day also full → callback, nearby table (adjacent pair, larger, phone-only)
+    offered first and held on "yes", times on "no", no floor plan → times only, table taken
+    before booking → re-offer, party over guarantee limit → SMS link, move, cancel inside cutoff, special day closed, menu
     question, unknown question → callback, "speak to a human" → transfer, transfer unanswered →
     AI resumes, foreign-tenant isolation, entitlement off, cap reached mid-month, disclosure
     present even when interrupted. English and Swedish variants of each.

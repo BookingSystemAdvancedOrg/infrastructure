@@ -120,8 +120,6 @@ output "ecr_repository_urls" {
     marketing_sync             = module.marketing_sync_ecr.repository_url
     print_jobs                 = module.print_jobs_ecr.repository_url
     print_device               = module.print_device_ecr.repository_url
-    terminal_payments          = module.terminal_payments_ecr.repository_url
-    kassa                      = module.kassa_ecr.repository_url
     accounting                 = module.accounting_ecr.repository_url
     site_repo                  = module.site_repo_ecr.repository_url
     meta_ads                   = module.meta_ads_ecr.repository_url
@@ -142,6 +140,9 @@ output "ecr_repository_urls" {
     phone_agent                = module.phone_agent_ecr.repository_url
     phone_agent_call           = module.phone_agent_call_ecr.repository_url
     phone_agent_jobs           = module.phone_agent_jobs_ecr.repository_url
+    help_assistant             = module.help_assistant_ecr.repository_url
+    user_backdrop              = module.user_backdrop_ecr.repository_url
+    support_reports            = module.support_reports_ecr.repository_url
   }
 }
 
@@ -251,6 +252,17 @@ output "booqy_website_deploy" {
     CLOUDFRONT_DISTRIBUTION_ID = module.platform_domain[0].landing_distribution_id
     SITE_DOMAIN                = var.platform_domain
     ADMIN_HOST                 = local.admin_app_hostname
+  } : null
+}
+
+# admin-front-end and booqy-console: the desktop installer workflow.
+#   terraform output -json desktop_downloads
+output "desktop_downloads" {
+  description = "Where the desktop installer workflow uploads, and the public base URL"
+  value = local.platform_domain_enabled ? {
+    OIDC_ROLE_ARN = module.desktop_release_role[0].role_arn
+    S3_BUCKET     = module.platform_domain[0].downloads_bucket_name
+    BASE_URL      = "https://${var.platform_domain}/downloads"
   } : null
 }
 

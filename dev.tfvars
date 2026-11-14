@@ -77,17 +77,17 @@ cognito_invites_via_ses = false
 # emails to a private S3 outbox instead (Booqy Console, "Mail outbox").
 mail_outbox = false
 
-# Monthly prices (SEK, excluding VAT), invoiced in arrears on the 25th
-# through Stripe on the platform account (sandbox mode). Growth = 3 x Starter
+# Monthly prices (SEK, excluding VAT), invoiced in advance on the 1st
+# through Stripe on the platform account (sandbox mode in dev). Growth = 3 x Starter
 # with 30 % off (3950 x 3 x 0.7). A changed price applies to customers on
-# the plan's price from the next billing period (the daily task records
+# the plan's price from the next month (the daily task records
 # it); a customer's own price in Booqy Console is not affected.
 plans = {
   starter = {
     name          = "Starter"
     max_locations = 1
     features = {
-      reservations = true, ordering = true, catering = false, terminal = true, marketing = false, kassa = false,
+      reservations = true, ordering = true, catering = false, marketing = false,
       metaAds      = false, siteBuilder = false, guestCrm = false, googleBusiness = false, giftCards = false,
       waitlist     = false, socialPosting = false, personalliggare = false, accountingSync = false, dishMargin = false,
       events       = false, phoneAgent = false,
@@ -99,7 +99,7 @@ plans = {
     name          = "Growth"
     max_locations = 3
     features = {
-      reservations = true, ordering = true, catering = true, terminal = true, marketing = true, kassa = false,
+      reservations = true, ordering = true, catering = true, marketing = true,
       metaAds      = false, siteBuilder = false, guestCrm = false, googleBusiness = false, giftCards = false,
       waitlist     = false, socialPosting = false, personalliggare = false, accountingSync = false, dishMargin = false,
       events       = false, phoneAgent = false,
@@ -139,14 +139,6 @@ data_retention_dry_run = true
 # DMARC aggregate reports (privacy-variables.tf). The mailbox must exist.
 dmarc_report_address = "dmarc@booqy.se"
 
-# Kassa's control system: fiskaly SIGN SE, TEST environment. Booqy's GROUP
-# key lives in this secret (created by hand: JSON {"api_key", "api_secret",
-# "env": "TEST"}); each restaurant's own key is created by the kassa function
-# in booqy/dev/fiskaly-unit/<tenantId>. Checked end to end against fiskaly
-# TEST on 2026-10-26. Registers made under the simulator show "inte kopplad".
-kassa_fiskaly_secret_name = "booqy/dev/fiskaly-sign-se"
-kassa_control_system      = "fiskaly"
-
 # Restaurant websites, one private repo site-<slug> per customer (sites.tf,
 # docs/CUSTOMER-SITE-RUNBOOK.md). Off until the "Booqy Sites" GitHub App's
 # key is stored by hand in this secret (JSON {"app_id", "private_key"}):
@@ -159,3 +151,62 @@ per_tenant_sites = true
 # A site repo is born in the prod console, which also sets up its dev side
 # through the dev account's booqy-sites-prod-link role (sites/main.tf).
 site_link_prod_account_id = "343695380960"
+
+# AI phone agent (phone-agent.tf): the owner decided a cap of 2 concurrent
+# executions on phone-agent-call in dev. The dev apply of 2026-11-05 was
+# refused by AWS (InvalidParameterValueException: unreserved concurrency would
+# fall below 10), so the dev account Lambda quota is below 12. Set to -1
+# (unreserved) so dev can deploy; set back to 2 once the quota is raised.
+# Prod is UNDECIDED (owner, before L goes live) and stays unreserved.
+phone_agent_call_reserved_concurrency = -1
+
+# In-app help assistant in Admin and Console (help-assistant.tf). On in dev,
+# with Claude Haiku 5.5 on Bedrock through the EU inference profile (data stays
+# in the EU); only the assistant uses the real model, meta-ads and
+# site-builder stay on the simulator. Capped per tenant and platform
+# (help_assistant_monthly_answers); answers come from the corpus alone past a cap.
+help_assistant_enabled        = true
+help_assistant_bedrock_client = "real"
+help_assistant_model_id       = "eu.anthropic.claude-haiku-5-5"
+
+# AI phone agent brain (owner 2026-11-13): Claude Haiku 5.5 on Bedrock (EU
+# inference profile). The model client is real in dev, so the Telefon
+# "Prova" simulator talks to the real model; voice and telephony stay
+# simulators until the ElevenLabs and 46elks accounts exist.
+agent_model_client   = "real"
+phone_agent_model_id = "eu.anthropic.claude-haiku-5-5"
+
+# The AWS-only phone test line (owner 2026-11-13): Amazon Connect + Lex sv_SE +
+# Polly Elin in Frankfurt, a real number that reaches the agent.
+phone_test_line_enabled = true
+phone_test_line_country = "FI" # no Swedish DID stock in Connect eu-central-1 (2026-11-13); FI keeps the call inside the EU price cap
+# Restaurant 1 (tenant RADIN DJ AB, dev test data): tables and availability.
+phone_test_line_location = { tenant_id = "01m4fqaga9r6s2e1pcx7t0wx3z", location_id = "01m4fqaga9ca7cfvybw0ptzezr" }
+
+# Billing (owner 2026-11-14): in advance on the 1st, the card charged
+# automatically (emailed with 10 days until a card is added), reminders at
+# 3, 7 and 14 days and a final notice at 30 to the restaurant and the
+# operators, 60 kr reminder fee, förseningsersättning 450 kr less the
+# reminder fee, interest reference rate + 8 %. Nothing is suspended
+# automatically. The reference rate is 2.00 % for 1 July to 31 December 2026
+# (riksbank.se); update it on 1 January and 1 July.
+billing_suspend_after_days     = 0
+billing_days_until_due         = 30
+billing_days_until_due_no_card = 10
+billing_reminder_steps         = [3, 7, 14]
+billing_final_notice_days      = 30
+billing_reminder_fee_sek       = 60
+billing_late_fee_sek           = 450
+billing_late_fee_after_days    = 7
+billing_reference_rate_pct     = 2.0
+# [NEEDS YOUR DETAILS] Booqy's address, organisation number, VAT number,
+# registered office and F-skatt for the invoices (not secret). Dev invoices
+# without them (the invoicing summary lists what is missing); prod refuses.
+billing_seller = {
+  name       = "IT Hjälparna Nordic AB"
+  address    = ""
+  org_number = ""
+  vat_number = ""
+  seat       = ""
+  f_skatt    = false
+}

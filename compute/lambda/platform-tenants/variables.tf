@@ -155,6 +155,18 @@ variable "domain_documents_bucket_name" {
   sensitive   = false
 }
 
+variable "user_backdrops_bucket_name" {
+  description = "Bucket for each operator's own background image (console/<sub>/backdrop), passed as an environment variable"
+  type        = string
+  sensitive   = false
+}
+
+variable "user_backdrops_table_name" {
+  description = "Table of each operator's background image library, passed as an environment variable"
+  type        = string
+  sensitive   = false
+}
+
 variable "no_reply_email_address" {
   description = "The no-reply address news to restaurant owners is sent from (Mail page), passed as an environment variable"
   type        = string
@@ -206,10 +218,6 @@ variable "scheduler_invoke_role_arn" {
   sensitive   = true
 }
 
-variable "billing_reminder_interval_days" {
-  description = "Days between payment reminders for an unpaid invoice (0 = none from us)"
-  type        = number
-}
 
 variable "billing_late_fee_sek" {
   description = "Late fee added once per invoice unpaid after the grace period (0 = none)"
@@ -241,13 +249,8 @@ variable "billing_trial_months" {
   type        = number
 }
 
-variable "sms_price_sek" {
-  description = "Default price per SMS part, SEK excluding VAT"
-  type        = number
-}
-
 variable "invoicing_schedule_expression" {
-  description = "When the invoicing run happens (cron(), UTC): daily, it invoices every period that has ended and is not invoiced yet (on the 25th, the period just ended)"
+  description = "When the invoicing run happens (cron(), UTC): daily; on the 1st it invoices that calendar month in advance, on a start day the rest of the month, otherwise it catches up what is not invoiced yet"
   type        = string
 }
 
@@ -265,4 +268,36 @@ variable "site_repo_function_arn" {
 variable "site_repos_enabled" {
   description = "Website repo per restaurant on (the GitHub App key is configured)"
   type        = bool
+}
+
+variable "billing_days_until_due_no_card" {
+  description = "Days to pay an emailed monthly invoice while the restaurant has no card on file"
+  type        = number
+}
+
+variable "billing_reminder_steps" {
+  description = "Days after the due date for the reminders to the restaurant and the operators"
+  type        = list(number)
+}
+
+variable "billing_final_notice_days" {
+  description = "Days after the due date for the final notice (0 = none)"
+  type        = number
+}
+
+variable "billing_reminder_fee_sek" {
+  description = "Påminnelseavgift charged once per late invoice with the first reminder (0 = none)"
+  type        = number
+}
+
+variable "billing_seller" {
+  description = "Booqy's own details on every invoice (name, address, org_number, vat_number, seat, f_skatt)"
+  type = object({
+    name       = string
+    address    = string
+    org_number = string
+    vat_number = string
+    seat       = string
+    f_skatt    = bool
+  })
 }

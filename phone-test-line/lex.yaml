@@ -1,0 +1,86 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Booqy phone agent test line - the Swedish Lex V2 bot that passes every utterance to Booqy (dev only)
+Parameters:
+  BotName:
+    Type: String
+  LexRoleArn:
+    Type: String
+  RelayArn:
+    Type: String
+  InstanceArn:
+    Type: String
+Resources:
+  Bot:
+    Type: AWS::Lex::Bot
+    Properties:
+      Name: !Ref BotName
+      Description: Speech in Swedish to text for the Booqy phone agent; every turn goes to the code hook
+      RoleArn: !Ref LexRoleArn
+      DataPrivacy:
+        ChildDirected: false
+      IdleSessionTTLInSeconds: 600
+      AutoBuildBotLocales: true
+      BotLocales:
+        - LocaleId: sv_SE
+          NluConfidenceThreshold: 0.40
+          VoiceSettings:
+            VoiceId: Elin
+            Engine: neural
+          Intents:
+            - Name: Samtal
+              Description: Anything the caller says; Booqy's agent decides what it means
+              SampleUtterances:
+                - Utterance: hej
+                - Utterance: jag vill boka ett bord
+                - Utterance: har ni ett bord för fyra imorgon
+                - Utterance: vad har ni på menyn
+                - Utterance: har ni något vegetariskt
+                - Utterance: när har ni öppet
+                - Utterance: ja
+                - Utterance: nej
+                - Utterance: klockan sju
+                - Utterance: jag heter Anna
+                - Utterance: tack
+                - Utterance: hello I would like to book a table
+              DialogCodeHook:
+                Enabled: true
+              FulfillmentCodeHook:
+                Enabled: true
+            - Name: FallbackIntent
+              Description: Everything else, to the same code hook
+              ParentIntentSignature: AMAZON.FallbackIntent
+              DialogCodeHook:
+                Enabled: true
+              FulfillmentCodeHook:
+                Enabled: true
+  BotVersion:
+    Type: AWS::Lex::BotVersion
+    Properties:
+      BotId: !Ref Bot
+      BotVersionLocaleSpecification:
+        - LocaleId: sv_SE
+          BotVersionLocaleDetails:
+            SourceBotVersion: DRAFT
+  Alias:
+    Type: AWS::Lex::BotAlias
+    Properties:
+      BotId: !Ref Bot
+      BotAliasName: live
+      BotVersion: !GetAtt BotVersion.BotVersion
+      BotAliasLocaleSettings:
+        - LocaleId: sv_SE
+          BotAliasLocaleSetting:
+            Enabled: true
+            CodeHookSpecification:
+              LambdaCodeHook:
+                LambdaArn: !Ref RelayArn
+                CodeHookInterfaceVersion: "1.0"
+  ConnectAssociation:
+    Type: AWS::Connect::IntegrationAssociation
+    Properties:
+      InstanceId: !Ref InstanceArn
+      IntegrationType: LEX_BOT
+      IntegrationArn: !GetAtt Alias.Arn
+Outputs:
+  AliasArn:
+    Value: !GetAtt Alias.Arn

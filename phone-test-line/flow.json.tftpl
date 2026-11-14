@@ -1,0 +1,57 @@
+{
+  "Version": "2019-10-30",
+  "StartAction": "a1b0c0de-0000-4000-8000-000000000001",
+  "Metadata": {},
+  "Actions": [
+    {
+      "Identifier": "a1b0c0de-0000-4000-8000-000000000001",
+      "Type": "UpdateContactTextToSpeechVoice",
+      "Parameters": { "TextToSpeechVoice": "Elin", "TextToSpeechEngine": "Neural", "TextToSpeechStyle": "None" },
+      "Transitions": { "NextAction": "a1b0c0de-0000-4000-8000-000000000002" }
+    },
+    {
+      "Identifier": "a1b0c0de-0000-4000-8000-000000000002",
+      "Type": "UpdateContactData",
+      "Parameters": { "LanguageCode": "sv-SE" },
+      "Transitions": {
+        "NextAction": "a1b0c0de-0000-4000-8000-000000000003",
+        "Errors": [{ "NextAction": "a1b0c0de-0000-4000-8000-000000000003", "ErrorType": "NoMatchingError" }]
+      }
+    },
+    {
+      "Identifier": "a1b0c0de-0000-4000-8000-000000000003",
+      "Type": "ConnectParticipantWithLexBot",
+      "Parameters": {
+        "Text": ${jsonencode(greeting)},
+        "LexV2Bot": { "AliasArn": ${jsonencode(alias_arn)} },
+        "LexSessionAttributes": {
+          "callerNumber": "$.CustomerEndpoint.Address",
+          "dialedNumber": "$.SystemEndpoint.Address"
+        }
+      },
+      "Transitions": {
+        "NextAction": "a1b0c0de-0000-4000-8000-000000000005",
+        "Conditions": [],
+        "Errors": [
+          { "NextAction": "a1b0c0de-0000-4000-8000-000000000005", "ErrorType": "NoMatchingCondition" },
+          { "NextAction": "a1b0c0de-0000-4000-8000-000000000004", "ErrorType": "NoMatchingError" }
+        ]
+      }
+    },
+    {
+      "Identifier": "a1b0c0de-0000-4000-8000-000000000004",
+      "Type": "MessageParticipant",
+      "Parameters": { "Text": "Förlåt, något gick fel. Ring gärna igen om en stund." },
+      "Transitions": {
+        "NextAction": "a1b0c0de-0000-4000-8000-000000000005",
+        "Errors": [{ "NextAction": "a1b0c0de-0000-4000-8000-000000000005", "ErrorType": "NoMatchingError" }]
+      }
+    },
+    {
+      "Identifier": "a1b0c0de-0000-4000-8000-000000000005",
+      "Type": "DisconnectParticipant",
+      "Parameters": {},
+      "Transitions": {}
+    }
+  ]
+}

@@ -3,6 +3,7 @@
 **Status:** Proposed. **NEEDS LEGAL REVIEW** before any tenant uses it.
 **Date:** 2026-11-01
 **Deciders:** Owner (product), legal reviewer (Swedish tax law), orchestrator
+**Kassa removed 2026-11-14:** Booqy is online only; Kassa, the till, its routes, plan feature and fiskaly access are gone (the two kassa tables are kept for 7 years, `infrastructure/kassa.tf`). The pattern this ADR copied from the kassa journal stays in personalliggare.
 
 > This feature must never be described as compliant, approved or certified
 > ("uppfyller kraven", "godkänd", "certifierad", "Skatteverket-godkänd") in
@@ -18,7 +19,7 @@ ends, recorded as it happens, kept at the workplace and shown at once when
 Skatteverket makes an unannounced visit (kontrollbesök). Booqy already has
 staff users (`USER#<sub>/PROFILE`, tenant and location) and a proven
 append-only pattern: the kassa journal is a separate table with an explicit
-`Deny` resource policy on Update/Delete (`infrastructure/kassa/main.tf`) and
+`Deny` resource policy on Update/Delete (then `infrastructure/kassa/main.tf`) and
 a SHA-256 hash chain whose head (`jseq`, `lastHash`) sits on the register row
 (`shared/kassa.py` `entry_hash`, `verify_chain`).
 
@@ -109,6 +110,7 @@ Errors `{error, code, field?}`. Staff are held to their assigned location.
 
 Errors: 400 `invalid_personal_identity`, `reason_required`,
 `invalid_event_time` (future, or older than the retention window),
+`wrong_person` (`correctsSeq` names another person's record),
 `unsupported fields`; 403 `feature_not_in_plan`, `owner_only`; 404 foreign
 location, person or seq; 409 `already_checked_in`, `not_checked_in`,
 `no_person_for_user` (staff login not linked), `changed_retry`.

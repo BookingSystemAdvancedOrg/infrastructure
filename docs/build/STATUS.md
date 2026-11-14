@@ -3,7 +3,61 @@
 Ledger for the multi-agent build in `docs/build/PROMPTS.md`. Read this
 first when a run starts or resumes; skip anything already verified or merged.
 
-Last updated: 2026-11-02 (Run 0 merged to dev; Run 0 addendum K and L: docs, backend scaffolding, brand BRK1 and the four frontend/console scaffolding sets done on `build/run-0-addendum-kl`, awaiting fresh review).
+Last updated: 2026-11-05 (Run 2 batch 2: H Personalliggare and L AI phone agent built on `build/run-2b-integration`, draft PRs against `dev`, reviewed once, fix round 1 applied, see "Fix round 1" under Run 2 batch 2 below). Previously: 2026-11-04 (Run 2 batch 1: D, E, F, G built on `build/run-2-<feature>`, merged into `build/run-2-integration` and then to `dev`, awaiting the owner's go-ahead, see Run 2 batch 1 below; spec change after the Run 1 merges: ADR-L counter-offers settled and the ADR-A2 all-platform ads addendum written on draft PRs, see "Spec change 2026-11-04" below; Run 1 A, B1, C are on `dev` awaiting the owner's go-ahead).
+
+## Feature L going live, 2026-11-13 (ADR-L decision 14)
+
+On `dev` in infrastructure, application and admin-front-end. Real adapters
+for ElevenLabs (`shared/voice_provider_real.py`), 46elks
+(`shared/telephony_real.py`) and Bedrock (`shared/agent_model_real.py`),
+all behind `voice_client` / `telephony_client` / `agent_model_client`
+(still `simulator`); automatic language switching (11 call languages,
+disclosure in each); location from the called number and shared numbers
+(L4 `shareNumberWith`, the agent asks which location); `get_restaurant_info`
+with special days and booking rules of the called location only; admin
+Telefon: language choices, shared number, simulator shows the language.
+Tests: `test_phone_agent_live.py` (language switch, shared number,
+multi-location and foreign-tenant isolation, counter-offers end to end
+through L6 in Swedish and English, a whole ElevenLabs call),
+`test_phone_agent_adapters.py`. New IAM row, approved by the owner
+2026-11-13: `phone-agent` `EndpointKeyForVoiceAgent` (GetSecretValue on
+the endpoint key secret). Owner actions before go-live: see `phone-agent/README.md`
+"Going live".
+
+## Spec change 2026-11-04 (owner instructions of 2026-11-04, Fable-led, no code behind a flag changes)
+
+Branches `claude/spec-<repo>-*` with **draft PRs against `dev`** (listed
+in PIPELINE.md); nothing merged, nothing to main, every feature stays
+off.
+
+- **L counter-offers (ADR-L decision 13, DECISIONS.md 2026-11-04 x2,
+  CONTRACTS.md 1.3/5/6.L/13/14/17.1):** book if free; else the three
+  closest same-day times on both sides; else the next day once, then a
+  callback; a nearby table (adjacent pair within 1.0 m on the published
+  floor plan, a larger table, a phone-only table) offered first at the
+  requested time; the agent books through the staff manual route with
+  `source: phone`, no server-side hold. Contract: enum `CounterOffer`,
+  `PhoneCall.Ended.counterOffer?`, L4 `counterOffers{}`, L7/L8
+  `counterOffer`; `booqy.yaml` changed and all five generated files
+  regenerated (`gen_contracts.py --check` clean with the siblings beside
+  it). Simulator (`shared/agent_model.py`) carries the counter-offer
+  sentences and flow in Swedish and English;
+  `tests/test_phone_agent_counter_offers.py` (30 cases, incl. the review
+  fix: the next day is offered once per day the caller asks for) green;
+  full application suite 4032 passed, 3 skipped; ruff: 3 pre-existing
+  findings (not a CI gate). Unverified: the tool side (`offers()` from
+  the real availability responses, the layout read) is Run 2 work.
+- **A all platforms (ADR-A2, DECISIONS.md 2026-11-04):** platform
+  adapter port behind the existing wizard; Meta then Google Ads then
+  TikTok, Snapchat/Pinterest only on demand, others not suitable or
+  not possible; per platform API access, approval, ad rules, cost
+  stated with owner choices marked; spend confirmation enforced by
+  `confirmedTotalSek`; schedules with limits and self-stop; first-time
+  guide, daily view, plain tracking; brand only; **money-screen rule
+  flagged** (owner-only/hidden-amount kept until the owner decides).
+  Split A2 (Run 2) / A3 Google, A4 TikTok (Run 3); no run of its own.
+  Contract rows are written at the Run 2 cut; nothing in `booqy.yaml`
+  changed for A.
 
 ## Run 0: Foundations
 
@@ -266,6 +320,377 @@ retention periods, provider contracts (ElevenLabs, 46elks), art. 50 and
 recording wording, VAT treatment of tickets, Kassa ticket payments (v1.1),
 entitlement key spelled `phoneAgent` (camelCase, not `phone_agent`).
 
+
+## Run 1: Wave A (A Meta ads, B1 Site builder core, C Guest CRM)
+
+**State: built, integrated, gates green, NOT reviewed (2026-11-03).** The
+worker-orchestrator session had no sub-agent tool, so the builder work was
+done in one Opus 5.5 session and **no fresh Fable code reviewer or brand
+guardian reviewer has run yet**. Per RULES.md no feature is "verified"
+until both sign off; the Booqy Orchestrator runs those reviews on the draft
+PRs. Nothing merged.
+
+Branches (pushed): `build/run-1-guest-crm`, `build/run-1-meta-ads`,
+`build/run-1-site-builder` per touched repo, merged in that order into
+`build/run-1-integration` (no conflicts). Draft PRs from
+`build/run-1-integration` into `dev`: see the PR list in the run report.
+
+| Repo | C guest-crm | A meta-ads | B site-builder |
+|---|---|---|---|
+| application | API C1-C11, sync, hooks (privacy, purge, marketing.segment), rebuild job | API A1-A13, platform hook A14-A17, purge, jobs (workflow tasks, insights, sweep) | API B1-B8, Validate/Promote/MarkFailed, schema v1.json, gen_site_schema.py |
+| infrastructure | module, routes, root file | module, ASL, schedules, routes | module, ASL, routes |
+| admin-front-end | Gäster, profile, segments, audience picker, badge | Annonser tab, wizard, overview tiles | Webbplats editor |
+| booqy-console | none | A14-A17 routes, settings card, tenant section | none (B11-B13 are B2) |
+| customer-front-end | none | none | SitePage, BuilderPage, PreviewPage, render-lambda |
+
+Gates on `build/run-1-integration` (2026-11-03):
+
+| Gate | Result |
+|---|---|
+| application pytest | 3955 passed, 3 skipped (baseline 3834 + 121 new) |
+| two-tenant isolation tests (A, B, C) | 3 passed |
+| gen_contracts.py --check (siblings beside) | in sync |
+| gen_site_schema.py --check | in sync |
+| ruff E/F/W on new Python (not a CI gate) | clean |
+| terraform fmt -check -recursive | clean |
+| terraform validate | each new module validated in isolation with hashicorp/aws 6.20.0 ("valid"); full root not run (registry blocked, Stripe provider unreachable); CI plan pending |
+| admin lint / tsc / test / build / brand-lint | 0 errors / ok / see run report / built / no blocking findings |
+| console api pytest; web tsc / test / build / brand-lint | 196 passed; ok / 116 passed / built / no blocking findings |
+| customer site-kit + app tests, typecheck, build, brand-lint; render-lambda node tests | 106 + 360 + 12 passed; ok; built; no blocking findings; 4 passed |
+
+Not verified (needs real AWS/Meta or a person): Terraform plan/apply, the
+Step Functions definitions at runtime, real Meta Marketing API (only the
+simulator; `meta_graph_real.py` is still the skeleton), real Bedrock,
+stream throttling with a third/fourth reader, the render image build
+(no pipeline job yet), UI screenshots light/dark mobile/desktop, keyboard
+and contrast audit (brand guardian's job).
+
+Open findings and decisions for the orchestrator:
+
+1. **Live site-kit preview in the admin editor** (ADR-B UI) needs site-kit
+   as an admin dependency (shared `package.json`) or a CSP `frame-src`
+   change; built instead: structure preview + "Förhandsgranska" opens the
+   real render through the private link.
+2. **customer `src/App.tsx`** (shared): in builder mode `/` still routes to
+   MenyPage; the index route must go to BuilderPage when
+   `tenant.site.mode === 'builder'` and `version > 0`.
+3. **Stream readers**: guest-crm-sync adds a third reader on the
+   reservation and catering-requests streams and a fourth on the order
+   stream. An EventBridge Pipe (ADR-C open question 1) is also a reader, so
+   it does not help; options: fan out from one consumer, or Kinesis for
+   DynamoDB.
+4. **Contract notes**: notification kind `meta-ads.cap-warning` (not in
+   CONTRACTS 9.4); 409 `assets_missing` also covers "location has no stored
+   geocode" (`cateringOrigin.position`); A9 returns no cursor; ADR-B test
+   "contrast 3:1 -> 400" cannot happen with the ADR's own nudge rule;
+   `VERSION#` gets `publishedAt/publishedBy` stamped once when first live.
+5. **Render image pipeline** for `site-builder-render` (ADR-B open
+   question 1, owner's `.github`).
+5a. **Operator rule (review F11)**: do not switch a tenant to builder mode
+   while its site repo workflow still deploys to the root `sites/<t>/`; the
+   repo deploy and Promote overwrite each other. Disable or repoint the
+   repo's deploy workflow first (`site-builder/README.md`).
+6. **`jsonschema`** is pinned in `functions/site-builder/requirements.txt`;
+   the test suite gets it via `openapi-spec-validator` (listing it in
+   requirements-dev.txt is a shared change).
+
+Accepted debt for Run 1, scheduled for Run 2 (scale; review fix round 2,
+not coded on purpose):
+
+7. **Nightly Meta ads statistics run one restaurant after another in one
+   job.** Each night at 04:00 a single 5-minute job fetches yesterday's ad
+   numbers from Meta for every connected restaurant in turn. With a few
+   restaurants this takes seconds; at roughly 100+ connected restaurants
+   (or a slow Meta day) it can run out of time, and the restaurants late in
+   the list then get no numbers that night (and their spend cap is checked
+   a day late). Nothing is double-counted, and the next night's run fills
+   the gap only for its own day. Run 2: split the job so each restaurant
+   (or small batch) runs on its own, e.g. a Step Functions Map or one
+   queue message per restaurant, and alarm when a night is incomplete.
+   Owner: meta-ads (application `functions/meta-ads-jobs`, infrastructure
+   `meta-ads/`).
+8. **Counting a guest segment reads the whole guest list each time.** When
+   an owner previews how many guests a segment reaches (Gäster >
+   Målgrupper, and the campaign audience picker), the server reads every
+   guest profile of the restaurant to count. That is fine for hundreds or
+   a few thousand guests, but cost and waiting time grow with every guest
+   and with every click. Run 2: cache the count per segment version for a
+   short time, or keep running counts, and cap how often a preview can be
+   asked for. Owner: guest-crm (application `shared/features/guest_crm`).
+
+IAM (all on NEW roles; no existing role, boundary, OIDC role, Cognito,
+CloudFront or KMS changed): see each module README. Call-outs: site-builder
+`s3:Get/Put/DeleteObject` on `sites/*` + ListBucket prefix `sites/*`, and
+tenant-table UpdateItem limited to attribute `site`; meta-ads Secrets
+Manager create/put/get/delete on `booqy/<env>/meta-ads/*`, tenant-table
+Get/Put limited to `PLATFORM#META_ADS`, `cloudwatch:PutMetricData`
+(namespace-conditioned), Bedrock only when a model id is set; meta-ads-jobs
+also gets `states:StartExecution` on the publish state machine (fix round 2:
+the 15-minute sweep restarts publishes whose start was lost). New stateful
+resources: tables `<prefix>meta-ads`, `<prefix>site-builder`,
+`<prefix>guest-crm` (PITR, deletion protection in prod), SQS
+`<prefix>guest-crm-sync-dlq`, secret `${prefix}meta-ads/app`, two Standard
+state machines.
+
+
+## Run 2 batch 1 (D Google Business Profile, E Gift cards, F Waitlist, G Social posting)
+
+**State: built, integrated, gates green, NOT reviewed (2026-11-04).** The
+worker-orchestrator session had no sub-agent tool, so the four features were
+built sequentially (D, F, G, E) in one Opus 5.5 session; **no fresh code
+reviewer or brand guardian reviewer has run yet** and no Playwright
+screenshots were taken. Per RULES.md none of D, E, F, G is "verified".
+Nothing merged. All four entitlements stay `false` in every plan.
+
+Branches (pushed): `build/run-2-google-business`, `build/run-2-waitlist`,
+`build/run-2-social-posting`, `build/run-2-gift-cards` per touched repo,
+merged in that order into `build/run-2-integration` (cut from `dev`, no
+conflicts). Draft PRs from `build/run-2-integration` into `dev` in
+infrastructure, application, admin-front-end, booqy-console and
+customer-front-end: infrastructure#42, application#73, admin-front-end#26,
+booqy-console#16, customer-front-end#18.
+
+| Repo | D google-business | F waitlist | G social-posting | E gift-cards |
+|---|---|---|---|---|
+| application | API D1-D10, hook D11, purge, privacy hooks; jobs (hourly sync, GuestVisit.Recorded -> schedule, review sender) | API F1-F10, offer timer, hooks | API G1-G8, publish worker, disconnect consumer, purge | API E1-E13, stripe.event, checkout.giftcard, kassa.giftcard, accounting.events, privacy, purge, nightly expiry |
+| infrastructure | module, routes, root file | module, routes, root file | module, routes, root file | module (+ pepper secret), routes, root file |
+| admin-front-end | GoogleProfileCard, OmdomenTab | QueuePanel, WaitlistSettingsCard | InlaggTab, ShareDishAction | PresentkortPage, KassaGiftCardButton |
+| booqy-console | D11 forward + Integrations section | none | none | none |
+| customer-front-end | none | KoPage, JoinQueueLink | none | PresentkortPage, SaldoPage, GiftCardField |
+
+Gates on `build/run-2-integration` (2026-11-04, this session):
+
+| Gate | Result |
+|---|---|
+| application pytest (`-n 8`) | 4100 passed, 3 skipped (new: D 35, F 22, G 20, E 21) |
+| two-tenant isolation tests (D, E, F, G) | included above, all pass |
+| gen_contracts.py --check (siblings beside) | in sync (exit 0) |
+| gen_site_schema.py --check | in sync |
+| ruff E/F/W on new Python (not a CI gate) | clean |
+| terraform fmt -check -recursive | clean |
+| terraform validate (whole root, hashicorp/aws 6.69.1, random 3.6.3, archive 2.7.1, lukasaron/stripe 3.4.0 from a local mirror; no backend) | "Success! The configuration is valid" (deprecation warnings for table-level hash_key/range_key, same as the existing modules) |
+| admin lint / tsc / vitest / build / brand-lint | 0 errors (42 warnings, dev has 36; the 6 new are `set-state-in-effect`, the pattern the existing pages use) / ok / 705 passed / built / no blocking findings |
+| console api pytest; web tsc / vitest / build / brand-lint | 199 passed (D branch, the only console change); ok / 121 passed / built / no blocking findings |
+| customer lint, site-kit tsc, tests (brand, site-kit, app), build, brand-lint | 0 errors; ok; 106 + 374 + 13 passed; built; no blocking findings |
+
+Not verified (needs real AWS, providers or a person): Terraform plan/apply
+(CI only), Scheduler one-time schedules and bus rules at runtime, real
+Google Business Profile API (simulator only; `google_business_real.py` is
+still the Run 0 skeleton), real Meta publishing (A's simulator; App Review
+for `pages_manage_posts` / `instagram_content_publish`), Stripe test mode
+end to end for gift cards (fake Stripe in tests), SMS/email delivery
+(notification mocked), UI screenshots light/dark mobile/tablet/desktop,
+keyboard and contrast audit (brand guardian), and the fresh code review.
+
+Fix rounds on `build/run-2-integration` (2026-11-04, application 38f1e00
+and 55f372e): see the DECISIONS.md entries of 2026-11-04 (E9 refund order,
+`charge.refunded` partial flag, code resend on webhook replay, G
+`needs_check` by `created_time`, D review SMS retry).
+
+Open findings and decisions for the orchestrator (contract or hotspot):
+
+1. **D click counting**: `stats.clicks30d` is always 0. The ADR's signed
+   marketing redirect (`/m/c/{token}` in `marketing-public`, frozen hotspot)
+   only knows campaign links; review emails link straight to the Google
+   review URL. Needs a hotspot change (a review-link token kind) in a later batch.
+2. **D**: review emails are sent without `MARKETING_CONFIGURATION_SET`
+   (the marketing module does not output it), so SES bounce/complaint
+   events of review emails are not tracked; add an output (marketing module,
+   frozen) or accept.
+3. **E data model addition (contract, Fable)**: `TXREF#<txId>` rows
+   (cardId per transaction id) so `kassa.giftcard` can verify a Kassa
+   payment by its `paymentId`; and `JOB/NIGHTLY` (resume point of the
+   nightly job). Not in CONTRACTS.md 4.
+4. **E10 "Skicka igen" rotates the code**: codes are stored only as
+   HMAC + last4 (ADR-E 3), so a resend issues a new code and the old one
+   stops working. ADR text says "resend"; confirm (Fable/owner).
+5. **E Kassa is blocked** by Run 0's `ControlSystem.voucher_method = None`
+   (501 `gift_card_receipt_not_supported`, legal check of the control
+   system's voucher payment means). E12 works; the admin button reverses
+   the debit when Kassa refuses. Gift cards in Kassa need that decision.
+6. **E accounting**: the card part of a refunded online order is booked on
+   the OBS account with a warning (the order export only refunds the Stripe
+   part); `charge.dispute.closed` lacks `metadata.kind` (Run 0 note), so
+   lost disputes are not routed yet. **VAT treatment: needs accountant review.**
+7. **G "Föreslå text"** (Bedrock caption, ADR-G 7) has no route in
+   CONTRACTS.md 6.G, so it is not built; drafts use the Swedish template.
+8. **F card guarantee** on waitlist conversions: none (ADR-F open question 3, owner to confirm).
+9. **ROUTES.md**: `generate_routes.py` lists only the `/tenant/...` and
+   `/platform/...` feature routes (the `[^\]]*` list regex stops early), the
+   same gap as Run 1's meta-ads; the routes themselves are in the
+   `*-routes.tf` lists. Generator fix is integrator work.
+10. **G `needs_check` needs `created_time` from the Meta port (follow-up
+   in A's files, not G's)**: the worker (application 55f372e) adopts a
+   Page post only when `created_time >= firstAttemptAt - 120 s`. A's
+   simulator (`shared/meta_graph.py` `publish_page_photo`) stamps no
+   `created_time` on the posts it records, and `shared/meta_graph_real.py`
+   is still the Run 0 skeleton, so today recovery only matches posts the
+   tests add by hand. When A builds `RealMetaGraph.recent_page_posts` it
+   must request `fields=id,message,permalink_url,created_time` and return
+   `created_time` (ISO 8601 with offset), and the simulator should stamp it
+   at publish (DECISIONS.md 2026-11-04, ADR-G 6).
+
+IAM (all on NEW roles; no existing role, permissions boundary, OIDC/deploy
+role, Cognito, CloudFront or KMS changed; the hook callers' invoke grants on
+the four `:live` aliases exist since Run 0): see each module README and the
+infrastructure PR. Rows that touch existing resources: waitlist role item
+actions on the reservation and slot-occupancy tables (as
+create-pending-reservation) and UpdateItem on the location table limited to
+attribute `waitlist`; google-business-jobs GetItem on reservation and order
+tables, Query on the consent log, GetSecretValue on the marketing link key,
+`ses:SendRawEmail` from the no-reply address, invoke on `notification:live`
+for the review SMS (no `sns:Publish`; fix round 2026-11-04);
+social-posting GetSecretValue on A's `booqy/<env>/meta-ads/*` and GetItem on
+A's table (read only); gift-cards GetSecretValue on the platform Stripe key
+and the Turnstile secret; waitlist, gift-cards invoke `notification:live`.
+New stateful resources: tables `<prefix>google-business`,
+`<prefix>waitlist`, `<prefix>social-posting`, `<prefix>gift-cards`; secrets
+`${prefix}google-business/app` (value by hand) and
+`${prefix}gift-cards/code-pepper` (random); Scheduler groups
+`<prefix>google-business`, `<prefix>waitlist`, `<prefix>social-posting`;
+SQS DLQs `<prefix>google-business-dlq`, `<prefix>social-posting-dlq`.
+
+## Run 2 batch 2 (H Personalliggare, L AI phone agent)
+
+**State: built, gates green, NOT reviewed (2026-11-05).** One worker
+session (no sub-agent tool), H first then L, on `build/run-2b-integration`
+(cut from `dev`) in infrastructure, application, admin-front-end and
+booqy-console (customer-front-end untouched). Draft PRs against `dev`;
+nothing merged. No fresh code reviewer or brand guardian reviewer has run,
+so neither feature is "verified" (RULES.md). Both entitlements stay `false`
+in every plan; `phoneAgentMinutesPerMonth` stays 0.
+
+| Repo | H personalliggare | L phone-agent |
+|---|---|---|
+| application | API H1-H8, `platform` hook (H9 export), `tenant.purge` (state table only), hash chain via `shared.kassa.entry_hash`, corrections as new records, inspection note, CSV/JSON export with chain check, personnummer/samordningsnummer check, copy test | API L1-L12, hooks L15-L18 (`platform`), `privacy.export/erase`, `tenant.purge`, `billing.usage`; `phone-agent-call` (L13/L14 webhooks, turn endpoint, disclosure, guards, metering); `phone-agent-jobs` (sweep, nightly); tools + `offers()` (decision 13); simulator counter-offer extension for a refused booking |
+| infrastructure | module: state table, append-only ledger (Deny resource policy, deletion protection everywhere), Lambda, routes incl. H9 operator route; mocked `terraform test` for the policy | module: table + 2 GSIs, recordings bucket, 3 Lambdas, Function URL, 3 secrets, 2 schedules, alarms; routes L1-L12 + L15-L18 |
+| admin-front-end | PersonalliggarePage (Idag, Visa för Skatteverket, Personer, Rättelser, Exportera; paper fallback note; title "(under granskning)") | TelefonPage (Samtal, utskrift, Återuppringningar, "Så svarar vi i telefon" wizard, Prova-simulator, kill switch), CallbacksPanel, CallBadge |
+| booqy-console | H9 forward + ExportLedgerSection | L15-L18 forwards + PhoneAgentTenantSection, PhoneAgentSettingsCard |
+
+Gates (this session, 2026-11-05):
+
+| Gate | Result |
+|---|---|
+| application pytest (`-n 4`) | 4261 passed, 2 skipped (dev baseline 4147 passed, 3 skipped; new: H 50, L 64 + the phone-agent OpenAPI check that was skipped) |
+| ruff E/F/W on new Python (not a CI gate) | clean (3 pre-existing E501 in `shared/agent_model.py`) |
+| gen_contracts.py --check (siblings beside) | in sync (no contract file changed) |
+| test_personalliggare_copy.py with admin, console, site-kit, booqy-website beside | 5 passed |
+| terraform fmt -check -recursive | clean |
+| terraform validate (whole root, hashicorp/aws 6.69.1, random 3.6.3, archive 2.7.1, lukasaron/stripe 3.4.0 from a local mirror, no backend) | Success (same deprecation warnings as the existing modules) |
+| terraform test `personalliggare/tests/ledger.tftest.hcl` (mocked AWS) | 1 passed |
+| admin oxlint / tsc / vitest / build / brand-lint | 0 errors (new warnings: set-state-in-effect, the existing pattern) / ok / 723 passed / built / no blocking findings |
+| console api pytest; web tsc / vitest / build / brand-lint | 203 passed; ok / 127 passed / built / no blocking findings |
+| Playwright screenshots | admin Personalliggare and Telefon, light/dark, 390 and 1280 px (36 files in admin `docs/screenshots/run-2-batch-2/`), from a harness with stubbed tenant/API and no AdminLayout; console sections not screenshotted |
+
+Unverified (needs AWS, providers, a person):
+
+- H: the ledger `Deny` resource policy in real AWS (moto cannot enforce it)
+  and that it does **not** block TTL expiry deletes; the whole legal list in
+  ADR-H (**needs legal review**; never described as compliant); retention
+  2 years after the calendar year.
+- L: real ElevenLabs, 46elks and Bedrock adapters are still skeletons
+  (simulators only); latency budget; Swedish voice quality; recording copy
+  from the provider to the bucket is not built (bucket and opt-in exist);
+  forwarding codes per operator; `rotationY` read as radians for the
+  nearby-table geometry; tool calls against the real existing Lambdas
+  (tests use a fake invoker with their response shapes).
+- Terraform plan/apply (CI only), Scheduler and Function URL at runtime.
+- Fresh code review and brand guardian review of both features.
+
+Open findings for the orchestrator (contract or hotspot):
+
+1. **L agent principal vs `staff_location()` (blocking for L go-live).**
+   CONTRACTS.md 4 writes `USER#agent:<l>` with `status: "system"`, but
+   `shared/tenant.staff_location()` accepts only `status: "active"`, so every
+   staff-route tool (book, list, move, cancel) would answer 404 in AWS.
+   Needs a hotspot decision: accept `system` for `agent:` subs in
+   `staff_location()`, or write `active` and filter system users out of
+   `manage-user` lists.
+2. **L13/L14 routing.** `feature-routes.tf` sends every route of a feature to
+   its one API integration (`phone-agent`), but the webhooks belong to
+   `phone-agent-call`. Built: the webhooks answer on the `phone-agent-call`
+   Function URL (no API Gateway throttle, signature-protected) and are not in
+   `phone-agent-routes.tf`. Hotspot option: an optional `integration` key per
+   route entry.
+3. **L cancel** goes through the staff status route on `mark-arrived:live`
+   (`cancelled`), not `cancel-reservation` (a guest route needing the
+   manage-link token). The ADR's IAM list names `cancel-reservation:live`;
+   it is not granted.
+4. **L provider call ids.** After `call_started` the voice provider must
+   echo `tenantId`/`callId` (returned by L14 as dynamic variables) in later
+   events and turn requests; telephony `ended` is matched by called number +
+   call reference. Verify with the real providers.
+5. **L OpenAPI**: `docs/openapi/phone-agent.yaml` documents L1-L12 only; the
+   test compares against `functions/phone-agent/app.py` ROUTES, so the
+   provider webhooks (in `phone-agent-call`) cannot be in it (README says
+   they belong there).
+6. **L `PhoneCall.Ended`/H `Personalliggare.Corrected`**: a late registration
+   (no `correctsSeq`) publishes `correctsSeq: 0` (the contract field is a
+   required int).
+7. **L guarantee-size parties** get a callback (`send_guarantee_link`
+   answers `guarantee_not_available`) until the manual-route hotspot upgrade
+   of decision 13.
+8. **L turn endpoint is buffered** (one SSE chunk); streaming needs the
+   Lambda Web Adapter image. Provisioned/reserved concurrency for
+   `phone-agent-call` not set (owner, cost).
+9. **L brand**: the admin vendor tgz of `@booqy/brand` has no `Chip` or
+   `Bar variant="live"` (BRK1 is in customer-front-end `packages/brand`, not
+   re-vendored to admin); call outcomes use the existing `status-badge`, the
+   transcript list is local CSS with tokens (open brand item). Brand guardian
+   to re-vendor and review.
+10. **H corrected view** reads the day and its two neighbours, so a
+   correction that moves a time more than one day away shows on its new day
+   only through the export.
+11. **L jobs** scan the table (sweep every 5 min, nightly); a status index is
+   the upgrade when the table grows.
+
+### Fix round 1 (2026-11-05, reviewer findings, lead-fixed: tenant isolation and hotspot changes)
+
+Fixed on `build/run-2b-integration` (application, admin-front-end,
+infrastructure; booqy-console untouched):
+
+| # | Finding | Fix | Tests |
+|---|---|---|---|
+| 1 | Agent principal: `staff_location()` refused status `system`, and the `USER#agent:<l>` row made the tenant's Användare list answer 409 | `shared/tenant.staff_location()` accepts `system` **only** for subs with the `agent:` prefix (`tenant.SYSTEM_SUB_PREFIX`, which `phone_agent.AGENT_USER_PREFIX` now reuses), for the row's own location; `manage-user` `_list_users` skips `USER#agent:*` / status `system` rows. CONTRACTS.md 4 row updated. Finding 1 above is closed. | `test_shared_tenant.py::test_agent_system_user_is_staff_of_its_own_location_only` (own location ok, other location 404, other tenant 404, human sub with `system` 404, agent sub `disabled` 404), `test_manage_user.py::test_owner_list_skips_system_principals` |
+| 5 | `phone-agent` privacy hooks queried `CALL` and `CALLBACK#` (the first prefix already covers the second): callbacks exported/erased twice | one query | `test_phone_agent_routes.py::test_privacy_hooks_count_a_callback_once` |
+| 6 | `personalliggare` purge deleted `HEAD` while ledger rows stayed: a re-onboarded tenant could never append (seq 1 exists, chain restarts) | purge keeps `LOCATION#<l>/HEAD` (seq + last hash, no personal data); everything else in the state table still goes | `test_personalliggare.py::test_purge_then_re_onboard_then_check_in_continues_the_chain` (purge, persons re-created, check-in gets seq 3 with the chain verified), purge test asserts HEAD is the only row left |
+| 9 | A correction with `correctsSeq` could name another person's record | 400 `wrong_person` (field `correctsSeq`) unless `personId` equals the target's; CONTRACTS.md H4, ADR-H errors, OpenAPI, admin `ERRORS` copy | `test_personalliggare.py::test_correction_must_name_the_person_of_the_record_it_corrects` |
+| 3 | Art. 50 evidence only on an exact-text transcript match | the first final agent transcript of a call (status `answered`) marks `disclosed`; the provider's text is stored as `disclosure.spoken`, `disclosure.verbatim` = equal to the greeting after folding case, punctuation and whitespace. ADR-L decision 6 and the admin type updated. | `test_phone_agent_calls.py::test_disclosure_evidence_is_the_providers_first_final_agent_transcript` (caller/partial transcripts ignored, normalised text verbatim, later turns never overwrite), `::test_disclosure_evidence_keeps_a_diverging_provider_text` |
+| - | unused `cancel-reservation` in `phone_agent/tools.FUNCTIONS` | removed; CONTRACTS.md 14 IAM note says it is not invoked (finding 3 above closed) | existing |
+
+Gates after the fixes: application `pytest -n 8` 4269 passed, 2 skipped
+(8 new tests); `gen_contracts.py --check` with the siblings beside: in
+sync; ruff E/F/W on the touched files: no new findings (the 5 pre-existing
+ones unchanged); admin `tsc` clean and the personalliggare/phone-agent
+vitest files 20 passed.
+
+**Needs owner / follow-ups (not fixed in this round):**
+
+- **Public Function URL on `phone-agent-call` without reserved concurrency
+  or a throttle** (the provider webhooks and the turn endpoint answer there;
+  signature/key protected, but a flood still costs Lambda time). Owner
+  decision on reserved concurrency and, if wanted, a WAF/throttle in front.
+- **Full-table Scans in `phone-agent-jobs`** (sweep every 5 min and the
+  nightly job): a sparse status index is the upgrade once the table grows
+  (finding 11 above).
+- **`correctsSeq` optional** in H4: a missing value is a late registration
+  and the event publishes `correctsSeq: 0` (finding 6 above); contract
+  owner to decide whether the field becomes nullable.
+- **Export chain growth**: H6/H9 verify the whole chain on every export
+  (`pl.chain()` reads every ledger row of the location); fine for years of
+  one restaurant's records, but a checkpointed verification is the upgrade
+  for very large locations.
+
+IAM rows (all on NEW roles; no existing role, permissions boundary,
+OIDC/deploy role, Cognito, CloudFront or KMS changed; the hook callers'
+invoke grants on `personalliggare:live` and `phone-agent:live` exist since
+Run 0 / the addendum): listed in the infrastructure PR body and in
+`personalliggare/README.md`, `phone-agent/README.md`. **Owner approval
+needed** for the rows that touch existing resources (tenant table
+`PLATFORM#PHONE_AGENT` Get/Put, user table `USER#agent:*` Put/Delete and its
+tenant index Query, invoke on seven existing `:live` functions and
+`notification:live`).
+
 ## Feature ledger
 
 Status values: todo | building | reviewing | fixing | verified | blocked |
@@ -273,15 +698,16 @@ merged.
 
 | Feature | Status | Branch | Attempts | Open issues | Unverified | Human actions needed |
 |---|---|---|---|---|---|---|
-| A. Meta ads | todo | | 0 | | | Meta Business Verification, App Review |
-| B. Site builder | todo | | 0 | | | |
-| C. Guest CRM | todo | | 0 | | | |
-| D. Google Business Profile + reviews | todo | | 0 | | | Google Business Profile API access |
-| E. Gift cards | todo | | 0 | | | Accountant: gift card VAT (single- or multi-purpose) |
-| F. Waitlist | todo | | 0 | | | |
-| G. Social posting | todo | | 0 | | | Depends on A's Meta connection |
-| H. Personalliggare | todo | | 0 | | | Legal review |
+| A. Meta ads | on dev, awaiting owner go-ahead (merged to dev 2026-11-04; CI dev smoke tests passed in all repos; real Meta/Bedrock/Step Functions runtime unverified) | `build/run-1-meta-ads` -> `build/run-1-integration` | 1 | see Run 1 open findings 4 | real Meta API, Bedrock, Step Functions runtime, screenshots | Meta Business Verification, App Review, Login for Business config, `meta-ads/app` secret value, Bedrock model access |
+| A2. Ads on all platforms (ADR-A2 addendum: adapter port, spend confirmation, schedules, guide, daily view; Run 2) / A3 Google Ads, A4 TikTok (Run 3) | spec written 2026-11-04 (draft PR), todo | `claude/spec-infrastructure-l-counter-offers-a-platforms` | 0 | owner choices in ADR-A2 [NEEDS YOUR OK]: money screens (a/b/c), Google account model, TikTok creative, entitlement keys, schedule auto-activate, Snapchat/Pinterest | real Google Ads and TikTok adapters (simulators only until approvals) | Owner: Google manager account, developer token, Explorer/Basic access, brand verification, OAuth app verification; TikTok developer app, app review, data-security check; lawyer: alcohol per platform, recurring-ad rules |
+| B. Site builder | on dev, awaiting owner go-ahead (merged to dev 2026-11-04; CI dev smoke tests passed in all repos; real Meta/Bedrock/Step Functions runtime unverified) | `build/run-1-site-builder` -> `build/run-1-integration` | 1 | Run 1 open findings 1, 2, 4, 5 | render image build, Step Functions runtime, screenshots | Owner: render image job in customer-front-end pipeline |
+| C. Guest CRM | on dev, awaiting owner go-ahead (merged to dev 2026-11-04; CI dev smoke tests passed in all repos; real Meta/Bedrock/Step Functions runtime unverified) | `build/run-1-guest-crm` -> `build/run-1-integration` | 1 | Run 1 open finding 3 (stream readers) | stream throttling, screenshots | Lawyer: legitimate-interest assessment template; marketing 19 § existing-customer exception |
+| D. Google Business Profile + reviews | on dev, awaiting owner go-ahead (merged 2026-11-04: infra#42, application#73, console#16, admin#26, customer#18; simulators/fakes only, no real-provider tests) | `build/run-2-google-business` -> `build/run-2-integration` | 1 | Run 2 batch 1 findings 1, 2 | real GBP API, Scheduler/bus rule runtime, SES/SNS delivery, screenshots | Google Business Profile API access and OAuth verification of `business.manage`; `google-business/app` secret value; lawyer: review request as marketing / soft opt-in |
+| E. Gift cards | on dev, awaiting owner go-ahead (merged 2026-11-04: infra#42, application#73, console#16, admin#26, customer#18; simulators/fakes only, no real-provider tests); **VAT treatment needs accountant review** | `build/run-2-gift-cards` -> `build/run-2-integration` | 1 | Run 2 batch 1 findings 3-6 | Stripe test mode end to end, Kassa (blocked: no voucher payment means), code email delivery, screenshots | Accountant: multi-purpose voucher, 2421/3990, breakage; lawyer: validity 24 months, withdrawal right, kassaregister voucher reporting; decision on the control system voucher means |
+| F. Waitlist | on dev, awaiting owner go-ahead (merged 2026-11-04: infra#42, application#73, console#16, admin#26, customer#18; simulators/fakes only, no real-provider tests) | `build/run-2-waitlist` -> `build/run-2-integration` | 1 | Run 2 batch 1 finding 8 | SMS delivery, Scheduler runtime, screenshots | Owner: card guarantee on conversions (v1 none) |
+| G. Social posting | on dev, awaiting owner go-ahead (merged 2026-11-04: infra#42, application#73, console#16, admin#26, customer#18; simulators/fakes only, no real-provider tests) | `build/run-2-social-posting` -> `build/run-2-integration` | 1 | Run 2 batch 1 findings 7, 10 | real Meta publishing, Instagram daily post limit, Scheduler/bus rule runtime, screenshots | Meta App Review for `pages_manage_posts` and `instagram_content_publish`; lawyer: alcohol posts (alkohollagen 7 kap.) |
+| H. Personalliggare | built, NOT reviewed (Run 2 batch 2, draft PRs 2026-11-05); **needs legal review**, never labelled compliant | `build/run-2b-integration` | 1 | Run 2 batch 2 finding 10 | Deny policy and TTL in real AWS; legal list of ADR-H | Legal review (SFL 39 kap., SKVFS, retention, paper fallback wording); owner approval of the PR; plan rows stay false until legal sign-off |
 | I. Fortnox and Visma posting | todo | | 0 | | | Fortnox and Visma developer access |
 | J. Margin per dish | todo | | 0 | | | |
-| K. Events and tickets (addendum, Run 2) | reviewing (scaffolding) | `build/run-0-addendum-kl` (all repos) | 1 | ADR-K, contracts, scaffolding AK1-7, IK1-6, ADK1-5, COK1-3, CUK1-3 and brand BRK1 (Chip, Card ticket) done, awaiting fresh review; IAM rows 11-16 need owner approval; feature code itself is Run 2 | Wallet pass signing against real Apple/Google accounts | Accountant: VAT rate list and BAS accounts for tickets (needs accountant review); lawyer: receipt by email, withdrawal-right text, resale terms; Apple Developer Pass Type ID and Google Wallet issuer; owner: plan rows, per-ticket fee or none [NEEDS YOUR OK] |
-| L. AI phone agent (addendum, Run 2) | reviewing (scaffolding) | `build/run-0-addendum-kl` (all repos) | 1 | ADR-L, contracts, scaffolding AK1-7, IK1-6, ADK1-5, COK1-3 and brand BRK1 (Bar live, Chip) done, awaiting fresh review; transcript list style not built (open brand item, Run 2); `settings.phoneAgent` fixed to `feature: null` (DECISIONS.md); IAM rows 11-16 need owner approval; 46elks SIP-forward capability to verify in sandbox week 1 of Run 2 | Real voice latency and Swedish quality (Run 3 voice QA); Nova Sonic language list (quarterly) | Voice provider account, EU residency and DPA (ElevenLabs proposed); SIP provider account, KYC and Swedish numbers (46elks proposed); Bedrock model access for `phone_agent_model_id`; lawyer: art. 50 wording, recording notice and basis, privacy notice paragraph; accountant: VAT on per-location and per-minute lines; owner: plans, included minutes, prices, retention options, default agent name, reserved concurrency [NEEDS YOUR OK]; IAM rows 11-16 approval |
+| K. Events and tickets (addendum, Run 2) | scaffolding in production, dark (merged to main by owner 2026-11-02; feature code is Run 2) | `build/run-0-addendum-kl` (all repos) | 1 | ADR-K, contracts, scaffolding AK1-7, IK1-6, ADK1-5, COK1-3, CUK1-3 and brand BRK1 (Chip, Card ticket) done, awaiting fresh review; IAM rows 11-16 need owner approval; feature code itself is Run 2 | Wallet pass signing against real Apple/Google accounts | Accountant: VAT rate list and BAS accounts for tickets (needs accountant review); lawyer: receipt by email, withdrawal-right text, resale terms; Apple Developer Pass Type ID and Google Wallet issuer; owner: plan rows, per-ticket fee or none [NEEDS YOUR OK] |
+| L. AI phone agent (addendum, Run 2) | built on `dev`, real adapters behind config (2026-11-13, ADR-L decision 14): ElevenLabs (custom LLM, language switching, SIP trunk), 46elks, Bedrock ConverseStream; per-location knowledge and shared numbers; simulators stay the default; not yet run against real accounts | `build/run-2b-integration` (infrastructure, application, admin-front-end, booqy-console) | 2 | Run 2 batch 2 findings 1-9, 11 (finding 1 blocks go-live: agent principal status vs `staff_location()`) | Real voice latency and Swedish quality (Run 3 voice QA); Nova Sonic language list (quarterly); counter-offer tool side (simulator scripts only so far) | Voice provider account, EU residency and DPA (ElevenLabs proposed); SIP provider account, KYC and Swedish numbers (46elks proposed); Bedrock model access for `phone_agent_model_id`; lawyer: art. 50 wording, recording notice and basis, privacy notice paragraph; accountant: VAT on per-location and per-minute lines; owner: plans, included minutes, prices, retention options, default agent name, reserved concurrency, counter-offer choices of decision 13 (three offers, earlier-wins tie, one next day then callback, nearby-table interpretation and 1.0 m gap, nearby before times, toggle defaults, manual-route guarantee upgrade) [NEEDS YOUR OK]; IAM rows 11-16 approval; new IAM row for Run 2: `phone-agent-call` invoke on `list-layout-version:live` |

@@ -16,6 +16,12 @@ variable "menu_image_bucket_regional_domain_name" {
   sensitive   = false
 }
 
+variable "backdrop_bucket_name" {
+  description = "User backdrop image bucket (storage/s3/user-backdrops): presigned POST uploads (CSP connect-src); the presigned GET is covered by img-src https:"
+  type        = string
+  sensitive   = false
+}
+
 variable "canonical_host" {
   description = "The admin app's own hostname (restaurang.<platform domain>); requests for a legacy_hosts name are redirected here. Empty = no redirect"
   type        = string

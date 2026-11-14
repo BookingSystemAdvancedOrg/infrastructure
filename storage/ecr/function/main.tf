@@ -1,7 +1,6 @@
-# ECR repository for the terminal-payments Lambda (card payments at the
-# till, terminal.tf). Same settings as every other function's
-# repository; one module instance in config.tf (module
-# "terminal_payments_ecr"), which is what CI's bootstrap step looks for.
+# Generic ECR repository for one application Lambda (function folder name
+# in var.function). Every function's ECR module in config.tf uses this
+# source (module "<snake>_ecr"), which is what CI's bootstrap step looks for.
 locals {
   name = var.environment == "prod" ? var.function : "${var.environment}-${var.function}"
 }
@@ -9,6 +8,8 @@ locals {
 resource "aws_ecr_repository" "this" {
   name                 = local.name
   image_tag_mutability = "MUTABLE"
+  # Only for a repository on its way out: lets Terraform delete it with its images.
+  force_delete = var.force_delete
 
   image_scanning_configuration {
     scan_on_push = true

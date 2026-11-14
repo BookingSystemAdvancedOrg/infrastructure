@@ -337,6 +337,35 @@ resource "aws_iam_role_policy" "domains" {
           "s3:DeleteObject",
         ]
         Resource = "${var.domain_documents_bucket_arn}/tenants/*"
+      },
+      {
+        # Each operator's image library (console/<sub>/...): PutObject signs
+        # the presigned POST and writes thumbnails, GetObject the presigned
+        # GETs, HeadObject and the thumbnail read, DeleteObject removes.
+        Sid    = "OperatorBackdropImages"
+        Effect = "Allow"
+        Action = [
+          "s3:PutObject",
+          "s3:GetObject",
+          "s3:DeleteObject",
+        ]
+        Resource = "${var.user_backdrops_bucket_arn}/console/*"
+      },
+      {
+        # Operator deletion: every object under console/<sub>/.
+        Sid      = "ListOperatorBackdrops"
+        Effect   = "Allow"
+        Action   = "s3:ListBucket"
+        Resource = var.user_backdrops_bucket_arn
+        Condition = {
+          StringLike = { "s3:prefix" = ["console/*"] }
+        }
+      },
+      {
+        Sid      = "OperatorBackdropLibrary"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query", "dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:DeleteItem"]
+        Resource = var.user_backdrops_table_arn
       }
       ], var.platform_zone_id == "" ? [] : [
       {

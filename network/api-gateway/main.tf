@@ -1564,14 +1564,6 @@ locals {
     "POST /platform/tenants/{tenantId}/zones/{domain}/transfer",
     "POST /platform/tenants/{tenantId}/stripe/account-link",
     "POST /platform/tenants/{tenantId}/stripe/sync",
-    # Card terminals (Stripe Terminal) per restaurant location
-    "GET /platform/tenants/{tenantId}/locations/{locationId}/terminal",
-    "POST /platform/tenants/{tenantId}/locations/{locationId}/terminal",
-    "PATCH /platform/tenants/{tenantId}/locations/{locationId}/terminal",
-    "POST /platform/tenants/{tenantId}/locations/{locationId}/terminal/readers",
-    "DELETE /platform/tenants/{tenantId}/locations/{locationId}/terminal/readers/{readerId}",
-    # Every card reader across customers, with its tenant and location
-    "GET /platform/terminal/readers",
     # Operator accounts (the operator pool itself) - every operator has the
     # same rights, including managing other operators.
     "GET /platform/operators",
@@ -1604,6 +1596,17 @@ locals {
     "GET /platform/finance/invoices",
     # Website page: booqy.se's cookieless statistics (site-analytics/)
     "GET /platform/website",
+    # The signed-in operator's background image library (user-backdrops)
+    "GET /platform/me/backdrops",
+    "POST /platform/me/backdrops/upload",
+    "POST /platform/me/backdrops/{id}/complete",
+    "PUT /platform/me/backdrops/selected",
+    "DELETE /platform/me/backdrops/{id}",
+    # The signed-in operator's profile picture (user-backdrops bucket, console/<sub>/avatar.webp)
+    "GET /platform/me/avatar",
+    "POST /platform/me/avatar/upload",
+    "POST /platform/me/avatar/complete",
+    "DELETE /platform/me/avatar",
   ]
 }
 

@@ -98,12 +98,12 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | POST | `/platform/tenants/{tenantId}/purge` | JWT (operator) | platform-tenants |
 | POST | `/platform/tenants/{tenantId}/restore` | JWT (operator) | platform-tenants |
 | POST | `/platform/tenants/{tenantId}/onboarding/retry` | JWT (operator) | platform-tenants |
-| GET | `/platform/tenants/{tenantId}/site` | JWT (operator) | platform-tenants (-> site-repo) |
-| POST | `/platform/tenants/{tenantId}/site/retry` | JWT (operator) | platform-tenants (-> site-repo) |
-| POST | `/platform/tenants/{tenantId}/site/invite` | JWT (operator) | platform-tenants (-> site-repo) |
-| POST | `/platform/tenants/{tenantId}/site/redeploy` | JWT (operator) | platform-tenants (-> site-repo) |
-| POST | `/platform/tenants/{tenantId}/site/archive` | JWT (operator) | platform-tenants (-> site-repo) |
-| POST | `/platform/tenants/{tenantId}/site/mount` | JWT (operator) | platform-tenants (dev: -> site-repo -> dev link) |
+| GET | `/platform/tenants/{tenantId}/site` | JWT (operator) | platform-tenants |
+| POST | `/platform/tenants/{tenantId}/site/retry` | JWT (operator) | platform-tenants |
+| POST | `/platform/tenants/{tenantId}/site/invite` | JWT (operator) | platform-tenants |
+| POST | `/platform/tenants/{tenantId}/site/redeploy` | JWT (operator) | platform-tenants |
+| POST | `/platform/tenants/{tenantId}/site/archive` | JWT (operator) | platform-tenants |
+| POST | `/platform/tenants/{tenantId}/site/mount` | JWT (operator) | platform-tenants |
 | GET | `/platform/tenants/{tenantId}/users` | JWT (operator) | platform-tenants |
 | POST | `/platform/tenants/{tenantId}/owners` | JWT (operator) | platform-tenants |
 | GET | `/platform/tenants/{tenantId}/locations` | JWT (operator) | platform-tenants |
@@ -122,12 +122,6 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | POST | `/platform/tenants/{tenantId}/zones/{domain}/transfer` | JWT (operator) | platform-tenants |
 | POST | `/platform/tenants/{tenantId}/stripe/account-link` | JWT (operator) | platform-tenants |
 | POST | `/platform/tenants/{tenantId}/stripe/sync` | JWT (operator) | platform-tenants |
-| GET | `/platform/tenants/{tenantId}/locations/{locationId}/terminal` | JWT (operator) | platform-tenants |
-| POST | `/platform/tenants/{tenantId}/locations/{locationId}/terminal` | JWT (operator) | platform-tenants |
-| PATCH | `/platform/tenants/{tenantId}/locations/{locationId}/terminal` | JWT (operator) | platform-tenants |
-| POST | `/platform/tenants/{tenantId}/locations/{locationId}/terminal/readers` | JWT (operator) | platform-tenants |
-| DELETE | `/platform/tenants/{tenantId}/locations/{locationId}/terminal/readers/{readerId}` | JWT (operator) | platform-tenants |
-| GET | `/platform/terminal/readers` | JWT (operator) | platform-tenants |
 | GET | `/platform/operators` | JWT (operator) | platform-tenants |
 | POST | `/platform/operators` | JWT (operator) | platform-tenants |
 | PATCH | `/platform/operators/{username}` | JWT (operator) | platform-tenants |
@@ -153,6 +147,15 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | POST | `/platform/tenants/{tenantId}/billing/invoices/{invoiceId}/remind` | JWT (operator) | platform-tenants |
 | GET | `/platform/finance/invoices` | JWT (operator) | platform-tenants |
 | GET | `/platform/website` | JWT (operator) | platform-tenants |
+| GET | `/platform/me/backdrops` | JWT (operator) | platform-tenants |
+| POST | `/platform/me/backdrops/upload` | JWT (operator) | platform-tenants |
+| POST | `/platform/me/backdrops/{id}/complete` | JWT (operator) | platform-tenants |
+| PUT | `/platform/me/backdrops/selected` | JWT (operator) | platform-tenants |
+| DELETE | `/platform/me/backdrops/{id}` | JWT (operator) | platform-tenants |
+| GET | `/platform/me/avatar` | JWT (operator) | platform-tenants |
+| POST | `/platform/me/avatar/upload` | JWT (operator) | platform-tenants |
+| POST | `/platform/me/avatar/complete` | JWT (operator) | platform-tenants |
+| DELETE | `/platform/me/avatar` | JWT (operator) | platform-tenants |
 | GET | `/tenant` | JWT | tenant-account |
 | PATCH | `/tenant` | JWT | tenant-account |
 | POST | `/tenant/stripe/account-link` | JWT | tenant-account |
@@ -174,10 +177,6 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | GET | `/locations/{locationId}/accounting` | JWT | accounting |
 | PUT | `/locations/{locationId}/accounting` | JWT | accounting |
 | GET | `/locations/{locationId}/accounting/export` | JWT | accounting |
-| GET | `/locations/{locationId}/kassa` | JWT | kassa |
-| GET | `/locations/{locationId}/kassa/{proxy+}` | JWT | kassa |
-| POST | `/locations/{locationId}/kassa/{proxy+}` | JWT | kassa |
-| PUT | `/locations/{locationId}/kassa/{proxy+}` | JWT | kassa |
 | GET | `/locations/{locationId}/print` | JWT | print-jobs |
 | GET | `/locations/{locationId}/print/{proxy+}` | JWT | print-jobs |
 | POST | `/locations/{locationId}/print/{proxy+}` | JWT | print-jobs |
@@ -186,7 +185,49 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | POST | `/print/cloudprnt/{deviceId}` | NONE | print-device |
 | GET | `/print/cloudprnt/{deviceId}` | NONE | print-device |
 | DELETE | `/print/cloudprnt/{deviceId}` | NONE | print-device |
-| GET | `/locations/{locationId}/card-payments` | JWT | terminal-payments |
-| POST | `/locations/{locationId}/card-payments` | JWT | terminal-payments |
-| GET | `/locations/{locationId}/card-payments/{proxy+}` | JWT | terminal-payments |
-| POST | `/locations/{locationId}/card-payments/{proxy+}` | JWT | terminal-payments |
+| POST | `/print/epson/{deviceId}` | NONE | print-device |
+| GET | `/tenant/gift-cards/settings` | JWT | gift-cards |
+| PUT | `/tenant/gift-cards/settings` | JWT | gift-cards |
+| GET | `/tenant/gift-cards` | JWT | gift-cards |
+| GET | `/tenant/google-business/connection` | JWT | google-business |
+| POST | `/tenant/google-business/connection/start` | JWT | google-business |
+| POST | `/tenant/google-business/connection/callback` | JWT | google-business |
+| DELETE | `/tenant/google-business/connection` | JWT | google-business |
+| GET | `/tenant/google-business/locations` | JWT | google-business |
+| GET | `/tenant/guests` | JWT | guest-crm |
+| POST | `/tenant/guests/search` | JWT | guest-crm |
+| GET | `/tenant/guest-segments` | JWT | guest-crm |
+| POST | `/tenant/guests/rebuild` | JWT | guest-crm |
+| GET | `/tenant/help-assistant` | JWT | help-assistant |
+| POST | `/tenant/help-assistant/answers` | JWT | help-assistant |
+| GET | `/tenant/meta-ads/connection` | JWT | meta-ads |
+| POST | `/tenant/meta-ads/connection/start` | JWT | meta-ads |
+| POST | `/tenant/meta-ads/connection/callback` | JWT | meta-ads |
+| GET | `/tenant/meta-ads/assets` | JWT | meta-ads |
+| PUT | `/tenant/meta-ads/connection` | JWT | meta-ads |
+| DELETE | `/tenant/meta-ads/connection` | JWT | meta-ads |
+| GET | `/platform/meta-ads/settings` | JWT (operator) | platform-tenants |
+| PUT | `/platform/meta-ads/settings` | JWT (operator) | platform-tenants |
+| GET | `/tenant/personalliggare/persons` | JWT | personalliggare |
+| GET | `/tenant/phone-agent` | JWT | phone-agent |
+| PUT | `/tenant/phone-agent/config` | JWT | phone-agent |
+| GET | `/platform/phone-agent/settings` | JWT (operator) | platform-tenants |
+| PUT | `/platform/phone-agent/settings` | JWT (operator) | platform-tenants |
+| GET | `/tenant/site-builder` | JWT | site-builder |
+| PUT | `/tenant/site-builder/draft` | JWT | site-builder |
+| POST | `/tenant/site-builder/preview-links` | JWT | site-builder |
+| POST | `/tenant/site-builder/publish` | JWT | site-builder |
+| GET | `/tenant/site-builder/versions` | JWT | site-builder |
+| POST | `/tenant/site-builder/rollback` | JWT | site-builder |
+| POST | `/public/site-builder/preview` | NONE | site-builder |
+| GET | `/tenant/social-posts` | JWT | social-posting |
+| POST | `/tenant/social-posts` | JWT | social-posting |
+| POST | `/tenant/social-posts/drafts` | JWT | social-posting |
+| POST | `/tenant/support/reports` | JWT | support-reports |
+| GET | `/me/backdrops` | JWT | user-backdrop |
+| POST | `/me/backdrops/upload` | JWT | user-backdrop |
+| PUT | `/me/backdrops/selected` | JWT | user-backdrop |
+| GET | `/me/avatar` | JWT | user-backdrop |
+| POST | `/me/avatar/upload` | JWT | user-backdrop |
+| POST | `/me/avatar/complete` | JWT | user-backdrop |
+| DELETE | `/me/avatar` | JWT | user-backdrop |

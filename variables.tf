@@ -134,21 +134,26 @@ variable "plans" {
     price_sek     = number
     limits        = optional(map(number), {})
   }))
-  description = "Plan catalog (packages you sell). A tenant's limits are copied from its plan when the plan is assigned and can be overridden per tenant from the platform dashboard - no deploy either way. Feature keys: reservations, ordering, catering, terminal (card readers for in-person payments, managed from Booqy Console), marketing (visit statistics and email campaigns to guests who opted in), kassa (the till, off by default: turn it on per tenant in Booqy Console; test mode until a certified control system is connected); metaAds, siteBuilder, guestCrm, googleBusiness, giftCards, waitlist, socialPosting, personalliggare, accountingSync, dishMargin, events, phoneAgent (the Run 0 and Run 0 addendum features, false until each ships). limits: numeric plan limits, siteBuilderAiEditsPerMonth (0-1000) and phoneAgentMinutesPerMonth (0-100000), missing = 0. price_sek: the monthly price excluding VAT, invoiced in arrears on the 25th through Stripe on the platform account; a changed price applies to customers on the plan's price from the next billing period (a customer's own price is not affected)."
+  description = "Plan catalog (packages you sell). A tenant's limits are copied from its plan when the plan is assigned and can be overridden per tenant from the platform dashboard - no deploy either way. Feature keys: reservations, ordering, catering, marketing (visit statistics and email campaigns to guests who opted in); metaAds, siteBuilder, guestCrm, googleBusiness, giftCards, waitlist, socialPosting, personalliggare, accountingSync, dishMargin, events, phoneAgent (the Run 0 and Run 0 addendum features, false until each ships). limits: numeric plan limits, siteBuilderAiEditsPerMonth (0-1000) and phoneAgentMinutesPerMonth (0-100000), missing = 0. price_sek: the monthly price excluding VAT (SMS included), invoiced in advance on the 1st for that calendar month through Stripe on the platform account; a changed price applies to customers on the plan's price from the next billing period (a customer's own price is not affected). \"free\" is reserved: Booqy Console's Free plan (no charge, growth's features) is derived from growth, not listed here."
   sensitive   = false
   default = {
     starter = {
       name          = "Starter"
       max_locations = 1
-      features      = { reservations = true, ordering = true, catering = false, terminal = true, marketing = false, kassa = false }
+      features      = { reservations = true, ordering = true, catering = false, marketing = false }
       price_sek     = 3950
     }
     growth = {
       name          = "Growth"
       max_locations = 3
-      features      = { reservations = true, ordering = true, catering = true, terminal = true, marketing = true, kassa = false }
+      features      = { reservations = true, ordering = true, catering = true, marketing = true }
       price_sek     = 8295
     }
+  }
+
+  validation {
+    condition     = !contains(keys(var.plans), "free") && contains(keys(var.plans), "growth")
+    error_message = "\"free\" is reserved for Booqy Console's Free plan (derived from growth), and growth must exist."
   }
 
   validation {
@@ -203,25 +208,63 @@ variable "billing_days_until_due" {
 }
 variable "billing_suspend_after_days" {
   type        = number
-  description = "A customer whose subscription has been past due this many days is suspended automatically by the nightly dunning task (same as Suspend in Booqy Console; resumed again when the invoice is paid). 0 = never suspend automatically."
+  description = "A customer whose invoice has been past due this many days is suspended automatically by the daily dunning task (resumed when paid). 0 = never (the owner chose reminders and fees, 2026-11-14): overdue customers are shown in Booqy Console instead."
   sensitive   = false
-  default     = 14
+  default     = 0
 }
-variable "billing_reminder_interval_days" {
+variable "billing_days_until_due_no_card" {
   type        = number
-  description = "Days between payment reminders for an unpaid invoice, from the day after its due date until it is paid (the dunning task asks Stripe to re-send the invoice email). 0 = no reminders from us (Stripe's own reminder settings still apply)."
+  description = "Days to pay the monthly invoice (in advance, on the 1st) while the restaurant has no card on file: it is emailed (send_invoice) until the owner adds a card in Booqy Admin. billing_days_until_due applies when the operator chose Invoice for the customer."
   sensitive   = false
-  default     = 7
+  default     = 10
+}
+variable "billing_reminder_steps" {
+  type        = list(number)
+  description = "Days after the due date when the restaurant gets a payment reminder by email and the operators get the same step through the alerts topic (once per invoice and step). The reminder fee comes with the first step, the förseningsersättning at billing_late_fee_after_days."
+  sensitive   = false
+  default     = [3, 7, 14]
+}
+variable "billing_final_notice_days" {
+  type        = number
+  description = "Days after the due date for the final notice (sista påminnelse) to the restaurant and the operators. Nothing is paused automatically. 0 = none."
+  sensitive   = false
+  default     = 30
+}
+variable "billing_reminder_fee_sek" {
+  type        = number
+  description = "Påminnelseavgift (VAT-free) charged once per late invoice with the first reminder, only because the restaurant terms state it. The förseningsersättning is reduced by it (4 a § lagen 1981:739). 0 = none."
+  sensitive   = false
+  default     = 60
+}
+variable "billing_seller" {
+  type = object({
+    name       = string
+    address    = string
+    org_number = string
+    vat_number = string
+    seat       = string
+    f_skatt    = bool
+  })
+  description = "Booqy's own details printed on every invoice (mervärdesskattelagen 17 kap 24 §): legal name, address, organisation number, VAT number, registered office (säte) and F-skatt. Not secret. Prod refuses to invoice while name, address, org_number or vat_number is empty (each run emails the operators the failure); a prod plan warns until they are set (check billing_seller_prod)."
+  sensitive   = false
+  default = {
+    name       = "IT Hjälparna Nordic AB"
+    address    = ""
+    org_number = ""
+    vat_number = ""
+    seat       = ""
+    f_skatt    = false
+  }
 }
 variable "billing_late_fee_sek" {
   type        = number
-  description = "Statutory late fee (förseningsavgift, VAT-free) added once per invoice that is still unpaid billing_late_fee_after_days days after its due date; 450 kr for a company customer under Swedish law. 0 = no fee. Must be stated in the customer terms."
+  description = "Förseningsersättning (4 a § lagen (1981:739) om ersättning för inkassokostnader m.m., VAT-free), once per invoice still unpaid billing_late_fee_after_days days after its due date, less any reminder fee already charged on it; 450 kr for a company customer. On a separate fee invoice. 0 = none."
   sensitive   = false
   default     = 450
 }
 variable "billing_late_fee_after_days" {
   type        = number
-  description = "Grace period in days after the due date before the late fee is added."
+  description = "Days after the due date when the förseningsersättning is charged (the second reminder step)."
   sensitive   = false
   default     = 7
 }
@@ -233,13 +276,13 @@ variable "billing_reference_rate_pct" {
 }
 variable "billing_interest_margin_pct" {
   type        = number
-  description = "Percentage points added to the reference rate for interest on late payments (dröjsmålsränta); 8 under räntelagen unless the contract says otherwise. Interest is charged, VAT-free, on the overdue amount for the days from the due date to the payment, on the customer's next invoice."
+  description = "Percentage points added to the reference rate for interest on late payments (dröjsmålsränta, räntelagen 6 §). Interest is charged, VAT-free, on the overdue amount for the days from the due date to the payment, on a separate fee invoice."
   sensitive   = false
   default     = 8
 }
 variable "billing_notice_months" {
   type        = number
-  description = "Notice period for a customer on subscription terms: a cancellation takes effect this many months after the end of the current billing month (the customer pays that many more monthly invoices). A customer in a try-out period leaves at the end of the paid month instead."
+  description = "Notice period for a customer on subscription terms: a cancellation takes effect this many months after the end of the current calendar month (the customer pays that many more monthly invoices, in advance). A customer in a try-out period leaves at the end of the current month instead."
   sensitive   = false
   default     = 3
 }
@@ -249,21 +292,15 @@ variable "billing_trial_months" {
   sensitive   = false
   default     = 6
 }
-variable "sms_price_sek" {
-  type        = number
-  description = "What a restaurant pays per SMS part (160 GSM-7 characters, 70 with emoji, long messages in parts of 153/67), in SEK excluding VAT, on its monthly invoice. Overridable per customer in Booqy Console (Billing tab). Counted from the deploy that introduced part counting; earlier SMS are not charged."
-  sensitive   = false
-  default     = 0.70
-}
 variable "billing_invoicing_schedule" {
   type        = string
-  description = "EventBridge Scheduler expression (UTC) for the invoicing run. Daily: on the 25th, after the period from the 25th to the 24th has ended, platform-tenants invoices every restaurant for that period (monthly price pro rata by days plus the SMS parts sent); on other days it only catches up what a failed or unfinished run left. After finance-rollup (04:30 UTC) and the dunning task (05:00 UTC)."
+  description = "EventBridge Scheduler expression (UTC) for the invoicing run. Daily: on the 1st platform-tenants invoices every restaurant for that calendar month in advance (the card on file is charged, else the invoice is emailed); on an agreement's first day (a start, or the first paid day after Free) the rest of that month, pro rata; an agreement on the old 25th-in-arrears cycle gets one closing invoice and continues in advance. SMS are included, never invoiced. Other days only catch up. After finance-rollup (04:30 UTC) and the dunning task (05:00 UTC)."
   sensitive   = false
   default     = "cron(30 5 * * ? *)"
 }
 variable "billing_dunning_schedule" {
   type        = string
-  description = "EventBridge Scheduler expression (UTC) for the dunning task: platform-tenants checks past-due subscriptions and suspends / resumes customers."
+  description = "EventBridge Scheduler expression (UTC) for the dunning task: platform-tenants sends the payment reminders (restaurant and operators), charges the reminder fee, förseningsersättning and interest, emails the operators' daily overdue summary, and handles the Free plan and try-outs."
   sensitive   = false
   default     = "cron(0 5 * * ? *)"
 }

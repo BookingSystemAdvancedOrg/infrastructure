@@ -3,6 +3,9 @@
 Who may create or edit which files. Paths are relative to the repo named in
 the heading. `**` = everything below, including tests in that folder.
 
+Kassa, the till, was removed on 2026-11-14 (`functions/kassa`, `kassa/**`,
+`KassaGiftCardButton.tsx` and the rest); rows naming it are history.
+
 **Default rule: a file not listed under a feature is read-only for that
 feature.** Reading, importing and referencing shared code (Python imports,
 TS imports, Terraform `module.<x>.<output>` references) is always allowed;
@@ -425,6 +428,27 @@ the console Plan tab).
 | `/site-config` fields | `tenant-site-config` (pass-through of `PROFILE.site`, location `waitlist`) | the one attribute it writes |
 | Storage keys | both registries (done) | imports of the constants |
 
+### Deviation: contract changed between Run 1 and Run 2 (spec change 2026-11-04)
+
+The row above says the contract is fixed for Runs 1-3. One recorded
+exception: the owner's 2026-11-04 spec change (ADR-L decision 13,
+CONTRACTS.md 17.1) edited these application paths between Run 1 and
+Run 2, on `dev` via application#72 (draft) and the three frontend
+companion PRs (generated files only: admin and console web gain the
+`CounterOffer` type and the new hash, console API and site-kit only the
+`CONTRACTS_HASH` line). After it merges every path returns to its usual owner.
+
+| Repo | Path | Change | Why |
+|---|---|---|---|
+| application | `contracts/booqy.yaml` | enum `CounterOffer`, optional `PhoneCall.Ended.counterOffer` | CONTRACTS.md 17.1 |
+| application | `shared/contracts.py` (generated) | `CounterOffer` Literal, `counterOffer?` on `PhoneCallEndedDetail`, `EVENTS`, `CONTRACTS_HASH` | regenerated from the YAML, `--check` clean |
+| application | `tests/test_contracts.py` | expectations for the new enum and event field | self-consistency test must cover 17.1 |
+| application | `shared/agent_model.py` | simulator counter-offer flow and sentences (sv, en) | port owned by Run 0 addendum (AK2), L owns it from Run 2; the simulator had to drive decision 13 before then |
+| admin-front-end | `src/shared/contracts.ts` (generated) | `CounterOffer` type, `CONTRACTS_HASH` | regenerated from the YAML, `--check` clean |
+| booqy-console | `web/src/contracts.ts` (generated) | `CounterOffer` type, `CONTRACTS_HASH` | regenerated from the YAML, `--check` clean |
+| booqy-console | `api/src/app/contracts.py` (generated) | `CONTRACTS_HASH` only | regenerated from the YAML, `--check` clean |
+| customer-front-end | `packages/site-kit/src/shared/contracts.ts` (generated) | `CONTRACTS_HASH` only | regenerated from the YAML, `--check` clean |
+
 ## 6. Run 0 addendum scaffolding work order (features K and L)
 
 Same rules as section 4: one implementer per repo, application first
@@ -523,6 +547,9 @@ returns to its section 1, 2 or 3 owner as usual.
 | admin-front-end | `brand-lint.config.json` | ADK2/ADK3 | `block` gains `features/events-tickets/**`, `features/phone-agent/**` | the new feature folders get the same blocking glob as the ten Run 0 features |
 | booqy-console | `web/brand-lint.config.json` | COK3 | `block` gains `features/phone-agent/**` | same, for the console placeholders |
 | customer-front-end | `brand-lint.config.json` | CUK2 | `block` gains `features/evenemang/**` | same, for the guest placeholder pages |
+| customer-front-end | `packages/site-kit/package.json`, `packages/site-kit/tsconfig.json`, `packages/site-kit/vite.config.ts`, root `package-lock.json` | Run 2 batch 1 (E, F site-kit pages; customer-front-end 2f43d25) | `dependencies` gains `"@booqy/brand": "0.1.0"`; `customConditions: ["@booqy/source"]` in tsconfig; `resolve.conditions` with `@booqy/source` in vite config; the lock file follows | the Kö and Presentkort pages use brand Bar and Button, so site-kit needs the brand package; tests and typecheck read the workspace source as the site does. DECISIONS.md 2026-11-04 records the npm alias and the brand CSS requirement before the first site-kit release |
 
 The brand-lint config files are the brand guardian's (section 2); only the
-blocking globs for the new feature folders were added, no rule changed.
+blocking globs for the new feature folders were added, no rule changed. The
+site-kit package files are the site-kit owner's (section 2); the Run 2 row
+above is the one dependency and its resolution, no build output changed.

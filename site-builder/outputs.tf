@@ -1,11 +1,20 @@
 # Merged by the root config.tf (local.feature_wiring) into lambda releases,
-# the tenant-context policy and the API Gateway integrations. Fixed shape
-# (CONTRACTS.md 12.2); empty until the feature's functions exist.
+# the tenant-context policy and the API Gateway integrations (CONTRACTS.md 12.2).
 output "wiring" {
   value = {
-    lambda_releases         = {} # "<fn name>" => { alias_name = "live" }
-    tenant_aware_role_names = {} # "<fn_name_underscored>" => role name
-    staff_check_role_names  = {} # same keys, functions where staff act
-    api_integrations        = {} # "<feature-id>" => { function_name, invoke_arn }
+    lambda_releases         = { for k, f in aws_lambda_function.fn : f.function_name => { alias_name = aws_lambda_alias.live[k].name } }
+    tenant_aware_role_names = { site_builder = aws_iam_role.fn["site-builder"].name }
+    staff_check_role_names  = {} # owner-only routes
+    api_integrations = {
+      "site-builder" = {
+        function_name = aws_lambda_function.fn["site-builder"].function_name
+        invoke_arn    = aws_lambda_alias.live["site-builder"].invoke_arn
+      }
+    }
   }
+}
+
+output "table_name" {
+  description = "Site builder table name"
+  value       = aws_dynamodb_table.this.name
 }
