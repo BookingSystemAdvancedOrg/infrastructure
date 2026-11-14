@@ -43,6 +43,10 @@ resource "aws_lambda_function" "this" {
       LOCATION_ID_INDEX_NAME               = var.location_id_index_name
       ENVIRONMENT                          = var.environment
       PUBLISHED_LAYOUT_SNAPSHOT_TABLE_NAME = var.published_layout_snapshot_table_name
+      # Lets the restaurant's own staff past the DPA gate (shared/staff_token.py):
+      # only access tokens from this pool and this app client are accepted.
+      TENANT_USER_POOL_ID  = var.tenant_user_pool_id
+      TENANT_APP_CLIENT_ID = var.tenant_app_client_id
     }
   }
 
