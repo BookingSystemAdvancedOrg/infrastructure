@@ -6,6 +6,7 @@ module "google_business" {
   ecr_repository_urls           = { "google-business" = module.google_business_ecr.repository_url, "google-business-jobs" = module.google_business_jobs_ecr.repository_url }
   tenant_table_name             = module.tenant.table_name
   location_table_name           = module.location.table_name
+  location_table_arn            = module.location.table_arn
   location_id_index_name        = module.location.location_id_index_name
   reservation_table_name        = module.reservation.table_name
   reservation_table_arn         = module.reservation.table_arn

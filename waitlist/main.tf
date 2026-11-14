@@ -41,6 +41,14 @@ locals {
       Resource = var.published_layout_snapshot_table_arn
     },
     {
+      # The privacy export/erase hooks walk every location's waitlist:
+      # tenant.list_locations: Query on TENANT#<id>, SK begins_with LOCATION# (base table only, no Scan).
+      Sid      = "ListTenantLocations"
+      Effect   = "Allow"
+      Action   = ["dynamodb:Query"]
+      Resource = var.location_table_arn
+    },
+    {
       # Mirror of publicJoin for /site-config: the one attribute only, and no
       # ReturnValues, so the role cannot read other location attributes back.
       Sid      = "MirrorPublicJoin"

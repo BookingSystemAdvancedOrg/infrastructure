@@ -21,6 +21,14 @@ locals {
 
   statements = [
     {
+      # Linked locationIds must be the tenant's own locations:
+      # tenant.list_locations: Query on TENANT#<id>, SK begins_with LOCATION# (base table only, no Scan).
+      Sid      = "ListTenantLocations"
+      Effect   = "Allow"
+      Action   = ["dynamodb:Query"]
+      Resource = var.location_table_arn
+    },
+    {
       # Persons, user pointers, the chain HEAD, presence and idempotency
       # markers; BatchWriteItem only for the tenant.purge hook.
       Sid      = "StateTable"

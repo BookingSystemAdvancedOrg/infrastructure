@@ -55,6 +55,14 @@ locals {
   statements = {
     site-builder = [
       {
+        # Draft validation checks location ids against the tenant's locations:
+        # tenant.list_locations: Query on TENANT#<id>, SK begins_with LOCATION# (base table only, no Scan).
+        Sid      = "ListTenantLocations"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = var.location_table_arn
+      },
+      {
         Sid      = "SiteBuilderTable"
         Effect   = "Allow"
         Action   = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:DeleteItem", "dynamodb:Query", "dynamodb:BatchWriteItem"]

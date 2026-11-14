@@ -52,6 +52,14 @@ locals {
   statements = {
     guest-crm = [
       {
+        # Segment rules and the rebuild check or walk the tenant's locations:
+        # tenant.list_locations: Query on TENANT#<id>, SK begins_with LOCATION# (base table only, no Scan).
+        Sid      = "ListTenantLocations"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = var.location_table_arn
+      },
+      {
         Sid      = "GuestCrmTable"
         Effect   = "Allow"
         Action   = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:DeleteItem", "dynamodb:Query", "dynamodb:BatchWriteItem"]

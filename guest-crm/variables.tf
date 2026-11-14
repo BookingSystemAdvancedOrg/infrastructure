@@ -18,6 +18,11 @@ variable "tenant_table_name" {
   type = string
 }
 
+variable "location_table_arn" {
+  type        = string
+  description = "Location table: the API lists a tenant's locations (Query on its own partition) for segment rules and the rebuild."
+}
+
 variable "location_table_name" {
   type = string
 }

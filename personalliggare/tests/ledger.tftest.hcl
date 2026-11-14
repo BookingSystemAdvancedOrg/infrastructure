@@ -29,6 +29,7 @@ variables {
   ecr_repository_url     = "123456789012.dkr.ecr.eu-north-1.amazonaws.com/dev-personalliggare"
   tenant_table_name      = "dev-tenant"
   location_table_name    = "dev-location"
+  location_table_arn     = "arn:aws:dynamodb:eu-north-1:123456789012:table/dev-location"
   location_id_index_name = "byLocationId"
   user_table_name        = "dev-user"
   event_bus_name         = "dev-booqy-events"

@@ -7,6 +7,7 @@ module "personalliggare" {
   ecr_repository_url     = module.personalliggare_ecr.repository_url
   tenant_table_name      = module.tenant.table_name
   location_table_name    = module.location.table_name
+  location_table_arn     = module.location.table_arn
   location_id_index_name = module.location.location_id_index_name
   user_table_name        = module.user.table_name
   event_bus_name         = module.events.bus_name

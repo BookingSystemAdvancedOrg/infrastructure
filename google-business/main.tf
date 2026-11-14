@@ -103,7 +103,16 @@ locals {
   ]
 
   statements = {
-    google-business = local.common_statements
+    google-business = concat(local.common_statements, [
+      {
+        # Disconnect and the privacy export/erase hooks walk the tenant's locations:
+        # tenant.list_locations: Query on TENANT#<id>, SK begins_with LOCATION# (base table only, no Scan).
+        Sid      = "ListTenantLocations"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = var.location_table_arn
+      },
+    ])
     google-business-jobs = concat(local.common_statements, [
       {
         Sid      = "CreateReviewSchedules"

@@ -7,6 +7,7 @@ module "site_builder" {
   tenant_table_name        = module.tenant.table_name
   tenant_table_arn         = module.tenant.table_arn
   location_table_name      = module.location.table_name
+  location_table_arn       = module.location.table_arn
   location_id_index_name   = module.location.location_id_index_name
   sites_bucket_name        = module.sites.bucket_name
   menu_image_base_url      = "https://${module.cloudfront_public.distribution_domain_name}" # same CDN as sites.tf
