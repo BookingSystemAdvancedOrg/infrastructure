@@ -5,7 +5,9 @@
 # D11, tenant.purge, privacy.export/erase), functions/google-business-jobs
 # (hourly sync, GuestVisit.Recorded consumer, review sender),
 # shared/features/google_business. Google is a simulator unless
-# var.google_business_client says "real" (refused in prod at runtime).
+# var.google_business_client says "real"; in prod "real" also needs
+# var.google_business_prod_released (variable validation), and the runtime
+# refuses the simulator in prod, so prod stays off until the owner releases.
 #
 # All access below is on NEW roles. No existing role, permissions boundary,
 # OIDC role, Cognito, CloudFront or KMS key is changed; the hook callers'

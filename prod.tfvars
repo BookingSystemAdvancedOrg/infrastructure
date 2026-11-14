@@ -157,3 +157,8 @@ billing_seller = {
   seat       = ""
   f_skatt    = false
 }
+
+# Google Business Profile (feature D): simulator until the owner releases it
+# (prod refuses the simulator at runtime, so the feature stays off). "real"
+# here also needs google_business_prod_released = true, or the plan fails.
+google_business_client = "simulator"

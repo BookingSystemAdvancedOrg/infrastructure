@@ -94,6 +94,23 @@ variable "alert_topic_arn" {
 variable "google_business_client" {
   description = "GOOGLE_BUSINESS_CLIENT: simulator or real (root var.google_business_client)"
   type        = string
+
+  validation {
+    condition     = contains(["simulator", "real"], var.google_business_client)
+    error_message = "google_business_client must be simulator or real."
+  }
+
+  # The release guard for prod: "real" there only once the owner releases it.
+  validation {
+    condition     = !(var.environment == "prod" && var.google_business_client == "real" && !var.google_business_prod_released)
+    error_message = "google_business_client = \"real\" in prod needs google_business_prod_released = true (the owner's release)."
+  }
+}
+
+variable "google_business_prod_released" {
+  description = "Root var.google_business_prod_released: the owner's go for real Google calls in prod"
+  type        = bool
+  default     = false
 }
 
 variable "admin_app_url" {
