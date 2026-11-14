@@ -134,7 +134,7 @@ variable "plans" {
     price_sek     = number
     limits        = optional(map(number), {})
   }))
-  description = "Plan catalog (packages you sell). A tenant's limits are copied from its plan when the plan is assigned and can be overridden per tenant from the platform dashboard - no deploy either way. Feature keys: reservations, ordering, catering, marketing (visit statistics and email campaigns to guests who opted in); metaAds, siteBuilder, guestCrm, googleBusiness, giftCards, waitlist, socialPosting, personalliggare, accountingSync, dishMargin, events, phoneAgent (the Run 0 and Run 0 addendum features, false until each ships). limits: numeric plan limits, siteBuilderAiEditsPerMonth (0-1000) and phoneAgentMinutesPerMonth (0-100000), missing = 0. price_sek: the monthly price excluding VAT, invoiced in arrears on the 25th through Stripe on the platform account; a changed price applies to customers on the plan's price from the next billing period (a customer's own price is not affected)."
+  description = "Plan catalog (packages you sell). A tenant's limits are copied from its plan when the plan is assigned and can be overridden per tenant from the platform dashboard - no deploy either way. Feature keys: reservations, ordering, catering, marketing (visit statistics and email campaigns to guests who opted in); metaAds, siteBuilder, guestCrm, googleBusiness, giftCards, waitlist, socialPosting, personalliggare, accountingSync, dishMargin, events, phoneAgent (the Run 0 and Run 0 addendum features, false until each ships). limits: numeric plan limits, siteBuilderAiEditsPerMonth (0-1000) and phoneAgentMinutesPerMonth (0-100000), missing = 0. price_sek: the monthly price excluding VAT (SMS included), invoiced in arrears on the 25th through Stripe on the platform account; a changed price applies to customers on the plan's price from the next billing period (a customer's own price is not affected). \"free\" is reserved: Booqy Console's Free plan (no charge, growth's features) is derived from growth, not listed here."
   sensitive   = false
   default = {
     starter = {
@@ -149,6 +149,11 @@ variable "plans" {
       features      = { reservations = true, ordering = true, catering = true, marketing = true }
       price_sek     = 8295
     }
+  }
+
+  validation {
+    condition     = !contains(keys(var.plans), "free") && contains(keys(var.plans), "growth")
+    error_message = "\"free\" is reserved for Booqy Console's Free plan (derived from growth), and growth must exist."
   }
 
   validation {
@@ -249,15 +254,9 @@ variable "billing_trial_months" {
   sensitive   = false
   default     = 6
 }
-variable "sms_price_sek" {
-  type        = number
-  description = "What a restaurant pays per SMS part (160 GSM-7 characters, 70 with emoji, long messages in parts of 153/67), in SEK excluding VAT, on its monthly invoice. Overridable per customer in Booqy Console (Billing tab). Counted from the deploy that introduced part counting; earlier SMS are not charged."
-  sensitive   = false
-  default     = 0.70
-}
 variable "billing_invoicing_schedule" {
   type        = string
-  description = "EventBridge Scheduler expression (UTC) for the invoicing run. Daily: on the 25th, after the period from the 25th to the 24th has ended, platform-tenants invoices every restaurant for that period (monthly price pro rata by days plus the SMS parts sent); on other days it only catches up what a failed or unfinished run left. After finance-rollup (04:30 UTC) and the dunning task (05:00 UTC)."
+  description = "EventBridge Scheduler expression (UTC) for the invoicing run. Daily: on the 25th, after the period from the 25th to the 24th has ended, platform-tenants invoices every restaurant for that period (the monthly price pro rata by days; SMS are included, never invoiced); on other days it only catches up what a failed or unfinished run left. After finance-rollup (04:30 UTC) and the dunning task (05:00 UTC)."
   sensitive   = false
   default     = "cron(30 5 * * ? *)"
 }

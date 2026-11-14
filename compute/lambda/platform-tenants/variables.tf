@@ -253,11 +253,6 @@ variable "billing_trial_months" {
   type        = number
 }
 
-variable "sms_price_sek" {
-  description = "Default price per SMS part, SEK excluding VAT"
-  type        = number
-}
-
 variable "invoicing_schedule_expression" {
   description = "When the invoicing run happens (cron(), UTC): daily, it invoices every period that has ended and is not invoiced yet (on the 25th, the period just ended)"
   type        = string

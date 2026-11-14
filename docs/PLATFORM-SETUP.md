@@ -231,9 +231,7 @@ apps run on `*.cloudfront.net` and restaurants have no website URL yet.
       (sandbox for dev, live for production) and writes the prices on the
       plan rows. Customers are invoiced in arrears on the 25th for the
       period from the 25th to the 24th (`billing_invoicing_schedule`),
-      the monthly price pro rata plus SMS per part at `sms_price_sek`
-      (0,70 kr ex VAT; change it in tfvars, or per customer on the Billing
-      tab). SMS sent before this deploy are not charged.
+      the monthly price pro rata; SMS are included in the price.
 - [ ] Stripe Dashboard, per mode: Billing → Settings → Subscriptions and
       emails (invoice emails, reminders, Smart Retries) and the invoice
       template (company details, org. number, "Godkänd för F-skatt",
