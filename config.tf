@@ -1002,15 +1002,6 @@ module "print_device_ecr" {
   environment = var.env
   function    = "print-device"
 }
-# Kassa, the till, was removed (2026-11-14). Step 1 of 2: the repository
-# still holds images, so it is marked force_delete and applied first; step 2
-# removes this module and its output line.
-module "kassa_ecr" {
-  source       = "./storage/ecr/function"
-  environment  = var.env
-  function     = "kassa"
-  force_delete = true
-}
 # Restaurant site repos (sites.tf); same repository settings
 module "site_repo_ecr" {
   source      = "./storage/ecr/function"
