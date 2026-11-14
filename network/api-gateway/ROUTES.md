@@ -223,6 +223,7 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | GET | `/tenant/social-posts` | JWT | social-posting |
 | POST | `/tenant/social-posts` | JWT | social-posting |
 | POST | `/tenant/social-posts/drafts` | JWT | social-posting |
+| POST | `/tenant/support/reports` | JWT | support-reports |
 | GET | `/me/backdrops` | JWT | user-backdrop |
 | POST | `/me/backdrops/upload` | JWT | user-backdrop |
 | PUT | `/me/backdrops/selected` | JWT | user-backdrop |

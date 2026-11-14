@@ -28,6 +28,7 @@ locals {
     "phone-agent"     = local.phone_agent_routes
     "help-assistant"  = local.help_assistant_routes
     "user-backdrop"   = local.user_backdrop_routes
+    "support-reports" = local.support_reports_routes
   }
 
   # route_key => { feature, auth, throttle }

@@ -1119,6 +1119,12 @@ module "user_backdrop_ecr" {
   environment = var.env
   function    = "user-backdrop"
 }
+# Error reports from Booqy Admin (support-reports.tf); same repository settings.
+module "support_reports_ecr" {
+  source      = "./storage/ecr/function"
+  environment = var.env
+  function    = "support-reports"
+}
 module "catering_requests_ecr" {
   source      = "./storage/ecr/catering-requests"
   environment = var.env
@@ -2392,6 +2398,7 @@ locals {
     module.phone_agent.wiring,
     module.help_assistant.wiring,
     module.user_backdrop.wiring,
+    module.support_reports.wiring,
   ]
   feature_lambda_releases         = merge([for w in local.feature_wiring : w.lambda_releases]...)
   feature_tenant_aware_role_names = merge([for w in local.feature_wiring : w.tenant_aware_role_names]...)
