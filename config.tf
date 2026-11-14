@@ -794,6 +794,7 @@ module "platform_stripe_webhook_role" {
   stripe_secret_arn          = module.platform_secrets.stripe_secret_arn
   region                     = var.aws_region
   finance_table_arn          = module.finance.table_arn
+  alert_topic_arn            = module.alerts.topic_arn
 }
 
 # Shared tenant-context read policy (tenant table + locationId index) on every
@@ -1867,8 +1868,12 @@ module "platform_tenants_fn" {
   alert_topic_arn                    = module.alerts.topic_arn
   billing_tax_rate_id                = module.billing_catalog.tax_rate_id
   billing_days_until_due             = var.billing_days_until_due
+  billing_days_until_due_no_card     = var.billing_days_until_due_no_card
+  billing_reminder_steps             = var.billing_reminder_steps
+  billing_final_notice_days          = var.billing_final_notice_days
+  billing_reminder_fee_sek           = var.billing_reminder_fee_sek
+  billing_seller                     = var.billing_seller
   billing_suspend_after_days         = var.billing_suspend_after_days
-  billing_reminder_interval_days     = var.billing_reminder_interval_days
   billing_late_fee_sek               = var.billing_late_fee_sek
   billing_late_fee_after_days        = var.billing_late_fee_after_days
   billing_reference_rate_pct         = var.billing_reference_rate_pct
@@ -1983,6 +1988,8 @@ module "platform_stripe_webhook_fn" {
   stripe_api_version         = var.stripe_api_version
   region                     = var.aws_region
   finance_table_name         = module.finance.table_name
+  alert_topic_arn            = module.alerts.topic_arn
+  platform_admin_app_url     = local.platform_admin_app_url
 }
 
 

@@ -64,7 +64,7 @@ platform_subdomain_delegations = {
 # Monthly prices (SEK, excluding VAT), invoiced in arrears on the 25th
 # through Stripe on the platform account (live mode). Growth = 3 x Starter
 # with 30 % off (3950 x 3 x 0.7). A changed price applies to customers on
-# the plan's price from the next billing period (the daily task records
+# the plan's price from the next month (the daily task records
 # it); a customer's own price in Booqy Console is not affected.
 plans = {
   starter = {

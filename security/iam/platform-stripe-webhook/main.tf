@@ -127,3 +127,22 @@ resource "aws_iam_role_policy" "logs" {
     ]
   })
 }
+
+# The operators are emailed at once when a restaurant's card payment fails
+# (or needs 3-D Secure): publish to the platform alerts topic only.
+resource "aws_iam_role_policy" "alerts" {
+  name = "platform-alerts-publish"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "PublishBillingAlerts"
+        Effect   = "Allow"
+        Action   = ["sns:Publish"]
+        Resource = var.alert_topic_arn
+      }
+    ]
+  })
+}

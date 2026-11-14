@@ -93,12 +93,18 @@ resource "aws_lambda_function" "this" {
       BILLING_TAX_RATE_ID        = var.billing_tax_rate_id
       BILLING_DAYS_UNTIL_DUE     = tostring(var.billing_days_until_due)
       BILLING_SUSPEND_AFTER_DAYS = tostring(var.billing_suspend_after_days)
-      # Reminders, late fee and interest on unpaid invoices (dunning task)
-      BILLING_REMINDER_INTERVAL_DAYS = tostring(var.billing_reminder_interval_days)
-      BILLING_LATE_FEE_SEK           = tostring(var.billing_late_fee_sek)
-      BILLING_LATE_FEE_AFTER_DAYS    = tostring(var.billing_late_fee_after_days)
-      BILLING_REFERENCE_RATE_PCT     = tostring(var.billing_reference_rate_pct)
-      BILLING_INTEREST_MARGIN_PCT    = tostring(var.billing_interest_margin_pct)
+      # In advance on the 1st: no card yet = emailed, due in this many days
+      BILLING_DAYS_UNTIL_DUE_NO_CARD = tostring(var.billing_days_until_due_no_card)
+      # Booqy's details on every invoice (mervärdesskattelagen 17 kap 24 §), not secret
+      BILLING_SELLER_JSON = jsonencode(var.billing_seller)
+      # Reminders (restaurant and operators), fees and interest (dunning task)
+      BILLING_REMINDER_STEPS      = join(",", [for d in var.billing_reminder_steps : tostring(d)])
+      BILLING_FINAL_NOTICE_DAYS   = tostring(var.billing_final_notice_days)
+      BILLING_REMINDER_FEE_SEK    = tostring(var.billing_reminder_fee_sek)
+      BILLING_LATE_FEE_SEK        = tostring(var.billing_late_fee_sek)
+      BILLING_LATE_FEE_AFTER_DAYS = tostring(var.billing_late_fee_after_days)
+      BILLING_REFERENCE_RATE_PCT  = tostring(var.billing_reference_rate_pct)
+      BILLING_INTEREST_MARGIN_PCT = tostring(var.billing_interest_margin_pct)
       # Terms: try-out (leave at the end of any month, becomes a subscription
       # after BILLING_TRIAL_MONTHS) or subscription (BILLING_NOTICE_MONTHS notice)
       BILLING_NOTICE_MONTHS = tostring(var.billing_notice_months)

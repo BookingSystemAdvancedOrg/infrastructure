@@ -38,3 +38,8 @@ variable "finance_table_arn" {
   description = "The finance table the /billing events write invoices and revenue to"
   type        = string
 }
+
+variable "alert_topic_arn" {
+  description = "Platform alerts SNS topic: the operators' email when a restaurant's card payment fails"
+  type        = string
+}

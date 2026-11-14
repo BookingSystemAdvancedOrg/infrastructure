@@ -77,10 +77,10 @@ cognito_invites_via_ses = false
 # emails to a private S3 outbox instead (Booqy Console, "Mail outbox").
 mail_outbox = false
 
-# Monthly prices (SEK, excluding VAT), invoiced in arrears on the 25th
-# through Stripe on the platform account (sandbox mode). Growth = 3 x Starter
+# Monthly prices (SEK, excluding VAT), invoiced in advance on the 1st
+# through Stripe on the platform account (sandbox mode in dev). Growth = 3 x Starter
 # with 30 % off (3950 x 3 x 0.7). A changed price applies to customers on
-# the plan's price from the next billing period (the daily task records
+# the plan's price from the next month (the daily task records
 # it); a customer's own price in Booqy Console is not affected.
 plans = {
   starter = {
@@ -182,3 +182,31 @@ phone_test_line_enabled = true
 phone_test_line_country = "FI" # no Swedish DID stock in Connect eu-central-1 (2026-11-13); FI keeps the call inside the EU price cap
 # Restaurant 1 (tenant RADIN DJ AB, dev test data): tables and availability.
 phone_test_line_location = { tenant_id = "01m4fqaga9r6s2e1pcx7t0wx3z", location_id = "01m4fqaga9ca7cfvybw0ptzezr" }
+
+# Billing (owner 2026-11-14): in advance on the 1st, the card charged
+# automatically (emailed with 10 days until a card is added), reminders at
+# 3, 7 and 14 days and a final notice at 30 to the restaurant and the
+# operators, 60 kr reminder fee, förseningsersättning 450 kr less the
+# reminder fee, interest reference rate + 8 %. Nothing is suspended
+# automatically. The reference rate is 2.00 % for 1 July to 31 December 2026
+# (riksbank.se); update it on 1 January and 1 July.
+billing_suspend_after_days     = 0
+billing_days_until_due         = 30
+billing_days_until_due_no_card = 10
+billing_reminder_steps         = [3, 7, 14]
+billing_final_notice_days      = 30
+billing_reminder_fee_sek       = 60
+billing_late_fee_sek           = 450
+billing_late_fee_after_days    = 7
+billing_reference_rate_pct     = 2.0
+# [NEEDS YOUR DETAILS] Booqy's address, organisation number, VAT number,
+# registered office and F-skatt for the invoices (not secret). Dev invoices
+# without them (the invoicing summary lists what is missing); prod refuses.
+billing_seller = {
+  name       = "IT Hjälparna Nordic AB"
+  address    = ""
+  org_number = ""
+  vat_number = ""
+  seat       = ""
+  f_skatt    = false
+}

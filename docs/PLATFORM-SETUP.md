@@ -229,13 +229,14 @@ apps run on `*.cloudfront.net` and restaurants have no website URL yet.
       placeholders. Apply: Terraform creates the 25 % VAT rate (and a
       catalog product and price per plan) in the platform account
       (sandbox for dev, live for production) and writes the prices on the
-      plan rows. Customers are invoiced in arrears on the 25th for the
-      period from the 25th to the 24th (`billing_invoicing_schedule`),
-      the monthly price pro rata; SMS are included in the price.
-- [ ] Stripe Dashboard, per mode: Billing → Settings → Subscriptions and
-      emails (invoice emails, reminders, Smart Retries) and the invoice
-      template (company details, org. number, "Godkänd för F-skatt",
-      bankgiro in the footer). See docs/FINANCE.md §6.
+      plan rows. Customers are invoiced in advance on the 1st for the
+      calendar month (`billing_invoicing_schedule`), the first month pro
+      rata; SMS are included in the price. Fill in `billing_seller`.
+- [ ] Stripe Dashboard, per mode (test first): Billing, Settings: Smart
+      Retries on for invoices, failed-payment emails to the customer,
+      invoice numbering per account (sequential), public business details.
+      Booqy's own reminders replace Stripe's reminder emails. See
+      docs/FINANCE.md §6.
 - [ ] AWS: open Cost Explorer once in each account to enable it; the
       nightly `finance-rollup` reads it from the next day. Until then the
       Finance page shows a warning and cost 0.

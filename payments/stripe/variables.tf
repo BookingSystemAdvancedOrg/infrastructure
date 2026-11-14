@@ -102,14 +102,19 @@ variable "platform_connect_events" {
 }
 variable "platform_billing_events" {
   type        = list(string)
-  description = "Platform-account invoice events (the restaurants' monthly invoices, built by platform-tenants in arrears) delivered to platform-stripe-webhook /billing"
+  description = "Platform-account events (the restaurants' monthly invoices, built by platform-tenants in advance, and the card they are charged to) delivered to platform-stripe-webhook /billing"
   sensitive   = false
   default = [
     "invoice.finalized",
     "invoice.paid",
     "invoice.payment_failed",
+    "invoice.payment_action_required",
+    "invoice.sent",
     "invoice.voided",
     "invoice.marked_uncollectible",
     "credit_note.created",
+    "customer.updated",
+    "payment_method.attached",
+    "checkout.session.completed",
   ]
 }

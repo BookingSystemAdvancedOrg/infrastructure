@@ -49,6 +49,8 @@ resource "aws_lambda_function" "this" {
       STRIPE_SECRET_ARN          = var.stripe_secret_arn
       STRIPE_API_VERSION         = var.stripe_api_version
       FINANCE_TABLE_NAME         = var.finance_table_name # /billing: invoice ledger + revenue per day
+      ALERT_TOPIC_ARN            = var.alert_topic_arn    # operators: a failed card payment
+      PLATFORM_ADMIN_APP_URL     = var.platform_admin_app_url
     }
   }
 
