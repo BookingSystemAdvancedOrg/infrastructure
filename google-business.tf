@@ -24,5 +24,6 @@ module "google_business" {
   event_bus_arn                 = module.events.bus_arn
   alert_topic_arn               = module.alerts.topic_arn
   google_business_client        = var.google_business_client
+  google_business_prod_released = var.google_business_prod_released
   admin_app_url                 = local.admin_app_url
 }

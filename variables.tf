@@ -71,12 +71,23 @@ variable "website_repo" {
 }
 variable "platform_operator_emails" {
   type        = list(string)
-  description = "Platform operators (you) - bootstrapped into the separate operator user pool (MFA required) that alone can call /platform/* to create and manage tenants. Removing an address deletes that operator's account on the next apply."
+  description = "Platform operators (you): the bootstrap accounts of the separate operator user pool (MFA required) that alone can call /platform/*. No longer applied: operators are managed in Booqy Console (Operators), where an owner can change an e-mail. Kept as the record of who bootstrapped each environment."
   sensitive   = false
 
   validation {
     condition     = length(var.platform_operator_emails) > 0
     error_message = "At least one platform operator is required - otherwise nobody can create tenants."
+  }
+}
+variable "platform_owner_usernames" {
+  type        = list(string)
+  description = "Cognito usernames (the sub, not the e-mail) of the operators who are owners (platform_owner group): they may change any operator's e-mail and are the only ones who disable or delete an owner. Empty = nobody can change an e-mail."
+  sensitive   = false
+  default     = []
+
+  validation {
+    condition     = alltrue([for u in var.platform_owner_usernames : can(regex("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", u))])
+    error_message = "platform_owner_usernames takes Cognito usernames (the sub UUID), not e-mail addresses."
   }
 }
 variable "platform_domain" {

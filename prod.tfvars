@@ -8,6 +8,11 @@ platform_operator_emails = [
   "arya.eisa@ithjalparna.se",
 ]
 
+# Owners (platform_owner group): may change any operator's e-mail in Booqy
+# Console. Cognito usernames (the sub), not e-mails; find yours with
+# aws cognito-idp admin-get-user --user-pool-id <operator pool> --username <your e-mail>
+platform_owner_usernames = ["600c29ac-1081-7019-1813-a8cb80d44eec"]
+
 dlq_replay_interval_minutes = 720 # every 12 hours - stays inside the 24h stream-record window
 
 alert_emails = [
@@ -157,3 +162,8 @@ billing_seller = {
   seat       = ""
   f_skatt    = false
 }
+
+# Google Business Profile (feature D): simulator until the owner releases it
+# (prod refuses the simulator at runtime, so the feature stays off). "real"
+# here also needs google_business_prod_released = true, or the plan fails.
+google_business_client = "simulator"

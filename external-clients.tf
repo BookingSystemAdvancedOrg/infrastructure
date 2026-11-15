@@ -27,6 +27,12 @@ variable "google_business_client" {
   }
 }
 
+variable "google_business_prod_released" {
+  type        = bool
+  description = "The owner released Google Business Profile in prod: only then may prod set google_business_client = \"real\" (checked in google-business/)."
+  default     = false
+}
+
 variable "fortnox_client" {
   type        = string
   description = "Fortnox client for accounting-sync (FORTNOX_CLIENT): simulator or real."

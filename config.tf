@@ -258,7 +258,7 @@ module "cognito" {
 module "cognito_platform" {
   source                       = "./storage/cognito-platform"
   environment                  = var.env
-  operator_emails              = var.platform_operator_emails
+  owner_usernames              = var.platform_owner_usernames
   app_urls                     = local.platform_admin_app_urls
   console_url                  = local.platform_admin_app_url
   invites_via_ses              = var.cognito_invites_via_ses
@@ -1853,6 +1853,7 @@ module "platform_tenants_fn" {
   region                             = var.aws_region
   operator_user_pool_id              = module.cognito_platform.user_pool_id
   operator_group_name                = module.cognito_platform.admin_group_name
+  operator_owner_group_name          = module.cognito_platform.owner_group_name
   no_reply_email_address             = local.no_reply_email
   support_email_address              = var.support_email_address
   mail_outbox_bucket_name            = local.mail_outbox_bucket
