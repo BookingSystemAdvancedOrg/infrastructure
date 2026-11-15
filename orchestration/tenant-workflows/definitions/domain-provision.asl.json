@@ -785,10 +785,47 @@
       "Choices": [
         {
           "Condition": "{% $taskStatus = 'live' %}",
-          "Next": "DevStep"
+          "Next": "UpdateSiteProd"
         }
       ],
       "Default": "NotifyFailure"
+    },
+    "UpdateSiteProd": {
+      "Type": "Task",
+      "Comment": "As soon as prod is live: booqy.json gets the prod domain at once (canonical and sitemap), without waiting for dev.<domain>; UpdateSite writes it again once the dev side is done. A failure never stops the dev step.",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Arguments": {
+        "FunctionName": "${function_arn}",
+        "Payload": {
+          "workflowTask": "update_site",
+          "tenantId": "{% $tenantId %}",
+          "domain": "{% $domain %}",
+          "mode": "{% $mode %}",
+          "requestedBy": "{% $requestedBy %}"
+        }
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 10,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "Next": "DevStep"
+        }
+      ],
+      "Next": "DevStep"
     },
     "DevStep": {
       "Type": "Task",
