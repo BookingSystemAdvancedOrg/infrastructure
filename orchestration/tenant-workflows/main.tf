@@ -5,8 +5,9 @@
 #   tenant-onboarding     first owner (Cognito) -> Stripe connected account
 #                         + VAT rates (Stripe HTTP tasks) -> <slug> subdomain
 #                         (CloudFront distribution tenant; a dev console
-#                         test customer gets two on the sandbox instead,
-#                         <slug>.test. and <slug>.test-dev.) -> active ->
+#                         test customer instead gets its two sandbox hosts
+#                         <slug>.test. and <slug>.test-dev., claim rows only:
+#                         the sandbox's one distribution serves them) -> active ->
 #                         website repo site-<slug> (site-repo function)
 #   tenant-domain-attach  customer's own domain: claim it, distribution
 #                         tenant with a CloudFront-managed certificate, poll
@@ -67,23 +68,19 @@ locals {
     cname_target            = var.cname_target
     site_repos_enabled      = var.site_repos_enabled ? "true" : "false"
     site_repo_function_arn  = var.site_repo_function_arn
-    # Dev: test customers' two hosts on the sandbox distribution
-    test_sites_enabled       = local.test_sites_enabled ? "true" : "false"
-    test_main_domain         = var.test_main_domain
-    test_dev_domain          = var.test_dev_domain
-    test_distribution_id     = var.test_distribution_id
-    test_connection_group_id = var.test_connection_group_id
+    # Dev: test customers' two sandbox hosts (claim rows only)
+    test_sites_enabled = local.test_sites_enabled ? "true" : "false"
+    test_main_domain   = var.test_main_domain
+    test_dev_domain    = var.test_dev_domain
   }
 
-  test_sites_enabled = var.test_main_domain != "" && var.test_distribution_id != ""
+  test_sites_enabled = var.test_main_domain != "" && var.test_dev_domain != ""
 
-  # Dev with test sites: the same actions on the sandbox distribution and
-  # its connection group too.
-  cloudfront_tenant_resources = var.platform_domain_enabled ? concat([
+  cloudfront_tenant_resources = var.platform_domain_enabled ? [
     "arn:aws:cloudfront::${local.account_id}:distribution-tenant/*",
     var.multitenant_distribution_arn,
     var.connection_group_arn,
-  ], local.test_sites_enabled ? [var.test_distribution_arn, var.test_connection_group_arn] : []) : []
+  ] : []
 }
 
 # --- Stripe API access for the HTTP tasks ------------------------------------
@@ -241,7 +238,7 @@ data "aws_iam_policy_document" "onboarding" {
   }
 
   dynamic "statement" {
-    for_each = var.platform_domain_enabled && (var.tenant_subdomains_enabled || local.test_sites_enabled) ? [1] : []
+    for_each = var.platform_domain_enabled && var.tenant_subdomains_enabled ? [1] : []
     content {
       sid       = "CreateSubdomainTenant"
       actions   = ["cloudfront:CreateDistributionTenant", "cloudfront:GetDistributionTenant"]

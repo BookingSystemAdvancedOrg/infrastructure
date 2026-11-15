@@ -19,7 +19,7 @@ variable "dev_domain" {
 }
 
 variable "enabled" {
-  description = "Phase 2: certificate, sandbox bucket, distribution, connection group, DNS wildcards and deploy boundary. Off: the zones only (phase 1, until prod delegates them)."
+  description = "Phase 2: certificate, sandbox bucket, the standard distribution with its host router (CloudFront Function and key value store), DNS wildcards and deploy boundary. Off: the zones only (phase 1, until prod delegates them)."
   type        = bool
   default     = false
 }

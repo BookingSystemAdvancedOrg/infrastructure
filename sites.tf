@@ -23,6 +23,7 @@ module "sites" {
   test_github_org_id     = local.test_sites_enabled ? var.test_sites_github_org_id : ""
   test_bucket_name       = local.test_sites_bucket_name
   test_boundary_arn      = local.test_sites_boundary_arn
+  test_kvs_arn           = local.test_sites_kvs_arn
   test_main_domain       = local.test_sites_main_domain
   test_dev_domain        = local.test_sites_dev_domain
   api_base_url           = module.api_gateway.api_endpoint
@@ -39,7 +40,7 @@ module "sites" {
 }
 
 variable "github_app_sites_secret_name" {
-  description = "Secrets Manager secret with the \"Booqy Customer Sites\" GitHub App key, JSON {\"app_id\", \"private_key\"}: booqy/<env>/github-app-sites, created by hand in each account (docs/CUSTOMER-SITE-RUNBOOK.md). In dev it also holds the \"Booqy Test Sites\" App key as {\"test\": {\"app_id\", \"private_key\"}} (same secret: no IAM change). Empty: no site repos, onboarding skips the step."
+  description = "Secrets Manager secret with the GitHub App key, JSON {\"app_id\", \"private_key\"}: booqy/<env>/github-app-sites, created by hand in each account (docs/CUSTOMER-SITE-RUNBOOK.md). In prod the \"Booqy Customer Sites\" App (BooqyCustomers); in dev ONLY the \"Booqy Test Sites\" App (BooqyCustomersDev): dev never holds the Customer Sites key. Empty: no site repos, onboarding skips the step."
   type        = string
   default     = ""
 }

@@ -7,7 +7,14 @@
 # 2026-11-15; root test-sites.tf): repo in var.test_github_org, both branches
 # deploy to the test sites sandbox (main|dev/sites/<tenantId>/) through two
 # roles /booqy-test-sites/test-site-<slug>-main|dev with the sandbox's own
-# boundary. Set up by the same function when var.test_github_org is set.
+# boundary, and the function maps their hosts in the sandbox's key value
+# store. Set up by the same function when var.test_github_org is set.
+#
+# Key isolation (owner 2026-11-15): the dev account's App secret holds ONLY
+# the "Booqy Test Sites" key (BooqyCustomersDev). Every GitHub write for a
+# real customer's repo in BooqyCustomers is done by the PROD function; dev
+# only does the AWS side (dev deploy role) when prod asks through the
+# booqy-sites-prod-link role, naming the repo (owner and repo ids).
 # application/docs/orchestrator/CUSTOMER-SITES-PLAN.md, docs/CUSTOMER-SITE-RUNBOOK.md.
 #
 #   sites bucket         private, read only by the multi-tenant distribution
@@ -46,7 +53,7 @@ locals {
   dev_link_role_arn        = var.link_dev_account_id == "" ? "" : "arn:aws:iam::${var.link_dev_account_id}:role/${local.link_role_name}"
   dev_platform_tenants_arn = var.link_dev_account_id == "" ? "" : "arn:aws:lambda:${var.region}:${var.link_dev_account_id}:function:dev-platform-tenants:live"
   # Dev: test customers' roles (never in prod: the root passes "" there)
-  test_enabled   = var.environment != "prod" && var.test_github_org != "" && var.test_boundary_arn != ""
+  test_enabled   = var.environment != "prod" && var.test_github_org != "" && var.test_boundary_arn != "" && var.test_kvs_arn != ""
   test_role_path = "/booqy-test-sites/"
 }
 
@@ -282,6 +289,14 @@ resource "aws_iam_role_policy" "fn" {
           Action   = ["iam:DeleteRolePermissionsBoundary", "iam:PutRolePermissionsBoundary", "iam:AttachRolePolicy"]
           Resource = "arn:aws:iam::${local.account}:role${local.test_role_path}*"
         },
+        {
+          # The sandbox's host map (label -> tenantId), read by its
+          # CloudFront Function: this function is its only writer.
+          Sid      = "WriteTestSitesHostMap"
+          Effect   = "Allow"
+          Action   = ["cloudfront-keyvaluestore:DescribeKeyValueStore", "cloudfront-keyvaluestore:PutKey", "cloudfront-keyvaluestore:DeleteKey"]
+          Resource = var.test_kvs_arn
+        },
       ] : statement if local.test_enabled], local.dev_link_role_arn == "" ? [] : [
       {
         # prod -> dev: the dev side of a new restaurant's site (see the top).
@@ -373,6 +388,7 @@ resource "aws_lambda_function" "fn" {
       TEST_DEPLOY_BOUNDARY_ARN = local.test_enabled ? var.test_boundary_arn : ""
       TEST_MAIN_DOMAIN         = local.test_enabled ? var.test_main_domain : ""
       TEST_DEV_DOMAIN          = local.test_enabled ? var.test_dev_domain : ""
+      TEST_SITES_KVS_ARN       = local.test_enabled ? var.test_kvs_arn : ""
     }
   }
 

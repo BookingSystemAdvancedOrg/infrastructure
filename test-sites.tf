@@ -1,6 +1,7 @@
 # Test sites (owner 2026-11-15): every customer created in the DEV console
 # is a test customer with a real, public repo site-<slug> in GitHub org
-# BooqyCustomersDev (App "Booqy Test Sites", generated from the public
+# BooqyCustomersDev (App "Booqy Test Sites", whose key is the ONLY GitHub
+# key in the dev account, generated from the public
 # BooqyCustomers/site-template). Both branches deploy in the dev account to
 # a sandbox of their own (./test-sites): main to https://<slug>.test.booqy.se,
 # dev to https://<slug>.test-dev.booqy.se. Real customers (BooqyCustomers,
@@ -12,24 +13,24 @@
 #   2. prod.tfvars platform_subdomain_delegations gets "test" and "test-dev"
 #      (reaches prod with the owner's main merge, or add the NS records by
 #      hand first: Terraform adopts them). Check: dig NS test.booqy.se
-#   3. dev.tfvars test_sites_enabled = true: certificate, bucket,
-#      distribution, connection group, DNS wildcards, boundary, and the test
-#      paths in site-repo, the workflows and platform-tenants.
+#   3. dev.tfvars test_sites_enabled = true: certificate, bucket, the one
+#      standard distribution with its host router (CloudFront Function + key
+#      value store), DNS wildcards, boundary, and the test paths in
+#      site-repo, onboarding and platform-tenants. No distribution tenants,
+#      nothing per customer that costs money.
 
 locals {
   test_sites_zones   = var.env != "prod" && var.test_sites_zones
   test_sites_enabled = local.test_sites_zones && var.test_sites_enabled
   # Empty outside phase 2: every consumer treats "" as "no test sites".
-  test_sites_main_domain     = local.test_sites_enabled ? var.test_sites_main_domain : ""
-  test_sites_dev_domain      = local.test_sites_enabled ? var.test_sites_dev_domain : ""
-  test_sites_zone_ids        = local.test_sites_zones ? module.test_sites[0].zone_ids : []
-  test_sites_bucket_name     = local.test_sites_enabled ? module.test_sites[0].bucket_name : ""
-  test_sites_bucket_arn      = local.test_sites_enabled ? module.test_sites[0].bucket_arn : ""
-  test_sites_distribution_id = local.test_sites_enabled ? module.test_sites[0].distribution_id : ""
-  test_sites_distribution    = local.test_sites_enabled ? module.test_sites[0].distribution_arn : ""
-  test_sites_connection_id   = local.test_sites_enabled ? module.test_sites[0].connection_group_id : ""
-  test_sites_connection_arn  = local.test_sites_enabled ? module.test_sites[0].connection_group_arn : ""
-  test_sites_boundary_arn    = local.test_sites_enabled ? module.test_sites[0].deploy_boundary_arn : ""
+  test_sites_main_domain  = local.test_sites_enabled ? var.test_sites_main_domain : ""
+  test_sites_dev_domain   = local.test_sites_enabled ? var.test_sites_dev_domain : ""
+  test_sites_zone_ids     = local.test_sites_zones ? module.test_sites[0].zone_ids : []
+  test_sites_bucket_name  = local.test_sites_enabled ? module.test_sites[0].bucket_name : ""
+  test_sites_bucket_arn   = local.test_sites_enabled ? module.test_sites[0].bucket_arn : ""
+  test_sites_distribution = local.test_sites_enabled ? module.test_sites[0].distribution_arn : ""
+  test_sites_kvs_arn      = local.test_sites_enabled ? module.test_sites[0].hosts_kvs_arn : ""
+  test_sites_boundary_arn = local.test_sites_enabled ? module.test_sites[0].deploy_boundary_arn : ""
 }
 
 module "test_sites" {

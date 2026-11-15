@@ -7,26 +7,32 @@
 #   dev  -> https://<slug>.test-dev.booqy.se  bucket dev/sites/<tenantId>/
 #
 # Real customers' dev sites (<slug>.dev.booqy.se, platform-domain) never
-# share anything with this: own zones, certificate, bucket, distribution,
-# connection group and deploy boundary, so the two can't collide.
+# share anything with this: own zones, certificate, bucket, distribution and
+# deploy boundary, so the two can't collide.
 #
 #   test. / test-dev. zones   delegated from the booqy.se zone in prod
 #                             (prod.tfvars platform_subdomain_delegations),
 #                             phase 1 (var.zones_enabled via the module's count)
-#   wildcard certificate      *.test.<domain> + *.test-dev.<domain> (us-east-1)
+#   wildcard certificate      *.test.<domain> + *.test-dev.<domain> (us-east-1),
+#                             one for every test host
 #   sandbox bucket            private; main/ and dev/ never overwrite each other;
-#                             _platform/robots.txt (Disallow: /)
-#   multi-tenant distribution one distribution tenant per hostname, parameters
-#                             tenantId and stage (main | dev) pick the folder;
-#                             X-Robots-Tag noindex, nofollow on every answer
-#   connection group          *.test.<domain> and *.test-dev.<domain> CNAME to it
+#                             _platform/robots.txt (Disallow: /), _platform/404.html
+#   distribution              ONE standard distribution (no multi-tenant
+#                             distribution tenants: those cost money beyond 10
+#                             per account), aliases *.test.<domain> and
+#                             *.test-dev.<domain>; X-Robots-Tag noindex, nofollow
+#   host router               CloudFront Function + key value store (label ->
+#                             tenantId): <label>.test.<domain> serves
+#                             main/sites/<tenantId>/, <label>.test-dev.<domain>
+#                             dev/sites/<tenantId>/, SPA fallback, unknown -> 404
+#   DNS                       *.test.<domain> and *.test-dev.<domain> alias A/AAAA
 #   deploy boundary           ceiling of every test site role
 #                             (/booqy-test-sites/test-site-<slug>-main|dev):
 #                             <stage tag>/sites/<tenantId tag>/ only
 #
-# Per-customer pieces (distribution tenants, the roles, repo variables) are
-# created at runtime by the onboarding/domain workflows and site-repo, never
-# here. Phase 2 (everything but the zones) is var.enabled.
+# Per-customer pieces (host map entries, the roles, repo variables) are
+# written at runtime by site-repo, never here; nothing per customer costs
+# money. Phase 2 (everything but the zones) is var.enabled.
 
 terraform {
   required_providers {
@@ -74,9 +80,8 @@ resource "aws_route53_zone" "dev" {
 
 # --- Certificate ---------------------------------------------------------------------
 #
-# One certificate for both stages: the distribution's default certificate,
-# inherited by every distribution tenant (no per-tenant certificate, also
-# for a dev console "own domain", which is mapped onto these zones).
+# One certificate for both stages and every test host, also a dev console
+# "own domain", which is mapped onto these zones (example-se.test.<domain>).
 
 resource "aws_acm_certificate" "wildcard" {
   count    = local.count
@@ -217,7 +222,7 @@ resource "aws_s3_bucket_policy" "sites" {
           "${aws_s3_bucket.sites[0].arn}/_platform/*",
         ]
         Condition = {
-          StringEquals = { "AWS:SourceArn" = aws_cloudfront_multitenant_distribution.sites[0].arn }
+          StringEquals = { "AWS:SourceArn" = aws_cloudfront_distribution.sites[0].arn }
         }
       },
       {
@@ -245,6 +250,20 @@ resource "aws_s3_object" "robots" {
   content       = "User-agent: *\nDisallow: /\n"
   content_type  = "text/plain; charset=utf-8"
   cache_control = "public, max-age=3600"
+
+  depends_on = [aws_s3_bucket_ownership_controls.sites]
+}
+
+# The 404 page of a missing file (the distribution's error responses); the
+# host router answers an unknown host itself.
+resource "aws_s3_object" "not_found" {
+  count = local.count
+
+  bucket        = aws_s3_bucket.sites[0].id
+  key           = "_platform/404.html"
+  content       = "<!doctype html><html lang=\"sv\"><meta charset=\"utf-8\"><meta name=\"robots\" content=\"noindex\"><title>Sidan finns inte</title><body style=\"font-family:system-ui;padding:2rem\"><h1>Sidan finns inte</h1><p>Sidan du letar efter finns inte p\u00e5 den h\u00e4r testsajten.</p></body></html>\n"
+  content_type  = "text/html; charset=utf-8"
+  cache_control = "public, max-age=300"
 
   depends_on = [aws_s3_bucket_ownership_controls.sites]
 }
@@ -319,112 +338,105 @@ resource "aws_cloudfront_response_headers_policy" "sites" {
   }
 }
 
-resource "aws_cloudfront_multitenant_distribution" "sites" {
+# Label -> tenantId for the host router below: a test customer's slug (put by
+# site-repo at provision) and each mapped own domain's label (example-se,
+# put and deleted through site-repo by the Domains tab); site-repo deletes
+# them all on offboarding and purge. Only site-repo writes it
+# (cloudfront-keyvaluestore Put/Delete/Describe on this ARN, sites/main.tf).
+resource "aws_cloudfront_key_value_store" "hosts" {
+  count = local.count
+
+  name    = "${local.prefix}test-sites-hosts"
+  comment = "Test sites: host label -> tenantId (written by site-repo)"
+}
+
+# Viewer request: Host -> <stage>/sites/<tenantId>/ (test.<domain> main,
+# test-dev.<domain> dev), SPA fallback to index.html, /robots.txt from
+# _platform/, unknown host -> 404. Unit test: function/host-router.test.mjs.
+resource "aws_cloudfront_function" "host_router" {
+  count = local.count
+
+  name    = "${local.prefix}test-sites-host-router"
+  runtime = "cloudfront-js-2.0"
+  comment = "Test sites: host label -> stage folder of the tenant (key value store)"
+  publish = true
+  code = templatefile("${path.module}/function/host-router.js", {
+    kvs_id      = aws_cloudfront_key_value_store.hosts[0].id
+    main_domain = var.main_domain
+    dev_domain  = var.dev_domain
+  })
+  key_value_store_associations = [aws_cloudfront_key_value_store.hosts[0].arn]
+}
+
+# ONE standard distribution for every test host (owner 2026-11-15: no
+# distribution tenants, which cost money beyond 10 per account, and no
+# certificate per host): both wildcards on the one certificate.
+resource "aws_cloudfront_distribution" "sites" {
   count = local.count
 
   enabled             = true
-  comment             = "${local.prefix}test sites (sandbox, one distribution tenant per test host)"
-  default_root_object = "index.html"
+  comment             = "${local.prefix}test sites (sandbox): *.${var.main_domain} main, *.${var.dev_domain} dev"
+  aliases             = ["*.${var.main_domain}", "*.${var.dev_domain}"]
+  is_ipv6_enabled     = true
   http_version        = "http2and3"
+  price_class         = "PriceClass_100"
+  wait_for_deployment = false
 
-  # Set by the onboarding and domain-attach workflows on every distribution
-  # tenant: whose site and which branch's build.
-  tenant_config {
-    parameter_definition {
-      name = "tenantId"
-      definition {
-        string_schema {
-          required = true
-          comment  = "Test customer whose host this distribution tenant serves"
-        }
-      }
-    }
-    parameter_definition {
-      name = "stage"
-      definition {
-        string_schema {
-          required = true
-          comment  = "main (test.<domain>) or dev (test-dev.<domain>): the build folder"
-        }
-      }
-    }
-  }
-
-  # Both parameters in the origin path: <stage>/sites/<tenantId>/ is the
-  # folder only that stage's deploy role of that customer may write.
+  # No origin path: the host router writes the whole key
+  # (<stage>/sites/<tenantId>/..., _platform/robots.txt).
   origin {
-    id                       = "test-site"
+    origin_id                = "sandbox"
     domain_name              = aws_s3_bucket.sites[0].bucket_regional_domain_name
-    origin_path              = "/{{stage}}/sites/{{tenantId}}"
     origin_access_control_id = aws_cloudfront_origin_access_control.sites[0].id
   }
 
   origin {
-    id                       = "platform-static"
-    domain_name              = aws_s3_bucket.sites[0].bucket_regional_domain_name
-    origin_path              = "/_platform"
-    origin_access_control_id = aws_cloudfront_origin_access_control.sites[0].id
-  }
-
-  origin {
-    id                       = "menu-image"
+    origin_id                = "menu-image"
     domain_name              = var.menu_image_bucket_regional_domain_name
     origin_access_control_id = aws_cloudfront_origin_access_control.sites[0].id
   }
 
   default_cache_behavior {
-    target_origin_id           = "test-site"
+    target_origin_id           = "sandbox"
     viewer_protocol_policy     = "redirect-to-https"
+    allowed_methods            = ["GET", "HEAD"]
+    cached_methods             = ["GET", "HEAD"]
     cache_policy_id            = local.caching_optimized
     response_headers_policy_id = aws_cloudfront_response_headers_policy.sites[0].id
     compress                   = true
 
-    allowed_methods {
-      items          = ["GET", "HEAD"]
-      cached_methods = ["GET", "HEAD"]
-    }
-  }
-
-  cache_behavior {
-    path_pattern               = "/robots.txt"
-    target_origin_id           = "platform-static"
-    viewer_protocol_policy     = "redirect-to-https"
-    cache_policy_id            = local.caching_optimized
-    response_headers_policy_id = aws_cloudfront_response_headers_policy.sites[0].id
-    compress                   = true
-
-    allowed_methods {
-      items          = ["GET", "HEAD"]
-      cached_methods = ["GET", "HEAD"]
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.host_router[0].arn
     }
   }
 
   # Same path as the other distributions, so a site works unchanged here.
-  cache_behavior {
+  ordered_cache_behavior {
     path_pattern               = "/menu-images/*"
     target_origin_id           = "menu-image"
     viewer_protocol_policy     = "redirect-to-https"
+    allowed_methods            = ["GET", "HEAD"]
+    cached_methods             = ["GET", "HEAD"]
     cache_policy_id            = local.caching_optimized
     response_headers_policy_id = aws_cloudfront_response_headers_policy.sites[0].id
     compress                   = true
-
-    allowed_methods {
-      items          = ["GET", "HEAD"]
-      cached_methods = ["GET", "HEAD"]
-    }
   }
 
-  # SPAs with client-side routing: unknown paths load index.html.
+  # A missing file of a site (S3 answers 403 without ListBucket): the
+  # sandbox's 404 page, fetched without the router (its own key).
   custom_error_response {
-    error_code         = 403
-    response_code      = "200"
-    response_page_path = "/index.html"
+    error_code            = 403
+    response_code         = 404
+    response_page_path    = "/_platform/404.html"
+    error_caching_min_ttl = 10
   }
 
   custom_error_response {
-    error_code         = 404
-    response_code      = "200"
-    response_page_path = "/index.html"
+    error_code            = 404
+    response_code         = 404
+    response_page_path    = "/_platform/404.html"
+    error_caching_min_ttl = 10
   }
 
   restrictions {
@@ -444,38 +456,25 @@ resource "aws_cloudfront_multitenant_distribution" "sites" {
   }
 }
 
-resource "aws_cloudfront_connection_group" "sites" {
-  count = local.count
+# Every test host (a slug or a mapped own domain) answers through the one
+# distribution: no per-customer DNS.
+resource "aws_route53_record" "wildcard" {
+  for_each = var.enabled ? {
+    "main-A"    = { zone = aws_route53_zone.main.zone_id, name = "*.${var.main_domain}", type = "A" }
+    "main-AAAA" = { zone = aws_route53_zone.main.zone_id, name = "*.${var.main_domain}", type = "AAAA" }
+    "dev-A"     = { zone = aws_route53_zone.dev.zone_id, name = "*.${var.dev_domain}", type = "A" }
+    "dev-AAAA"  = { zone = aws_route53_zone.dev.zone_id, name = "*.${var.dev_domain}", type = "AAAA" }
+  } : {}
 
-  name         = "${local.prefix}test-sites"
-  enabled      = true
-  ipv6_enabled = true
+  zone_id = each.value.zone
+  name    = each.value.name
+  type    = each.value.type
 
-  tags = {
-    Environment = var.environment
+  alias {
+    name                   = aws_cloudfront_distribution.sites[0].domain_name
+    zone_id                = aws_cloudfront_distribution.sites[0].hosted_zone_id
+    evaluate_target_health = false
   }
-}
-
-# Every test host (a slug or a mapped own domain) answers through the
-# connection group: no per-customer DNS.
-resource "aws_route53_record" "main_wildcard" {
-  count = local.count
-
-  zone_id = aws_route53_zone.main.zone_id
-  name    = "*.${var.main_domain}"
-  type    = "CNAME"
-  ttl     = 300
-  records = [aws_cloudfront_connection_group.sites[0].routing_endpoint]
-}
-
-resource "aws_route53_record" "dev_wildcard" {
-  count = local.count
-
-  zone_id = aws_route53_zone.dev.zone_id
-  name    = "*.${var.dev_domain}"
-  type    = "CNAME"
-  ttl     = 300
-  records = [aws_cloudfront_connection_group.sites[0].routing_endpoint]
 }
 
 # --- Deploy boundary --------------------------------------------------------------------

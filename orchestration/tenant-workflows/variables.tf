@@ -212,27 +212,3 @@ variable "test_dev_domain" {
   type        = string
   default     = ""
 }
-
-variable "test_distribution_id" {
-  description = "Dev: the test sites sandbox multi-tenant distribution"
-  type        = string
-  default     = ""
-}
-
-variable "test_distribution_arn" {
-  description = "Dev: ARN of the sandbox distribution"
-  type        = string
-  default     = ""
-}
-
-variable "test_connection_group_id" {
-  description = "Dev: the sandbox connection group"
-  type        = string
-  default     = ""
-}
-
-variable "test_connection_group_arn" {
-  description = "Dev: ARN of the sandbox connection group"
-  type        = string
-  default     = ""
-}

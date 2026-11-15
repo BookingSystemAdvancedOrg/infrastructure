@@ -2508,13 +2508,9 @@ module "tenant_workflows" {
   tenant_data_retention_days = var.tenant_data_retention_days
   site_repos_enabled         = var.github_app_sites_secret_name != ""
   site_repo_function_arn     = module.sites.alias_arn
-  # Dev: test customers' hosts on the sandbox distribution (test-sites.tf)
+  # Dev: test customers' two sandbox hosts (test-sites.tf)
   test_main_domain              = local.test_sites_main_domain
   test_dev_domain               = local.test_sites_dev_domain
-  test_distribution_id          = local.test_sites_distribution_id
-  test_distribution_arn         = local.test_sites_distribution
-  test_connection_group_id      = local.test_sites_connection_id
-  test_connection_group_arn     = local.test_sites_connection_arn
   platform_tenants_function_arn = "arn:aws:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:${var.env == "prod" ? "platform-tenants" : "${var.env}-platform-tenants"}:live"
 }
 

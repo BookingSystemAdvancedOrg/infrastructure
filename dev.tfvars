@@ -144,34 +144,37 @@ data_retention_dry_run = true
 # DMARC aggregate reports (privacy-variables.tf). The mailbox must exist.
 dmarc_report_address = "dmarc@booqy.se"
 
-# Restaurant websites, one private repo site-<slug> per customer (sites.tf,
-# docs/CUSTOMER-SITE-RUNBOOK.md). Off until the "Booqy Sites" GitHub App's
-# key is stored by hand in this secret (JSON {"app_id", "private_key"}):
-# uncomment, push, and new customers get their repo at onboarding.
+# Restaurant websites, one public repo site-<slug> per customer (sites.tf,
+# docs/CUSTOMER-SITE-RUNBOOK.md). Key isolation (owner 2026-11-15): this
+# secret holds ONLY the "Booqy Test Sites" App key (App 5770798, org
+# BooqyCustomersDev), JSON {"app_id", "private_key"}. Dev never holds the
+# "Booqy Customer Sites" key.
 github_app_sites_secret_name = "booqy/dev/github-app-sites"
-# Site repos live in their own org (App "Booqy Customer Sites"), apart
-# from the platform repos in var.github_org.
+# Real customers' repos are in BooqyCustomers. Dev makes NO GitHub call for
+# them: prod's site-repo writes everything there (DEV_* variables included)
+# and asks dev, through the booqy-sites-prod-link role, only for the dev
+# deploy role, naming the repo. Dev writes that trust only for a repo this
+# org owns, by login and id.
 site_github_org = "BooqyCustomers"
 # Then, once every active restaurant with a domain has a deployed site repo
 # (Website tab), serve each domain from its own site instead of the shared
 # customer-front-end build:
-per_tenant_sites = true
-# A site repo is born in the prod console, which also sets up its dev side
-# through the dev account's booqy-sites-prod-link role (sites/main.tf).
+per_tenant_sites          = true
 site_link_prod_account_id = "343695380960"
 # BooqyCustomers' numeric id (checked with the login before any role trust).
 site_github_org_id = "356944191"
 
 # Test sites (owner 2026-11-15, test-sites.tf): every customer created in THIS
 # console is a test customer with a public repo site-<slug> in
-# BooqyCustomersDev (App "Booqy Test Sites", its key nested as "test" in
-# booqy/dev/github-app-sites), generated from BooqyCustomers/site-template.
+# BooqyCustomersDev (App "Booqy Test Sites"), generated from the public
+# BooqyCustomers/site-template.
 # main -> https://<slug>.test.booqy.se, dev -> https://<slug>.test-dev.booqy.se,
-# both in this account on their own sandbox distribution (noindex).
+# both in this account behind ONE standard CloudFront distribution (noindex)
+# whose CloudFront Function maps the host to the customer's folder through a
+# key value store. No distribution tenants (they cost money beyond 10 per
+# account), nothing per customer that costs money.
 # Phase 1: the two zones (about 1 USD/month for both, owner-approved). Phase 2
 # (test_sites_enabled) only after prod delegates them (prod.tfvars).
-# CloudFront SaaS Manager: 10 distribution tenants free per account, then a
-# 20 USD/month tier (11-200); each test customer uses 2, each mapped domain 2.
 test_sites_zones         = true
 test_sites_enabled       = false
 test_sites_github_org    = "BooqyCustomersDev"

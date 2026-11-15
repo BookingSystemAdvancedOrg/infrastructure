@@ -34,28 +34,23 @@ output "bucket_arn" {
 }
 
 output "distribution_id" {
-  description = "Sandbox multi-tenant distribution; empty until phase 2"
-  value       = var.enabled ? aws_cloudfront_multitenant_distribution.sites[0].id : ""
+  description = "Sandbox distribution (standard, *.test. and *.test-dev.); empty until phase 2"
+  value       = var.enabled ? aws_cloudfront_distribution.sites[0].id : ""
 }
 
 output "distribution_arn" {
-  description = "Sandbox multi-tenant distribution ARN; empty until phase 2"
-  value       = var.enabled ? aws_cloudfront_multitenant_distribution.sites[0].arn : ""
+  description = "Sandbox distribution ARN; empty until phase 2"
+  value       = var.enabled ? aws_cloudfront_distribution.sites[0].arn : ""
 }
 
-output "connection_group_id" {
-  description = "Sandbox connection group; empty until phase 2"
-  value       = var.enabled ? aws_cloudfront_connection_group.sites[0].id : ""
-}
-
-output "connection_group_arn" {
-  description = "Sandbox connection group ARN; empty until phase 2"
-  value       = var.enabled ? aws_cloudfront_connection_group.sites[0].arn : ""
-}
-
-output "routing_endpoint" {
+output "distribution_domain_name" {
   description = "Where both wildcards point"
-  value       = var.enabled ? aws_cloudfront_connection_group.sites[0].routing_endpoint : ""
+  value       = var.enabled ? aws_cloudfront_distribution.sites[0].domain_name : ""
+}
+
+output "hosts_kvs_arn" {
+  description = "Key value store of the host router (label -> tenantId), written only by site-repo; empty until phase 2"
+  value       = var.enabled ? aws_cloudfront_key_value_store.hosts[0].arn : ""
 }
 
 output "deploy_boundary_arn" {

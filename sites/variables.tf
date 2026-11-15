@@ -146,3 +146,9 @@ variable "test_dev_domain" {
   type        = string
   default     = ""
 }
+
+variable "test_kvs_arn" {
+  description = "Dev: the test sites host map (CloudFront key value store, label -> tenantId); this function is its only writer"
+  type        = string
+  default     = ""
+}
