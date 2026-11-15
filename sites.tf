@@ -13,7 +13,7 @@ module "sites" {
   tenant_table_arn       = module.tenant.table_arn
   distribution_arn       = local.tenant_sites_enabled ? module.platform_domain[0].multitenant_distribution_arn : ""
   oidc_provider_arn      = module.github_oidc_provider.provider_arn
-  github_org             = var.github_org
+  github_org             = var.site_github_org != "" ? var.site_github_org : var.github_org
   github_app_secret_name = var.github_app_sites_secret_name
   template_repo          = var.site_template_repo
   api_base_url           = module.api_gateway.api_endpoint
@@ -31,6 +31,12 @@ module "sites" {
 
 variable "github_app_sites_secret_name" {
   description = "Secrets Manager secret with the \"Booqy Sites\" GitHub App key, JSON {\"app_id\", \"private_key\"}: booqy/<env>/github-app-sites, created by hand in each account (docs/CUSTOMER-SITE-RUNBOOK.md). Empty: no site repos, onboarding skips the step."
+  type        = string
+  default     = ""
+}
+
+variable "site_github_org" {
+  description = "GitHub organisation the restaurant site repos (site-<slug>) and site-template live in, apart from the platform repos. Only the site-repo function uses it (create, configure, archive, delete); the platform OIDC trusts keep var.github_org. Empty: var.github_org."
   type        = string
   default     = ""
 }

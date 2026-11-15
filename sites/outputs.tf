@@ -3,6 +3,11 @@ output "bucket_name" {
   value       = aws_s3_bucket.sites.bucket
 }
 
+output "bucket_arn" {
+  description = "Sites bucket ARN (tenant-purge deletes sites/<tenantId>/)"
+  value       = aws_s3_bucket.sites.arn
+}
+
 output "bucket_regional_domain_name" {
   description = "Sites bucket regional domain (multi-tenant distribution origin)"
   value       = aws_s3_bucket.sites.bucket_regional_domain_name

@@ -113,6 +113,22 @@ resource "aws_iam_role_policy" "data" {
         Resource = "${var.user_backdrops_bucket_arn}/admin/*"
       },
       {
+        # The restaurant's deployed website (sites/<tenantId>/, site-repo)
+        Sid      = "ListSiteFolders"
+        Effect   = "Allow"
+        Action   = "s3:ListBucket"
+        Resource = var.sites_bucket_arn
+        Condition = {
+          StringLike = { "s3:prefix" = ["sites/*"] }
+        }
+      },
+      {
+        Sid      = "DeleteSiteFolders"
+        Effect   = "Allow"
+        Action   = "s3:DeleteObject"
+        Resource = "${var.sites_bucket_arn}/sites/*"
+      },
+      {
         # The restaurant's users' library items (byTenant index, then delete)
         Sid      = "FindUserBackdropItems"
         Effect   = "Allow"

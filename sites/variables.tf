@@ -36,7 +36,7 @@ variable "oidc_provider_arn" {
 }
 
 variable "github_org" {
-  description = "GitHub organisation of the site repos"
+  description = "GitHub organisation of the site repos and site-template (root var.site_github_org)"
   type        = string
 }
 

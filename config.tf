@@ -668,6 +668,7 @@ module "tenant_purge_role" {
   menu_image_bucket_arn     = module.menu_image.bucket_arn
   user_backdrops_bucket_arn = module.user_backdrops.bucket_arn
   user_backdrops_table_arn  = module.user_backdrops_table.table_arn
+  sites_bucket_arn          = module.sites.bucket_arn
   alert_topic_arn           = module.alerts.topic_arn
   protected_zone_ids        = local.platform_domain_enabled ? [module.platform_domain[0].zone_id] : []
   site_repo_function_arn    = module.sites.enabled ? module.sites.alias_arn : ""
@@ -1824,6 +1825,7 @@ module "tenant_purge_fn" {
   menu_image_bucket_name              = module.menu_image.bucket_name
   user_backdrops_bucket_name          = module.user_backdrops.bucket_name
   user_backdrops_table_name           = module.user_backdrops_table.table_name
+  sites_bucket_name                   = module.sites.bucket_name
   alert_topic_arn                     = module.alerts.topic_arn
   protected_zone_ids                  = local.platform_domain_enabled ? [module.platform_domain[0].zone_id] : []
   site_repo_function_arn              = module.sites.enabled ? module.sites.alias_arn : ""
