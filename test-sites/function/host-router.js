@@ -73,6 +73,11 @@ async function handler(event) {
     request.uri = '/_platform/robots.txt';
     return request;
   }
+  // The sandbox's own 404 page (the distribution's error responses) stays
+  // where it is, should the router see that fetch.
+  if (request.uri === '/_platform/404.html') {
+    return request;
+  }
   request.uri = '/' + found.stage + '/sites/' + folder + sitePath(request.uri);
   return request;
 }

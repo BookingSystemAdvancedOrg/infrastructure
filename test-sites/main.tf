@@ -361,7 +361,10 @@ resource "aws_cloudfront_function" "host_router" {
   comment = "Test sites: host label -> stage folder of the tenant (key value store)"
   publish = true
   code = templatefile("${path.module}/function/host-router.js", {
-    kvs_id      = aws_cloudfront_key_value_store.hosts[0].id
+    # The store's ID (cf.kvs() needs it), the last part of its ARN
+    # (arn:aws:cloudfront::<account>:key-value-store/<id>); the resource's
+    # own id attribute is its name.
+    kvs_id      = element(split("/", aws_cloudfront_key_value_store.hosts[0].arn), 1)
     main_domain = var.main_domain
     dev_domain  = var.dev_domain
   })

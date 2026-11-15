@@ -68,6 +68,16 @@ test('robots.txt is always the sandbox one (Disallow)', async () => {
   assert.equal(await uri('pasta.test-dev.booqy.se', '/robots.txt'), '/_platform/robots.txt');
 });
 
+test('the sandbox 404 page keeps its key; other _platform paths stay in the site folder', async () => {
+  assert.equal(await uri('pasta.test.booqy.se', '/_platform/404.html'), '/_platform/404.html');
+  assert.equal(await uri('pasta.test.booqy.se', '/_platform/robots.txt'), '/main/sites/t-pasta/_platform/robots.txt');
+});
+
+test('dot-dot and encoded paths never leave the tenant folder', async () => {
+  assert.equal(await uri('pasta.test.booqy.se', '/../../dev/sites/t-roma/index.html'), '/main/sites/t-pasta/index.html');
+  assert.equal(await uri('pasta.test.booqy.se', '/a/%2e%2e/x.js'), '/main/sites/t-pasta/a/%2e%2e/x.js');
+});
+
 test('an unknown or foreign host gets the 404 page, never another site', async () => {
   for (const host of ['nobody.test.booqy.se', 'test.booqy.se', 'a.b.test.booqy.se', 'pasta.dev.booqy.se',
                       'pasta.booqy.se', 'pasta.test.booqy.se.evil.com', '-x.test.booqy.se', '', null]) {
