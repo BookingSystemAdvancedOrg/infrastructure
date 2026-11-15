@@ -64,12 +64,18 @@ platform_subdomain_delegations = {
   # apply's outputs test_sites_main_name_servers / test_sites_dev_name_servers
   # (rollout step 2), then the owner merges to main; or add the two NS
   # records by hand in the booqy.se zone first (adopted, allow_overwrite).
-  # test = [
-  #   "ns-....awsdns-...",
-  # ]
-  # test-dev = [
-  #   "ns-....awsdns-...",
-  # ]
+  test = [
+    "ns-975.awsdns-57.net",
+    "ns-1639.awsdns-12.co.uk",
+    "ns-1530.awsdns-63.org",
+    "ns-197.awsdns-24.com",
+  ]
+  test-dev = [
+    "ns-195.awsdns-24.com",
+    "ns-944.awsdns-54.net",
+    "ns-1972.awsdns-54.co.uk",
+    "ns-1386.awsdns-45.org",
+  ]
 }
 
 # Public keys handed to restaurant websites by GET /site-config - not
