@@ -27,3 +27,8 @@ output "admin_group_name" {
   description = "Group every operator belongs to - the platform-tenants Lambda only serves members"
   value       = aws_cognito_user_group.platform_admin.name
 }
+
+output "owner_group_name" {
+  description = "Group of the owners - they may change any operator's e-mail"
+  value       = aws_cognito_user_group.platform_owner.name
+}

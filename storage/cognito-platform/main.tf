@@ -143,25 +143,39 @@ resource "aws_cognito_user_group" "platform_admin" {
   description  = "Platform operator - manages tenants through /platform/*"
 }
 
-# One account per address in var.operator_emails. No temporary_password:
-# Cognito generates a random one and emails it, so there is no shared
-# bootstrap password anywhere. Removing an address deletes that account on
-# the next apply - that is how an operator is offboarded.
-resource "aws_cognito_user" "operator" {
-  for_each = toset(var.operator_emails)
+# Owners: operators who may change any operator's e-mail (the sign-in name)
+# and are the only ones who disable or delete an owner. The platform-tenants
+# Lambda reads the role from cognito:groups in the access token. Members are
+# Cognito usernames (the sub), which stay the same when an e-mail changes.
+resource "aws_cognito_user_group" "platform_owner" {
+  name         = "platform_owner"
+  user_pool_id = aws_cognito_user_pool.this.id
+  description  = "Platform owner - may change any operator's e-mail"
+}
+
+resource "aws_cognito_user_in_group" "owner" {
+  for_each = toset(var.owner_usernames)
 
   user_pool_id = aws_cognito_user_pool.this.id
+  group_name   = aws_cognito_user_group.platform_owner.name
   username     = each.value
+}
 
-  attributes = {
-    email          = each.value
-    email_verified = true
-  }
-
-  desired_delivery_mediums = ["EMAIL"]
-
+# Operator accounts are managed in Booqy Console (Operators), not here: an
+# owner can change an operator's e-mail there, and a Terraform-managed user
+# keyed by e-mail would then be re-created under the old address on the next
+# apply. Forget the bootstrap accounts without deleting them.
+removed {
+  from = aws_cognito_user.operator
   lifecycle {
-    ignore_changes = [attributes]
+    destroy = false
+  }
+}
+
+removed {
+  from = aws_cognito_user_in_group.operator
+  lifecycle {
+    destroy = false
   }
 }
 
@@ -173,12 +187,4 @@ resource "aws_lambda_permission" "custom_message" {
   qualifier     = var.lambda_alias_name
   principal     = "cognito-idp.amazonaws.com"
   source_arn    = aws_cognito_user_pool.this.arn
-}
-
-resource "aws_cognito_user_in_group" "operator" {
-  for_each = toset(var.operator_emails)
-
-  user_pool_id = aws_cognito_user_pool.this.id
-  group_name   = aws_cognito_user_group.platform_admin.name
-  username     = aws_cognito_user.operator[each.key].username
 }

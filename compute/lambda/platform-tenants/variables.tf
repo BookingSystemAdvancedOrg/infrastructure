@@ -136,6 +136,12 @@ variable "operator_group_name" {
   sensitive   = false
 }
 
+variable "operator_owner_group_name" {
+  description = "Group of the operators who are owners: they may change any operator's e-mail and disable or delete an owner"
+  type        = string
+  sensitive   = false
+}
+
 variable "mail_outbox_bucket_name" {
   description = "Dev mail outbox bucket the operator console reads (GET /platform/outbox). Empty string = outbox off (always in prod)."
   type        = string

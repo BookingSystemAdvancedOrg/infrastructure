@@ -4,10 +4,11 @@ variable "environment" {
   sensitive   = false
 }
 
-variable "operator_emails" {
-  description = "Platform operators to create in this pool (each gets an emailed temporary password and must enroll TOTP MFA)"
+variable "owner_usernames" {
+  description = "Cognito usernames (the sub, not the e-mail) of the operators in the platform_owner group"
   type        = list(string)
   sensitive   = false
+  default     = []
 }
 
 variable "app_urls" {

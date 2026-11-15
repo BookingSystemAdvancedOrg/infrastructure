@@ -8,6 +8,11 @@ platform_operator_emails = [
   "arya.eisa@ithjalparna.se",
 ]
 
+# Owners (platform_owner group): may change any operator's e-mail in Booqy
+# Console. Cognito usernames (the sub), not e-mails; find yours with
+# aws cognito-idp admin-get-user --user-pool-id <operator pool> --username <your e-mail>
+platform_owner_usernames = []
+
 dlq_replay_interval_minutes = 720 # every 12 hours - stays inside the 24h stream-record window
 
 alert_emails = [

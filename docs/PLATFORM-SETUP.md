@@ -145,10 +145,15 @@ apps run on `*.cloudfront.net` and restaurants have no website URL yet.
 
 ## 4. Operators
 
-- [ ] `platform_operator_emails` in tfvars - each gets an email with a
-      temporary password for the operator app. First sign-in: new
-      password + authenticator app (MFA is mandatory).
-- [ ] Removing an address deletes that operator on the next apply.
+- [ ] Operators are managed in Booqy Console (Operators): add, disable,
+      delete. Each new one gets an email with a temporary password; first
+      sign-in: new password + authenticator app (MFA is mandatory).
+- [ ] A new environment's first operator: create it once by hand in the
+      operator pool (e-mail as username, verified) and add it to
+      `platform_admin`. `platform_operator_emails` is only the record of
+      that bootstrap; Terraform no longer manages operator accounts.
+- [ ] `platform_owner_usernames` in tfvars: the Cognito usernames (sub) of
+      the owners, who may change any operator's e-mail in the console.
 
 ## 5. Catering third parties
 
