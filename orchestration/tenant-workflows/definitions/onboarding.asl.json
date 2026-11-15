@@ -32,7 +32,8 @@
         "tenantFound": "{% $exists($states.result.Item) %}",
         "stripeAccountId": "{% ($a := $states.result.Item.stripe.M.accountId.S; $a ? $a : '') %}",
         "existingTaxRateKeys": "{% $exists($states.result.Item.stripe.M.taxRates.M) ? $append([], $keys($states.result.Item.stripe.M.taxRates.M)) : [] %}",
-        "tenantStatus": "{% ($s := $states.result.Item.status.S; $s ? $s : '') %}"
+        "tenantStatus": "{% ($s := $states.result.Item.status.S; $s ? $s : '') %}",
+        "siteKind": "{% ($k := $states.result.Item.siteKind.S; $k ? $k : '') %}"
       },
       "Retry": [
         {
@@ -458,7 +459,105 @@
           "Next": "MarkFailed"
         }
       ],
-      "Next": "PlatformDomainEnabled"
+      "Next": "IsTestSite"
+    },
+    "IsTestSite": {
+      "Type": "Choice",
+      "Comment": "Dev only: a customer created in the dev console (PROFILE siteKind test) gets its two sandbox hosts instead of <slug>.<platform domain>: claimed here, served by the sandbox distribution once site-repo puts the slug into its host map. No distribution tenant.",
+      "Choices": [
+        {
+          "Condition": "{% ${test_sites_enabled} and $siteKind = 'test' %}",
+          "Next": "RecordTestHosts"
+        }
+      ],
+      "Default": "PlatformDomainEnabled"
+    },
+    "RecordTestHosts": {
+      "Type": "Task",
+      "Comment": "Both hosts claimed for this tenant (kind platform, with their stage); links go to main (application shared/site.py).",
+      "Resource": "arn:aws:states:::aws-sdk:dynamodb:transactWriteItems",
+      "Arguments": {
+        "TransactItems": [
+          {
+            "Put": {
+              "TableName": "${tenant_table}",
+              "Item": {
+                "PK": { "S": "{% 'DOMAIN#' & $slug & '.${test_main_domain}' %}" },
+                "SK": { "S": "TENANT" },
+                "tenantId": { "S": "{% $tenantId %}" }
+              },
+              "ConditionExpression": "attribute_not_exists(PK) OR tenantId = :t",
+              "ExpressionAttributeValues": {
+                ":t": { "S": "{% $tenantId %}" }
+              }
+            }
+          },
+          {
+            "Put": {
+              "TableName": "${tenant_table}",
+              "Item": {
+                "PK": { "S": "{% 'DOMAIN#' & $slug & '.${test_dev_domain}' %}" },
+                "SK": { "S": "TENANT" },
+                "tenantId": { "S": "{% $tenantId %}" }
+              },
+              "ConditionExpression": "attribute_not_exists(PK) OR tenantId = :t",
+              "ExpressionAttributeValues": {
+                ":t": { "S": "{% $tenantId %}" }
+              }
+            }
+          },
+          {
+            "Put": {
+              "TableName": "${tenant_table}",
+              "Item": {
+                "PK": { "S": "{% 'TENANT#' & $tenantId %}" },
+                "SK": { "S": "{% 'DOMAIN#' & $slug & '.${test_main_domain}' %}" },
+                "domain": { "S": "{% $slug & '.${test_main_domain}' %}" },
+                "kind": { "S": "platform" },
+                "stage": { "S": "main" },
+                "status": { "S": "active" },
+                "createdAt": { "S": "{% $now() %}" }
+              }
+            }
+          },
+          {
+            "Put": {
+              "TableName": "${tenant_table}",
+              "Item": {
+                "PK": { "S": "{% 'TENANT#' & $tenantId %}" },
+                "SK": { "S": "{% 'DOMAIN#' & $slug & '.${test_dev_domain}' %}" },
+                "domain": { "S": "{% $slug & '.${test_dev_domain}' %}" },
+                "kind": { "S": "platform" },
+                "stage": { "S": "dev" },
+                "status": { "S": "active" },
+                "createdAt": { "S": "{% $now() %}" }
+              }
+            }
+          },
+          {
+            "Update": {
+              "TableName": "${tenant_table}",
+              "Key": {
+                "PK": { "S": "{% 'TENANT#' & $tenantId %}" },
+                "SK": { "S": "PROFILE" }
+              },
+              "UpdateExpression": "SET primaryDomain = if_not_exists(primaryDomain, :d), updatedAt = :now",
+              "ExpressionAttributeValues": {
+                ":d": { "S": "{% $slug & '.${test_main_domain}' %}" },
+                ":now": { "S": "{% $now() %}" }
+              }
+            }
+          }
+        ]
+      },
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Assign": { "failure": "{% $states.errorOutput %}", "failedState": "{% $states.context.State.Name %}" },
+          "Next": "MarkFailed"
+        }
+      ],
+      "Next": "ActivateTenant"
     },
     "PlatformDomainEnabled": {
       "Type": "Choice",

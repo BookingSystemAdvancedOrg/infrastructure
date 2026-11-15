@@ -154,7 +154,25 @@ resource "aws_iam_role_policy" "data" {
         Action   = "lambda:InvokeFunction"
         Resource = [local.function_arn, "${local.function_arn}:*"]
       },
-      ], var.site_repo_function_arn == "" ? [] : [
+      ], [for statement in [
+        {
+          # Dev: a test customer's two sandbox builds (main/sites/<tenantId>/,
+          # dev/sites/<tenantId>/); never the sandbox's own _platform/ files.
+          Sid      = "ListTestSiteFolders"
+          Effect   = "Allow"
+          Action   = "s3:ListBucket"
+          Resource = var.test_sites_bucket_arn
+          Condition = {
+            StringLike = { "s3:prefix" = ["main/sites/*", "dev/sites/*"] }
+          }
+        },
+        {
+          Sid      = "DeleteTestSiteFolders"
+          Effect   = "Allow"
+          Action   = "s3:DeleteObject"
+          Resource = ["${var.test_sites_bucket_arn}/main/sites/*", "${var.test_sites_bucket_arn}/dev/sites/*"]
+        },
+      ] : statement if var.test_sites_bucket_arn != ""], var.site_repo_function_arn == "" ? [] : [
       {
         # site-repo "delete": the restaurant's website repo goes with its data.
         Sid      = "DeleteWebsiteRepo"

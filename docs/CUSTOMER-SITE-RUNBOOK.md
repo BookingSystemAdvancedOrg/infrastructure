@@ -1,6 +1,6 @@
 # Customer sites: runbook
 
-Every restaurant has its own private website repo `site-<slug>` in the
+Every restaurant has its own public website repo `site-<slug>` in the
 GitHub organisation **BooqyCustomers** (since 2026-11-15; only site repos and
 `site-template` live there, the platform repos stay in
 BookingSystemAdvancedOrg), designed in Figma by Booqy and coded with Claude
@@ -13,21 +13,22 @@ decisions:
 
 ```
 prod console "New customer" ──> site-repo (prod) ──> repo site-<slug> from site-template (the only place a repo is born)
-                                                    booqy.json (prod), PROD_* variables, role /booqy-sites/site-<slug> (main only)
-                                  └─ assume dev booqy-sites-prod-link ──> dev platform-tenants (site task)
-                                       ──> empty dev tenant, same slug ──> dev onboarding ──> site-repo (dev):
-                                           <slug>.dev.booqy.se, booqy.json (dev), DEV_* variables,
-                                           role /booqy-sites/dev-site-<slug> (dev only), first deploy
-                                  └─ first prod deploy of main ──> <slug>.booqy.se
+                                                    role /booqy-sites/site-<slug> (main only)
+                                  └─ assume dev booqy-sites-prod-link ──> dev platform-tenants (site task "mirror", repo named by prod)
+                                       ──> empty dev tenant, same slug (its onboarding: <slug>.dev.booqy.se)
+                                       ──> site-repo (dev) linkProvision, AWS only: role /booqy-sites/dev-site-<slug>
+                                           (dev branch of that repo id only) ──> answers role ARN, bucket, booqy.json dev values
+                                  └─ site-repo (prod), with the Customer Sites key: PROD_* and DEV_* variables,
+                                     booqy.json (prod and dev), first deploys ──> <slug>.booqy.se, <slug>.dev.booqy.se
 push to dev       ──> Deploy ──> dev account  sites/<devTenantId>/ ──> <slug>.dev.booqy.se (noindex)
 merge dev -> main ──> Deploy ──> prod sites/<tenantId>/ ──> <slug>.booqy.se (+ www.restaurant.se once mounted)
 Website tab "Mount" ──> prod: domain-attach www.<domain>   dev (link): domain-attach dev.<domain>
-dev console "New customer" ──> dry run only (shows what prod would create); slugs test-* are real (testing)
+dev console "New customer" ──> test customer: repo site-<slug> in BooqyCustomersDev (see "Test sites" below)
 ```
 
 | Piece | Where |
 |---|---|
-| Repos | BooqyCustomers: `site-template` (GitHub template) and `site-<slug>` (one per restaurant, private). BookingSystemAdvancedOrg: `site-kit` (the package, public) |
+| Repos | BooqyCustomers: `site-template` (GitHub template) and `site-<slug>` (one per restaurant, public). BookingSystemAdvancedOrg: `site-kit` (the package, public) |
 | Org setting | `site_github_org = "BooqyCustomers"` in `dev.tfvars` and `prod.tfvars` (the site-repo function's `GITHUB_ORG`); the platform OIDC trusts keep `github_org` |
 | Package | `@bookingsystemadvancedorg/site-kit` on GitHub Packages (GitHub only accepts the owner's name as scope), public so repos in BooqyCustomers can install it |
 | Sites bucket | `<env->restaurant-sites-<account>`, folder `sites/<tenantId>/`, versioned (30 days) |
@@ -35,6 +36,16 @@ dev console "New customer" ──> dry run only (shows what prod would create); 
 | Function | `site-repo` (application `functions/site-repo`), called by onboarding, offboarding and the console |
 | Deploy roles | `/booqy-sites/<env->site-<slug>`, one per customer per account, created at runtime |
 | Console | customer page, tab **Website** |
+
+**Key isolation (owner 2026-11-15).** Only the **prod** account holds the
+"Booqy Customer Sites" key. The dev account holds only the "Booqy Test
+Sites" key (BooqyCustomersDev) and never calls GitHub for a repo in
+BooqyCustomers: every GitHub write for a real customer (repo, `DEV_*` and
+`PROD_*` variables, `booqy.json` for both environments, deploys, archive,
+delete) is done by prod's site-repo. Dev does only the AWS side when prod
+asks through the link: the dev deploy role, whose trust dev writes only for
+a BooqyCustomers repo (login and id 356944191) with the repo id prod
+supplies.
 
 Restaurant data is never copied between environments: the dev tenant starts
 empty, and the restaurant and developers enter test data in the dev admin
@@ -103,43 +114,31 @@ BooqyCustomers settings (Organization -> Settings):
   tab) adds the developer's GitHub username as an outside collaborator with
   write on that one repo.
 
-### 3. Store the key in both accounts
+### 3. Store the keys: one per account
 
-Same key, two secrets: `booqy/dev/github-app-sites` in the **dev** account
-(877653167825) and `booqy/prod/github-app-sites` in the **prod** account
-(343695380960), region eu-north-1. Easiest from AWS CloudShell, so the key
-never touches a terminal history or the screen:
+Two Apps, two secrets, one key each (key isolation, 2026-11-15):
 
-1. AWS console, dev account, region Stockholm (eu-north-1) -> CloudShell.
-2. Actions -> Upload file -> the `.pem`.
-3. Run (put in the App ID):
+| Account | Secret | Holds |
+|---|---|---|
+| prod (343695380960) | `booqy/prod/github-app-sites` | "Booqy Customer Sites" (App ID 5769537, BooqyCustomers) |
+| dev (877653167825) | `booqy/dev/github-app-sites` | "Booqy Test Sites" (App ID 5770798, BooqyCustomersDev), done by the owner 2026-11-15 |
 
-```bash
-jq -n --arg id "<App ID>" --rawfile key ~/*.private-key.pem '{app_id:$id, private_key:$key}' > ~/gh-app.json && aws secretsmanager create-secret --region eu-north-1 --name booqy/dev/github-app-sites --description "Booqy Sites GitHub App (site-repo)" --secret-string file://$HOME/gh-app.json && rm ~/gh-app.json ~/*.private-key.pem
-```
-
-4. The same in the prod account, with the name `booqy/prod/github-app-sites`:
+The Customer Sites key is never stored in dev. Easiest from AWS CloudShell
+in the right account (region eu-north-1), so a key never touches a terminal
+history or the screen: Actions -> Upload file -> the `.pem`, then (App ID
+and secret id of that account):
 
 ```bash
-jq -n --arg id "<App ID>" --rawfile key ~/*.private-key.pem '{app_id:$id, private_key:$key}' > ~/gh-app.json && aws secretsmanager create-secret --region eu-north-1 --name booqy/prod/github-app-sites --description "Booqy Sites GitHub App (site-repo)" --secret-string file://$HOME/gh-app.json && rm ~/gh-app.json ~/*.private-key.pem
+jq -n --arg id "<App ID>" --rawfile key ~/*.private-key.pem '{app_id:$id, private_key:$key}' > ~/gh-app.json && aws secretsmanager put-secret-value --region eu-north-1 --secret-id <secret id> --secret-string file://$HOME/gh-app.json && rm ~/gh-app.json ~/*.private-key.pem
 ```
 
-5. Delete the downloaded `.pem` from your computer.
-
-The secrets already exist (they held the old "Booqy Sites" App): for the
-new App ID 5769537 replace the value instead, with the same ids, in each
-account (`booqy/dev/...` in dev, `booqy/prod/...` in prod):
-
-```bash
-jq -n --arg id "5769537" --rawfile key ~/*.private-key.pem '{app_id:$id, private_key:$key}' > ~/gh-app.json && aws secretsmanager put-secret-value --region eu-north-1 --secret-id booqy/dev/github-app-sites --secret-string file://$HOME/gh-app.json && rm ~/gh-app.json ~/*.private-key.pem
-```
-
-A warm function keeps its App token up to 50 minutes; the apply that sets
-`site_github_org` restarts it, and every cold start reads the secret again.
+Delete the downloaded `.pem` from your computer afterwards. A warm function
+keeps its App token up to 50 minutes; every cold start reads the secret
+again.
 
 Only the `site-repo` role of each account can read its secret. Rotate
-yearly: generate a new key on the App page, `put-secret-value` in both
-accounts, delete the old key on the App page.
+yearly: generate a new key on the App page, `put-secret-value` in that
+account, delete the old key on the App page.
 
 ### 4. Let the site repos read the kit
 
@@ -165,8 +164,16 @@ Then: site-template -> Actions -> **Lockfile** -> Run workflow on `dev`
 and set `site_github_org = "BooqyCustomers"` (both done);
 push dev (prod follows with the merge to main). Prod onboarding creates
 repos only once prod has it and the link (`site_link_dev_account_id`, set).
-Until then the dev console shows a dry run for new customers; slugs starting
-with `test-` create real `site-test-<slug>` repos from dev, for testing.
+Customers created in the dev console are test customers ("Test sites"
+below); dev never creates a repo in BooqyCustomers.
+
+**Order of the key isolation rollout:** dev gets the new code first (dev
+then stops writing to BooqyCustomers); a real customer's dev side set up
+before keeps working (its `DEV_*` variables and dev role stay as they
+are, for example `site-test-release`). A new prod customer gets its dev
+side once prod has the new code too (owner's merge to main): then prod
+console -> Website -> **Run setup again** for any prod customer created in
+between.
 
 When every active restaurant with a domain in an environment has a deployed
 site, uncomment `per_tenant_sites = true` there so domains serve their own
@@ -188,12 +195,15 @@ site instead of the shared customer-front-end build.
    The dev invitation goes to the owner's address; when that address
    already signs in to another dev customer, to `<local>+<slug>@<domain>`
    (same mailbox with most providers).
-5. Dev onboarding of that tenant: `<slug>.dev.booqy.se`, the dev deploy
-   role, `DEV_*` variables, `booqy.json`'s dev section, first deploy. Prod
-   deploys `main` once (live on `<slug>.booqy.se`). A few minutes in all.
+5. In the same step dev writes the dev deploy role (AWS only, for the repo
+   id prod names) and answers with its values; prod writes the `DEV_*`
+   variables and `booqy.json`'s dev section (that commit deploys `dev`) and
+   deploys `main` once (live on `<slug>.booqy.se`). Dev onboarding of the
+   tenant makes `<slug>.dev.booqy.se`. A few minutes in all.
 6. Prod console -> Website: status **Ready**, Dev **Live**, Production
    **Live**; "Where the site answers" lists both slug addresses as
-   **Slug address only**. The dev console shows the same repo read-only.
+   **Slug address only**. The dev console shows the repo as managed from
+   prod (no deploys there: dev can't read BooqyCustomers).
 7. The restaurant and the developer enter test data in the **dev** admin.
 8. **Give access** (prod console) to the developer's GitHub username: write
    on this repo only.
@@ -246,10 +256,12 @@ for a person. Releasing the kit: `site-kit/README.md`, Release.
 ### Offboarding
 
 Offboarding a customer in **prod** (Danger zone) also runs `site-repo
-archive`: the prod deploy role and `PROD_*` variables are removed, prod asks
-dev (link role) to remove the dev role and `DEV_*` variables, then the repo
-is archived (read-only). The dev tenant stays as test data; offboard it in
-the dev console if wanted. Offboarding in dev removes only the dev side.
+archive`: the prod deploy role is removed, prod asks dev (link role) to
+remove the dev role, prod removes the `PROD_*` and `DEV_*` variables, then
+the repo is archived (read-only). The dev tenant stays as test data;
+offboard it in the dev console if wanted. Offboarding in dev removes only
+the dev role (dev makes no GitHub call): the `DEV_*` variables stay until
+prod's Run setup again (which writes a new role) or prod's archive.
 The Website tab has the same as **Archive**. **Set up** (or onboarding in
 the other environment) unarchives it. The site's files stay in
 `sites/<tenantId>/`; the domain is detached by offboarding, so nothing
@@ -263,8 +275,10 @@ the offboarded dev tenant the same way. Own domains are re-added by hand.
 **Delete customer** (Danger zone, offboarded customers only) and the
 automatic purge after the retention period run `site-repo delete`: archive
 first (prod also asks dev to drop its side), then `DELETE /repos/...` once
-no `*_TENANT_ID` variable is left. Dev deletes only its own `test-` repos
-(no `prod` section in `booqy.json`); a prod-born repo is deleted by prod.
+no `*_TENANT_ID` variable is left. A real customer's repo is deleted only by
+prod; dev's purge of its dev tenant removes only the dev role. Dev deletes
+its test customers' repos in BooqyCustomersDev. Older `site-test-*` repos dev
+made alone in BooqyCustomers before key isolation are deleted by hand.
 The result goes to the activity log (`site_repo_deleted`,
 `site_repo_not_deleted` or `site_repo_delete_failed`) and, at the purge, to
 the summary email. A refusal never stops the data deletion; delete the
@@ -272,6 +286,73 @@ archived repo by hand on GitHub then. Afterwards the slug is free: **New
 customer** with it takes over the purged customer's `SLUG#` claim and
 onboarding generates a fresh repo from `site-template` (new repo id, so
 the old deploy role's OIDC subject can't match it).
+
+---
+
+## Test sites (dev console)
+
+Owner decision 2026-11-15. Every customer created in the **dev** console is
+a test customer (PROFILE `siteKind: "test"`, set by dev platform-tenants
+once `test_sites_enabled`): a real, public repo `site-<slug>` in the GitHub
+org **BooqyCustomersDev** (id 356983507, App "Booqy Test Sites", App ID
+5770798, installed on all repositories), generated from the public
+`BooqyCustomers/site-template` (`site_template_owner`). Both branches deploy
+in the **dev account** to the test sites sandbox (`test-sites.tf`), never to
+the real customers' dev sites on `dev.booqy.se`:
+
+```
+dev console "New customer" ──> dev onboarding ──> claims <slug>.test.booqy.se (main) + <slug>.test-dev.booqy.se (dev),
+                                                  then site-repo (dev, test mode): host map <slug> -> tenantId,
+                                                  repo BooqyCustomersDev/site-<slug>, roles
+                                                  /booqy-test-sites/test-site-<slug>-main and -dev,
+                                                  SANDBOX_MAIN_* and DEV_* variables, booqy.json (test, dev) on both branches
+push to main ──> Deploy ──> dev account sandbox main/sites/<tenantId>/ ──> https://<slug>.test.booqy.se
+push to dev  ──> Deploy ──> dev account sandbox dev/sites/<tenantId>/  ──> https://<slug>.test-dev.booqy.se
+Domains tab "Add domain example.se" (dev) ──> example-se.test.booqy.se (main) + example-se.test-dev.booqy.se (dev):
+                                              both claimed and live at once, host map example-se -> tenantId
+```
+
+| Piece | Where |
+|---|---|
+| Zones | `test.booqy.se`, `test-dev.booqy.se` in the dev account, delegated by NS records in prod's `booqy.se` zone (`prod.tfvars` `platform_subdomain_delegations`) |
+| Certificate | one ACM certificate (us-east-1), `*.test.booqy.se` + `*.test-dev.booqy.se` |
+| Bucket | `dev-restaurant-sites-test-<account>`: `main/sites/<tenantId>/`, `dev/sites/<tenantId>/`, `_platform/robots.txt` (`Disallow: /`), `_platform/404.html` |
+| Serving | ONE standard CloudFront distribution (not multi-tenant: no distribution tenants, which cost money beyond 10 per account), aliases `*.test.booqy.se` and `*.test-dev.booqy.se`, origin the sandbox bucket (OAC); header `X-Robots-Tag: noindex, nofollow` (response headers policy) |
+| Host router | CloudFront Function `dev-test-sites-host-router` (viewer request, `test-sites/function/host-router.js`, unit test `node --test test-sites/function/`) with key value store `dev-test-sites-hosts` (label -> tenantId): `<label>.test.booqy.se` -> `/main/sites/<tenantId>/...`, `<label>.test-dev.booqy.se` -> `/dev/sites/<tenantId>/...`; a path without a file extension -> `index.html` (SPA); `/robots.txt` -> `_platform/robots.txt`; unknown host -> 404 page; a missing file -> `_platform/404.html` |
+| Host map | written only by `site-repo` (dev): the slug at provision, a mapped domain's label (`example-se`) through the Domains tab (`testHost`), all of the tenant's labels removed on offboarding and purge; a label only for the tenant holding its `DOMAIN#<label>.test.booqy.se` claim |
+| DNS | `*.test.booqy.se` and `*.test-dev.booqy.se` alias A/AAAA to the distribution |
+| Roles | `/booqy-test-sites/test-site-<slug>-main` and `-dev`, boundary `dev-booqy-test-sites-deploy-boundary`, tags `tenantId`, `stage`, `repo` |
+| Domains | buying, connecting and transferring exist only in prod (API 409 `prod_only`, hidden in the dev console, dev IAM without RegisterDomain/TransferDomain); a dev "own domain" is a mapping onto the test zones |
+
+One-time setup (owner):
+
+1. BooqyCustomersDev org settings as for BooqyCustomers (step 2 above):
+   Actions allowlist, read-only workflow permissions, base permission None.
+   Check that the org's OIDC subject is the default (immutable, ids in it).
+2. Test Sites App permissions: Administration, Contents, Actions, Variables
+   and Workflows read and write; Metadata read.
+3. Its key is the only one in the dev secret `booqy/dev/github-app-sites`,
+   `{app_id: "5770798", private_key}` (done by the owner 2026-11-15; step 3
+   above). Nothing nested, no other key.
+4. The Test Sites App generates from the public
+   `BooqyCustomers/site-template`; if GitHub refuses that, see
+   Troubleshooting.
+
+Rollout (`test-sites.tf`): `test_sites_zones = true` (zones only) -> the two
+NS records in prod (`prod.tfvars`, owner's merge to main, or by hand first)
+-> `dig NS test.booqy.se` answers -> `test_sites_enabled = true`.
+
+**Cost:** two hosted zones (about 1 USD/month, approved), one standard
+distribution, one CloudFront Function and one key value store, all
+request-priced (test traffic only). No distribution tenants, no certificate
+per host: a test customer or a mapped domain costs nothing on its own.
+
+Offboarding a test customer removes both roles, every `DEV_*` and
+`SANDBOX_MAIN_*` variable and its labels in the host map (so both hosts
+answer 404 at once), and archives the repo; delete (or the purge) deletes
+the repo in BooqyCustomersDev, both S3 folders and the rows. Dev customers
+created before test sites show **legacy** on the Website tab: delete and
+re-create them.
 
 ---
 
@@ -305,7 +386,8 @@ roles (`dev-infra-oidc-role`, the front-end and back-end deploy roles).
   Get/Tag/UpdateAssumeRolePolicy/ListRolePolicies/DeleteRolePolicy/
   DeleteRole/SimulatePrincipalPolicy on `role/booqy-sites/*`; explicit Deny
   on removing or swapping the boundary and on AttachRolePolicy; tenant table
-  Get/Put/UpdateItem; the App secret. Prod only: `sts:AssumeRole` on
+  Get/Put/UpdateItem; the App secret (prod: Customer Sites, dev: Test Sites
+  only). Prod only: `sts:AssumeRole` on
   `arn:aws:iam::877653167825:role/booqy-sites-prod-link`.
 - `booqy-sites-prod-link` (Terraform, **dev account only**), the prod ->
   dev link:
@@ -323,9 +405,11 @@ roles (`dev-infra-oidc-role`, the front-end and back-end deploy roles).
   prod. Mirror
   creates (through the normal New customer path, no data copied), adopts or
   restores (offboarded, before its `purgeAt`) the dev tenant with that slug
-  (a purged one is replaced); its onboarding creates the dev distribution
-  tenant and, through dev `site-repo`, the `/booqy-sites/` role. Archive
-  removes that dev side. Dev has no role or right in prod.
+  (a purged one is replaced; its onboarding creates the dev distribution
+  tenant), then has dev `site-repo` (`linkProvision`, synchronous, no
+  GitHub call) write the `/booqy-sites/dev-site-<slug>` role for the repo
+  prod names, and answers with its ARN and values. Archive removes the dev
+  role. Dev has no role or right in prod.
 - Onboarding and offboarding state machine roles, platform-tenants role,
   and the `tenant-purge` role (statement `DeleteWebsiteRepo`, only while
   site repos are on): `lambda:InvokeFunction` on the `site-repo` live alias.
@@ -339,6 +423,29 @@ roles (`dev-infra-oidc-role`, the front-end and back-end deploy roles).
   platform-tenants' existing domain-attach and restaurant-zone rights; dev
   uses the same link role (site task `domain`, op `status` or `mount`,
   which only runs dev's domain-attach for that slug's dev tenant).
+
+- **Test sites (dev account only, 2026-11-15):** `dev-site-repo-role` gets
+  `CreateBoundedTestSiteRoles` (CreateRole, PutRolePolicy on
+  `role/booqy-test-sites/*` only with the test boundary),
+  `ManageTestSiteRoles` (Get/Tag/UpdateAssumeRolePolicy/ListRolePolicies/
+  DeleteRolePolicy/DeleteRole/SimulatePrincipalPolicy there) and
+  `KeepTestBoundary` (Deny on removing or swapping it, AttachRolePolicy). The
+  runtime roles `test-site-<slug>-main|dev` trust exactly
+  `repo:BooqyCustomersDev@356983507/site-<slug>@<repo id>:ref:refs/heads/main`
+  (or `dev`) and may write only `<stage>/sites/<tenantId>/` of the sandbox.
+  `WriteTestSitesHostMap`: `cloudfront-keyvaluestore:DescribeKeyValueStore`,
+  `PutKey` and `DeleteKey` on the one key value store `dev-test-sites-hosts`
+  (no other role may write it). No workflow role gets anything for the
+  sandbox (no distribution tenants). `dev-tenant-purge` gets
+  ListBucket/DeleteObject on `main/sites/*` and `dev/sites/*` of the sandbox
+  bucket; `dev-platform-tenants-role` loses `route53domains:RegisterDomain`
+  and `TransferDomain` and is denied changes to the two test zones
+  (tenant-purge too). Owner guard in site-repo: prod writes roles only for
+  BooqyCustomers (login and id 356944191, from GitHub's answer); dev writes a
+  real customer's dev role only for BooqyCustomers (login and id) through
+  the prod link with the repo id prod supplies, and its test customers'
+  roles only for BooqyCustomersDev (login and id 356983507). Dev's GitHub
+  client refuses any org but BooqyCustomersDev.
 
 Isolation is checked twice: at setup with the IAM policy simulator
 (own folder allowed, another tenant's folder and the bucket root denied;
@@ -362,15 +469,29 @@ refused.
 | Website tab: slug address "not made yet" | The tenant was onboarded before its environment had slug addresses (prod before 2026-10-28): Domains tab -> **Re-run setup** |
 | Website tab: Dev "Unknown" | The prod -> dev link failed (message under it); Refresh |
 | Website tab: Dev own domain **Waiting for DNS** | `dev.<domain>` CNAME is missing at the restaurant's DNS provider (bare CNAME domains only) |
-| Deploy: "No dev customer for this repo yet" | No `DEV_*` variables: the dev tenant's onboarding hasn't finished; prod Website tab -> Run setup again |
-| Setup failed: `dev side: ...` | The prod -> dev link failed (dev API or the dev tenant); the message names the field dev refused. Fix, then Run setup again in prod |
-| Dev console: "Dry run" | Expected: repos are born in prod. Use a `test-` slug to test in dev |
+| Deploy: "No dev customer for this repo yet" | No `DEV_*` variables: prod hasn't written the dev side (for example a prod customer created before prod had the key isolation code); prod Website tab -> Run setup again |
+| Deploy on dev: assume role fails | The dev tenant was offboarded in dev (its role is gone, the `DEV_*` variables stay): prod Website tab -> Run setup again |
+| Setup failed: `dev side: ...` | The prod -> dev link failed (dev API, the dev tenant or dev's owner guard); the message names what dev refused. Fix, then Run setup again in prod |
+| Dev console Website tab: "managed from the production console" | A real customer's dev side: dev makes no GitHub call for BooqyCustomers. Invite, deploys and Run setup are on the prod console |
+| Dev console Website tab: **legacy** | A dev customer from before test sites: delete it and create it again (it becomes a test customer) |
+| Test customer setup failed: `GitHub GET /orgs/BooqyCustomersDev/installation: 404` | `booqy/dev/github-app-sites` does not hold the Test Sites key (App ID 5770798), or the App is not installed on BooqyCustomersDev |
+| A test host answers "Sidan finns inte" | Its label is not in the host map: the customer is offboarded, the domain mapping was removed, or setup failed before it (Website tab -> Retry) |
+| Test customer setup failed: `... is not claimed by ...` | Onboarding did not record the test hosts (`DOMAIN#<slug>.test.booqy.se`): Domains tab -> Re-run setup, then Retry |
+| Test customer setup failed: `GitHub POST /repos/BooqyCustomers/site-template/generate: 403/404` | The Test Sites App may not read the template: install it on `BooqyCustomers/site-template` too (Contents read) |
 | Deploy: Isolation check failed | Stop. The role can write elsewhere: check the role's boundary and policy in IAM |
 
 ## End-to-end test (dev)
 
-Use slugs starting with `test-` (repos `site-test-<slug>`): in the dev
-console they create real repos (everything else there is a dry run). Create
-two, check both deploy and both Isolation checks pass, try a plain slug (dry
-run, nothing created), then Archive both test repos on the Website tab.
-After the prod merge: one real prod customer to check the prod -> dev link.
+Create two test customers A and B in the dev console. For A: the public
+repo `BooqyCustomersDev/site-a`, two roles, the variables, `booqy.json` on
+both branches, both deploys green, `https://a.test.booqy.se` and
+`https://a.test-dev.booqy.se` serve their own builds, both send
+`X-Robots-Tag` and `/robots.txt` says `Disallow: /`. A's main role must be
+refused on B's folder, A's dev folder and the real dev bucket (the deploy's
+isolation step). An unknown `nobody.test.booqy.se` answers 404. Add domain
+`example.se` to A: both mapped hosts answer at once; remove it: both 404.
+Offboard A (roles, variables, hosts gone, repo archived), restore, then
+delete (repo deleted). Delete B. The dev account has no new distribution
+tenant afterwards. After the prod merge: one real prod customer (or Run
+setup again on `test-release`) to check that prod writes `DEV_*` and dev
+made no GitHub call (dev site-repo logs).

@@ -4,7 +4,10 @@
 #
 #   tenant-onboarding     first owner (Cognito) -> Stripe connected account
 #                         + VAT rates (Stripe HTTP tasks) -> <slug> subdomain
-#                         (CloudFront distribution tenant) -> active ->
+#                         (CloudFront distribution tenant; a dev console
+#                         test customer instead gets its two sandbox hosts
+#                         <slug>.test. and <slug>.test-dev., claim rows only:
+#                         the sandbox's one distribution serves them) -> active ->
 #                         website repo site-<slug> (site-repo function)
 #   tenant-domain-attach  customer's own domain: claim it, distribution
 #                         tenant with a CloudFront-managed certificate, poll
@@ -65,7 +68,13 @@ locals {
     cname_target            = var.cname_target
     site_repos_enabled      = var.site_repos_enabled ? "true" : "false"
     site_repo_function_arn  = var.site_repo_function_arn
+    # Dev: test customers' two sandbox hosts (claim rows only)
+    test_sites_enabled = local.test_sites_enabled ? "true" : "false"
+    test_main_domain   = var.test_main_domain
+    test_dev_domain    = var.test_dev_domain
   }
+
+  test_sites_enabled = var.test_main_domain != "" && var.test_dev_domain != ""
 
   cloudfront_tenant_resources = var.platform_domain_enabled ? [
     "arn:aws:cloudfront::${local.account_id}:distribution-tenant/*",

@@ -280,7 +280,7 @@
       },
       "Assign": {
         "wasPrimary": "{% $states.result.Item.primaryDomain.S = $domain %}",
-        "fallbackDomain": "{% ($slug := $states.result.Item.slug.S; ${subdomains_enabled} and $slug and $states.result.Item.status.S != 'offboarding' ? $slug & '.${platform_domain}' : '') %}"
+        "fallbackDomain": "{% ($slug := $states.result.Item.slug.S; $test := ${test_sites_enabled} and $states.result.Item.siteKind.S = 'test'; $test and $slug and $states.result.Item.status.S != 'offboarding' ? $slug & '.${test_main_domain}' : ${subdomains_enabled} and $slug and $states.result.Item.status.S != 'offboarding' ? $slug & '.${platform_domain}' : '') %}"
       },
       "Catch": [
         {

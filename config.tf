@@ -180,11 +180,13 @@ module "platform_secrets" {
 
 #S3 Buckets
 module "menu_image" {
-  source                                  = "./storage/s3/menu-image"
-  environment                             = var.env
-  public_cloudfront_distribution_arn      = module.cloudfront_public.distribution_arn
-  private_cloudfront_distribution_arn     = module.cloudfront_private.distribution_arn
-  additional_cloudfront_distribution_arns = local.tenant_sites_enabled ? [module.platform_domain[0].multitenant_distribution_arn] : []
+  source                              = "./storage/s3/menu-image"
+  environment                         = var.env
+  public_cloudfront_distribution_arn  = module.cloudfront_public.distribution_arn
+  private_cloudfront_distribution_arn = module.cloudfront_private.distribution_arn
+  # + the test sites sandbox in dev (test-sites.tf)
+  additional_cloudfront_distribution_arns = concat(local.tenant_sites_enabled ? [module.platform_domain[0].multitenant_distribution_arn] : [],
+  local.test_sites_enabled ? [local.test_sites_distribution] : [])
   allowed_origins = distinct([
     "https://${module.cloudfront_public.distribution_domain_name}",
     "https://${module.cloudfront_private.distribution_domain_name}",
@@ -669,8 +671,9 @@ module "tenant_purge_role" {
   user_backdrops_bucket_arn = module.user_backdrops.bucket_arn
   user_backdrops_table_arn  = module.user_backdrops_table.table_arn
   sites_bucket_arn          = module.sites.bucket_arn
+  test_sites_bucket_arn     = local.test_sites_bucket_arn
   alert_topic_arn           = module.alerts.topic_arn
-  protected_zone_ids        = local.platform_domain_enabled ? [module.platform_domain[0].zone_id] : []
+  protected_zone_ids        = concat(local.platform_domain_enabled ? [module.platform_domain[0].zone_id] : [], local.test_sites_zone_ids)
   site_repo_function_arn    = module.sites.enabled ? module.sites.alias_arn : ""
 }
 module "scheduler_invoke_tenant_purge_role" {
@@ -750,6 +753,7 @@ module "platform_tenants_role" {
   user_backdrops_bucket_arn          = module.user_backdrops.bucket_arn
   user_backdrops_table_arn           = module.user_backdrops_table.table_arn
   platform_zone_id                   = local.platform_domain_enabled ? module.platform_domain[0].zone_id : ""
+  extra_protected_zone_ids           = local.platform_domain_enabled ? local.test_sites_zone_ids : []
   mail_outbox_enabled                = local.mail_outbox_enabled
   mail_outbox_bucket_arn             = local.mail_outbox_arn
   ses_identity_arn                   = local.ses_identity_arn
@@ -1826,8 +1830,9 @@ module "tenant_purge_fn" {
   user_backdrops_bucket_name          = module.user_backdrops.bucket_name
   user_backdrops_table_name           = module.user_backdrops_table.table_name
   sites_bucket_name                   = module.sites.bucket_name
+  test_sites_bucket_name              = local.test_sites_bucket_name
   alert_topic_arn                     = module.alerts.topic_arn
-  protected_zone_ids                  = local.platform_domain_enabled ? [module.platform_domain[0].zone_id] : []
+  protected_zone_ids                  = concat(local.platform_domain_enabled ? [module.platform_domain[0].zone_id] : [], local.test_sites_zone_ids)
   site_repo_function_arn              = module.sites.enabled ? module.sites.alias_arn : ""
 }
 module "platform_tenants_fn" {
@@ -1867,6 +1872,8 @@ module "platform_tenants_fn" {
   finance_rollup_alias_arn           = module.finance_rollup_fn.alias_arn
   site_repo_function_arn             = module.sites.alias_arn
   site_repos_enabled                 = var.github_app_sites_secret_name != ""
+  test_main_domain                   = local.test_sites_main_domain
+  test_dev_domain                    = local.test_sites_dev_domain
   site_analytics_table_name          = local.platform_domain_enabled ? module.site_analytics[0].table_name : ""
   alert_topic_arn                    = module.alerts.topic_arn
   billing_tax_rate_id                = module.billing_catalog.tax_rate_id
@@ -2498,9 +2505,12 @@ module "tenant_workflows" {
   cname_target                 = local.tenant_domain_cname_target
   # The function's live alias, by name: the function's environment holds
   # this module's state machine ARNs, so referencing it would be a cycle.
-  tenant_data_retention_days    = var.tenant_data_retention_days
-  site_repos_enabled            = var.github_app_sites_secret_name != ""
-  site_repo_function_arn        = module.sites.alias_arn
+  tenant_data_retention_days = var.tenant_data_retention_days
+  site_repos_enabled         = var.github_app_sites_secret_name != ""
+  site_repo_function_arn     = module.sites.alias_arn
+  # Dev: test customers' two sandbox hosts (test-sites.tf)
+  test_main_domain              = local.test_sites_main_domain
+  test_dev_domain               = local.test_sites_dev_domain
   platform_tenants_function_arn = "arn:aws:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:${var.env == "prod" ? "platform-tenants" : "${var.env}-platform-tenants"}:live"
 }
 

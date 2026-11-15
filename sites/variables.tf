@@ -98,3 +98,57 @@ variable "platform_tenants_alias_arn" {
   type        = string
   default     = ""
 }
+
+variable "github_org_id" {
+  description = "Numeric id of github_org; site-repo checks it with the login before writing a role trust. Empty: login only."
+  type        = string
+  default     = ""
+}
+
+variable "template_owner" {
+  description = "Org that owns template_repo. Empty: github_org (dev's test repos are generated from BooqyCustomers/site-template)."
+  type        = string
+  default     = ""
+}
+
+variable "test_github_org" {
+  description = "Dev: org of the test customers' repos (BooqyCustomersDev). Empty: no test customers (always in prod)."
+  type        = string
+  default     = ""
+}
+
+variable "test_github_org_id" {
+  description = "Dev: numeric id of test_github_org"
+  type        = string
+  default     = ""
+}
+
+variable "test_bucket_name" {
+  description = "Dev: the test sites sandbox bucket"
+  type        = string
+  default     = ""
+}
+
+variable "test_boundary_arn" {
+  description = "Dev: permissions boundary of the test site deploy roles (test-sites module)"
+  type        = string
+  default     = ""
+}
+
+variable "test_main_domain" {
+  description = "Dev: zone of a test customer's main host"
+  type        = string
+  default     = ""
+}
+
+variable "test_dev_domain" {
+  description = "Dev: zone of a test customer's dev host"
+  type        = string
+  default     = ""
+}
+
+variable "test_kvs_arn" {
+  description = "Dev: the test sites host map (CloudFront key value store, label -> tenantId); this function is its only writer"
+  type        = string
+  default     = ""
+}

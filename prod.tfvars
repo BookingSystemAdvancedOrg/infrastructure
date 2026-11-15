@@ -59,6 +59,23 @@ platform_subdomain_delegations = {
     "ns-45.awsdns-05.com",
     "ns-981.awsdns-58.net",
   ]
+  # Test sites (dev account, test-sites.tf): test.booqy.se and
+  # test-dev.booqy.se. Uncomment with the 4 name servers each from the dev
+  # apply's outputs test_sites_main_name_servers / test_sites_dev_name_servers
+  # (rollout step 2), then the owner merges to main; or add the two NS
+  # records by hand in the booqy.se zone first (adopted, allow_overwrite).
+  test = [
+    "ns-975.awsdns-57.net",
+    "ns-1639.awsdns-12.co.uk",
+    "ns-1530.awsdns-63.org",
+    "ns-197.awsdns-24.com",
+  ]
+  test-dev = [
+    "ns-195.awsdns-24.com",
+    "ns-944.awsdns-54.net",
+    "ns-1972.awsdns-54.co.uk",
+    "ns-1386.awsdns-45.org",
+  ]
 }
 
 # Public keys handed to restaurant websites by GET /site-config - not
@@ -135,6 +152,9 @@ github_app_sites_secret_name = "booqy/prod/github-app-sites"
 # Site repos live in their own org (App "Booqy Customer Sites"), apart
 # from the platform repos in var.github_org.
 site_github_org = "BooqyCustomers"
+# Its numeric id: site-repo writes a deploy role trust only for a repo this
+# org owns, by login AND id (prod never writes one for BooqyCustomersDev).
+site_github_org_id = "356944191"
 # Then, once every active restaurant with a domain has a deployed site repo
 # (Website tab), serve each domain from its own site instead of the shared
 # customer-front-end build:
