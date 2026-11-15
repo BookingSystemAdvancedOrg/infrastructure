@@ -1,5 +1,5 @@
 {
-  "Comment": "An own domain, from order to live site, the same pipeline for every way in. Started by platform-tenants: register (Booqy bought it: waits for Route 53 Domains, for .se the registry's identity check), transfer_in (moving it to Booqy: the current DNS was copied into our zone first; waits for the owner's approval of the transfer, with reminders), connect (the restaurant keeps its registrar and points the name servers at our zone), records (the restaurant keeps its registrar and DNS and adds a www CNAME; the registrar forwards the apex to www). Then, for every mode: domain-attach (apex and www, or www only), SetCanonical (primary domain + the 301s from the slug address and www), MarkLive (e-mail to the restaurant), dev.<domain> on the dev site (never rolls back prod) and booqy.json. Mode transfer (a connected, live domain whose registration moves into Route 53, name servers unchanged) only waits for the transfer - the site is live throughout. Every step is idempotent: Retry starts it again and finished steps are found done; devOnly (Retry when only the dev side failed) goes straight to the dev step.",
+  "Comment": "An own domain, from order to live site, the same pipeline for every way in. Started by platform-tenants: register (Booqy bought it: waits for Route 53 Domains, for .se the registry's identity check), transfer_in (moving it to Booqy: the current DNS was copied into our zone first; waits for the owner's approval of the transfer, with reminders), connect (the restaurant keeps its registrar and points the name servers at our zone), records (the restaurant keeps its registrar and DNS and adds a www CNAME; the registrar forwards the apex to www). Then, for every mode: domain-attach (apex and www, or www only), SetCanonical (primary domain + the 301s from the slug address and www), MarkLive (e-mail to the restaurant), dev.<domain> on the dev site (never rolls back prod) and booqy.json. Mode transfer (a connected, live domain whose registration moves into Route 53, name servers unchanged) only waits for the transfer - the site is live throughout. Every step is idempotent: Retry starts it again and finished steps are found done; a newer attempt of the same order (Retry, a move started again) cancels an older execution still waiting (the checks pass attempt); devOnly (Retry when only the dev side failed) goes straight to the dev step.",
   "QueryLanguage": "JSONata",
   "TimeoutSeconds": ${timeout_seconds},
   "StartAt": "Init",
@@ -13,6 +13,7 @@
         "makePrimary": "{% $exists($states.input.makePrimary) ? $states.input.makePrimary = true : false %}",
         "requestedBy": "{% $exists($states.input.requestedBy) ? $states.input.requestedBy : 'workflow' %}",
         "devOnly": "{% $exists($states.input.devOnly) ? $states.input.devOnly = true : false %}",
+        "attempt": "{% $exists($states.input.attempt) ? $states.input.attempt : 0 %}",
         "checks": 0,
         "devChecks": 0,
         "attach": true,
@@ -79,7 +80,8 @@
           "tenantId": "{% $tenantId %}",
           "domain": "{% $domain %}",
           "mode": "{% $mode %}",
-          "requestedBy": "{% $requestedBy %}"
+          "requestedBy": "{% $requestedBy %}",
+          "attempt": "{% $attempt %}"
         }
       },
       "Assign": {
@@ -170,7 +172,8 @@
           "tenantId": "{% $tenantId %}",
           "domain": "{% $domain %}",
           "mode": "{% $mode %}",
-          "requestedBy": "{% $requestedBy %}"
+          "requestedBy": "{% $requestedBy %}",
+          "attempt": "{% $attempt %}"
         }
       },
       "Assign": {
@@ -269,7 +272,8 @@
           "tenantId": "{% $tenantId %}",
           "domain": "{% $domain %}",
           "mode": "{% $mode %}",
-          "requestedBy": "{% $requestedBy %}"
+          "requestedBy": "{% $requestedBy %}",
+          "attempt": "{% $attempt %}"
         }
       },
       "Assign": {
@@ -345,7 +349,8 @@
           "tenantId": "{% $tenantId %}",
           "domain": "{% $domain %}",
           "mode": "{% $mode %}",
-          "requestedBy": "{% $requestedBy %}"
+          "requestedBy": "{% $requestedBy %}",
+          "attempt": "{% $attempt %}"
         }
       },
       "Assign": {
