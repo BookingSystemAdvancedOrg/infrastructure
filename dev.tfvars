@@ -174,9 +174,9 @@ site_github_org_id = "356944191"
 # key value store. No distribution tenants (they cost money beyond 10 per
 # account), nothing per customer that costs money.
 # Phase 1: the two zones (about 1 USD/month for both, owner-approved). Phase 2
-# (test_sites_enabled) only after prod delegates them (prod.tfvars).
+# (test_sites_enabled) on since 2026-11-15, after prod delegated them.
 test_sites_zones         = true
-test_sites_enabled       = false
+test_sites_enabled       = true
 test_sites_github_org    = "BooqyCustomersDev"
 test_sites_github_org_id = "356983507"
 site_template_owner      = "BooqyCustomers"
