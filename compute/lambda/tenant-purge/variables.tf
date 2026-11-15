@@ -86,6 +86,11 @@ variable "user_backdrops_bucket_name" {
   type = string
 }
 
+variable "sites_bucket_name" {
+  description = "Restaurant sites bucket (sites/<tenantId>/, deleted with the restaurant)"
+  type        = string
+}
+
 variable "user_backdrops_table_name" {
   type = string
 }
