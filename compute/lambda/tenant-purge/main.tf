@@ -57,6 +57,7 @@ resource "aws_lambda_function" "this" {
       USER_BACKDROPS_BUCKET_NAME          = var.user_backdrops_bucket_name
       USER_BACKDROPS_TABLE_NAME           = var.user_backdrops_table_name
       SITES_BUCKET_NAME                   = var.sites_bucket_name
+      TEST_SITES_BUCKET_NAME              = var.test_sites_bucket_name
       RETENTION_DAYS                      = tostring(var.retention_days)
       BACKFILL_GRACE_DAYS                 = "7"
       ALERT_TOPIC_ARN                     = var.alert_topic_arn

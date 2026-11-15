@@ -115,6 +115,12 @@ variable "user_backdrops_table_arn" {
   sensitive   = false
 }
 
+variable "extra_protected_zone_ids" {
+  description = "Dev: the test sites zones, which this role may never change either (only with platform_zone_id set)"
+  type        = list(string)
+  default     = []
+}
+
 variable "platform_zone_id" {
   description = "Hosted zone of the platform domain - this role may never change it. Empty while no platform domain is set"
   type        = string

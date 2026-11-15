@@ -159,6 +159,24 @@ per_tenant_sites = true
 # A site repo is born in the prod console, which also sets up its dev side
 # through the dev account's booqy-sites-prod-link role (sites/main.tf).
 site_link_prod_account_id = "343695380960"
+# BooqyCustomers' numeric id (checked with the login before any role trust).
+site_github_org_id = "356944191"
+
+# Test sites (owner 2026-11-15, test-sites.tf): every customer created in THIS
+# console is a test customer with a public repo site-<slug> in
+# BooqyCustomersDev (App "Booqy Test Sites", its key nested as "test" in
+# booqy/dev/github-app-sites), generated from BooqyCustomers/site-template.
+# main -> https://<slug>.test.booqy.se, dev -> https://<slug>.test-dev.booqy.se,
+# both in this account on their own sandbox distribution (noindex).
+# Phase 1: the two zones (about 1 USD/month for both, owner-approved). Phase 2
+# (test_sites_enabled) only after prod delegates them (prod.tfvars).
+# CloudFront SaaS Manager: 10 distribution tenants free per account, then a
+# 20 USD/month tier (11-200); each test customer uses 2, each mapped domain 2.
+test_sites_zones         = true
+test_sites_enabled       = false
+test_sites_github_org    = "BooqyCustomersDev"
+test_sites_github_org_id = "356983507"
+site_template_owner      = "BooqyCustomers"
 
 # AI phone agent (phone-agent.tf): the owner decided a cap of 2 concurrent
 # executions on phone-agent-call in dev. The dev apply of 2026-11-05 was

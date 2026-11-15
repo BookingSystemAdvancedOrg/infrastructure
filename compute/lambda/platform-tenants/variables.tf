@@ -271,6 +271,18 @@ variable "site_repo_function_arn" {
   type        = string
 }
 
+variable "test_main_domain" {
+  description = "Dev: the test sites' main host zone (test.<domain>). Empty: no test sites (prod)."
+  type        = string
+  default     = ""
+}
+
+variable "test_dev_domain" {
+  description = "Dev: the test sites' dev host zone (test-dev.<domain>). Empty: no test sites (prod)."
+  type        = string
+  default     = ""
+}
+
 variable "site_repos_enabled" {
   description = "Website repo per restaurant on (the GitHub App key is configured)"
   type        = bool

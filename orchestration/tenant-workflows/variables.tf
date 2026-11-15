@@ -199,3 +199,40 @@ variable "site_repo_function_arn" {
   type        = string
   default     = ""
 }
+
+# --- Dev: test sites (root test-sites.tf). All empty in prod and until phase 2.
+variable "test_main_domain" {
+  description = "Dev: zone of a test customer's main host (<slug>.test.booqy.se). Empty: no test sites."
+  type        = string
+  default     = ""
+}
+
+variable "test_dev_domain" {
+  description = "Dev: zone of a test customer's dev host (<slug>.test-dev.booqy.se)"
+  type        = string
+  default     = ""
+}
+
+variable "test_distribution_id" {
+  description = "Dev: the test sites sandbox multi-tenant distribution"
+  type        = string
+  default     = ""
+}
+
+variable "test_distribution_arn" {
+  description = "Dev: ARN of the sandbox distribution"
+  type        = string
+  default     = ""
+}
+
+variable "test_connection_group_id" {
+  description = "Dev: the sandbox connection group"
+  type        = string
+  default     = ""
+}
+
+variable "test_connection_group_arn" {
+  description = "Dev: ARN of the sandbox connection group"
+  type        = string
+  default     = ""
+}

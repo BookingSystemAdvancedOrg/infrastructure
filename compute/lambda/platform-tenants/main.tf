@@ -88,8 +88,12 @@ resource "aws_lambda_function" "this" {
       FINANCE_TABLE_NAME          = var.finance_table_name
       FINANCE_ROLLUP_FUNCTION_ARN = var.finance_rollup_alias_arn
       # Website tab: the restaurant's site repo (site-repo function)
-      SITE_REPO_FUNCTION_ARN     = var.site_repo_function_arn
-      SITE_REPOS_ENABLED         = var.site_repos_enabled ? "true" : "false"
+      SITE_REPO_FUNCTION_ARN = var.site_repo_function_arn
+      SITE_REPOS_ENABLED     = var.site_repos_enabled ? "true" : "false"
+      # Dev: test customers (dev console) and their sandbox hosts; "" = off
+      TEST_SITES_ENABLED         = var.test_main_domain != "" ? "true" : "false"
+      TEST_MAIN_DOMAIN           = var.test_main_domain
+      TEST_DEV_DOMAIN            = var.test_dev_domain
       ALERT_TOPIC_ARN            = var.alert_topic_arn
       BILLING_TAX_RATE_ID        = var.billing_tax_rate_id
       BILLING_DAYS_UNTIL_DUE     = tostring(var.billing_days_until_due)

@@ -52,6 +52,12 @@ variable "user_backdrops_bucket_arn" {
   sensitive   = false
 }
 
+variable "test_sites_bucket_arn" {
+  description = "Dev: the test sites sandbox bucket (main|dev/sites/<tenantId>/). Empty: none."
+  type        = string
+  default     = ""
+}
+
 variable "sites_bucket_arn" {
   description = "ARN of the restaurant sites bucket (sites/<tenantId>/...)"
   type        = string

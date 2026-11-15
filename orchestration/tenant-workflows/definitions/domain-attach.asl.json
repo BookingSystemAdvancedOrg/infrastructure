@@ -1,5 +1,5 @@
 {
-  "Comment": "Attach a customer's own domain (e.g. www.restaurang.se) to their tenant. Reserves the hostname for exactly one tenant, creates a CloudFront distribution tenant with a CloudFront-managed certificate (HTTP validation, so the customer only adds ONE CNAME), then polls until the certificate is issued. Started by platform-tenants (POST /platform/tenants/{tenantId}/domains). Re-running it for the same domain resumes where it left off.",
+  "Comment": "Attach a customer's own domain (e.g. www.restaurang.se) to their tenant. Reserves the hostname for exactly one tenant, creates a CloudFront distribution tenant with a CloudFront-managed certificate (HTTP validation, so the customer only adds ONE CNAME), then polls until the certificate is issued. Started by platform-tenants (POST /platform/tenants/{tenantId}/domains). Re-running it for the same domain resumes where it left off. Dev only, {sandbox: true, stage: main|dev, mappedFrom}: a test customer's mapped host (example-se.test.booqy.se for example.se) goes on the test sites sandbox distribution instead, with its wildcard certificate (nothing to validate, active at once).",
   "QueryLanguage": "JSONata",
   "TimeoutSeconds": 345600,
   "StartAt": "Init",
@@ -13,6 +13,9 @@
         "requestedBy": "{% $exists($states.input.requestedBy) ? $states.input.requestedBy : 'unknown' %}",
         "distributionTenantName": "{% 'domain-' & $substring($hash($lowercase($states.input.domain), 'SHA-256'), 0, 32) %}",
         "distributionTenantId": "{% '' %}",
+        "sandbox": "{% $exists($states.input.sandbox) ? $states.input.sandbox = true : false %}",
+        "stage": "{% $exists($states.input.stage) ? $states.input.stage : '' %}",
+        "mappedFrom": "{% $exists($states.input.mappedFrom) ? $states.input.mappedFrom : '' %}",
         "certificateChecks": 0,
         "certificateStatus": "{% '' %}",
         "failure": {},
@@ -81,7 +84,7 @@
           "Next": "MarkFailed"
         }
       ],
-      "Next": "CreateDistributionTenant"
+      "Next": "AttachKind"
     },
     "GetDomainOwner": {
       "Type": "Task",
@@ -112,10 +115,98 @@
       "Choices": [
         {
           "Condition": "{% $domainOwner = $tenantId %}",
-          "Next": "CreateDistributionTenant"
+          "Next": "AttachKind"
         }
       ],
       "Default": "DomainInUse"
+    },
+    "AttachKind": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Condition": "{% $sandbox and ${test_sites_enabled} and $stage in ['main', 'dev'] %}",
+          "Next": "CreateSandboxTenant"
+        },
+        {
+          "Condition": "{% $sandbox %}",
+          "Next": "SandboxNotConfigured"
+        }
+      ],
+      "Default": "CreateDistributionTenant"
+    },
+    "SandboxNotConfigured": {
+      "Type": "Pass",
+      "Assign": {
+        "failedState": "AttachKind",
+        "failure": {
+          "Error": "SandboxNotConfigured",
+          "Cause": "{% 'A sandbox host needs test sites on (dev, test_sites_enabled) and stage main or dev, got ' & $stage & '.' %}"
+        }
+      },
+      "Next": "MarkFailed"
+    },
+    "CreateSandboxTenant": {
+      "Type": "Task",
+      "Comment": "The test sites sandbox: the stage parameter picks the main or dev build; the distribution's wildcard certificate covers the host, so no managed certificate.",
+      "Resource": "arn:aws:states:::aws-sdk:cloudfront:createDistributionTenant",
+      "Arguments": {
+        "DistributionId": "${test_distribution_id}",
+        "Name": "{% $distributionTenantName %}",
+        "Domains": [
+          { "Domain": "{% $domain %}" }
+        ],
+        "Parameters": [
+          { "Name": "tenantId", "Value": "{% $tenantId %}" },
+          { "Name": "stage", "Value": "{% $stage %}" }
+        ],
+        "ConnectionGroupId": "${test_connection_group_id}",
+        "Enabled": true
+      },
+      "Assign": {
+        "distributionTenantId": "{% $states.result.DistributionTenant.Id %}"
+      },
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Assign": { "createError": "{% $states.errorOutput %}" },
+          "Next": "FindDistributionTenant"
+        }
+      ],
+      "Next": "RecordSandboxTenant"
+    },
+    "RecordSandboxTenant": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:updateItem",
+      "Arguments": {
+        "TableName": "${tenant_table}",
+        "Key": {
+          "PK": { "S": "{% 'TENANT#' & $tenantId %}" },
+          "SK": { "S": "{% 'DOMAIN#' & $domain %}" }
+        },
+        "UpdateExpression": "SET distributionTenantId = :dt, stage = :stage, mappedFrom = :m, sandbox = :true, updatedAt = :now",
+        "ConditionExpression": "attribute_exists(PK) AND #status <> :removing",
+        "ExpressionAttributeNames": { "#status": "status" },
+        "ExpressionAttributeValues": {
+          ":removing": { "S": "removing" },
+          ":dt": { "S": "{% $distributionTenantId %}" },
+          ":stage": { "S": "{% $stage %}" },
+          ":m": { "S": "{% $mappedFrom %}" },
+          ":true": { "BOOL": true },
+          ":now": { "S": "{% $now() %}" }
+        }
+      },
+      "Catch": [
+        {
+          "ErrorEquals": ["DynamoDB.ConditionalCheckFailedException"],
+          "Next": "DomainRemoved"
+        },
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Assign": { "failure": "{% $states.errorOutput %}", "failedState": "{% $states.context.State.Name %}" },
+          "Next": "MarkFailed"
+        }
+      ],
+      "Next": "MarkActive"
     },
     "DomainInUse": {
       "Type": "Fail",
@@ -178,6 +269,10 @@
     "DistributionTenantIsOurs": {
       "Type": "Choice",
       "Choices": [
+        {
+          "Condition": "{% $distributionTenantOwner = $tenantId and $sandbox %}",
+          "Next": "RecordSandboxTenant"
+        },
         {
           "Condition": "{% $distributionTenantOwner = $tenantId %}",
           "Next": "RecordDistributionTenant"

@@ -16,6 +16,15 @@ module "sites" {
   github_org             = var.site_github_org != "" ? var.site_github_org : var.github_org
   github_app_secret_name = var.github_app_sites_secret_name
   template_repo          = var.site_template_repo
+  template_owner         = var.site_template_owner
+  github_org_id          = var.site_github_org_id
+  # Dev: test customers in the test org, deployed to the sandbox (test-sites.tf)
+  test_github_org        = local.test_sites_enabled ? var.test_sites_github_org : ""
+  test_github_org_id     = local.test_sites_enabled ? var.test_sites_github_org_id : ""
+  test_bucket_name       = local.test_sites_bucket_name
+  test_boundary_arn      = local.test_sites_boundary_arn
+  test_main_domain       = local.test_sites_main_domain
+  test_dev_domain        = local.test_sites_dev_domain
   api_base_url           = module.api_gateway.api_endpoint
   menu_image_base_url    = "https://${module.cloudfront_public.distribution_domain_name}"
   preview_domain         = local.tenant_subdomains_enabled ? var.platform_domain : ""
@@ -30,7 +39,7 @@ module "sites" {
 }
 
 variable "github_app_sites_secret_name" {
-  description = "Secrets Manager secret with the \"Booqy Sites\" GitHub App key, JSON {\"app_id\", \"private_key\"}: booqy/<env>/github-app-sites, created by hand in each account (docs/CUSTOMER-SITE-RUNBOOK.md). Empty: no site repos, onboarding skips the step."
+  description = "Secrets Manager secret with the \"Booqy Customer Sites\" GitHub App key, JSON {\"app_id\", \"private_key\"}: booqy/<env>/github-app-sites, created by hand in each account (docs/CUSTOMER-SITE-RUNBOOK.md). In dev it also holds the \"Booqy Test Sites\" App key as {\"test\": {\"app_id\", \"private_key\"}} (same secret: no IAM change). Empty: no site repos, onboarding skips the step."
   type        = string
   default     = ""
 }

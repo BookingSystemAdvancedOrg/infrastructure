@@ -86,6 +86,12 @@ variable "user_backdrops_bucket_name" {
   type = string
 }
 
+variable "test_sites_bucket_name" {
+  description = "Dev: the test sites sandbox bucket (main|dev/sites/<tenantId>/, deleted with the test customer). Empty: none."
+  type        = string
+  default     = ""
+}
+
 variable "sites_bucket_name" {
   description = "Restaurant sites bucket (sites/<tenantId>/, deleted with the restaurant)"
   type        = string

@@ -1,7 +1,13 @@
-# Restaurant websites, one per customer: every restaurant has its own private
+# Restaurant websites, one per customer: every restaurant has its own public
 # repo site-<slug> in the GitHub organisation (created from site-template by
 # the site-repo function at onboarding) that deploys to its own folder
 # sites/<tenantId>/ in the bucket below, through its own deploy role.
+#
+# Dev only, test customers (customers created in the dev console, owner
+# 2026-11-15; root test-sites.tf): repo in var.test_github_org, both branches
+# deploy to the test sites sandbox (main|dev/sites/<tenantId>/) through two
+# roles /booqy-test-sites/test-site-<slug>-main|dev with the sandbox's own
+# boundary. Set up by the same function when var.test_github_org is set.
 # application/docs/orchestrator/CUSTOMER-SITES-PLAN.md, docs/CUSTOMER-SITE-RUNBOOK.md.
 #
 #   sites bucket         private, read only by the multi-tenant distribution
@@ -39,6 +45,9 @@ locals {
   # prod: the dev account's link role and platform-tenants alias
   dev_link_role_arn        = var.link_dev_account_id == "" ? "" : "arn:aws:iam::${var.link_dev_account_id}:role/${local.link_role_name}"
   dev_platform_tenants_arn = var.link_dev_account_id == "" ? "" : "arn:aws:lambda:${var.region}:${var.link_dev_account_id}:function:dev-platform-tenants:live"
+  # Dev: test customers' roles (never in prod: the root passes "" there)
+  test_enabled   = var.environment != "prod" && var.test_github_org != "" && var.test_boundary_arn != ""
+  test_role_path = "/booqy-test-sites/"
 }
 
 # --- sites bucket ----------------------------------------------------------------
@@ -246,7 +255,34 @@ resource "aws_iam_role_policy" "fn" {
         Action   = ["iam:DeleteRolePermissionsBoundary", "iam:PutRolePermissionsBoundary", "iam:AttachRolePolicy"]
         Resource = "arn:aws:iam::${local.account}:role${local.role_path}*"
       },
-      ], local.dev_link_role_arn == "" ? [] : [
+      ], [for statement in [
+        {
+          # Test customers' deploy roles: only under /booqy-test-sites/, and
+          # only created or given a policy with the sandbox boundary attached.
+          Sid      = "CreateBoundedTestSiteRoles"
+          Effect   = "Allow"
+          Action   = ["iam:CreateRole", "iam:PutRolePolicy"]
+          Resource = "arn:aws:iam::${local.account}:role${local.test_role_path}*"
+          Condition = {
+            StringEquals = { "iam:PermissionsBoundary" = var.test_boundary_arn }
+          }
+        },
+        {
+          Sid    = "ManageTestSiteRoles"
+          Effect = "Allow"
+          Action = [
+            "iam:GetRole", "iam:TagRole", "iam:UpdateAssumeRolePolicy", "iam:ListRolePolicies",
+            "iam:DeleteRolePolicy", "iam:DeleteRole", "iam:SimulatePrincipalPolicy",
+          ]
+          Resource = "arn:aws:iam::${local.account}:role${local.test_role_path}*"
+        },
+        {
+          Sid      = "KeepTestBoundary"
+          Effect   = "Deny"
+          Action   = ["iam:DeleteRolePermissionsBoundary", "iam:PutRolePermissionsBoundary", "iam:AttachRolePolicy"]
+          Resource = "arn:aws:iam::${local.account}:role${local.test_role_path}*"
+        },
+      ] : statement if local.test_enabled], local.dev_link_role_arn == "" ? [] : [
       {
         # prod -> dev: the dev side of a new restaurant's site (see the top).
         Sid      = "DevSideOfSites"
@@ -311,6 +347,8 @@ resource "aws_lambda_function" "fn" {
       ENVIRONMENT            = var.environment
       TENANT_TABLE_NAME      = var.tenant_table_name
       GITHUB_ORG             = var.github_org
+      GITHUB_ORG_ID          = var.github_org_id
+      SITE_TEMPLATE_OWNER    = var.template_owner
       GITHUB_APP_SECRET_ID   = var.github_app_secret_name
       SITE_TEMPLATE_REPO     = var.template_repo
       SITES_BUCKET           = aws_s3_bucket.sites.bucket
@@ -326,6 +364,15 @@ resource "aws_lambda_function" "fn" {
       # prod only: the dev side of a new restaurant's site
       DEV_LINK_ROLE_ARN                 = local.dev_link_role_arn
       DEV_PLATFORM_TENANTS_FUNCTION_ARN = local.dev_platform_tenants_arn
+      # dev only: test customers (empty: off; site-repo refuses them in prod)
+      TEST_GITHUB_ORG          = local.test_enabled ? var.test_github_org : ""
+      TEST_GITHUB_ORG_ID       = local.test_enabled ? var.test_github_org_id : ""
+      TEST_SITES_BUCKET        = local.test_enabled ? var.test_bucket_name : ""
+      TEST_DEPLOY_ROLE_PATH    = local.test_enabled ? local.test_role_path : ""
+      TEST_DEPLOY_ROLE_PREFIX  = local.test_enabled ? "test-site-" : ""
+      TEST_DEPLOY_BOUNDARY_ARN = local.test_enabled ? var.test_boundary_arn : ""
+      TEST_MAIN_DOMAIN         = local.test_enabled ? var.test_main_domain : ""
+      TEST_DEV_DOMAIN          = local.test_enabled ? var.test_dev_domain : ""
     }
   }
 

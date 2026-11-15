@@ -281,7 +281,8 @@ resource "aws_iam_role_policy" "mail_outbox" {
 # domains on. Route 53 Domains has no resource-level permissions - who may
 # buy is decided by the operator pool + platform_admin group in front of
 # this Lambda. Record changes are allowed in any hosted zone EXCEPT the
-# platform's own (booqy.se / dev.booqy.se), which only Terraform changes.
+# platform's own (booqy.se / dev.booqy.se, and in dev test. and test-dev.),
+# which only Terraform changes. RegisterDomain and TransferDomain: prod only.
 resource "aws_iam_role_policy" "domains" {
   count = var.domains_enabled ? 1 : 0
   name  = "restaurant-domains"
@@ -293,15 +294,18 @@ resource "aws_iam_role_policy" "domains" {
       {
         Sid    = "SearchRegisterAndTransferDomains"
         Effect = "Allow"
-        Action = [
+        # Buying and transferring only in prod (owner 2026-11-15): the dev
+        # console maps a test customer's domain onto the test zones instead,
+        # and the API refuses outside prod too.
+        Action = concat([
           "route53domains:CheckDomainAvailability",
           "route53domains:GetDomainSuggestions",
           "route53domains:ListPrices",
-          "route53domains:RegisterDomain",
+          ], var.environment == "prod" ? ["route53domains:RegisterDomain"] : [], [
           "route53domains:CheckDomainTransferability",
-          "route53domains:TransferDomain",
+          ], var.environment == "prod" ? ["route53domains:TransferDomain"] : [], [
           "route53domains:GetOperationDetail",
-        ]
+        ])
         Resource = "*"
       },
       {
@@ -376,7 +380,11 @@ resource "aws_iam_role_policy" "domains" {
           "route53:ChangeTagsForResource",
           "route53:DeleteHostedZone",
         ]
-        Resource = "arn:aws:route53:::hostedzone/${var.platform_zone_id}"
+        # Dev: also the test sites zones (test.<domain>, test-dev.<domain>).
+        # (prod keeps its single-ARN statement exactly as it was).
+        Resource = jsondecode(length(var.extra_protected_zone_ids) == 0 ? jsonencode("arn:aws:route53:::hostedzone/${var.platform_zone_id}") : jsonencode([
+          for id in concat([var.platform_zone_id], var.extra_protected_zone_ids) : "arn:aws:route53:::hostedzone/${id}"
+        ]))
       }
     ])
   })
