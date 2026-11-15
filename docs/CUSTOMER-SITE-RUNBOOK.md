@@ -1,7 +1,9 @@
 # Customer sites: runbook
 
-Every restaurant has its own private website repo `site-<slug>` in
-BookingSystemAdvancedOrg, designed in Figma by Booqy and coded with Claude
+Every restaurant has its own private website repo `site-<slug>` in the
+GitHub organisation **BooqyCustomers** (since 2026-11-15; only site repos and
+`site-template` live there, the platform repos stay in
+BookingSystemAdvancedOrg), designed in Figma by Booqy and coded with Claude
 on top of `@bookingsystemadvancedorg/site-kit`. Every site is live on its
 slug address from the first deploy (`<slug>.booqy.se`, dev
 `<slug>.dev.booqy.se`); the restaurant's own domain is added when it is
@@ -25,8 +27,9 @@ dev console "New customer" ──> dry run only (shows what prod would create); 
 
 | Piece | Where |
 |---|---|
-| Repos | `site-kit` (the package), `site-template`, `site-<slug>` (one per restaurant), all private |
-| Package | `@bookingsystemadvancedorg/site-kit` on GitHub Packages (GitHub only accepts the owner's name as scope) |
+| Repos | BooqyCustomers: `site-template` (GitHub template) and `site-<slug>` (one per restaurant, private). BookingSystemAdvancedOrg: `site-kit` (the package, public) |
+| Org setting | `site_github_org = "BooqyCustomers"` in `dev.tfvars` and `prod.tfvars` (the site-repo function's `GITHUB_ORG`); the platform OIDC trusts keep `github_org` |
+| Package | `@bookingsystemadvancedorg/site-kit` on GitHub Packages (GitHub only accepts the owner's name as scope), public so repos in BooqyCustomers can install it |
 | Sites bucket | `<env->restaurant-sites-<account>`, folder `sites/<tenantId>/`, versioned (30 days) |
 | Serving | multi-tenant distribution, origin `tenant-site` with origin path `/sites/{{tenantId}}` (when `per_tenant_sites = true`) |
 | Function | `site-repo` (application `functions/site-repo`), called by onboarding, offboarding and the console |
@@ -60,29 +63,45 @@ on the addresses once `per_tenant_sites = true` in `prod.tfvars`.
 
 ## One-time setup (owner)
 
-### 1. Register the GitHub App "Booqy Sites"
+### 1. The organisation BooqyCustomers and its GitHub App
 
-Open this link (signed in as an org owner); every setting is filled in:
+Done 2026-11-15. The organisation `BooqyCustomers` (id 356944191, plan
+Free) holds only `site-template` and the `site-<slug>` repos, so a site
+repo's OIDC token (`repo:BooqyCustomers@356944191/...`) can never match a
+platform role, which trusts `repo:BookingSystemAdvancedOrg@...`.
 
-<https://github.com/organizations/BookingSystemAdvancedOrg/settings/apps/new?name=Booqy%20Sites&description=Creates%20and%20manages%20the%20restaurant%20site%20repos%20(site-*)%20for%20Booqy&url=https%3A%2F%2Fbooqy.se&public=false&webhook_active=false&administration=write&contents=write&actions=write&variables=write&workflows=write&metadata=read>
+The GitHub App **"Booqy Customer Sites"** (slug `booqy-customer-sites`,
+App ID 5769537, owned by BooqyCustomers, private, webhook off):
 
-Check before **Create GitHub App**:
-
-- Webhook: Active **unticked**.
 - Repository permissions: Administration, Contents, Actions, Variables and
   Workflows **Read and write**; Metadata Read. Nothing else, no
   organization or account permissions.
 - Where can it be installed: **Only on this account**.
 
-Then on the App page: note the **App ID**; **Generate a private key** (a
-`.pem` downloads). Never paste it anywhere else, commit it or send it in chat.
+It replaces the old "Booqy Sites" App in BookingSystemAdvancedOrg; once the
+new key is in both secrets (step 3) and a test repo is created, uninstall
+and delete the old App there. Never paste the App's private key anywhere
+else, commit it or send it in chat.
 
-### 2. Install it on the site repos only
+### 2. Install it on all repositories, and the org settings
 
-App page -> **Install App** -> BookingSystemAdvancedOrg -> **Only select
-repositories** -> `site-kit` and `site-template` (plus any existing
-`site-*`). Never "All repositories", never a platform repo. Repos the App
-creates later are added to the installation by GitHub automatically.
+App page -> **Install App** -> BooqyCustomers -> **All repositories**. The
+organisation holds only site repos, so "All" is the narrow choice here and
+every repo the App generates is covered without a click.
+
+BooqyCustomers settings (Organization -> Settings):
+
+- **Actions -> General -> Policies:** "Allow BooqyCustomers, and select
+  non-BooqyCustomers, actions": only `actions/checkout@*`,
+  `actions/setup-node@*`, `aws-actions/configure-aws-credentials@*` and
+  `dependabot/fetch-metadata@*` (exactly what site-template's workflows use).
+- **Actions -> General -> Workflow permissions:** Read repository contents
+  and packages permissions (each workflow asks for more where it needs it).
+- **Member privileges -> Base permissions:** No permission. Booqy staff are
+  owners; nobody else is an org member.
+- **Developers:** never org members. **Give access** (prod console, Website
+  tab) adds the developer's GitHub username as an outside collaborator with
+  write on that one repo.
 
 ### 3. Store the key in both accounts
 
@@ -107,6 +126,17 @@ jq -n --arg id "<App ID>" --rawfile key ~/*.private-key.pem '{app_id:$id, privat
 
 5. Delete the downloaded `.pem` from your computer.
 
+The secrets already exist (they held the old "Booqy Sites" App): for the
+new App ID 5769537 replace the value instead, with the same ids, in each
+account (`booqy/dev/...` in dev, `booqy/prod/...` in prod):
+
+```bash
+jq -n --arg id "5769537" --rawfile key ~/*.private-key.pem '{app_id:$id, private_key:$key}' > ~/gh-app.json && aws secretsmanager put-secret-value --region eu-north-1 --secret-id booqy/dev/github-app-sites --secret-string file://$HOME/gh-app.json && rm ~/gh-app.json ~/*.private-key.pem
+```
+
+A warm function keeps its App token up to 50 minutes; the apply that sets
+`site_github_org` restarts it, and every cold start reads the secret again.
+
 Only the `site-repo` role of each account can read its secret. Rotate
 yearly: generate a new key on the App page, `put-secret-value` in both
 accounts, delete the old key on the App page.
@@ -116,22 +146,23 @@ accounts, delete the old key on the App page.
 GitHub Packages has no API for this, so it is a setting on the package
 (Organization -> Packages -> `site-kit` -> Package settings):
 
-- **Recommended: Change visibility -> Public.** Every repo's Actions,
+- **Required since the site repos moved to BooqyCustomers: Public** (an
+  Actions access grant only reaches repos in the package's own
+  organisation). **Change visibility -> Public.** Every repo's Actions,
   Dependabot and every developer with any GitHub token can install it; no
   click per new restaurant. The code is the same as in the public
   customer-front-end repo, so nothing new is exposed. (Org setting
   "Package creation: Public" must be allowed.)
-- Or keep it private: **Manage Actions access -> Add repository** for
-  `site-template` and for **every new** `site-<slug>` (Role: Read), and give
-  every outside developer read access to `site-kit`. A new site's first
-  deploy fails until that click is done.
+- (Before the move it could stay private with **Manage Actions access**
+  per repo; that no longer works across organisations.)
 
 Then: site-template -> Actions -> **Lockfile** -> Run workflow on `dev`
 (writes `package-lock.json`), and merge `dev` into `main` in site-template.
 
 ### 5. Switch it on
 
-`dev.tfvars` and `prod.tfvars`: uncomment `github_app_sites_secret_name`;
+`dev.tfvars` and `prod.tfvars`: uncomment `github_app_sites_secret_name`
+and set `site_github_org = "BooqyCustomers"` (both done);
 push dev (prod follows with the merge to main). Prod onboarding creates
 repos only once prod has it and the link (`site_link_dev_account_id`, set).
 Until then the dev console shows a dry run for new customers; slugs starting
@@ -259,16 +290,16 @@ roles (`dev-infra-oidc-role`, the front-end and back-end deploy roles).
   `deploy-own-site` with the same rights for its literal tenant. Trust: the
   account's existing GitHub OIDC provider, audience `sts.amazonaws.com`,
   subject exactly
-  `repo:BookingSystemAdvancedOrg@<org id>/site-<slug>@<repo id>:ref:refs/heads/main`
-  (prod) or `...:ref:refs/heads/dev` (dev): GitHub's default subject, which
-  in this organisation is the immutable one (ids in it), so a deleted and
-  re-created repo with the same name can't use the role. A site repo's
-  token has the same `repo:BookingSystemAdvancedOrg@...` shape as every
-  other repo's: **any platform role that trusts the whole organisation
-  (`repo:BookingSystemAdvancedOrg@*/*`) is reachable from a site repo**, and
-  outside developers get write access to site repos. Every platform role
-  must trust only its own repo (check `dev-infra-oidc-role` and
-  `prod-infra-oidc-role`).
+  `repo:BooqyCustomers@356944191/site-<slug>@<repo id>:ref:refs/heads/main`
+  (prod) or `...:ref:refs/heads/dev` (dev), with the owner's login exactly
+  as GitHub returns it: GitHub's default subject, which in this
+  organisation is the immutable one (ids in it), so a deleted and
+  re-created repo with the same name can't use the role. site-repo writes a
+  trust only for a repo whose owner is `GITHUB_ORG` (BooqyCustomers) and
+  refuses any other. Site repos live in their own organisation, so no
+  platform role (`repo:BookingSystemAdvancedOrg@...`) is reachable from a
+  site repo, where outside developers have write access. Every platform
+  role must still trust only its own repo.
 - `<env->site-repo-role` (Terraform, each account): CreateRole and
   PutRolePolicy only on `role/booqy-sites/*` and only with the boundary;
   Get/Tag/UpdateAssumeRolePolicy/ListRolePolicies/DeleteRolePolicy/
@@ -321,8 +352,10 @@ refused.
 | Symptom | Cause, fix |
 |---|---|
 | Website tab: "Site repos aren't switched on" | `github_app_sites_secret_name` not set in that environment's tfvars |
-| Setup failed: `GitHub POST .../generate: 403` | The App is not installed on `site-template`, or lacks Administration write |
-| Activity log `site_repo_delete_failed`: "GitHub refused" | The App lacks Administration write (org settings, GitHub Apps, Booqy Sites, Permissions; then accept the new permission under Installed GitHub Apps). Delete the archived repo by hand meanwhile |
+| Setup failed: `GitHub POST .../generate: 403` | The App is not installed on `site-template` in BooqyCustomers, or lacks Administration write |
+| Setup failed: `refused: ... owner is not BooqyCustomers` | The repo is in another organisation (for example an old one still in BookingSystemAdvancedOrg): transfer it to BooqyCustomers, then Run setup again |
+| Setup failed: GitHub 401 or "installation not found" | The secret still holds the old "Booqy Sites" App: step 3, put the new App's key (App ID 5769537) |
+| Activity log `site_repo_delete_failed`: "GitHub refused" | The App lacks Administration write (BooqyCustomers settings, GitHub Apps, Booqy Customer Sites, Permissions; then accept the new permission under Installed GitHub Apps). Delete the archived repo by hand meanwhile |
 | Setup failed: `refused: ... not a site-* repository name` | Slug not usable as a repo name; never bypass |
 | Deploy: `403 Forbidden ... read_package` | The repo can't read the kit: step 4 above |
 | Deploy: "No own domain attached and verified" | A repo generated before 2026-10-28 with the old gate: give its `deploy.yml` site-template's "Restaurant is active" step (both branches), then Redeploy main |
