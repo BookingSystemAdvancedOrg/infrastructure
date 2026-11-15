@@ -195,9 +195,12 @@ resource "aws_iam_role_policy" "domains" {
     Statement = concat([
       {
         # Route 53 Domains has no resource-level permissions.
+        # A leaving customer's domain stays theirs: auto-renew off and the
+        # transfer lock off, so they can move it out with the code the
+        # console hands them.
         Sid      = "AutoRenewOff"
         Effect   = "Allow"
-        Action   = "route53domains:DisableDomainAutoRenew"
+        Action   = ["route53domains:DisableDomainAutoRenew", "route53domains:DisableDomainTransferLock"]
         Resource = "*"
       },
       {

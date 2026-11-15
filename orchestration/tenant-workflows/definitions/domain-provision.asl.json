@@ -1,5 +1,5 @@
 {
-  "Comment": "A domain the platform runs DNS for, from order to live site. Started by platform-tenants after it has bought the domain (mode register: waits for Route 53 Domains - for .se the registry's identity check) or created its hosted zone (mode connect: waits until the restaurant has switched the name servers at its registrar). Then points <domain> and www.<domain> at the restaurant-site distribution and runs domain-attach for both. Mode transfer (a connected, live domain whose registration moves into Route 53, name servers unchanged) only waits for the transfer - the site is live throughout. The waiting and DNS steps are tasks in the platform-tenants Lambda (Route 53 Domains only exists in us-east-1; the name server check needs a public DNS lookup).",
+  "Comment": "An own domain, from order to live site, the same pipeline for every way in. Started by platform-tenants: register (Booqy bought it: waits for Route 53 Domains, for .se the registry's identity check), transfer_in (moving it to Booqy: the current DNS was copied into our zone first; waits for the owner's approval of the transfer, with reminders), connect (the restaurant keeps its registrar and points the name servers at our zone), records (the restaurant keeps its registrar and DNS and adds a www CNAME; the registrar forwards the apex to www). Then, for every mode: domain-attach (apex and www, or www only), SetCanonical (primary domain + the 301s from the slug address and www), MarkLive (e-mail to the restaurant), dev.<domain> on the dev site (never rolls back prod) and booqy.json. Mode transfer (a connected, live domain whose registration moves into Route 53, name servers unchanged) only waits for the transfer - the site is live throughout. Every step is idempotent: Retry starts it again and finished steps are found done; devOnly (Retry when only the dev side failed) goes straight to the dev step.",
   "QueryLanguage": "JSONata",
   "TimeoutSeconds": ${timeout_seconds},
   "StartAt": "Init",
@@ -12,7 +12,10 @@
         "mode": "{% $states.input.mode %}",
         "makePrimary": "{% $exists($states.input.makePrimary) ? $states.input.makePrimary = true : false %}",
         "requestedBy": "{% $exists($states.input.requestedBy) ? $states.input.requestedBy : 'workflow' %}",
+        "devOnly": "{% $exists($states.input.devOnly) ? $states.input.devOnly = true : false %}",
         "checks": 0,
+        "devChecks": 0,
+        "attach": true,
         "taskStatus": "{% '' %}",
         "failure": {},
         "failedState": "{% '' %}"
@@ -22,9 +25,30 @@
     "Mode": {
       "Type": "Choice",
       "Choices": [
-        { "Condition": "{% $mode = 'register' %}", "Next": "CheckRegistration" },
-        { "Condition": "{% $mode = 'connect' %}", "Next": "WaitForNameServers" },
-        { "Condition": "{% $mode = 'transfer' %}", "Next": "CheckTransfer" }
+        {
+          "Condition": "{% $devOnly %}",
+          "Next": "DevStep"
+        },
+        {
+          "Condition": "{% $mode = 'register' %}",
+          "Next": "CheckRegistration"
+        },
+        {
+          "Condition": "{% $mode = 'transfer_in' %}",
+          "Next": "CheckTransferIn"
+        },
+        {
+          "Condition": "{% $mode = 'connect' %}",
+          "Next": "CheckNameServers"
+        },
+        {
+          "Condition": "{% $mode = 'records' %}",
+          "Next": "CheckRecords"
+        },
+        {
+          "Condition": "{% $mode = 'transfer' %}",
+          "Next": "CheckTransfer"
+        }
       ],
       "Default": "UnknownMode"
     },
@@ -32,7 +56,10 @@
       "Type": "Pass",
       "Assign": {
         "failedState": "Mode",
-        "failure": { "Error": "UnknownMode", "Cause": "{% 'mode must be register or connect, got ' & $string($mode) %}" }
+        "failure": {
+          "Error": "UnknownMode",
+          "Cause": "{% 'mode must be register, transfer_in, connect, records or transfer, got ' & $string($mode) %}"
+        }
       },
       "Next": "MarkFailed"
     },
@@ -50,7 +77,9 @@
         "Payload": {
           "workflowTask": "registration_status",
           "tenantId": "{% $tenantId %}",
-          "domain": "{% $domain %}"
+          "domain": "{% $domain %}",
+          "mode": "{% $mode %}",
+          "requestedBy": "{% $requestedBy %}"
         }
       },
       "Assign": {
@@ -59,7 +88,13 @@
       },
       "Retry": [
         {
-          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException", "Lambda.TooManyRequestsException", "States.TaskFailed"],
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException",
+            "States.TaskFailed"
+          ],
           "IntervalSeconds": 30,
           "MaxAttempts": 3,
           "BackoffRate": 2
@@ -67,8 +102,13 @@
       ],
       "Catch": [
         {
-          "ErrorEquals": ["States.ALL"],
-          "Assign": { "failure": "{% $states.errorOutput %}", "failedState": "{% $states.context.State.Name %}" },
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "Assign": {
+            "failure": "{% $states.errorOutput %}",
+            "failedState": "{% $states.context.State.Name %}"
+          },
           "Next": "MarkFailed"
         }
       ],
@@ -77,9 +117,22 @@
     "RegistrationState": {
       "Type": "Choice",
       "Choices": [
-        { "Condition": "{% $taskStatus = 'done' %}", "Next": "PrepareDns" },
-        { "Condition": "{% $taskStatus = 'failed' %}", "Next": "RegistrationFailed" },
-        { "Condition": "{% $checks >= ${max_registration_checks} %}", "Next": "RegistrationTimedOut" }
+        {
+          "Condition": "{% $taskStatus = 'done' %}",
+          "Next": "PrepareDns"
+        },
+        {
+          "Condition": "{% $taskStatus = 'failed' %}",
+          "Next": "RegistrationFailed"
+        },
+        {
+          "Condition": "{% $taskStatus = 'cancelled' %}",
+          "Next": "Cancelled"
+        },
+        {
+          "Condition": "{% $checks >= ${max_registration_checks} %}",
+          "Next": "RegistrationTimedOut"
+        }
       ],
       "Default": "WaitForRegistration"
     },
@@ -87,14 +140,116 @@
       "Type": "Pass",
       "Assign": {
         "failedState": "CheckRegistration",
-        "failure": { "Error": "RegistrationFailed", "Cause": "Route 53 Domains reported the registration as failed - see the order's lastError in Booqy Console." }
+        "failure": {
+          "Error": "RegistrationFailed",
+          "Cause": "Route 53 Domains reported the registration as failed - see the order's lastError in Booqy Console."
+        }
       },
       "Next": "MarkFailed"
     },
     "RegistrationTimedOut": {
       "Type": "Pass",
       "Assign": {
-        "timeoutMessage": "{% 'Still not registered after ' & $string($checks) & ' checks. For .se: has the registreringsbevis been sent to AWS Support? Check the operation in the Route 53 console, then place the order again.' %}"
+        "timeoutMessage": "{% 'Still not registered after ' & $string($checks) & ' checks. For .se: has the registreringsbevis been sent to AWS Support? Check the operation in the Route 53 console, then press Retry.' %}"
+      },
+      "Next": "MarkTimedOut"
+    },
+    "WaitForTransferIn": {
+      "Type": "Wait",
+      "Seconds": ${transfer_check_seconds},
+      "Next": "CheckTransferIn"
+    },
+    "CheckTransferIn": {
+      "Type": "Task",
+      "Comment": "Reads the TransferDomain operation: waiting for the domain owner's approval (the registry's e-mail), the old registrar's release or the .se identity check; sends the reminders (24 h, 72 h, 6 days). The old DNS keeps serving the copied records meanwhile. A rejection is classified (who acts) on the order row.",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Arguments": {
+        "FunctionName": "${function_arn}",
+        "Payload": {
+          "workflowTask": "transfer_in_status",
+          "tenantId": "{% $tenantId %}",
+          "domain": "{% $domain %}",
+          "mode": "{% $mode %}",
+          "requestedBy": "{% $requestedBy %}"
+        }
+      },
+      "Assign": {
+        "checks": "{% $checks + 1 %}",
+        "taskStatus": "{% $states.result.Payload.status %}"
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException",
+            "States.TaskFailed"
+          ],
+          "IntervalSeconds": 30,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "Assign": {
+            "failure": "{% $states.errorOutput %}",
+            "failedState": "{% $states.context.State.Name %}"
+          },
+          "Next": "MarkFailed"
+        }
+      ],
+      "Next": "TransferInState"
+    },
+    "TransferInState": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Condition": "{% $taskStatus = 'done' %}",
+          "Next": "TransferredIn"
+        },
+        {
+          "Condition": "{% $taskStatus = 'failed' %}",
+          "Next": "TransferInFailed"
+        },
+        {
+          "Condition": "{% $taskStatus = 'cancelled' %}",
+          "Next": "Cancelled"
+        },
+        {
+          "Condition": "{% $checks >= ${max_transfer_checks} %}",
+          "Next": "TransferInTimedOut"
+        }
+      ],
+      "Default": "WaitForTransferIn"
+    },
+    "TransferredIn": {
+      "Type": "Pass",
+      "Comment": "The registration is ours now and names our name servers: confirm they answer, then the common pipeline.",
+      "Assign": {
+        "checks": 0
+      },
+      "Next": "CheckNameServers"
+    },
+    "TransferInFailed": {
+      "Type": "Pass",
+      "Assign": {
+        "failedState": "CheckTransferIn",
+        "failure": {
+          "Error": "TransferInFailed",
+          "Cause": "The transfer was rejected or failed - the order shows why and who acts (Retry once fixed). Nothing changed for the domain."
+        }
+      },
+      "Next": "MarkFailed"
+    },
+    "TransferInTimedOut": {
+      "Type": "Pass",
+      "Assign": {
+        "timeoutMessage": "{% 'The transfer was not approved within ' & $string($checks) & ' checks (14 days). The domain stays at its registrar; ask the owner to approve the e-mail, then press Retry.' %}"
       },
       "Next": "MarkTimedOut"
     },
@@ -105,14 +260,16 @@
     },
     "CheckNameServers": {
       "Type": "Task",
-      "Comment": "Looks the domain's NS up in public DNS; done when only our name servers answer.",
+      "Comment": "Looks the domain's NS up in public DNS; done when only our name servers answer (blocked_dnssec while a DS record is still published).",
       "Resource": "arn:aws:states:::lambda:invoke",
       "Arguments": {
         "FunctionName": "${function_arn}",
         "Payload": {
           "workflowTask": "nameserver_status",
           "tenantId": "{% $tenantId %}",
-          "domain": "{% $domain %}"
+          "domain": "{% $domain %}",
+          "mode": "{% $mode %}",
+          "requestedBy": "{% $requestedBy %}"
         }
       },
       "Assign": {
@@ -121,7 +278,13 @@
       },
       "Retry": [
         {
-          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException", "Lambda.TooManyRequestsException", "States.TaskFailed"],
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException",
+            "States.TaskFailed"
+          ],
           "IntervalSeconds": 30,
           "MaxAttempts": 3,
           "BackoffRate": 2
@@ -129,25 +292,131 @@
       ],
       "Catch": [
         {
-          "ErrorEquals": ["States.ALL"],
-          "Assign": { "failure": "{% $states.errorOutput %}", "failedState": "{% $states.context.State.Name %}" },
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "Assign": {
+            "failure": "{% $states.errorOutput %}",
+            "failedState": "{% $states.context.State.Name %}"
+          },
           "Next": "MarkFailed"
         }
       ],
-      "Next": "NameServerState"
+      "Next": "NameServersState"
     },
-    "NameServerState": {
+    "NameServersState": {
       "Type": "Choice",
       "Choices": [
-        { "Condition": "{% $taskStatus = 'done' %}", "Next": "PrepareDns" },
-        { "Condition": "{% $checks >= ${max_nameserver_checks} %}", "Next": "NameServersTimedOut" }
+        {
+          "Condition": "{% $taskStatus = 'done' %}",
+          "Next": "PrepareDns"
+        },
+        {
+          "Condition": "{% $taskStatus = 'cancelled' %}",
+          "Next": "Cancelled"
+        },
+        {
+          "Condition": "{% $checks >= ${max_nameserver_checks} %}",
+          "Next": "NameServersTimedOut"
+        }
       ],
       "Default": "WaitForNameServers"
     },
     "NameServersTimedOut": {
       "Type": "Pass",
       "Assign": {
-        "timeoutMessage": "{% 'The name servers were not switched within ' & $string($checks) & ' checks. Ask the restaurant to set the four Route 53 name servers at their registrar, then connect the domain again (the zone and its records are kept).' %}"
+        "timeoutMessage": "{% 'The name servers were not switched within ' & $string($checks) & ' checks. Ask the restaurant to set the four Route 53 name servers at their registrar, then press Retry (the zone and its records are kept).' %}"
+      },
+      "Next": "MarkTimedOut"
+    },
+    "WaitForRecords": {
+      "Type": "Wait",
+      "Seconds": ${records_check_seconds},
+      "Next": "CheckRecords"
+    },
+    "CheckRecords": {
+      "Type": "Task",
+      "Comment": "Looks www.<domain> up in public DNS until it is a CNAME to the connection group (reminders 24 h, 72 h, 6 days).",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Arguments": {
+        "FunctionName": "${function_arn}",
+        "Payload": {
+          "workflowTask": "records_status",
+          "tenantId": "{% $tenantId %}",
+          "domain": "{% $domain %}",
+          "mode": "{% $mode %}",
+          "requestedBy": "{% $requestedBy %}"
+        }
+      },
+      "Assign": {
+        "checks": "{% $checks + 1 %}",
+        "taskStatus": "{% $states.result.Payload.status %}"
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException",
+            "States.TaskFailed"
+          ],
+          "IntervalSeconds": 30,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "Assign": {
+            "failure": "{% $states.errorOutput %}",
+            "failedState": "{% $states.context.State.Name %}"
+          },
+          "Next": "MarkFailed"
+        }
+      ],
+      "Next": "RecordsState"
+    },
+    "RecordsState": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Condition": "{% $taskStatus = 'done' %}",
+          "Next": "PrepareRecords"
+        },
+        {
+          "Condition": "{% $taskStatus = 'failed' %}",
+          "Next": "RecordsFailed"
+        },
+        {
+          "Condition": "{% $taskStatus = 'cancelled' %}",
+          "Next": "Cancelled"
+        },
+        {
+          "Condition": "{% $checks >= ${max_records_checks} %}",
+          "Next": "RecordsTimedOut"
+        }
+      ],
+      "Default": "WaitForRecords"
+    },
+    "RecordsFailed": {
+      "Type": "Pass",
+      "Assign": {
+        "failedState": "CheckRecords",
+        "failure": {
+          "Error": "RecordsFailed",
+          "Cause": "The records check failed - see the order in Booqy Console."
+        }
+      },
+      "Next": "MarkFailed"
+    },
+    "RecordsTimedOut": {
+      "Type": "Pass",
+      "Assign": {
+        "timeoutMessage": "{% 'www was not pointed at Booqy within ' & $string($checks) & ' checks. Send the restaurant the steps again, then press Retry.' %}"
       },
       "Next": "MarkTimedOut"
     },
@@ -165,7 +434,9 @@
         "Payload": {
           "workflowTask": "transfer_status",
           "tenantId": "{% $tenantId %}",
-          "domain": "{% $domain %}"
+          "domain": "{% $domain %}",
+          "mode": "{% $mode %}",
+          "requestedBy": "{% $requestedBy %}"
         }
       },
       "Assign": {
@@ -174,7 +445,13 @@
       },
       "Retry": [
         {
-          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException", "Lambda.TooManyRequestsException", "States.TaskFailed"],
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException",
+            "States.TaskFailed"
+          ],
           "IntervalSeconds": 30,
           "MaxAttempts": 3,
           "BackoffRate": 2
@@ -182,8 +459,13 @@
       ],
       "Catch": [
         {
-          "ErrorEquals": ["States.ALL"],
-          "Assign": { "failure": "{% $states.errorOutput %}", "failedState": "{% $states.context.State.Name %}" },
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "Assign": {
+            "failure": "{% $states.errorOutput %}",
+            "failedState": "{% $states.context.State.Name %}"
+          },
           "Next": "MarkFailed"
         }
       ],
@@ -192,9 +474,22 @@
     "TransferState": {
       "Type": "Choice",
       "Choices": [
-        { "Condition": "{% $taskStatus = 'done' %}", "Next": "Transferred" },
-        { "Condition": "{% $taskStatus = 'failed' %}", "Next": "TransferFailed" },
-        { "Condition": "{% $checks >= ${max_registration_checks} %}", "Next": "TransferTimedOut" }
+        {
+          "Condition": "{% $taskStatus = 'done' %}",
+          "Next": "Transferred"
+        },
+        {
+          "Condition": "{% $taskStatus = 'failed' %}",
+          "Next": "TransferFailed"
+        },
+        {
+          "Condition": "{% $taskStatus = 'cancelled' %}",
+          "Next": "Cancelled"
+        },
+        {
+          "Condition": "{% $checks >= ${max_registration_checks} %}",
+          "Next": "TransferTimedOut"
+        }
       ],
       "Default": "WaitForTransfer"
     },
@@ -206,7 +501,10 @@
       "Type": "Pass",
       "Assign": {
         "failedState": "CheckTransfer",
-        "failure": { "Error": "TransferFailed", "Cause": "Route 53 Domains reported the transfer as failed - see the transfer error in Booqy Console. The domain stays at its registrar and the site stays live." }
+        "failure": {
+          "Error": "TransferFailed",
+          "Cause": "Route 53 Domains reported the transfer as failed - see the transfer error in Booqy Console. The domain stays at its registrar and the site stays live."
+        }
       },
       "Next": "MarkFailed"
     },
@@ -219,7 +517,7 @@
     },
     "PrepareDns": {
       "Type": "Task",
-      "Comment": "Apex alias + www CNAME to the restaurant-site distribution, _cf-challenge ownership records, and both hosts reserved for this tenant.",
+      "Comment": "Zones Booqy runs: apex alias + www CNAME to the connection group, _cf-challenge ownership records, both hosts reserved for this tenant. A dev test customer (simulated order): the sandbox mapping instead (attach false).",
       "Resource": "arn:aws:states:::lambda:invoke",
       "Arguments": {
         "FunctionName": "${function_arn}",
@@ -227,12 +525,21 @@
           "workflowTask": "prepare_dns",
           "tenantId": "{% $tenantId %}",
           "domain": "{% $domain %}",
+          "mode": "{% $mode %}",
           "requestedBy": "{% $requestedBy %}"
         }
       },
+      "Assign": {
+        "attach": "{% $states.result.Payload.attach = false ? false : true %}"
+      },
       "Retry": [
         {
-          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException", "Lambda.TooManyRequestsException"],
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
           "IntervalSeconds": 10,
           "MaxAttempts": 3,
           "BackoffRate": 2
@@ -240,16 +547,31 @@
       ],
       "Catch": [
         {
-          "ErrorEquals": ["States.ALL"],
-          "Assign": { "failure": "{% $states.errorOutput %}", "failedState": "{% $states.context.State.Name %}" },
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "Assign": {
+            "failure": "{% $states.errorOutput %}",
+            "failedState": "{% $states.context.State.Name %}"
+          },
           "Next": "MarkFailed"
         }
       ],
-      "Next": "AttachBoth"
+      "Next": "NeedsAttach"
+    },
+    "NeedsAttach": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Condition": "{% $attach %}",
+          "Next": "AttachBoth"
+        }
+      ],
+      "Default": "SetCanonical"
     },
     "AttachBoth": {
       "Type": "Parallel",
-      "Comment": "domain-attach for <domain> (primary if asked) and www.<domain>: a distribution tenant each, with a CloudFront-managed certificate.",
+      "Comment": "domain-attach for <domain> (primary) and www.<domain>: a distribution tenant each, with a CloudFront-managed certificate.",
       "Branches": [
         {
           "StartAt": "AttachApex",
@@ -294,8 +616,136 @@
       ],
       "Catch": [
         {
-          "ErrorEquals": ["States.ALL"],
-          "Assign": { "failure": "{% $states.errorOutput %}", "failedState": "{% $states.context.State.Name %}" },
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "Assign": {
+            "failure": "{% $states.errorOutput %}",
+            "failedState": "{% $states.context.State.Name %}"
+          },
+          "Next": "MarkFailed"
+        }
+      ],
+      "Next": "SetCanonical"
+    },
+    "PrepareRecords": {
+      "Type": "Task",
+      "Comment": "DNS records mode: www.<domain> reserved for this tenant (the restaurant's CNAME is in place). Simulated: the sandbox mapping (attach false).",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Arguments": {
+        "FunctionName": "${function_arn}",
+        "Payload": {
+          "workflowTask": "prepare_records",
+          "tenantId": "{% $tenantId %}",
+          "domain": "{% $domain %}",
+          "mode": "{% $mode %}",
+          "requestedBy": "{% $requestedBy %}"
+        }
+      },
+      "Assign": {
+        "attach": "{% $states.result.Payload.attach = false ? false : true %}"
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 10,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "Assign": {
+            "failure": "{% $states.errorOutput %}",
+            "failedState": "{% $states.context.State.Name %}"
+          },
+          "Next": "MarkFailed"
+        }
+      ],
+      "Next": "NeedsWwwAttach"
+    },
+    "NeedsWwwAttach": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Condition": "{% $attach %}",
+          "Next": "AttachWwwOnly"
+        }
+      ],
+      "Default": "SetCanonical"
+    },
+    "AttachWwwOnly": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::states:startExecution.sync:2",
+      "Arguments": {
+        "StateMachineArn": "${domain_attach_state_machine_arn}",
+        "Input": {
+          "tenantId": "{% $tenantId %}",
+          "domain": "{% 'www.' & $domain %}",
+          "makePrimary": "{% $makePrimary %}",
+          "requestedBy": "{% $requestedBy %}",
+          "AWS_STEP_FUNCTIONS_STARTED_BY_EXECUTION_ID": "{% $states.context.Execution.Id %}"
+        }
+      },
+      "Comment": "domain-attach for www.<domain> (the canonical host here: the apex stays at the registrar, which forwards it to www).",
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "Assign": {
+            "failure": "{% $states.errorOutput %}",
+            "failedState": "{% $states.context.State.Name %}"
+          },
+          "Next": "MarkFailed"
+        }
+      ],
+      "Next": "SetCanonical"
+    },
+    "SetCanonical": {
+      "Type": "Task",
+      "Comment": "Checks every host of the order is active, makes the canonical host the primary domain (every guest link) and writes the 301s (slug address and www -> canonical) into the site-redirects key value store.",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Arguments": {
+        "FunctionName": "${function_arn}",
+        "Payload": {
+          "workflowTask": "set_canonical",
+          "tenantId": "{% $tenantId %}",
+          "domain": "{% $domain %}",
+          "mode": "{% $mode %}",
+          "requestedBy": "{% $requestedBy %}"
+        }
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 10,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "Assign": {
+            "failure": "{% $states.errorOutput %}",
+            "failedState": "{% $states.context.State.Name %}"
+          },
           "Next": "MarkFailed"
         }
       ],
@@ -308,24 +758,216 @@
         "FunctionName": "${function_arn}",
         "Payload": {
           "workflowTask": "mark",
-          "mode": "{% $mode %}",
           "tenantId": "{% $tenantId %}",
           "domain": "{% $domain %}",
+          "mode": "{% $mode %}",
+          "requestedBy": "{% $requestedBy %}",
           "status": "live"
+        }
+      },
+      "Assign": {
+        "taskStatus": "{% $states.result.Payload.status %}"
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "IntervalSeconds": 10,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Next": "LiveState"
+    },
+    "LiveState": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Condition": "{% $taskStatus = 'live' %}",
+          "Next": "DevStep"
+        }
+      ],
+      "Default": "NotifyFailure"
+    },
+    "DevStep": {
+      "Type": "Task",
+      "Comment": "dev.<domain> on the dev site through the prod->dev link: mounts it (Booqy's zones also get its CNAME; DNS records mode waits for the restaurant's), then makes it dev's primary and writes dev's 301. Prod is live already and never rolled back.",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Arguments": {
+        "FunctionName": "${function_arn}",
+        "Payload": {
+          "workflowTask": "dev_step",
+          "tenantId": "{% $tenantId %}",
+          "domain": "{% $domain %}",
+          "mode": "{% $mode %}",
+          "requestedBy": "{% $requestedBy %}"
+        }
+      },
+      "Assign": {
+        "devChecks": "{% $devChecks + 1 %}",
+        "taskStatus": "{% $states.result.Payload.status %}"
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException",
+            "States.TaskFailed"
+          ],
+          "IntervalSeconds": 30,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "Assign": {
+            "failure": "{% $states.errorOutput %}"
+          },
+          "Next": "MarkDevFailed"
+        }
+      ],
+      "Next": "DevState"
+    },
+    "DevState": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Condition": "{% $taskStatus = 'done' or $taskStatus = 'skipped' %}",
+          "Next": "UpdateSite"
+        },
+        {
+          "Condition": "{% $taskStatus = 'failed' %}",
+          "Next": "MarkDevFailed"
+        },
+        {
+          "Condition": "{% $taskStatus = 'cancelled' %}",
+          "Next": "Cancelled"
+        },
+        {
+          "Condition": "{% $devChecks >= ${max_dev_checks} %}",
+          "Next": "DevTimedOut"
+        }
+      ],
+      "Default": "WaitForDev"
+    },
+    "WaitForDev": {
+      "Type": "Wait",
+      "Seconds": ${dev_check_seconds},
+      "Next": "DevStep"
+    },
+    "DevTimedOut": {
+      "Type": "Pass",
+      "Assign": {
+        "failure": {
+          "Error": "DevTimedOut",
+          "Cause": "{% 'dev.' & $domain & ' was not live on the dev site within ' & $string($devChecks) & ' checks' %}"
+        }
+      },
+      "Next": "MarkDevFailed"
+    },
+    "MarkDevFailed": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Arguments": {
+        "FunctionName": "${function_arn}",
+        "Payload": {
+          "workflowTask": "mark_dev",
+          "tenantId": "{% $tenantId %}",
+          "domain": "{% $domain %}",
+          "mode": "{% $mode %}",
+          "requestedBy": "{% $requestedBy %}",
+          "status": "failed",
+          "error": "{% $substring($string($failure.Error) & ': ' & $string($failure.Cause), 0, 1000) %}"
         }
       },
       "Retry": [
         {
-          "ErrorEquals": ["States.ALL"],
+          "ErrorEquals": [
+            "States.ALL"
+          ],
           "IntervalSeconds": 10,
           "MaxAttempts": 3,
           "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "Next": "NotifyDevFailure"
+        }
+      ],
+      "Next": "NotifyDevFailure"
+    },
+    "NotifyDevFailure": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::sns:publish",
+      "Arguments": {
+        "TopicArn": "${alert_topic_arn}",
+        "Subject": "${environment}: dev site domain failed",
+        "Message": "{% 'dev.' & $domain & ' for tenant ' & $tenantId & ' could not be put on the dev site. Production is live on ' & $domain & ' and unaffected; press Retry dev on the Website tab.\\n\\n' & $string($failure) & '\\n\\nExecution: ' & $states.context.Execution.Id %}"
+      },
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "Next": "UpdateSite"
+        }
+      ],
+      "Next": "UpdateSite"
+    },
+    "UpdateSite": {
+      "Type": "Task",
+      "Comment": "booqy.json of the restaurant's repo gets the live domains (prod and dev sections, both branches), which deploys both sites with the right canonical and sitemap.",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Arguments": {
+        "FunctionName": "${function_arn}",
+        "Payload": {
+          "workflowTask": "update_site",
+          "tenantId": "{% $tenantId %}",
+          "domain": "{% $domain %}",
+          "mode": "{% $mode %}",
+          "requestedBy": "{% $requestedBy %}"
+        }
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 10,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "Next": "Live"
         }
       ],
       "Next": "Live"
     },
     "Live": {
       "Type": "Succeed"
+    },
+    "Cancelled": {
+      "Type": "Succeed",
+      "Comment": "The domain was removed while this workflow waited."
     },
     "MarkTimedOut": {
       "Type": "Task",
@@ -334,16 +976,19 @@
         "FunctionName": "${function_arn}",
         "Payload": {
           "workflowTask": "mark",
-          "mode": "{% $mode %}",
           "tenantId": "{% $tenantId %}",
           "domain": "{% $domain %}",
+          "mode": "{% $mode %}",
+          "requestedBy": "{% $requestedBy %}",
           "status": "timed_out",
           "error": "{% $timeoutMessage %}"
         }
       },
       "Retry": [
         {
-          "ErrorEquals": ["States.ALL"],
+          "ErrorEquals": [
+            "States.ALL"
+          ],
           "IntervalSeconds": 10,
           "MaxAttempts": 3,
           "BackoffRate": 2
@@ -351,7 +996,9 @@
       ],
       "Catch": [
         {
-          "ErrorEquals": ["States.ALL"],
+          "ErrorEquals": [
+            "States.ALL"
+          ],
           "Next": "TimedOut"
         }
       ],
@@ -359,7 +1006,7 @@
     },
     "TimedOut": {
       "Type": "Succeed",
-      "Comment": "Not an incident - the Console shows timed_out with what to do; placing the order again resumes."
+      "Comment": "Not an incident - the Console shows the timed-out status with what to do; Retry resumes."
     },
     "MarkFailed": {
       "Type": "Task",
@@ -368,16 +1015,19 @@
         "FunctionName": "${function_arn}",
         "Payload": {
           "workflowTask": "mark",
-          "mode": "{% $mode %}",
           "tenantId": "{% $tenantId %}",
           "domain": "{% $domain %}",
+          "mode": "{% $mode %}",
+          "requestedBy": "{% $requestedBy %}",
           "status": "failed",
           "error": "{% $substring($string($failure.Error) & ': ' & $string($failure.Cause), 0, 1000) %}"
         }
       },
       "Retry": [
         {
-          "ErrorEquals": ["States.ALL"],
+          "ErrorEquals": [
+            "States.ALL"
+          ],
           "IntervalSeconds": 10,
           "MaxAttempts": 2,
           "BackoffRate": 2
@@ -385,7 +1035,9 @@
       ],
       "Catch": [
         {
-          "ErrorEquals": ["States.ALL"],
+          "ErrorEquals": [
+            "States.ALL"
+          ],
           "Next": "NotifyFailure"
         }
       ],
@@ -401,7 +1053,9 @@
       },
       "Catch": [
         {
-          "ErrorEquals": ["States.ALL"],
+          "ErrorEquals": [
+            "States.ALL"
+          ],
           "Next": "ProvisionFailed"
         }
       ],

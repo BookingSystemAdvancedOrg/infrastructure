@@ -77,3 +77,8 @@ output "downloads_bucket_arn" {
   description = "ARN of the desktop installer bucket (security/iam/oidc/desktop-release-role uploads to it)"
   value       = aws_s3_bucket.downloads.arn
 }
+
+output "site_redirects_kvs_arn" {
+  description = "Key value store of the restaurant sites' 301s (host -> live own domain); platform-tenants writes it"
+  value       = one(aws_cloudfront_key_value_store.site_redirects[*].arn)
+}

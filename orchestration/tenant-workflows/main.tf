@@ -465,11 +465,20 @@ resource "aws_sfn_state_machine" "domain_provision" {
     max_registration_checks         = var.max_registration_checks
     nameserver_check_seconds        = var.nameserver_check_interval_seconds
     max_nameserver_checks           = var.max_nameserver_checks
-    # longest wait + domain-attach's own certificate window + a day
+    transfer_check_seconds          = var.transfer_check_interval_seconds
+    max_transfer_checks             = var.max_transfer_checks
+    records_check_seconds           = var.records_check_interval_seconds
+    max_records_checks              = var.max_records_checks
+    dev_check_seconds               = var.dev_check_interval_seconds
+    max_dev_checks                  = var.max_dev_checks
+    # longest wait (a transfer in also waits for the name servers) +
+    # domain-attach's own certificate window + dev.<domain> + a day
     timeout_seconds = max(
       var.registration_check_interval_seconds * var.max_registration_checks,
+      var.transfer_check_interval_seconds * var.max_transfer_checks + var.nameserver_check_interval_seconds * var.max_nameserver_checks,
       var.nameserver_check_interval_seconds * var.max_nameserver_checks,
-    ) + var.certificate_check_interval_seconds * var.max_certificate_checks + 86400
+      var.records_check_interval_seconds * var.max_records_checks,
+    ) + var.certificate_check_interval_seconds * var.max_certificate_checks + var.dev_check_interval_seconds * var.max_dev_checks + 86400
   })
 
   logging_configuration {

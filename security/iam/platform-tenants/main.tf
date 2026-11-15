@@ -309,6 +309,35 @@ resource "aws_iam_role_policy" "domains" {
         Resource = "*"
       },
       {
+        # Own domains (owner 2026-11-15): the transfer-in reminders (the
+        # owner's approval e-mail sent again), the daily health check
+        # (expiry, renewals, failed operations, ICANN registrant e-mail) and
+        # the transfer-out code a leaving customer gets for a domain Booqy
+        # registered or moved in for them. Prod only: dev never registers.
+        Sid    = "OwnDomainsLifecycle"
+        Effect = "Allow"
+        Action = var.environment == "prod" ? [
+          "route53domains:GetDomainDetail",
+          "route53domains:ListDomains",
+          "route53domains:ListOperations",
+          "route53domains:GetContactReachabilityStatus",
+          "route53domains:ResendContactReachabilityEmail",
+          "route53domains:ResendOperationAuthorization",
+          "route53domains:RetrieveDomainAuthCode",
+        ] : ["route53domains:GetDomainDetail"]
+        Resource = "*"
+      },
+      {
+        # The daily health check's metrics, in its own namespace only.
+        Sid      = "OwnDomainsMetrics"
+        Effect   = "Allow"
+        Action   = "cloudwatch:PutMetricData"
+        Resource = "*"
+        Condition = {
+          StringEquals = { "cloudwatch:namespace" = "Booqy/Domains" }
+        }
+      },
+      {
         Sid    = "CreateAndFindZones"
         Effect = "Allow"
         Action = [
@@ -370,6 +399,20 @@ resource "aws_iam_role_policy" "domains" {
         Effect   = "Allow"
         Action   = ["dynamodb:Query", "dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:DeleteItem"]
         Resource = var.user_backdrops_table_arn
+      }
+      ], var.site_redirect_kvs_arn == "" ? [] : [
+      {
+        # The restaurant sites' 301s (network/platform-domain/redirects.tf):
+        # this store only.
+        Sid    = "SiteRedirects"
+        Effect = "Allow"
+        Action = [
+          "cloudfront-keyvaluestore:DescribeKeyValueStore",
+          "cloudfront-keyvaluestore:GetKey",
+          "cloudfront-keyvaluestore:PutKey",
+          "cloudfront-keyvaluestore:DeleteKey",
+        ]
+        Resource = var.site_redirect_kvs_arn
       }
       ], var.platform_zone_id == "" ? [] : [
       {

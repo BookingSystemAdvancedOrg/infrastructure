@@ -79,6 +79,11 @@ resource "aws_lambda_function" "this" {
       # Restaurant domains bought / connected from Booqy Console
       DOMAIN_PROVISION_STATE_MACHINE_ARN = var.domain_provision_state_machine_arn
       DOMAIN_DOCUMENTS_BUCKET            = var.domain_documents_bucket_name
+      # Own domains: the 301s from the slug address and www to the live own
+      # domain ("" = not written), and the dev console's simulated buy,
+      # transfer and connect (never in prod).
+      SITE_REDIRECT_KVS_ARN = var.site_redirect_kvs_arn
+      DOMAINS_SIMULATE      = var.environment == "prod" ? "false" : "true"
       # Each operator's background image library (/platform/me/backdrops)
       USER_BACKDROPS_BUCKET     = var.user_backdrops_bucket_name
       USER_BACKDROPS_TABLE_NAME = var.user_backdrops_table_name
@@ -147,6 +152,35 @@ resource "aws_scheduler_schedule" "dunning" {
     arn      = aws_lambda_alias.live.arn
     role_arn = var.scheduler_invoke_role_arn
     input    = jsonencode({ financeTask = "dunning" })
+
+    retry_policy {
+      maximum_retry_attempts       = 2
+      maximum_event_age_in_seconds = 3600
+    }
+  }
+}
+
+# Own domains, daily (prod): expiry and renewals of the domains registered
+# through Booqy, failed Route 53 Domains operations, auto-renew left off and
+# unconfirmed registrant e-mails, as Booqy/Domains metrics (the alarms are
+# in orchestration/tenant-workflows/domain-alarms.tf); expiry and auto-renew
+# are also written to each order row for the Domains tab.
+resource "aws_scheduler_schedule" "domain_health" {
+  count = var.environment == "prod" ? 1 : 0
+
+  name                         = "${local.function_name}-domain-health"
+  group_name                   = "default"
+  schedule_expression          = "cron(15 6 * * ? *)"
+  schedule_expression_timezone = "Europe/Stockholm"
+
+  flexible_time_window {
+    mode = "OFF"
+  }
+
+  target {
+    arn      = aws_lambda_alias.live.arn
+    role_arn = var.scheduler_invoke_role_arn
+    input    = jsonencode({ domainTask = "health" })
 
     retry_policy {
       maximum_retry_attempts       = 2
