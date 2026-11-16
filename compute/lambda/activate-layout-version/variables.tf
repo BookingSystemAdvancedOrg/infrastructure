@@ -57,3 +57,9 @@ variable "location_id_index_name" {
   type        = string
   sensitive   = false
 }
+
+variable "reservation_table_name" {
+  description = "Name of the Reservation table: activation refuses to strand bookings on removed tables"
+  type        = string
+  sensitive   = false
+}

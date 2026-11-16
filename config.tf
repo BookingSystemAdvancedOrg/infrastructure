@@ -404,6 +404,8 @@ module "activate_layout_version_role" {
   published_layout_snapshot_table_arn = module.published_layout_snapshot.table_arn
   scheduler_invoke_role_arn           = module.scheduler_invoke_expire_layout_version_role.role_arn
   region                              = var.aws_region
+  reservation_table_arn               = module.reservation.table_arn
+  reservation_table_name              = module.reservation.table_name
 }
 module "expire_layout_version_role" {
   source                              = "./security/iam/expire-layout-version"
@@ -1237,6 +1239,7 @@ module "activate_layout_version_fn" {
   tenant_table_name                    = module.tenant.table_name
   location_table_name                  = module.location.table_name
   location_id_index_name               = module.location.location_id_index_name
+  reservation_table_name               = module.activate_layout_version_role.reservation_table_name
 }
 module "expire_layout_version_fn" {
   source                               = "./compute/lambda/expire-layout-version"
