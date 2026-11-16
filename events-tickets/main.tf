@@ -387,3 +387,40 @@ resource "aws_cloudwatch_metric_alarm" "errors" {
     Environment = var.environment
   }
 }
+
+# A Stripe refund past its attempt limits (retried once a day from then on) logs one
+# ERROR line {"event": "ticket.refund", "stripe": "stuck", ...}; later retries log
+# "still_stuck" as WARNING. The function logs in Lambda's text format ("[ERROR]\t<time>\t<id>\t{...}"),
+# so a JSON selector would not match: the terms below pick exactly that line.
+resource "aws_cloudwatch_log_metric_filter" "refund_stuck" {
+  name           = "${local.function_name}-refund-stuck"
+  log_group_name = aws_cloudwatch_log_group.fn.name
+  pattern        = "\"[ERROR]\" \"ticket.refund\" \"stuck\""
+
+  metric_transformation {
+    name          = "RefundStuck"
+    namespace     = "Booqy/EventsTickets"
+    value         = "1"
+    default_value = "0"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "refund_stuck" {
+  alarm_name          = "${local.function_name}-refund-stuck"
+  alarm_description   = "Stripe keeps refusing a ticket refund (retried daily, shown as failed in K14). Search the events-tickets logs for \"stuck\" to find tenantId and txId, then act in the restaurant's Stripe account."
+  namespace           = "Booqy/EventsTickets"
+  metric_name         = "RefundStuck"
+  statistic           = "Sum"
+  period              = 300
+  evaluation_periods  = 1
+  threshold           = 1
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [var.alert_topic_arn]
+
+  tags = {
+    Environment = var.environment
+  }
+
+  depends_on = [aws_cloudwatch_log_metric_filter.refund_stuck]
+}
