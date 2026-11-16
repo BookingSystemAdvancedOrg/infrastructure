@@ -762,6 +762,7 @@ module "platform_tenants_role" {
   finance_rollup_lambda_arn          = module.finance_rollup_fn.function_arn
   alert_topic_arn                    = module.alerts.topic_arn
   site_repo_function_arn             = module.sites.alias_arn
+  site_redirect_kvs_arn              = local.tenant_sites_enabled ? module.platform_domain[0].site_redirects_kvs_arn : ""
 }
 module "tenant_account_role" {
   source             = "./security/iam/tenant-account"
@@ -1871,6 +1872,7 @@ module "platform_tenants_fn" {
   finance_table_name                 = module.finance.table_name
   finance_rollup_alias_arn           = module.finance_rollup_fn.alias_arn
   site_repo_function_arn             = module.sites.alias_arn
+  site_redirect_kvs_arn              = local.tenant_sites_enabled ? module.platform_domain[0].site_redirects_kvs_arn : ""
   site_repos_enabled                 = var.github_app_sites_secret_name != ""
   test_main_domain                   = local.test_sites_main_domain
   test_dev_domain                    = local.test_sites_dev_domain
@@ -2509,9 +2511,16 @@ module "tenant_workflows" {
   site_repos_enabled         = var.github_app_sites_secret_name != ""
   site_repo_function_arn     = module.sites.alias_arn
   # Dev: test customers' two sandbox hosts (test-sites.tf)
-  test_main_domain              = local.test_sites_main_domain
-  test_dev_domain               = local.test_sites_dev_domain
-  platform_tenants_function_arn = "arn:aws:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:${var.env == "prod" ? "platform-tenants" : "${var.env}-platform-tenants"}:live"
+  test_main_domain = local.test_sites_main_domain
+  test_dev_domain  = local.test_sites_dev_domain
+  # Own domains: the dev console simulates buying and moving domains, so
+  # its checks come every minute.
+  registration_check_interval_seconds = var.env == "prod" ? 3600 : 60
+  transfer_check_interval_seconds     = var.env == "prod" ? 1800 : 60
+  nameserver_check_interval_seconds   = var.env == "prod" ? 600 : 60
+  records_check_interval_seconds      = var.env == "prod" ? 600 : 60
+  dev_check_interval_seconds          = var.env == "prod" ? 1800 : 60
+  platform_tenants_function_arn       = "arn:aws:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:${var.env == "prod" ? "platform-tenants" : "${var.env}-platform-tenants"}:live"
 }
 
 #CloudFront

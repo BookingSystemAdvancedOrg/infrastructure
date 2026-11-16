@@ -207,6 +207,12 @@ resource "aws_cloudfront_multitenant_distribution" "tenant_sites" {
       items          = ["GET", "HEAD"]
       cached_methods = ["GET", "HEAD"]
     }
+
+    # 301 from the slug address and www to the live own domain (redirects.tf)
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.site_redirect[0].arn
+    }
   }
 
   # Same path the other two distributions serve menu images at, so a site

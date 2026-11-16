@@ -157,3 +157,10 @@ variable "site_repo_function_arn" {
   description = "Live alias of the site-repo function (Website tab)"
   type        = string
 }
+
+variable "site_redirect_kvs_arn" {
+  description = "Key value store of the restaurant sites' 301s (network/platform-domain); empty: no access"
+  type        = string
+  default     = ""
+}
+

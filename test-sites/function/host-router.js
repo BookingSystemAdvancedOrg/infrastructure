@@ -9,6 +9,12 @@
 // written by the site-repo function. A path without a file extension is a
 // client-side route of the site: index.html. /robots.txt is the sandbox's
 // own (Disallow: /). An unknown host gets a 404 page, never another site.
+//
+// Once a mapped own domain is live, guests only ever see it (as in prod):
+// the slug's label holds ">example-se" instead of the tenantId, and
+// <slug>.<zone> answers with a 301 to example-se.<same zone>, path and
+// query kept (written and cleared by the site-repo function, testHost
+// redirect). A value that is not ">" + a label is treated as a folder.
 import cf from 'cloudfront';
 
 const kvs = cf.kvs('${kvs_id}');
@@ -38,10 +44,37 @@ function site(host) {
   for (let i = 0; i < ZONES.length; i++) {
     const suffix = ZONES[i][0];
     if (host.length > suffix.length && host.endsWith(suffix)) {
-      return { label: host.slice(0, host.length - suffix.length), stage: ZONES[i][1] };
+      return { label: host.slice(0, host.length - suffix.length), stage: ZONES[i][1], suffix: suffix };
     }
   }
   return null;
+}
+
+function query(qs) {
+  const parts = [];
+  const keys = Object.keys(qs || {});
+  for (let i = 0; i < keys.length; i++) {
+    const entry = qs[keys[i]];
+    const values = entry.multiValue ? entry.multiValue : [entry];
+    for (let j = 0; j < values.length; j++) {
+      const value = values[j].value;
+      parts.push(value === '' || value === undefined ? keys[i] : keys[i] + '=' + value);
+    }
+  }
+  return parts.join('&');
+}
+
+function moved(target, suffix, request) {
+  const qs = query(request.querystring);
+  return {
+    statusCode: 301,
+    statusDescription: 'Moved Permanently',
+    headers: {
+      location: { value: 'https://' + target + suffix + request.uri + (qs ? '?' + qs : '') },
+      'cache-control': { value: 'max-age=300' },
+      'x-robots-tag': { value: 'noindex, nofollow' }
+    }
+  };
 }
 
 function sitePath(uri) {
@@ -65,6 +98,13 @@ async function handler(event) {
     folder = await kvs.get(found.label);
   } catch (e) {
     return notFound();
+  }
+  if (typeof folder === 'string' && folder.charAt(0) === '>') {
+    const target = folder.slice(1);
+    if (!LABEL.test(target) || target === found.label) {
+      return notFound();
+    }
+    return moved(target, found.suffix, request);
   }
   if (typeof folder !== 'string' || !FOLDER.test(folder)) {
     return notFound();

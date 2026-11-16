@@ -1562,6 +1562,19 @@ locals {
     "GET /platform/tenants/{tenantId}/zones/{domain}/document",
     "GET /platform/tenants/{tenantId}/zones/{domain}/transfer",
     "POST /platform/tenants/{tenantId}/zones/{domain}/transfer",
+    # Own domains: the three ways in (buy above; move to Booqy, keep the
+    # registrar with DNS records; connect = name servers above) and the
+    # order's actions. simulate: the dev console only (refused in prod).
+    "GET /platform/domains/tlds",
+    "GET /platform/domains/transfer-check",
+    "POST /platform/tenants/{tenantId}/domains/transfers",
+    "POST /platform/tenants/{tenantId}/domains/records",
+    "DELETE /platform/tenants/{tenantId}/zones/{domain}",
+    "POST /platform/tenants/{tenantId}/zones/{domain}/check",
+    "POST /platform/tenants/{tenantId}/zones/{domain}/retry",
+    "POST /platform/tenants/{tenantId}/zones/{domain}/notify",
+    "POST /platform/tenants/{tenantId}/zones/{domain}/auth-code",
+    "POST /platform/tenants/{tenantId}/zones/{domain}/simulate",
     "POST /platform/tenants/{tenantId}/stripe/account-link",
     "POST /platform/tenants/{tenantId}/stripe/sync",
     # Operator accounts (the operator pool itself) - every operator has the

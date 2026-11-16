@@ -319,3 +319,10 @@ variable "billing_seller" {
     f_skatt    = bool
   })
 }
+
+variable "site_redirect_kvs_arn" {
+  description = "Key value store of the restaurant sites' 301s (network/platform-domain); empty: no redirects are written"
+  type        = string
+  default     = ""
+}
+

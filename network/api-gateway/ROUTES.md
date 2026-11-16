@@ -120,6 +120,16 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | GET | `/platform/tenants/{tenantId}/zones/{domain}/document` | JWT (operator) | platform-tenants |
 | GET | `/platform/tenants/{tenantId}/zones/{domain}/transfer` | JWT (operator) | platform-tenants |
 | POST | `/platform/tenants/{tenantId}/zones/{domain}/transfer` | JWT (operator) | platform-tenants |
+| GET | `/platform/domains/tlds` | JWT (operator) | platform-tenants |
+| GET | `/platform/domains/transfer-check` | JWT (operator) | platform-tenants |
+| POST | `/platform/tenants/{tenantId}/domains/transfers` | JWT (operator) | platform-tenants |
+| POST | `/platform/tenants/{tenantId}/domains/records` | JWT (operator) | platform-tenants |
+| DELETE | `/platform/tenants/{tenantId}/zones/{domain}` | JWT (operator) | platform-tenants |
+| POST | `/platform/tenants/{tenantId}/zones/{domain}/check` | JWT (operator) | platform-tenants |
+| POST | `/platform/tenants/{tenantId}/zones/{domain}/retry` | JWT (operator) | platform-tenants |
+| POST | `/platform/tenants/{tenantId}/zones/{domain}/notify` | JWT (operator) | platform-tenants |
+| POST | `/platform/tenants/{tenantId}/zones/{domain}/auth-code` | JWT (operator) | platform-tenants |
+| POST | `/platform/tenants/{tenantId}/zones/{domain}/simulate` | JWT (operator) | platform-tenants |
 | POST | `/platform/tenants/{tenantId}/stripe/account-link` | JWT (operator) | platform-tenants |
 | POST | `/platform/tenants/{tenantId}/stripe/sync` | JWT (operator) | platform-tenants |
 | GET | `/platform/operators` | JWT (operator) | platform-tenants |

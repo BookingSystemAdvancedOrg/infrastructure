@@ -183,6 +183,48 @@ variable "max_nameserver_checks" {
   default     = 432
 }
 
+variable "transfer_check_interval_seconds" {
+  description = "How often domain-provision checks a domain being moved to Booqy (TransferDomain operation, the owner's approval)"
+  type        = number
+  sensitive   = false
+  default     = 1800
+}
+
+variable "max_transfer_checks" {
+  description = "Checks before domain-provision gives up waiting for a transfer in (default 672 x 30 min = 14 days)"
+  type        = number
+  sensitive   = false
+  default     = 672
+}
+
+variable "records_check_interval_seconds" {
+  description = "How often domain-provision checks whether the restaurant has added the www CNAME (DNS records mode)"
+  type        = number
+  sensitive   = false
+  default     = 600
+}
+
+variable "max_records_checks" {
+  description = "Checks before domain-provision gives up waiting for the www CNAME (default 1008 x 10 min = 7 days; the execution history limit allows no more)"
+  type        = number
+  sensitive   = false
+  default     = 1008
+}
+
+variable "dev_check_interval_seconds" {
+  description = "How often domain-provision checks dev.<domain> on the dev site once production is live"
+  type        = number
+  sensitive   = false
+  default     = 1800
+}
+
+variable "max_dev_checks" {
+  description = "Checks before domain-provision gives up on dev.<domain> (default 336 x 30 min = 7 days; production stays live)"
+  type        = number
+  sensitive   = false
+  default     = 336
+}
+
 variable "tenant_data_retention_days" {
   description = "Days an offboarded tenant's data is kept before the tenant-purge Lambda deletes it. Offboarding writes purgeAt = offboarded + this."
   type        = number

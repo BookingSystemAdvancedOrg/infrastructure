@@ -31,8 +31,9 @@ function load(keys) {
 const KEYS = { pasta: 't-pasta', 'example-se': 't-pasta', roma: 't-roma' };
 const handler = load(KEYS);
 
-function event(host, uri) {
-  return { request: { method: 'GET', uri, headers: host === null ? {} : { host: { value: host } } } };
+function event(host, uri, querystring) {
+  return { request: { method: 'GET', uri, querystring: querystring || {},
+                      headers: host === null ? {} : { host: { value: host } } } };
 }
 
 async function uri(host, path) {
@@ -92,4 +93,23 @@ test('a value in the store that is not a tenant folder is refused', async () => 
   const bad = load({ evil: '../../main/sites/t-roma', empty: '' });
   assert.equal((await bad(event('evil.test.booqy.se', '/'))).statusCode, 404);
   assert.equal((await bad(event('empty.test.booqy.se', '/'))).statusCode, 404);
+});
+
+test('a slug whose own domain is live answers with a 301 to it, same stage, path and query kept', async () => {
+  const live = load({ pasta: '>example-se', 'example-se': 't-pasta' });
+  const qs = { a: { value: '1' }, b: { value: 'x', multiValue: [{ value: 'x' }, { value: 'y' }] }, c: { value: '' } };
+  const main = await live(event('pasta.test.booqy.se', '/boka/bord', qs));
+  assert.equal(main.statusCode, 301);
+  assert.equal(main.headers.location.value, 'https://example-se.test.booqy.se/boka/bord?a=1&b=x&b=y&c');
+  const dev = await live(event('Pasta.test-dev.booqy.se:443', '/'));
+  assert.equal(dev.statusCode, 301);
+  assert.equal(dev.headers.location.value, 'https://example-se.test-dev.booqy.se/');
+  assert.equal((await live(event('example-se.test.booqy.se', '/'))).uri, '/main/sites/t-pasta/index.html');
+});
+
+test('a redirect value that is not a label, or points at itself, is refused', async () => {
+  const bad = load({ a: '>', b: '>b', c: '>evil.com/x', d: '>-x' });
+  for (const host of ['a', 'b', 'c', 'd']) {
+    assert.equal((await bad(event(`${host}.test.booqy.se`, '/'))).statusCode, 404, host);
+  }
 });

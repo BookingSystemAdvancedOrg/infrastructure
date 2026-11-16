@@ -60,6 +60,18 @@ resource "aws_sns_topic_policy" "alerts" {
         Condition = {
           ArnLike = { "aws:SourceArn" = "arn:aws:cloudwatch:${var.region}:${data.aws_caller_identity.current.account_id}:alarm:*" }
         }
+      },
+      {
+        # EventBridge rules in this account (own domains: a domain workflow
+        # that timed out or was aborted).
+        Sid       = "AllowEventBridgeRules"
+        Effect    = "Allow"
+        Principal = { Service = "events.amazonaws.com" }
+        Action    = "sns:Publish"
+        Resource  = "${aws_sns_topic.alerts.arn}"
+        Condition = {
+          ArnLike = { "aws:SourceArn" = "arn:aws:events:${var.region}:${data.aws_caller_identity.current.account_id}:rule/*" }
+        }
       }
     ]
   })
