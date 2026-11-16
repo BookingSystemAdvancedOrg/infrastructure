@@ -59,6 +59,8 @@ resource "aws_dynamodb_table" "analytics" {
     enabled = true
   }
 
+  deletion_protection_enabled = var.environment == "prod"
+
   tags = {
     Environment = var.environment
   }

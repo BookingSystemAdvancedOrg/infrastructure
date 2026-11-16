@@ -114,6 +114,9 @@ resource "aws_lambda_event_source_mapping" "notify_on_catering_request_change" {
       })
     }
   }
+
+  # notification returns batchItemFailures: retry only the failed record.
+  function_response_types = ["ReportBatchItemFailures"]
 }
 
 # Invokes catering-lifecycle on every write to a request head item. The
