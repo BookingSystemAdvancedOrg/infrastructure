@@ -182,18 +182,18 @@ help_assistant_enabled        = true
 help_assistant_bedrock_client = "real"
 help_assistant_model_id       = "eu.anthropic.claude-haiku-5-5"
 
-# [NEEDS YOUR DETAILS] Booqy's address, organisation number, VAT number,
-# registered office (säte) and F-skatt for every invoice (not secret). Set
-# them before this reaches main: without name, address, org_number and
-# vat_number prod invoices nothing (every run emails the failure) and the
-# plan warns (check billing_seller_prod in config.tf).
+# The seller on every invoice (not secret): Booqy is a product of IT Hjälparna
+# Nordic AB, so the AB is the legal seller; the invoice lines say "Booqy".
+# Registered for VAT and F-skatt, säte Finspång (Bolagsverket and Skatteverket
+# via allabolag.se, 2026-11-16). Without name, address, org_number and
+# vat_number prod invoices nothing (check billing_seller_prod in config.tf).
 billing_seller = {
   name       = "IT Hjälparna Nordic AB"
-  address    = ""
-  org_number = ""
-  vat_number = ""
-  seat       = ""
-  f_skatt    = false
+  address    = "Vallmovägen 9, 612 46 Finspång"
+  org_number = "559594-8810"
+  vat_number = "SE559594881001"
+  seat       = "Finspång"
+  f_skatt    = true
 }
 
 # Google Business Profile (feature D): simulator until the owner releases it
