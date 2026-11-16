@@ -252,7 +252,7 @@
     "TransferInTimedOut": {
       "Type": "Pass",
       "Assign": {
-        "timeoutMessage": "{% 'The transfer was not approved within ' & $string($checks) & ' checks (14 days). The domain stays at its registrar; ask the owner to approve the e-mail, then press Retry.' %}"
+        "timeoutMessage": "{% 'The transfer was not approved within ' & $string($checks) & ' checks (14 days). The domain stays at its registrar; ask the owner to approve the e-mail, then start the move again with a new transfer code.' %}"
       },
       "Next": "MarkTimedOut"
     },
@@ -754,7 +754,21 @@
           "Next": "MarkFailed"
         }
       ],
-      "Next": "MarkLive"
+      "Assign": {
+        "taskStatus": "{% $states.result.Payload.status %}"
+      },
+      "Next": "CanonicalState"
+    },
+    "CanonicalState": {
+      "Type": "Choice",
+      "Comment": "The domain was removed while this workflow ran: end Cancelled, no live e-mail.",
+      "Choices": [
+        {
+          "Condition": "{% $taskStatus = 'cancelled' %}",
+          "Next": "Cancelled"
+        }
+      ],
+      "Default": "MarkLive"
     },
     "MarkLive": {
       "Type": "Task",
@@ -791,6 +805,10 @@
         {
           "Condition": "{% $taskStatus = 'live' %}",
           "Next": "UpdateSiteProd"
+        },
+        {
+          "Condition": "{% $taskStatus = 'cancelled' %}",
+          "Next": "Cancelled"
         }
       ],
       "Default": "NotifyFailure"
@@ -1083,7 +1101,21 @@
           "Next": "NotifyFailure"
         }
       ],
-      "Next": "NotifyFailure"
+      "Assign": {
+        "taskStatus": "{% $states.result.Payload.status %}"
+      },
+      "Next": "FailedState"
+    },
+    "FailedState": {
+      "Type": "Choice",
+      "Comment": "The domain was removed while this workflow ran: end Cancelled, no alert.",
+      "Choices": [
+        {
+          "Condition": "{% $taskStatus = 'cancelled' %}",
+          "Next": "Cancelled"
+        }
+      ],
+      "Default": "NotifyFailure"
     },
     "NotifyFailure": {
       "Type": "Task",
