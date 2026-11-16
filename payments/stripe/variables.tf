@@ -27,7 +27,8 @@ variable "reservation_events" {
   # setup_intent.succeeded confirms a booking the guest left before the
   # site called POST .../confirm; payment_intent.* settle a fee whose
   # synchronous result was unknown; charge.refunded records Dashboard
-  # refunds. The handler answers 200 to anything else, so a superset is
+  # refunds; charge.dispute.closed settles a gift card or ticket dispute
+  # (the handler reads the PaymentIntent with the platform key). The handler answers 200 to anything else, so a superset is
   # harmless - but keep this list and the handler in the same release. Reservations are deliberately card-only: Swish is
   # push-only (no merchant-initiated later charge) and Klarna underwrites
   # per-purchase - neither can express "0 kr now, maybe a fee later".
@@ -36,6 +37,7 @@ variable "reservation_events" {
     "payment_intent.succeeded",
     "payment_intent.payment_failed",
     "charge.refunded",
+    "charge.dispute.closed",
   ]
 }
 variable "order_events" {

@@ -70,3 +70,8 @@ variable "finance_table_arn" {
   description = "The finance table whose per-day counters (emails, sms) this role may bump"
   type        = string
 }
+
+variable "request_guard_table_arn" {
+  description = "The request-guard table holding the sent#<hash> notice markers (PutItem and DeleteItem only)"
+  type        = string
+}

@@ -44,6 +44,7 @@ resource "aws_lambda_function" "this" {
       RESERVATION_TABLE_NAME         = var.reservation_table_name
       PAYMENT_DELINQUENCY_TABLE_NAME = var.payment_delinquency_table_name
       STRIPE_WEBHOOK_SECRET_ARN      = var.stripe_webhook_secret_arn # Secrets Manager secret holding the endpoint signing secret (whsec_...), filled in by payments/stripe
+      STRIPE_SECRET_ARN              = var.stripe_secret_arn         # platform key {"apiKey": ...}: reads a disputed PaymentIntent
     }
   }
 

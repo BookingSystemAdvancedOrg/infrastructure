@@ -57,3 +57,9 @@ variable "location_id_index_name" {
   type        = string
   sensitive   = false
 }
+
+variable "stripe_secret_arn" {
+  description = "ARN of the platform Stripe API key secret (security/secrets/platform) - read on charge.dispute.closed to fetch the disputed PaymentIntent"
+  type        = string
+  sensitive   = false
+}

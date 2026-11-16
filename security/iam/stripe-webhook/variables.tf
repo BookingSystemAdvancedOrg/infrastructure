@@ -33,3 +33,9 @@ variable "webhook_secret_arn" {
   type        = string
   sensitive   = false
 }
+
+variable "stripe_secret_arn" {
+  description = "ARN of the platform Stripe API key secret - GetSecretValue on this one secret only"
+  type        = string
+  sensitive   = false
+}

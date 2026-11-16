@@ -44,10 +44,12 @@ resource "aws_iam_role_policy" "data" {
         Resource = var.tenant_table_arn
       },
       {
-        # Append-only: Query and PutItem, never UpdateItem or DeleteItem.
+        # Append-only for consent changes: Query and PutItem, never
+        # UpdateItem. DeleteItem is for erasure only (consent.suppress_now
+        # leaves a bare suppression record).
         Sid      = "ConsentLog"
         Effect   = "Allow"
-        Action   = ["dynamodb:Query", "dynamodb:PutItem"]
+        Action   = ["dynamodb:Query", "dynamodb:PutItem", "dynamodb:DeleteItem"]
         Resource = var.consent_table_arn
       },
       {

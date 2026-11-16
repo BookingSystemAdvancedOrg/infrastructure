@@ -478,6 +478,7 @@ module "stripe_webhook_role" {
   reservation_table_arn         = module.reservation.table_arn
   payment_delinquency_table_arn = module.payment_delinquency.table_arn
   webhook_secret_arn            = module.stripe_webhooks.reservation_webhook_secret_arn
+  stripe_secret_arn             = module.platform_secrets.stripe_secret_arn
   region                        = var.aws_region
 }
 module "webhook_payment_intent_role" {
@@ -511,6 +512,7 @@ module "notification_role" {
   mail_outbox_enabled                  = local.mail_outbox_enabled
   mail_outbox_bucket_arn               = local.mail_outbox_arn
   finance_table_arn                    = module.finance.table_arn
+  request_guard_table_arn              = module.request_guard.table_arn
 }
 module "catering_settings_role" {
   source                  = "./security/iam/catering-settings"
@@ -1542,6 +1544,7 @@ module "notification_fn" {
   reservation_link_key_secret_arn      = module.reservation_secrets.link_signing_key_secret_arn
   mail_outbox_bucket_name              = local.mail_outbox_bucket
   finance_table_name                   = module.finance.table_name
+  request_guard_table_name             = module.request_guard.table_name
 }
 module "pre_signed_url_fn" {
   source                  = "./compute/lambda/pre-signed-url"
@@ -1576,6 +1579,7 @@ module "stripe_webhook_fn" {
   payment_delinquency_table_name = module.payment_delinquency.table_name
   region                         = var.aws_region
   stripe_webhook_secret_arn      = module.stripe_webhooks.reservation_webhook_secret_arn
+  stripe_secret_arn              = module.platform_secrets.stripe_secret_arn
   tenant_table_name              = module.tenant.table_name
   location_id_index_name         = module.location.location_id_index_name
 }

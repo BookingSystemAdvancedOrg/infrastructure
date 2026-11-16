@@ -121,6 +121,25 @@ resource "aws_iam_role_policy" "webhook_secret" {
   })
 }
 
+# Platform Stripe API key (security/secrets/platform), read on
+# charge.dispute.closed to fetch the disputed PaymentIntent - only this one secret.
+resource "aws_iam_role_policy" "stripe_api_key" {
+  name = "stripe-api-key-read"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "ReadPlatformStripeApiKey"
+        Effect   = "Allow"
+        Action   = "secretsmanager:GetSecretValue"
+        Resource = var.stripe_secret_arn
+      }
+    ]
+  })
+}
+
 # Scoped to exactly this function's own log group - not logs:* on everything.
 #
 # No logs:CreateLogGroup - the log group is expected to be provisioned

@@ -243,6 +243,26 @@ resource "aws_iam_role_policy" "mail_outbox" {
   })
 }
 
+# Sent markers: one "sent#<hash>" row per notice on the request-guard table,
+# claimed before sending (conditional PutItem) and released (DeleteItem) when
+# nothing went out, so a stream retry or DLQ replay never sends twice.
+resource "aws_iam_role_policy" "sent_markers" {
+  name = "notice-sent-markers"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "ClaimNoticeSentMarkers"
+        Effect   = "Allow"
+        Action   = ["dynamodb:PutItem", "dynamodb:DeleteItem"]
+        Resource = var.request_guard_table_arn
+      }
+    ]
+  })
+}
+
 # Scoped to exactly this function's own log group - not logs:* on everything.
 #
 # No logs:CreateLogGroup - the log group is expected to be provisioned
