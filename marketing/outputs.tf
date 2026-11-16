@@ -27,3 +27,13 @@ output "table_arn" {
   description = "Marketing table ARN"
   value       = aws_dynamodb_table.marketing.arn
 }
+
+output "configuration_set_name" {
+  description = "Marketing SES configuration set name (bounce and complaint events)"
+  value       = aws_sesv2_configuration_set.marketing.configuration_set_name
+}
+
+output "configuration_set_arn" {
+  description = "Marketing SES configuration set ARN"
+  value       = aws_sesv2_configuration_set.marketing.arn
+}
