@@ -91,6 +91,30 @@ def clean(value, limit, multiline=False):
     return value[:limit]
 
 
+def easter(year):
+    """Easter Sunday (Meeus/Jones/Butcher, Gregorian)."""
+    a, b, c = year % 19, year // 100, year % 100
+    d, e = b // 4, b % 4
+    g = (8 * b + 13) // 25
+    h = (19 * a + b - d - g + 15) % 30
+    i, k = c // 4, c % 4
+    l = (32 + 2 * e + 2 * i - h - k) % 7
+    m = (a + 11 * h + 22 * l) // 451
+    month = (h + l - 7 * m + 114) // 31
+    return date(year, month, (h + l - 7 * m + 114) % 31 + 1)
+
+
+def red_day(day):
+    """Weekday red days and eves, same list as the site's redDay()."""
+    if (day.month, day.day) in {(1, 1), (1, 6), (5, 1), (6, 6), (12, 24), (12, 25),
+                                (12, 26), (12, 31)}:
+        return True
+    if day.month == 6 and 19 <= day.day <= 25 and day.weekday() == 4:  # midsommarafton
+        return True
+    e = easter(day.year)
+    return day in (e - timedelta(days=2), e + timedelta(days=1), e + timedelta(days=39))
+
+
 def today_stockholm():
     return datetime.now(STOCKHOLM).date()
 
@@ -116,7 +140,7 @@ def validate(data):
     today = today_stockholm()
     if day is None:
         errors["date"] = "Välj en dag."
-    elif day <= today or day > today + timedelta(days=MAX_DAYS_AHEAD) or day.weekday() >= 5:
+    elif day <= today or day > today + timedelta(days=MAX_DAYS_AHEAD) or day.weekday() >= 5 or red_day(day):
         errors["date"] = "Välj en vardag de närmaste veckorna."
     out["date"] = day
 
