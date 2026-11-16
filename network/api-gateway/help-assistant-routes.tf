@@ -1,4 +1,5 @@
-# help-assistant routes (in-app help chatbot in Booqy Admin), created by feature-routes.tf.
+# help-assistant tenant routes (help assistant in Booqy Admin), created by feature-routes.tf.
+# Booqy Console uses the operator routes in help-assistant-operator-routes.tf.
 # Entry: { route_key = "METHOD /path", auth = "jwt" | "public" | "operator" },
 # public routes may add throttle = "public".
 locals {

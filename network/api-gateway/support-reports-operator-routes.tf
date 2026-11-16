@@ -3,6 +3,7 @@
 # support-reports integration instead of platform-tenants; the Lambda requires
 # the platform_admin group itself. Nothing is created until the feature has
 # its integration (var.feature_integrations["support-reports"]).
+# --- support-reports ---
 locals {
   support_reports_operator_routes = [
     "GET /platform/support/reports",

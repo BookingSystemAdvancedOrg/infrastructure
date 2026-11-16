@@ -1,4 +1,4 @@
-# In-app help assistant (help-assistant/): the help chatbot in Booqy Admin.
+# In-app help assistant (help-assistant/): "Fråga Booqy" in Booqy Admin and "Ask Booqy" in Booqy Console.
 module "help_assistant" {
   source                   = "./help-assistant"
   environment              = var.env
