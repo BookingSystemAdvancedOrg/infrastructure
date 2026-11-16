@@ -216,9 +216,10 @@ resource "aws_lambda_alias" "live" {
 
 # --- order stream: paid -> auto job, cancelled -> cancellation slip --------------------------
 
-# The third consumer of the order stream (after notification and
-# marketing-sync). AWS advises at most two readers per shard; a third adds
-# GetRecords throttling risk, watched by the IteratorAge alarm below.
+# One of four readers of the order stream (notification, marketing-sync,
+# print-jobs, guest-crm-sync). AWS advises at most two readers per shard; the
+# extra ones add GetRecords throttling risk, watched by the IteratorAge alarm
+# below. Follow-up: one fan-out reader for the non-critical consumers.
 # Filtered here so print-jobs only runs for the two transitions it acts on.
 # A batch that keeps failing goes to the print-stream DLQ, which dlq-replay
 # redelivers; the job's conditional put makes redelivery safe.
@@ -372,11 +373,11 @@ resource "aws_cloudwatch_metric_alarm" "failed_jobs" {
   }
 }
 
-# The order stream has three readers now: tickets lagging two minutes
+# The order stream has four readers now: tickets lagging two minutes
 # behind payments means throttled or failing reads.
 resource "aws_cloudwatch_metric_alarm" "stream_iterator_age" {
   alarm_name        = "${local.prefix}print-jobs-iterator-age"
-  alarm_description = "print-jobs is more than 2 minutes behind the order stream (three readers on one stream: GetRecords throttling, or failing batches). Paid orders print late."
+  alarm_description = "print-jobs is more than 2 minutes behind the order stream (four readers on one stream: GetRecords throttling, or failing batches). Paid orders print late."
   namespace         = "AWS/Lambda"
   metric_name       = "IteratorAge"
   dimensions        = { FunctionName = aws_lambda_function.fn["print-jobs"].function_name }

@@ -369,7 +369,8 @@ resource "aws_cloudwatch_metric_alarm" "errors" {
 # guest-crm-sync reads three source streams (reservation, order, catering)
 # through the three mappings above. Lambda reports IteratorAge per function,
 # not per mapping, so one alarm on the Maximum covers all three: any stream
-# 5 minutes behind means throttled GetRecords (shared streams) or failing batches.
+# 5 minutes behind means throttled GetRecords (shared streams: order has four
+# readers, reservation and catering three) or failing batches.
 resource "aws_cloudwatch_metric_alarm" "sync_iterator_age" {
   alarm_name        = "${local.prefix}guest-crm-sync-iterator-age"
   alarm_description = "guest-crm-sync is more than 5 minutes behind a source stream (reservation, order or catering): GetRecords throttling on a shared stream, or failing batches. Guest counts lag."
