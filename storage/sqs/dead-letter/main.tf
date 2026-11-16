@@ -13,7 +13,7 @@
 #   print-stream         order stream batches print-jobs failed (5 retries).
 #                        Body: same kind of pointer.
 #   scheduled-invocation Failed scheduled runs of catering-lifecycle,
-#                        no-show-check, reactivate-menu-item and
+#                        no-show-check and
 #                        expire-layout-version. EventBridge Scheduler invokes
 #                        Lambda asynchronously, so each function's own
 #                        on-failure destination (aws_lambda_function_event_invoke_config,

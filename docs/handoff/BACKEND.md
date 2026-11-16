@@ -218,7 +218,7 @@ structured JSON (e.g. Powertools Logger `append_keys`).
 | **catering-customer, catering-offer, catering-lifecycle, catering-document, catering-signing-webhook, catering-stripe-webhook** | Tenant from the location of the request. Stripe changes per §5. Tax rates: `tenant.stripe.taxRates[<key>]` (same keys as before, e.g. `food`) instead of `STRIPE_TAX_RATE_IDS`. Signing orders: put `tenantId`, `locationId`, `requestId` in the provider's metadata and verify them in the webhook. Magic links: base URL per §4.3. |
 | **notification** | Sender, links and SMS per §4.3. Tenant from the stream item's `tenantId` (new writes) or its location. |
 | **stripe-webhook, webhook-payment-intent** | Endpoints are now Connect endpoints - §5.3. |
-| **no-show-check, reactivate-menu-item, expire-layout-version, activate-layout-version** | Put `tenantId` into the schedule payloads you create; check the item still belongs to it on fire. |
+| **no-show-check, expire-layout-version, activate-layout-version** | Put `tenantId` into the schedule payloads you create; check the item still belongs to it on fire. |
 | **dlq-replay** | No change. |
 
 ### 4.2 Errors (same shape everywhere)

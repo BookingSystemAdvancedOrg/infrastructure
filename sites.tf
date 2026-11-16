@@ -34,9 +34,9 @@ module "sites" {
   alert_topic_arn        = module.alerts.topic_arn
   # A repo is born in prod; prod sets up the dev side through one narrow
   # role in dev (sites/main.tf, booqy-sites-prod-link).
-  link_prod_account_id       = var.env == "prod" ? "" : var.site_link_prod_account_id
-  link_dev_account_id        = var.env == "prod" ? var.site_link_dev_account_id : ""
-  platform_tenants_alias_arn = "arn:aws:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:${var.env == "prod" ? "platform-tenants" : "${var.env}-platform-tenants"}:live"
+  link_prod_account_id          = var.env == "prod" ? "" : var.site_link_prod_account_id
+  link_dev_account_id           = var.env == "prod" ? var.site_link_dev_account_id : ""
+  platform_tenants_function_arn = "arn:aws:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:${var.env == "prod" ? "platform-tenants" : "${var.env}-platform-tenants"}"
 }
 
 variable "github_app_sites_secret_name" {

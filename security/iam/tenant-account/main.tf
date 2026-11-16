@@ -4,7 +4,8 @@
 # Stripe onboarding link.
 #
 # Tenant-table writes are limited AT THE IAM LEVEL to the profile fields an
-# owner may change (dynamodb:Attributes condition below) - even a bug in this
+# owner may change (staffAccess: which admin areas staff may open,
+# application shared/staff_access.py) (dynamodb:Attributes condition below) - even a bug in this
 # Lambda can't let an owner change their plan, limits, status or Stripe
 # account. Reads of the tenant row come from the shared tenant-context policy.
 
@@ -72,7 +73,7 @@ resource "aws_iam_role_policy" "tenant_profile_edit" {
         Resource = "${var.tenant_table_arn}"
         Condition = {
           "ForAllValues:StringEquals" = {
-            "dynamodb:Attributes" = ["PK", "SK", "senderName", "replyToEmail", "branding", "notifications", "insights", "updatedAt", "updatedBy"]
+            "dynamodb:Attributes" = ["PK", "SK", "senderName", "replyToEmail", "branding", "notifications", "insights", "staffAccess", "updatedAt", "updatedBy"]
           }
           # ALL_OLD / ALL_NEW would hand back the whole row (plan, Stripe
           # ids...) through an update - only the touched attributes may return.

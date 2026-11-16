@@ -256,7 +256,7 @@ Covered platform-wide, not just for catering - see `storage/sqs/dead-letter`.
 |---|---|---|
 | `catering-lifecycle-stream-dlq` | Lambda's stream trigger, after `catering-lifecycle` failed a batch 10× | Pointer to the stream records |
 | `notification-stream-dlq` | Lambda's stream triggers on the reservation, order and catering-requests streams, after `notification` failed a batch 5× | Pointer to the stream records |
-| `scheduled-invocation-dlq` | Lambda's async on-failure destination of `catering-lifecycle`, `no-show-check`, `reactivate-menu-item`, `expire-layout-version` (after 2 async retries) - configured in Terraform | Invocation record; original input in `requestPayload` |
+| `scheduled-invocation-dlq` | Lambda's async on-failure destination of `catering-lifecycle`, `no-show-check`, `expire-layout-version` (after 2 async retries) - configured in Terraform | Invocation record; original input in `requestPayload` |
 | `scheduled-invocation-dlq` | EventBridge Scheduler, when it can't reach `catering-lifecycle` at all (`DeadLetterConfig` set by catering-lifecycle's app code) | The schedule's input |
 
 `dlq-replay` drains all three on a recurring schedule

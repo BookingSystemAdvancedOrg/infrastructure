@@ -389,7 +389,7 @@ variable "mail_outbox" {
 }
 variable "dlq_replay_interval_minutes" {
   type        = number
-  description = "How often dlq-replay drains the dead-letter queues, in minutes - short in dev to see replays work, longer in prod; keep it under 1440 (24h) so stream records can still be re-read"
+  description = "How often dlq-replay drains the dead-letter queues, in minutes - short in dev and prod (prod 15) so failed sends replay within minutes; keep it under 1440 (24h) so stream records can still be re-read"
   sensitive   = false
 
   validation {

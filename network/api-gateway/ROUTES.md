@@ -17,11 +17,19 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | POST | `/locations` | JWT | create-location |
 | PUT | `/locations/{locationId}` | JWT | create-location |
 | GET | `/locations/{locationId}/menu` | NONE | get-menu |
-| GET | `/locations/{locationId}/menu/{proxy+}` | NONE | get-menu |
+| GET | `/locations/{locationId}/menu/{proxy+}` | JWT | get-menu |
 | POST | `/locations/{locationId}/menu/{proxy+}` | JWT | manage-menu |
 | PUT | `/locations/{locationId}/menu/{proxy+}` | JWT | manage-menu |
 | DELETE | `/locations/{locationId}/menu/{proxy+}` | JWT | manage-menu |
 | GET | `/locations/{locationId}/availability` | NONE | get-availability |
+| POST | `/locations/{locationId}/reservations` | NONE | create-pending-reservation |
+| POST | `/locations/{locationId}/reservations/manual` | JWT | create-pending-reservation |
+| POST | `/locations/{locationId}/reservations/{reservationId}/confirm` | NONE | create-pending-reservation |
+| POST | `/locations/{locationId}/holds` | NONE | create-pending-reservation |
+| DELETE | `/locations/{locationId}/holds/{holdId}` | NONE | create-pending-reservation |
+| GET | `/locations/{locationId}/reservations` | JWT | get-reservation |
+| GET | `/locations/{locationId}/reservations/{reservationId}` | JWT | get-reservation |
+| GET | `/locations/{locationId}/reservations/{reservationId}/guest` | NONE | get-reservation |
 | GET | `/locations/{locationId}/ordering` | NONE | get-order |
 | GET | `/locations/{locationId}/order-status/{orderId}` | NONE | get-order |
 | POST | `/order` | NONE | payment-intent |
@@ -48,6 +56,10 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | POST | `/locations/{locationId}/orders` | JWT | manage-order |
 | PUT | `/locations/{locationId}/orders` | JWT | manage-order |
 | DELETE | `/locations/{locationId}/orders` | JWT | manage-order |
+| GET | `/locations/{locationId}/orders/{proxy+}` | JWT | manage-order |
+| POST | `/locations/{locationId}/orders/{proxy+}` | JWT | manage-order |
+| PUT | `/locations/{locationId}/orders/{proxy+}` | JWT | manage-order |
+| DELETE | `/locations/{locationId}/orders/{proxy+}` | JWT | manage-order |
 | GET | `/locations/{locationId}/catering/settings` | NONE | catering-settings |
 | PUT | `/locations/{locationId}/catering/settings` | JWT | catering-settings |
 | GET | `/locations/{locationId}/catering/menu` | NONE | catering-settings |
@@ -155,7 +167,9 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | PATCH | `/platform/tenants/{tenantId}/billing/subscription` | JWT (operator) | platform-tenants |
 | POST | `/platform/tenants/{tenantId}/billing/card-link` | JWT (operator) | platform-tenants |
 | POST | `/platform/tenants/{tenantId}/billing/invoices/{invoiceId}/remind` | JWT (operator) | platform-tenants |
+| POST | `/platform/tenants/{tenantId}/billing/invoice` | JWT (operator) | platform-tenants |
 | GET | `/platform/finance/invoices` | JWT (operator) | platform-tenants |
+| POST | `/platform/finance/invoicing` | JWT (operator) | platform-tenants |
 | GET | `/platform/website` | JWT (operator) | platform-tenants |
 | GET | `/platform/me/backdrops` | JWT (operator) | platform-tenants |
 | POST | `/platform/me/backdrops/upload` | JWT (operator) | platform-tenants |

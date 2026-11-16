@@ -22,6 +22,12 @@ variable "backdrop_bucket_name" {
   sensitive   = false
 }
 
+variable "recordings_bucket_name" {
+  description = "Phone-agent call recordings bucket: presigned GET played by <audio> (CSP media-src)"
+  type        = string
+  sensitive   = false
+}
+
 variable "canonical_host" {
   description = "The admin app's own hostname (restaurang.<platform domain>); requests for a legacy_hosts name are redirected here. Empty = no redirect"
   type        = string

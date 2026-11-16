@@ -53,6 +53,25 @@ resource "aws_iam_role_policy" "dynamodb_full" {
   })
 }
 
+# Activation is refused while bookings sit on tables the new version
+# removes: Query on the Reservation table only (no index, no writes).
+resource "aws_iam_role_policy" "reservation_query" {
+  name = "reservation-table-query"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "QueryReservationsOnRemovedTables"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = var.reservation_table_arn
+      }
+    ]
+  })
+}
+
 # Lets this Lambda create the one-time "expire-layout-version-<...>"
 # schedule at cutover, same pattern as StripeWebhookFn's
 # no-show-check schedule. CreateSchedule is scoped to that naming

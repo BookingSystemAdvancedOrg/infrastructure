@@ -129,4 +129,7 @@ resource "aws_lambda_event_source_mapping" "notify_on_order_paid" {
       })
     }
   }
+
+  # notification returns batchItemFailures: retry only the failed record.
+  function_response_types = ["ReportBatchItemFailures"]
 }

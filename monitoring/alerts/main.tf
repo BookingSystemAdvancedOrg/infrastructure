@@ -23,8 +23,9 @@ data "aws_caller_identity" "current" {}
 
 locals {
   prefix = var.environment == "prod" ? "" : "${var.environment}-"
-  # Two full replay cycles plus 10 minutes of slack, in seconds.
-  stuck_after_seconds = var.replay_interval_minutes * 60 * 2 + 600
+  # Two full replay cycles plus 10 minutes of slack, in seconds, capped at
+  # 6 h so the alarm fires while stream records can still be read back.
+  stuck_after_seconds = min(var.replay_interval_minutes * 60 * 2 + 600, 21600)
 }
 
 resource "aws_sns_topic" "alerts" {

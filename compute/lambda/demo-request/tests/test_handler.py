@@ -115,6 +115,17 @@ class DemoRequestTest(unittest.TestCase):
             self.assertEqual(status, 422, bad)
             self.assertIn("date", body["fields"])
 
+    def test_red_days_rejected(self):
+        for red in ["2026-04-03", "2026-04-06", "2026-05-01", "2026-05-14", "2026-06-19",
+                    "2026-12-24", "2026-12-25", "2026-12-31", "2027-01-06"]:
+            self.assertTrue(handler.red_day(date.fromisoformat(red)), red)
+        for ok in ["2026-04-07", "2026-06-18", "2026-12-23", "2027-01-07"]:
+            self.assertFalse(handler.red_day(date.fromisoformat(ok)), ok)
+        with mock.patch.object(handler, "today_stockholm", return_value=date(2026, 12, 1)):
+            status, body = self.call(event(payload(date="2026-12-24")))
+        self.assertEqual(status, 422)
+        self.assertIn("date", body["fields"])
+
     def test_time_rules(self):
         for bad in ["07:30", "17:30", "25:00", "10.30", ""]:
             status, body = self.call(event(payload(time=bad)))

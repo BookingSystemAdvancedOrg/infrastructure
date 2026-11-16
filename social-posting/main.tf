@@ -346,3 +346,22 @@ resource "aws_cloudwatch_metric_alarm" "errors" {
     Environment = var.environment
   }
 }
+
+resource "aws_cloudwatch_metric_alarm" "dlq" {
+  alarm_name          = "${local.prefix}social-posting-dlq"
+  alarm_description   = "Meta disconnect events that could not be delivered"
+  namespace           = "AWS/SQS"
+  metric_name         = "ApproximateNumberOfMessagesVisible"
+  dimensions          = { QueueName = aws_sqs_queue.dlq.name }
+  statistic           = "Maximum"
+  period              = 300
+  evaluation_periods  = 1
+  threshold           = 1
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [var.alert_topic_arn]
+
+  tags = {
+    Environment = var.environment
+  }
+}

@@ -105,3 +105,8 @@ variable "site_domain" {
   type        = string
   default     = ""
 }
+
+variable "request_guard_table_name" {
+  description = "The request-guard table holding the sent#<hash> notice markers, passed as REQUEST_GUARD_TABLE_NAME"
+  type        = string
+}

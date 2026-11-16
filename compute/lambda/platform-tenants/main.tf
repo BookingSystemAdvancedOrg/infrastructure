@@ -129,6 +129,16 @@ resource "aws_lambda_function" "this" {
   depends_on = [aws_cloudwatch_log_group.this]
 }
 
+# No Lambda retries of async invokes (the scheduled tasks, the newsletter
+# send): the daily tasks catch up on their next run and the newsletter
+# saves progress per recipient; failures raise the errors alarm below.
+resource "aws_lambda_function_event_invoke_config" "live" {
+  function_name                = aws_lambda_function.this.function_name
+  qualifier                    = aws_lambda_alias.live.name
+  maximum_retry_attempts       = 0
+  maximum_event_age_in_seconds = 3600
+}
+
 # Dunning: once a day the function checks every customer's subscription
 # (PROFILE.billing, kept current by platform-stripe-webhook) and suspends
 # those past due longer than BILLING_SUSPEND_AFTER_DAYS, resumes the ones

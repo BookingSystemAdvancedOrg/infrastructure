@@ -22,12 +22,6 @@ variable "payment_delinquency_table_arn" {
   sensitive   = false
 }
 
-variable "scheduler_invoke_role_arn" {
-  description = "ARN of the role EventBridge Scheduler assumes to invoke no-show-check - this role must be allowed to pass it to the Scheduler service"
-  type        = string
-  sensitive   = true
-}
-
 variable "region" {
   description = "AWS region this Lambda's log group lives in"
   type        = string
@@ -36,6 +30,12 @@ variable "region" {
 
 variable "webhook_secret_arn" {
   description = "ARN of the Secrets Manager secret holding this function's Stripe webhook signing secret"
+  type        = string
+  sensitive   = false
+}
+
+variable "stripe_secret_arn" {
+  description = "ARN of the platform Stripe API key secret - GetSecretValue on this one secret only"
   type        = string
   sensitive   = false
 }

@@ -102,44 +102,6 @@ resource "aws_iam_role_policy" "payment_delinquency_full" {
   })
 }
 
-# Lets this Lambda create the one-time "no-show-check-<reservationId>"
-# schedule after a reservation is confirmed. CreateSchedule is scoped to
-# that naming pattern in the default schedule group, not every schedule in
-# the account. PassRole is scoped to the one role being handed to the
-# Scheduler service, further restricted by the PassedToService condition
-# so this permission can't be reused to pass that role to anything else.
-resource "aws_iam_role_policy" "eventbridge_scheduler" {
-  name = "create-no-show-check-schedule"
-  role = aws_iam_role.this.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Sid    = "CreateNoShowCheckSchedule"
-        Effect = "Allow"
-        Action = [
-          "scheduler:CreateSchedule",
-          "scheduler:DeleteSchedule",
-          "scheduler:GetSchedule",
-        ]
-        Resource = "arn:aws:scheduler:${var.region}:${data.aws_caller_identity.current.account_id}:schedule/default/no-show-check-*"
-      },
-      {
-        Sid      = "PassSchedulerInvokeRole"
-        Effect   = "Allow"
-        Action   = "iam:PassRole"
-        Resource = "${var.scheduler_invoke_role_arn}"
-        Condition = {
-          StringEquals = {
-            "iam:PassedToService" = "scheduler.amazonaws.com"
-          }
-        }
-      }
-    ]
-  })
-}
-
 # Reads this endpoint's Stripe signing secret from Secrets Manager (written
 # there by payments/stripe) - only this one secret.
 resource "aws_iam_role_policy" "webhook_secret" {
@@ -154,6 +116,25 @@ resource "aws_iam_role_policy" "webhook_secret" {
         Effect   = "Allow"
         Action   = "secretsmanager:GetSecretValue"
         Resource = "${var.webhook_secret_arn}"
+      }
+    ]
+  })
+}
+
+# Platform Stripe API key (security/secrets/platform), read on
+# charge.dispute.closed to fetch the disputed PaymentIntent - only this one secret.
+resource "aws_iam_role_policy" "stripe_api_key" {
+  name = "stripe-api-key-read"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "ReadPlatformStripeApiKey"
+        Effect   = "Allow"
+        Action   = "secretsmanager:GetSecretValue"
+        Resource = var.stripe_secret_arn
       }
     ]
   })

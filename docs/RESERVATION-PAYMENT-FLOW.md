@@ -92,6 +92,7 @@ Target set once the handler implements this flow:
     setup_intent.setup_failed       card never saved - reservation stays pending
     payment_intent.succeeded        fee charged - terminal *_charged
     payment_intent.payment_failed   fee failed  - terminal *_charge_failed + delinquency
+    charge.dispute.closed           lost dispute on a gift card or ticket purchase: void it
 
 The variable still carries the CURRENT handler's events - switch it and
 the handler in the same release, not separately: subscribing to events the

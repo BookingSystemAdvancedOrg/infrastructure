@@ -52,6 +52,7 @@ resource "aws_lambda_function" "this" {
       CATERING_REQUESTS_TABLE_NAME         = var.catering_requests_table_name    # routes this table's stream records
       MAIL_OUTBOX_BUCKET_NAME              = var.mail_outbox_bucket_name         # dev only: save emails here instead of SES ("" = send)
       FINANCE_TABLE_NAME                   = var.finance_table_name              # counts emails and SMS sent per restaurant and day
+      REQUEST_GUARD_TABLE_NAME             = var.request_guard_table_name        # sent#<hash> markers: a retried record never sends twice
       # + the consent withdrawal link in booking confirmations (root privacy-consent.tf)
     }, var.privacy_env)
   }

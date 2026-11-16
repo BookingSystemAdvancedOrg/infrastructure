@@ -21,3 +21,15 @@ variable "region" {
   type        = string
   sensitive   = false
 }
+
+variable "reservation_table_arn" {
+  description = "ARN of the Reservation table: Query only, to refuse an activation that would strand bookings"
+  type        = string
+  sensitive   = false
+}
+
+variable "reservation_table_name" {
+  description = "Name of the Reservation table, handed back through reservation_table_name once the Query grant exists"
+  type        = string
+  sensitive   = false
+}

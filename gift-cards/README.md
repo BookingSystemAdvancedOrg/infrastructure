@@ -9,8 +9,8 @@ Bokföring. **VAT treatment (multi-purpose voucher) needs accountant review.**
 - Resources: table `<prefix>gift-cards` with GSIs `byLocationDay` (TX rows,
   Bokföring) and sparse `byExpiry` (expiry and 24-month contact clean-up
   days), PITR, TTL, deletion protection in prod; Lambda `gift-cards`;
-  secret `${prefix}gift-cards/code-pepper` (`random_password`, Terraform
-  sets the value; never output); nightly schedule 02:30 Europe/Stockholm
+  secret `${prefix}gift-cards/code-pepper` (seeded once by hand, not in Terraform
+  state; never output); nightly schedule 02:30 Europe/Stockholm
   and its invoke role; Errors alarm.
 - IAM (new role only, **owner to approve**): own table + both GSIs;
   GetSecretValue on the pepper, the platform Stripe key and the Turnstile

@@ -122,3 +122,23 @@ variable "notification_function_arn" {
   description = "notification live alias ARN (review SMS, CONTRACTS.md 9.4)"
   type        = string
 }
+
+variable "marketing_configuration_set_name" {
+  description = "Marketing SES configuration set name: review emails report bounces and complaints to marketing-sync"
+  type        = string
+}
+
+variable "marketing_configuration_set_arn" {
+  description = "Marketing SES configuration set ARN (ses:SendRawEmail resource)"
+  type        = string
+}
+
+variable "marketing_table_name" {
+  description = "Marketing table: the MSG#<id> SES lookup row marketing-sync reads"
+  type        = string
+}
+
+variable "marketing_table_arn" {
+  description = "Marketing table ARN (PutItem of the MSG#<id> row only)"
+  type        = string
+}

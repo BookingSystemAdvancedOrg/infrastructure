@@ -62,6 +62,8 @@ locals {
         MARKETING_LINK_KEY_SECRET_ARN = var.marketing_link_key_secret_arn
         MAIL_OUTBOX_BUCKET_NAME       = var.mail_outbox_bucket_name
         NOTIFICATION_FUNCTION_NAME    = var.notification_function_arn
+        MARKETING_CONFIGURATION_SET   = var.marketing_configuration_set_name
+        MARKETING_TABLE_NAME          = var.marketing_table_name
       })
     }
   }
@@ -153,8 +155,15 @@ locals {
         Sid       = "SendReviewEmail"
         Effect    = "Allow"
         Action    = ["ses:SendRawEmail"]
-        Resource  = [var.ses_identity_arn, "arn:aws:ses:${var.region}:${local.account}:identity/*"]
+        Resource  = [var.ses_identity_arn, "arn:aws:ses:${var.region}:${local.account}:identity/*", var.marketing_configuration_set_arn]
         Condition = { StringLike = { "ses:FromAddress" = local.ses_from } }
+      },
+      {
+        # MSG#<id> lookup row so marketing-sync can act on bounces and complaints.
+        Sid      = "WriteMarketingMessageLookup"
+        Effect   = "Allow"
+        Action   = ["dynamodb:PutItem"]
+        Resource = var.marketing_table_arn
       },
       {
         # Review SMS go through notification:live (CONTRACTS.md 9.4), never SNS directly.

@@ -49,9 +49,12 @@ locals {
   app_secret_arn = "arn:aws:secretsmanager:${var.region}:${local.account}:secret:${var.github_app_secret_name}-??????"
   enabled        = var.github_app_secret_name != ""
   link_role_name = "booqy-sites-prod-link"
-  # prod: the dev account's link role and platform-tenants alias
+  # prod: the dev account's link role and platform-tenants, unqualified
+  # ($LATEST, which ci/lambda-release.sh keeps equal to live). Only the link
+  # role invokes it unqualified, so platform-tenants can accept nothing but
+  # {"siteTask"} on an unqualified invoke.
   dev_link_role_arn        = var.link_dev_account_id == "" ? "" : "arn:aws:iam::${var.link_dev_account_id}:role/${local.link_role_name}"
-  dev_platform_tenants_arn = var.link_dev_account_id == "" ? "" : "arn:aws:lambda:${var.region}:${var.link_dev_account_id}:function:dev-platform-tenants:live"
+  dev_platform_tenants_arn = var.link_dev_account_id == "" ? "" : "arn:aws:lambda:${var.region}:${var.link_dev_account_id}:function:dev-platform-tenants"
   # Dev: test customers' roles (never in prod: the root passes "" there)
   test_enabled   = var.environment != "prod" && var.test_github_org != "" && var.test_boundary_arn != "" && var.test_kvs_arn != ""
   test_role_path = "/booqy-test-sites/"
@@ -433,8 +436,10 @@ resource "aws_cloudwatch_metric_alarm" "errors" {
 # --- prod -> dev link (dev account only) -------------------------------------------
 #
 # Assumable only by the prod account's site-repo role; may only invoke this
-# account's platform-tenants live alias (its {"siteTask"} entry point: create
-# or adopt a restaurant's dev tenant by slug, archive its dev site).
+# account's platform-tenants unqualified (its {"siteTask"} entry point: create
+# or adopt a restaurant's dev tenant by slug, archive its dev site). Every
+# other caller uses the live alias, so the handler can refuse anything but
+# a site task on an unqualified invoke.
 resource "aws_iam_role" "prod_link" {
   count = var.link_prod_account_id == "" ? 0 : 1
 
@@ -469,10 +474,14 @@ resource "aws_iam_role_policy" "prod_link" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Sid      = "SiteTaskOnly"
-      Effect   = "Allow"
-      Action   = "lambda:InvokeFunction"
-      Resource = var.platform_tenants_alias_arn
+      Sid    = "SiteTaskOnly"
+      Effect = "Allow"
+      Action = "lambda:InvokeFunction"
+      Resource = [
+        var.platform_tenants_function_arn,
+        # remove :live once main has the unqualified ARN
+        "${var.platform_tenants_function_arn}:live",
+      ]
     }]
   })
 }
