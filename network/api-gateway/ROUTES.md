@@ -187,6 +187,8 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | GET | `/locations/{locationId}/accounting` | JWT | accounting |
 | PUT | `/locations/{locationId}/accounting` | JWT | accounting |
 | GET | `/locations/{locationId}/accounting/export` | JWT | accounting |
+| GET | `/platform/help-assistant` | JWT (operator) | help-assistant |
+| POST | `/platform/help-assistant/answers` | JWT (operator) | help-assistant |
 | GET | `/locations/{locationId}/print` | JWT | print-jobs |
 | GET | `/locations/{locationId}/print/{proxy+}` | JWT | print-jobs |
 | POST | `/locations/{locationId}/print/{proxy+}` | JWT | print-jobs |
@@ -196,6 +198,8 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | GET | `/print/cloudprnt/{deviceId}` | NONE | print-device |
 | DELETE | `/print/cloudprnt/{deviceId}` | NONE | print-device |
 | POST | `/print/epson/{deviceId}` | NONE | print-device |
+| GET | `/platform/support/reports` | JWT (operator) | support-reports |
+| POST | `/platform/support/reports/{reportId}/handled` | JWT (operator) | support-reports |
 | GET | `/tenant/gift-cards/settings` | JWT | gift-cards |
 | PUT | `/tenant/gift-cards/settings` | JWT | gift-cards |
 | GET | `/tenant/gift-cards` | JWT | gift-cards |

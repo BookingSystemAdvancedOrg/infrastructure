@@ -1,14 +1,21 @@
-# In-app help assistant: answers "how do I ..." questions in Booqy Admin from
-# a curated help knowledge base (application shared/help_kb.json, synced from
-# admin-front-end src/features/help/helpKb.json) and returns navigation
-# buttons. Application: functions/help-assistant.
+# In-app help assistant: "Fråga Booqy" in Booqy Admin and "Ask Booqy" in
+# Booqy Console answer "how do I ..." questions and return navigation buttons.
+# Application: functions/help-assistant, shared/help_assistant.py.
+#
+# Knowledge: each app builds its own help corpus from its code and deploys it;
+# the Lambda reads HELP_APP_URL_ADMIN / HELP_APP_URL_CONSOLE (var.app_urls),
+# follows <meta name="booqy-help-corpus"> in index.html to the corpus and falls
+# back to the bundled shared/help_corpus_<app>.json. Routes: /tenant/help-
+# assistant[/answers] (tenant JWT, Admin) and /platform/help-assistant[/answers]
+# (operator JWT, Console), in network/api-gateway.
 #
 # Off unless var.enabled; the PLATFORM#HELP_ASSISTANT/SETTINGS row switches it
 # off at runtime (read through the tenant-context policy). Bedrock is only
-# called with BEDROCK_CLIENT=real and a model id; otherwise, and past the
-# monthly answer caps, answers are built from the knowledge base alone.
-# Per-user rate limit and the caps are counters in the request-guard table.
-# Nothing the user types is stored or logged.
+# called with BEDROCK_CLIENT=real and a model id (dev: the eu.* inference
+# profile, EU regions only); otherwise, and past the monthly answer caps,
+# answers are built from the corpus alone. Per-user rate limit and the caps
+# are counters in the request-guard table. Nothing the user types is stored
+# or logged.
 
 data "aws_caller_identity" "current" {}
 

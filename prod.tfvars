@@ -173,6 +173,15 @@ sms_monthly_spend_limit_usd = 50
 # clients stay simulators (the feature is off in every plan) until go-live.
 phone_agent_model_id = "eu.anthropic.claude-haiku-5-5"
 
+# Fråga Booqy / Ask Booqy (owner 2026-11-16): on in prod with Claude Haiku 5.5
+# on Bedrock through the EU inference profile, as in dev. Cost caps
+# (help_assistant_monthly_answers) keep it near USD 6 a month; past a cap,
+# answers come from the help texts alone. Off at runtime without a deploy:
+# PLATFORM#HELP_ASSISTANT/SETTINGS {enabled: false} on the tenant table.
+help_assistant_enabled        = true
+help_assistant_bedrock_client = "real"
+help_assistant_model_id       = "eu.anthropic.claude-haiku-5-5"
+
 # [NEEDS YOUR DETAILS] Booqy's address, organisation number, VAT number,
 # registered office (säte) and F-skatt for every invoice (not secret). Set
 # them before this reaches main: without name, address, org_number and
