@@ -1352,6 +1352,17 @@ resource "aws_apigatewayv2_route" "catering_offer_cancel" {
 }
 
 # --- catering-offer ---
+# Owner-only refund of a paid order without cancelling it (full or partial).
+
+resource "aws_apigatewayv2_route" "catering_offer_refund" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "POST /locations/{locationId}/catering/requests/{requestId}/refund"
+  target             = "integrations/${aws_apigatewayv2_integration.catering_offer.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# --- catering-offer ---
 # Mark delivered/picked up - the order closes once it's also paid.
 
 resource "aws_apigatewayv2_route" "catering_offer_delivered" {

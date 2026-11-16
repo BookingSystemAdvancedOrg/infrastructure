@@ -84,6 +84,7 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | POST | `/locations/{locationId}/catering/requests/{requestId}/offer/send` | JWT | catering-offer |
 | POST | `/locations/{locationId}/catering/requests/{requestId}/decline` | JWT | catering-offer |
 | POST | `/locations/{locationId}/catering/requests/{requestId}/cancel` | JWT | catering-offer |
+| POST | `/locations/{locationId}/catering/requests/{requestId}/refund` | JWT | catering-offer |
 | POST | `/locations/{locationId}/catering/requests/{requestId}/delivered` | JWT | catering-offer |
 | GET | `/locations/{locationId}/catering/invoices` | JWT | catering-offer |
 | POST | `/locations/{locationId}/catering/invoices/{invoiceId}/mark-paid` | JWT | catering-offer |
