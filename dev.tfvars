@@ -233,9 +233,9 @@ billing_reference_rate_pct     = 2.0
 # without them (the invoicing summary lists what is missing); prod refuses.
 billing_seller = {
   name       = "IT Hjälparna Nordic AB"
-  address    = ""
-  org_number = ""
-  vat_number = ""
-  seat       = ""
-  f_skatt    = false
+  address    = "Vallmovägen 9, 612 46 Finspång"
+  org_number = "559594-8810"
+  vat_number = "SE559594881001"
+  seat       = "Finspång"
+  f_skatt    = true
 }
