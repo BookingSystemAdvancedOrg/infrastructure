@@ -93,8 +93,8 @@ variable "link_dev_account_id" {
   default     = ""
 }
 
-variable "platform_tenants_alias_arn" {
-  description = "This account's platform-tenants live alias (the only thing the link role may invoke)"
+variable "platform_tenants_function_arn" {
+  description = "This account's platform-tenants function ARN, unqualified (the only thing the link role may invoke)"
   type        = string
   default     = ""
 }
