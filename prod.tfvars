@@ -155,10 +155,11 @@ site_github_org = "BooqyCustomers"
 # Its numeric id: site-repo writes a deploy role trust only for a repo this
 # org owns, by login AND id (prod never writes one for BooqyCustomersDev).
 site_github_org_id = "356944191"
-# Then, once every active restaurant with a domain has a deployed site repo
-# (Website tab), serve each domain from its own site instead of the shared
-# customer-front-end build:
-# per_tenant_sites = true
+# Every restaurant domain is served from its own site repo (sites/<tenantId>/)
+# instead of the shared customer-front-end build. On 2026-11-16 the only
+# domain (test-release) had a deployed site; a new domain gets its repo at
+# onboarding.
+per_tenant_sites = true
 # A site repo is born in the prod console, which also sets up its dev side
 # through the dev account's booqy-sites-prod-link role (sites/main.tf).
 site_link_dev_account_id = "877653167825"
