@@ -169,6 +169,7 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | POST | `/platform/tenants/{tenantId}/billing/card-link` | JWT (operator) | platform-tenants |
 | POST | `/platform/tenants/{tenantId}/billing/invoices/{invoiceId}/remind` | JWT (operator) | platform-tenants |
 | POST | `/platform/tenants/{tenantId}/billing/invoice` | JWT (operator) | platform-tenants |
+| POST | `/platform/tenants/{tenantId}/billing/credit-notes` | JWT (operator) | platform-tenants |
 | GET | `/platform/finance/invoices` | JWT (operator) | platform-tenants |
 | POST | `/platform/finance/invoicing` | JWT (operator) | platform-tenants |
 | GET | `/platform/website` | JWT (operator) | platform-tenants |

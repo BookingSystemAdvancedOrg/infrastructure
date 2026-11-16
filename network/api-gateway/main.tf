@@ -1627,6 +1627,7 @@ locals {
     "POST /platform/tenants/{tenantId}/billing/card-link",
     "POST /platform/tenants/{tenantId}/billing/invoices/{invoiceId}/remind",
     "POST /platform/tenants/{tenantId}/billing/invoice",
+    "POST /platform/tenants/{tenantId}/billing/credit-notes",
     "GET /platform/finance/invoices",
     "POST /platform/finance/invoicing",
     # Website page: booqy.se's cookieless statistics (site-analytics/)
