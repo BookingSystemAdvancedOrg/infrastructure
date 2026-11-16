@@ -114,6 +114,14 @@ resource "aws_apigatewayv2_stage" "this" {
     throttling_burst_limit = var.booking_throttle_burst_limit
   }
 
+  # Staff login, refresh and password reset: the low limit, so a flood can't
+  # use up the user pool's account-wide Cognito sign-in quota.
+  route_settings {
+    route_key              = "POST /auth/{proxy+}"
+    throttling_rate_limit  = var.booking_throttle_rate_limit
+    throttling_burst_limit = var.booking_throttle_burst_limit
+  }
+
   # Kitchen printers (printing-routes.tf): their own ceiling, so a flood of
   # fake polls can't eat the platform-wide default.
   dynamic "route_settings" {
@@ -138,7 +146,8 @@ resource "aws_apigatewayv2_stage" "this" {
 
   # route_settings names a route by key - it has to exist first.
   depends_on = [aws_apigatewayv2_route.create_pending_reservation, aws_apigatewayv2_route.payment_intent,
-  aws_apigatewayv2_route.catering_requests_post, aws_apigatewayv2_route.catering_quote_post, aws_apigatewayv2_route.marketing_public, aws_apigatewayv2_route.print_device, aws_apigatewayv2_route.feature]
+    aws_apigatewayv2_route.catering_requests_post, aws_apigatewayv2_route.catering_quote_post, aws_apigatewayv2_route.marketing_public, aws_apigatewayv2_route.print_device, aws_apigatewayv2_route.feature,
+  aws_apigatewayv2_route.manage_auth]
 
   tags = {
     Environment = var.environment
@@ -1606,7 +1615,9 @@ locals {
     "PATCH /platform/tenants/{tenantId}/billing/subscription",
     "POST /platform/tenants/{tenantId}/billing/card-link",
     "POST /platform/tenants/{tenantId}/billing/invoices/{invoiceId}/remind",
+    "POST /platform/tenants/{tenantId}/billing/invoice",
     "GET /platform/finance/invoices",
+    "POST /platform/finance/invoicing",
     # Website page: booqy.se's cookieless statistics (site-analytics/)
     "GET /platform/website",
     # The signed-in operator's background image library (user-backdrops)
