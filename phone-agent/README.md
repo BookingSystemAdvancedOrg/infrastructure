@@ -22,7 +22,7 @@ simulators unless `var.voice_client`, `var.telephony_client`, `var.agent_model_c
 | DynamoDB table | `<prefix>phone-agent` | GSIs `byNumber`, `byReservation`; TTL; PITR; deletion protection in prod |
 | S3 bucket | `<prefix>phone-agent-recordings-<account>` | private (public access blocked, owner-enforced), SSE-S3, lifecycle by object tag `retention` 7/30/90 days; written only with a tenant's recording opt-in (the copy step is not built yet) |
 | Secrets | `${prefix}phone-agent/voice-provider`, `${prefix}phone-agent/telephony` | values by hand (provider accounts) |
-| Secret | `${prefix}phone-agent/llm-endpoint-key` | `random_password`, the header the voice provider sends to the turn endpoint |
+| Secret | `${prefix}phone-agent/llm-endpoint-key` | seeded once by hand (not in Terraform state), the header the voice provider sends to the turn endpoint |
 | Lambdas + `live` aliases | `phone-agent`, `phone-agent-call`, `phone-agent-jobs` | images from ECR, arm64 |
 | Function URL | on `phone-agent-call:live` | auth NONE (the function checks the endpoint key or the provider signature), BUFFERED |
 | Scheduler | `<prefix>phone-agent-sweep` (every 5 min), `<prefix>phone-agent-nightly` (03:00 Stockholm) | default group, own invoke role |

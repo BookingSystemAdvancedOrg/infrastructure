@@ -148,9 +148,17 @@ resource "aws_dynamodb_table" "this" {
 
 # --- the code pepper (random, never leaves Secrets Manager) --------------------------------
 
-resource "random_password" "pepper" {
-  length  = 48
-  special = false
+# The value is not in Terraform state: the removed blocks drop the
+# random_password and the secret version from state, the value stays in AWS.
+# Changing it breaks issued codes. A fresh environment seeds it once by hand:
+#   aws secretsmanager put-secret-value --secret-id <prefix>gift-cards/code-pepper \
+#     --secret-string "$(openssl rand -hex 24)"
+
+removed {
+  from = random_password.pepper
+  lifecycle {
+    destroy = false
+  }
 }
 
 resource "aws_secretsmanager_secret" "pepper" {
@@ -163,9 +171,11 @@ resource "aws_secretsmanager_secret" "pepper" {
   }
 }
 
-resource "aws_secretsmanager_secret_version" "pepper" {
-  secret_id     = aws_secretsmanager_secret.pepper.id
-  secret_string = random_password.pepper.result
+removed {
+  from = aws_secretsmanager_secret_version.pepper
+  lifecycle {
+    destroy = false
+  }
 }
 
 # --- function ----------------------------------------------------------------------------

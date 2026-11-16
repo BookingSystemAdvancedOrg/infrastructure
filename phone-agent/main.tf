@@ -401,9 +401,18 @@ resource "aws_secretsmanager_secret" "telephony" {
   }
 }
 
-resource "random_password" "llm_key" {
-  length  = 48
-  special = false
+# The value is not in Terraform state: the removed blocks drop the
+# random_password and the secret version from state, the value stays in AWS.
+# Changing it means updating the voice provider's header. A fresh
+# environment seeds it once by hand:
+#   aws secretsmanager put-secret-value --secret-id <prefix>phone-agent/llm-endpoint-key \
+#     --secret-string "$(openssl rand -hex 24)"
+
+removed {
+  from = random_password.llm_key
+  lifecycle {
+    destroy = false
+  }
 }
 
 resource "aws_secretsmanager_secret" "llm_key" {
@@ -416,9 +425,11 @@ resource "aws_secretsmanager_secret" "llm_key" {
   }
 }
 
-resource "aws_secretsmanager_secret_version" "llm_key" {
-  secret_id     = aws_secretsmanager_secret.llm_key.id
-  secret_string = random_password.llm_key.result
+removed {
+  from = aws_secretsmanager_secret_version.llm_key
+  lifecycle {
+    destroy = false
+  }
 }
 
 # --- functions -----------------------------------------------------------------------------
