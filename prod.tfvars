@@ -13,7 +13,7 @@ platform_operator_emails = [
 # aws cognito-idp admin-get-user --user-pool-id <operator pool> --username <your e-mail>
 platform_owner_usernames = ["600c29ac-1081-7019-1813-a8cb80d44eec"]
 
-dlq_replay_interval_minutes = 720 # every 12 hours - stays inside the 24h stream-record window
+dlq_replay_interval_minutes = 15 # every 15 minutes - delayed emails and kitchen tickets stay short, well inside the 24h stream-record window
 
 alert_emails = [
   "lamo.kouravand@ithjalparna.se",
@@ -127,13 +127,12 @@ plans = {
 tenant_data_retention_days = 90
 tenant_purge_schedule      = "cron(0 2 * * ? *)"
 
-# No permanent test restaurant in production yet: the smoke tests and the
-# uptime check load the customer site's own distribution and expect
-# GET /site-config to answer 404 for an unknown host (which still proves
-# API Gateway -> Lambda -> DynamoDB). Set this to a restaurant host that
-# will always exist (e.g. a demo restaurant on its own domain) to check a
-# real 200 instead.
-# smoke_test_host = "demo.booqy.se"
+# The prod test restaurant test-release (deployed site repo, checked
+# 2026-11-16): the uptime check and the smoke tests load its site through
+# the tenant-sites path and expect GET /site-config to answer 200. Never
+# offboard it while this is set; unset, they load the shared customer
+# build and expect a 404 for an unknown host instead.
+smoke_test_host = "test-release.booqy.se"
 
 # Guest data retention (privacy-variables.tf). The job only logs counts per
 # data type until this is set to false, after the owner has checked them.
