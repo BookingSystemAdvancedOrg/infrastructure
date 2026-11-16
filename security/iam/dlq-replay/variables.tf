@@ -40,12 +40,6 @@ variable "no_show_check_function_arn" {
   sensitive   = false
 }
 
-variable "reactivate_menu_item_function_arn" {
-  description = "ARN of the reactivate-menu-item Lambda - redelivery target"
-  type        = string
-  sensitive   = false
-}
-
 variable "expire_layout_version_function_arn" {
   description = "ARN of the expire-layout-version Lambda - redelivery target"
   type        = string

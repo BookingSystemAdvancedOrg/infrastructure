@@ -8,11 +8,11 @@
 #                                    reservation / order / catering-requests stream)
 #   print-stream-dlq              -> print-jobs (records re-read from the order stream)
 #   scheduled-invocation-dlq      -> the function named in the failure record:
-#                                    catering-lifecycle, no-show-check,
-#                                    reactivate-menu-item or expire-layout-version
+#                                    catering-lifecycle, no-show-check
+#                                    or expire-layout-version
 #
 # It holds no table permissions on purpose: it never does business work
-# itself, it only redelivers. Invoke rights are limited to those six
+# itself, it only redelivers. Invoke rights are limited to those five
 # functions, so a crafted message can't make it call anything else.
 
 data "aws_caller_identity" "current" {}
@@ -89,8 +89,6 @@ resource "aws_iam_role_policy" "invoke" {
           "${var.print_jobs_function_arn}:*",
           "${var.no_show_check_function_arn}",
           "${var.no_show_check_function_arn}:*",
-          "${var.reactivate_menu_item_function_arn}",
-          "${var.reactivate_menu_item_function_arn}:*",
           "${var.expire_layout_version_function_arn}",
           "${var.expire_layout_version_function_arn}:*",
         ]

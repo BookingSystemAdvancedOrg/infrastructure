@@ -309,11 +309,10 @@ module "get_menu_role" {
   region         = var.aws_region
 }
 module "manage_menu_role" {
-  source                    = "./security/iam/manage-menu"
-  environment               = var.env
-  menu_table_arn            = module.menu.table_arn
-  scheduler_invoke_role_arn = module.scheduler_invoke_reactivate_menu_item_role.role_arn
-  region                    = var.aws_region
+  source         = "./security/iam/manage-menu"
+  environment    = var.env
+  menu_table_arn = module.menu.table_arn
+  region         = var.aws_region
 }
 module "manage_order_role" {
   published_layout_snapshot_table_arn = module.published_layout_snapshot.table_arn
@@ -413,18 +412,6 @@ module "expire_layout_version_role" {
   region                              = var.aws_region
   scheduled_invocation_dlq_arn        = module.dead_letter.scheduled_invocation_dlq_arn
 }
-module "scheduler_invoke_reactivate_menu_item_role" {
-  source                          = "./security/iam/scheduler-invoke-reactivate-menu-item"
-  environment                     = var.env
-  reactivate_menu_item_lambda_arn = module.reactivate_menu_item_fn.function_arn
-}
-module "reactivate_menu_item_role" {
-  source                       = "./security/iam/reactivate-menu-item"
-  environment                  = var.env
-  menu_table_arn               = module.menu.table_arn
-  region                       = var.aws_region
-  scheduled_invocation_dlq_arn = module.dead_letter.scheduled_invocation_dlq_arn
-}
 module "get_location_role" {
   source             = "./security/iam/get-location"
   environment        = var.env
@@ -451,11 +438,6 @@ module "create_pending_reservation_role" {
   stripe_secret_arn                   = module.platform_secrets.stripe_secret_arn
   turnstile_secret_arn                = module.catering_secrets.turnstile_secret_arn
   request_guard_table_arn             = module.request_guard.table_arn
-}
-module "scheduler_invoke_no_show_check_role" {
-  source                   = "./security/iam/scheduler-invoke-no-show-check"
-  environment              = var.env
-  no_show_check_lambda_arn = module.no_show_check_fn.function_arn
 }
 module "no_show_check_role" {
   source                        = "./security/iam/no-show-check"
@@ -495,7 +477,6 @@ module "stripe_webhook_role" {
   location_table_arn            = module.location.table_arn
   reservation_table_arn         = module.reservation.table_arn
   payment_delinquency_table_arn = module.payment_delinquency.table_arn
-  scheduler_invoke_role_arn     = module.scheduler_invoke_no_show_check_role.role_arn
   webhook_secret_arn            = module.stripe_webhooks.reservation_webhook_secret_arn
   region                        = var.aws_region
 }
@@ -635,7 +616,6 @@ module "dlq_replay_role" {
   catering_lifecycle_function_arn    = module.catering_lifecycle_fn.function_arn
   notification_function_arn          = module.notification_fn.function_arn
   no_show_check_function_arn         = module.no_show_check_fn.function_arn
-  reactivate_menu_item_function_arn  = module.reactivate_menu_item_fn.function_arn
   expire_layout_version_function_arn = module.expire_layout_version_fn.function_arn
   catering_requests_stream_arn       = module.catering_requests.stream_arn
   reservation_stream_arn             = module.reservation.stream_arn
@@ -873,9 +853,15 @@ module "expire_layout_version_ecr" {
   source      = "./storage/ecr/expire-layout-version"
   environment = var.env
 }
-module "reactivate_menu_item_ecr" {
-  source      = "./storage/ecr/reactivate-menu-item"
-  environment = var.env
+# reactivate-menu-item was never built (no source in application). The
+# repo may hold the bootstrap image, so it leaves state without a destroy;
+# delete it by hand.
+removed {
+  from = module.reactivate_menu_item_ecr
+
+  lifecycle {
+    destroy = false
+  }
 }
 module "block_table_ecr" {
   source      = "./storage/ecr/block-table"
@@ -1262,18 +1248,6 @@ module "expire_layout_version_fn" {
   location_table_name                  = module.location.table_name
   location_id_index_name               = module.location.location_id_index_name
 }
-module "reactivate_menu_item_fn" {
-  source                  = "./compute/lambda/reactivate-menu-item"
-  environment             = var.env
-  role_arn                = module.reactivate_menu_item_role.role_arn
-  ecr_repository_url      = module.reactivate_menu_item_ecr.reactivate_menu_item_ecr_repository_url
-  menu_table_name         = module.menu.table_name
-  region                  = var.aws_region
-  failure_destination_arn = module.dead_letter.scheduled_invocation_dlq_arn
-  tenant_table_name       = module.tenant.table_name
-  location_table_name     = module.location.table_name
-  location_id_index_name  = module.location.location_id_index_name
-}
 module "block_table_fn" {
   source                               = "./compute/lambda/block-table"
   environment                          = var.env
@@ -1470,18 +1444,16 @@ module "manage_layout_element_fn" {
   location_id_index_name         = module.location.location_id_index_name
 }
 module "manage_menu_fn" {
-  source                            = "./compute/lambda/manage-menu"
-  environment                       = var.env
-  role_arn                          = module.manage_menu_role.role_arn
-  ecr_repository_url                = module.manage_menu_ecr.manage_menu_ecr_repository_url
-  menu_table_name                   = module.menu.table_name
-  scheduler_invoke_role_arn         = module.scheduler_invoke_reactivate_menu_item_role.role_arn
-  reactivate_menu_item_function_arn = module.reactivate_menu_item_fn.alias_arn
-  region                            = var.aws_region
-  tenant_table_name                 = module.tenant.table_name
-  user_table_name                   = module.user.table_name
-  location_table_name               = module.location.table_name
-  location_id_index_name            = module.location.location_id_index_name
+  source                 = "./compute/lambda/manage-menu"
+  environment            = var.env
+  role_arn               = module.manage_menu_role.role_arn
+  ecr_repository_url     = module.manage_menu_ecr.manage_menu_ecr_repository_url
+  menu_table_name        = module.menu.table_name
+  region                 = var.aws_region
+  tenant_table_name      = module.tenant.table_name
+  user_table_name        = module.user.table_name
+  location_table_name    = module.location.table_name
+  location_id_index_name = module.location.location_id_index_name
 }
 module "manage_order_fn" {
   published_layout_snapshot_table_name = module.published_layout_snapshot.table_name
@@ -1602,8 +1574,6 @@ module "stripe_webhook_fn" {
   location_table_name            = module.location.table_name
   reservation_table_name         = module.reservation.table_name
   payment_delinquency_table_name = module.payment_delinquency.table_name
-  scheduler_invoke_role_arn      = module.scheduler_invoke_no_show_check_role.role_arn
-  no_show_check_function_arn     = module.no_show_check_fn.alias_arn
   region                         = var.aws_region
   stripe_webhook_secret_arn      = module.stripe_webhooks.reservation_webhook_secret_arn
   tenant_table_name              = module.tenant.table_name
@@ -1795,8 +1765,6 @@ module "dlq_replay_fn" {
     module.catering_lifecycle_fn.alias_arn,
     module.no_show_check_fn.function_arn,
     module.no_show_check_fn.alias_arn,
-    module.reactivate_menu_item_fn.function_arn,
-    module.reactivate_menu_item_fn.alias_arn,
     module.expire_layout_version_fn.function_arn,
     module.expire_layout_version_fn.alias_arn,
   ]
@@ -2103,7 +2071,6 @@ module "lambda_releases" {
     (module.platform_tenants_fn.function_name)            = { alias_name = module.platform_tenants_fn.alias_name }
     (module.pre_signed_url_fn.function_name)              = { alias_name = module.pre_signed_url_fn.alias_name }
     (module.publish_layout_fn.function_name)              = { alias_name = module.publish_layout_fn.alias_name }
-    (module.reactivate_menu_item_fn.function_name)        = { alias_name = module.reactivate_menu_item_fn.alias_name }
     (module.stripe_webhook_fn.function_name)              = { alias_name = module.stripe_webhook_fn.alias_name }
     (module.tenant_account_fn.function_name)              = { alias_name = module.tenant_account_fn.alias_name }
     (module.tenant_purge_fn.function_name)                = { alias_name = module.tenant_purge_fn.alias_name }
@@ -2385,7 +2352,6 @@ locals {
     platform_tenants           = module.platform_tenants_role.role_name
     pre_signed_url             = module.pre_signed_url_role.role_name
     publish_layout             = module.publish_layout_role.role_name
-    reactivate_menu_item       = module.reactivate_menu_item_role.role_name
     stripe_webhook             = module.stripe_webhook_role.role_name
     tenant_account             = module.tenant_account_role.role_name
     tenant_site_config         = module.tenant_site_config_role.role_name
@@ -2545,6 +2511,7 @@ module "cloudfront_private" {
   admin_bucket_regional_domain_name      = module.admin_front_end_asset.bucket_regional_domain_name
   menu_image_bucket_regional_domain_name = module.menu_image.bucket_regional_domain_name
   backdrop_bucket_name                   = module.user_backdrops.bucket_name
+  recordings_bucket_name                 = module.phone_agent.recordings_bucket_name
   aliases                                = local.platform_domain_enabled ? [local.admin_app_hostname, local.legacy_admin_app_hostname] : []
   canonical_host                         = local.platform_domain_enabled ? local.admin_app_hostname : ""
   legacy_hosts                           = local.platform_domain_enabled ? [local.legacy_admin_app_hostname] : []

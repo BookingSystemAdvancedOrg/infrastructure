@@ -31,3 +31,8 @@ output "call_alias_arn" {
 output "table_name" {
   value = aws_dynamodb_table.this.name
 }
+
+output "recordings_bucket_name" {
+  description = "Call recordings bucket (admin CSP media-src)"
+  value       = aws_s3_bucket.recordings.bucket
+}

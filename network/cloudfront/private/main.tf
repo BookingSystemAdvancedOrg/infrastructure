@@ -35,6 +35,7 @@ locals {
   #     domain; blob:/data: for the image preview before upload and QR codes
   #   - connect-src: the menu-image bucket, for presigned PUT uploads, and
   #     the user-backdrops bucket, for the own background image (POST)
+  #   - media-src: the phone-agent recordings bucket (presigned GET for <audio>)
   #   - style-src 'unsafe-inline': React style={{}} attributes
   admin_csp = join("; ", [
     "default-src 'self'",
@@ -43,6 +44,7 @@ locals {
     "img-src 'self' data: blob: https:",
     "font-src 'self'",
     "connect-src 'self' https://${local.menu_bucket}.s3.eu-north-1.amazonaws.com https://${local.menu_bucket}.s3.amazonaws.com https://${var.backdrop_bucket_name}.s3.eu-north-1.amazonaws.com https://${var.backdrop_bucket_name}.s3.amazonaws.com",
+    "media-src 'self' https://${var.recordings_bucket_name}.s3.eu-north-1.amazonaws.com https://${var.recordings_bucket_name}.s3.amazonaws.com",
     "worker-src 'self' blob:",
     "object-src 'none'",
     "base-uri 'self'",
