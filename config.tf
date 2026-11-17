@@ -164,7 +164,7 @@ module "reservation_secrets" {
     cancel_reservation         = module.cancel_reservation_role.role_name
     get_reservation            = module.get_reservation_role.role_name
     notification               = module.notification_role.role_name
-    # Food orders: status tokens and table QR codes.
+    # Food orders: status tokens.
     payment_intent = module.payment_intent_role.role_name
     get_order      = module.get_order_role.role_name
     manage_order   = module.manage_order_role.role_name
@@ -315,13 +315,12 @@ module "manage_menu_role" {
   region         = var.aws_region
 }
 module "manage_order_role" {
-  published_layout_snapshot_table_arn = module.published_layout_snapshot.table_arn
-  source                              = "./security/iam/manage-order"
-  environment                         = var.env
-  order_table_arn                     = module.order.table_arn
-  location_table_arn                  = module.location.table_arn
-  stripe_secret_arn                   = module.platform_secrets.stripe_secret_arn
-  region                              = var.aws_region
+  source             = "./security/iam/manage-order"
+  environment        = var.env
+  order_table_arn    = module.order.table_arn
+  location_table_arn = module.location.table_arn
+  stripe_secret_arn  = module.platform_secrets.stripe_secret_arn
+  region             = var.aws_region
 }
 module "manage_user_role" {
   source         = "./security/iam/manage-user"
@@ -340,22 +339,20 @@ module "get_reservation_role" {
   region                = var.aws_region
 }
 module "get_order_role" {
-  published_layout_snapshot_table_arn = module.published_layout_snapshot.table_arn
-  source                              = "./security/iam/get-order"
-  environment                         = var.env
-  order_table_arn                     = module.order.table_arn
-  stripe_secret_arn                   = module.platform_secrets.stripe_secret_arn
-  region                              = var.aws_region
+  source            = "./security/iam/get-order"
+  environment       = var.env
+  order_table_arn   = module.order.table_arn
+  stripe_secret_arn = module.platform_secrets.stripe_secret_arn
+  region            = var.aws_region
 }
 module "payment_intent_role" {
-  published_layout_snapshot_table_arn = module.published_layout_snapshot.table_arn
-  source                              = "./security/iam/payment-intent"
-  environment                         = var.env
-  order_table_arn                     = module.order.table_arn
-  menu_table_arn                      = module.menu.table_arn
-  region                              = var.aws_region
-  stripe_secret_arn                   = module.platform_secrets.stripe_secret_arn
-  request_guard_table_arn             = module.request_guard.table_arn
+  source                  = "./security/iam/payment-intent"
+  environment             = var.env
+  order_table_arn         = module.order.table_arn
+  menu_table_arn          = module.menu.table_arn
+  region                  = var.aws_region
+  stripe_secret_arn       = module.platform_secrets.stripe_secret_arn
+  request_guard_table_arn = module.request_guard.table_arn
 }
 module "mark_arrived_role" {
   source                              = "./security/iam/mark-arrived"
@@ -1365,38 +1362,36 @@ module "get_reservation_fn" {
   reservation_link_key_secret_arn = module.reservation_secrets.link_signing_key_secret_arn
 }
 module "get_order_fn" {
-  published_layout_snapshot_table_name = module.published_layout_snapshot.table_name
-  source                               = "./compute/lambda/get-order"
-  environment                          = var.env
-  role_arn                             = module.get_order_role.role_arn
-  ecr_repository_url                   = module.get_order_ecr.get_order_ecr_repository_url
-  order_table_name                     = module.order.table_name
-  region                               = var.aws_region
-  tenant_table_name                    = module.tenant.table_name
-  location_table_name                  = module.location.table_name
-  location_id_index_name               = module.location.location_id_index_name
-  reservation_link_key_secret_arn      = module.reservation_secrets.link_signing_key_secret_arn
-  stripe_secret_arn                    = module.platform_secrets.stripe_secret_arn
-  stripe_api_version                   = var.stripe_api_version
+  source                          = "./compute/lambda/get-order"
+  environment                     = var.env
+  role_arn                        = module.get_order_role.role_arn
+  ecr_repository_url              = module.get_order_ecr.get_order_ecr_repository_url
+  order_table_name                = module.order.table_name
+  region                          = var.aws_region
+  tenant_table_name               = module.tenant.table_name
+  location_table_name             = module.location.table_name
+  location_id_index_name          = module.location.location_id_index_name
+  reservation_link_key_secret_arn = module.reservation_secrets.link_signing_key_secret_arn
+  stripe_secret_arn               = module.platform_secrets.stripe_secret_arn
+  stripe_api_version              = var.stripe_api_version
 }
 module "payment_intent_fn" {
-  published_layout_snapshot_table_name = module.published_layout_snapshot.table_name
-  source                               = "./compute/lambda/payment-intent"
-  environment                          = var.env
-  privacy_env                          = local.privacy_env_consent
-  role_arn                             = module.payment_intent_role.role_arn
-  ecr_repository_url                   = module.payment_intent_ecr.payment_intent_ecr_repository_url
-  order_table_name                     = module.order.table_name
-  menu_table_name                      = module.menu.table_name
-  stripe_secret_arn                    = module.platform_secrets.stripe_secret_arn
-  stripe_api_version                   = var.stripe_api_version
-  region                               = var.aws_region
-  tenant_table_name                    = module.tenant.table_name
-  location_table_name                  = module.location.table_name
-  location_id_index_name               = module.location.location_id_index_name
-  customer_site_url                    = local.customer_site_url
-  site_domain                          = local.site_domain
-  reservation_link_key_secret_arn      = module.reservation_secrets.link_signing_key_secret_arn
+  source                          = "./compute/lambda/payment-intent"
+  environment                     = var.env
+  privacy_env                     = local.privacy_env_consent
+  role_arn                        = module.payment_intent_role.role_arn
+  ecr_repository_url              = module.payment_intent_ecr.payment_intent_ecr_repository_url
+  order_table_name                = module.order.table_name
+  menu_table_name                 = module.menu.table_name
+  stripe_secret_arn               = module.platform_secrets.stripe_secret_arn
+  stripe_api_version              = var.stripe_api_version
+  region                          = var.aws_region
+  tenant_table_name               = module.tenant.table_name
+  location_table_name             = module.location.table_name
+  location_id_index_name          = module.location.location_id_index_name
+  customer_site_url               = local.customer_site_url
+  site_domain                     = local.site_domain
+  reservation_link_key_secret_arn = module.reservation_secrets.link_signing_key_secret_arn
   # Bot check: guest orders must come through a site's /api/* (AWS WAF).
   bot_check_enforced       = var.bot_check_enforced
   site_waf_secret          = random_password.site_waf_edge.result
@@ -1460,22 +1455,19 @@ module "manage_menu_fn" {
   location_id_index_name = module.location.location_id_index_name
 }
 module "manage_order_fn" {
-  published_layout_snapshot_table_name = module.published_layout_snapshot.table_name
-  source                               = "./compute/lambda/manage-order"
-  environment                          = var.env
-  role_arn                             = module.manage_order_role.role_arn
-  ecr_repository_url                   = module.manage_order_ecr.manage_order_ecr_repository_url
-  order_table_name                     = module.order.table_name
-  customer_site_url                    = local.customer_site_url
-  site_domain                          = local.site_domain
-  user_table_name                      = module.user.table_name
-  region                               = var.aws_region
-  tenant_table_name                    = module.tenant.table_name
-  location_table_name                  = module.location.table_name
-  location_id_index_name               = module.location.location_id_index_name
-  reservation_link_key_secret_arn      = module.reservation_secrets.link_signing_key_secret_arn
-  stripe_secret_arn                    = module.platform_secrets.stripe_secret_arn
-  stripe_api_version                   = var.stripe_api_version
+  source                          = "./compute/lambda/manage-order"
+  environment                     = var.env
+  role_arn                        = module.manage_order_role.role_arn
+  ecr_repository_url              = module.manage_order_ecr.manage_order_ecr_repository_url
+  order_table_name                = module.order.table_name
+  user_table_name                 = module.user.table_name
+  region                          = var.aws_region
+  tenant_table_name               = module.tenant.table_name
+  location_table_name             = module.location.table_name
+  location_id_index_name          = module.location.location_id_index_name
+  reservation_link_key_secret_arn = module.reservation_secrets.link_signing_key_secret_arn
+  stripe_secret_arn               = module.platform_secrets.stripe_secret_arn
+  stripe_api_version              = var.stripe_api_version
 }
 module "manage_user_fn" {
   source                 = "./compute/lambda/manage-user"

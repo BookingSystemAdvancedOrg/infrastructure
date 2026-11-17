@@ -33,9 +33,3 @@ variable "request_guard_table_arn" {
   type        = string
   sensitive   = false
 }
-
-variable "published_layout_snapshot_table_arn" {
-  description = "ARN of the Published Layout Snapshot table - the active floor plan names the tables behind the QR codes"
-  type        = string
-  sensitive   = false
-}

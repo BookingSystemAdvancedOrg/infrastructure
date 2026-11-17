@@ -498,7 +498,7 @@ resource "aws_apigatewayv2_integration" "get_order" {
 }
 
 # Guest routes, public like the order form itself: whether the location
-# takes orders right now (and which table a QR code is), and the guest's
+# takes orders right now, and the guest's
 # order - that one only with the X-Order-Token the order was created with
 # (checked in the Lambda; a wrong token answers 404).
 resource "aws_apigatewayv2_route" "get_order" {
@@ -984,7 +984,8 @@ resource "aws_lambda_permission" "pre_signed_url_invoke" {
 # Staff/owner order management (own tenant): the day's orders (GET on the
 # collection), one order (GET .../{orderId}), kitchen status moves and
 # cancel + refund (PUT .../{orderId}/status), pausing orders (PUT
-# .../pause) and table QR codes (POST .../table-codes). All JWT-protected -
+# .../pause); old table QR code calls (.../table-codes) answer 410 in the
+# Lambda, QR ordering at the table is off. All JWT-protected -
 # guests never call this; their reads go through get-order and their
 # orders are created by payment-intent. Reads live here (not in a public
 # lambda) because a location's order list is operational data.

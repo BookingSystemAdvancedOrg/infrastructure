@@ -47,7 +47,7 @@ variable "location_id_index_name" {
 }
 
 variable "reservation_link_key_secret_arn" {
-  description = "ARN of the guest-link HMAC key secret (security/secrets/reservations) - signs order status links and table QR codes"
+  description = "ARN of the guest-link HMAC key secret (security/secrets/reservations) - signs order status links"
   type        = string
   sensitive   = false
 }
@@ -66,24 +66,6 @@ variable "stripe_secret_arn" {
 
 variable "user_table_name" {
   description = "Name of the user table (staff are kept to their own location)"
-  type        = string
-  sensitive   = false
-}
-
-variable "customer_site_url" {
-  description = "Base URL of the guest site in dev (QR code URLs with ?restaurang=); unused once a tenant has its own domain"
-  type        = string
-  sensitive   = false
-}
-
-variable "site_domain" {
-  description = "Zone of the restaurants' slug addresses (<slug>.<site_domain>), the guest link base without an own domain; \"\" = off"
-  type        = string
-  default     = ""
-}
-
-variable "published_layout_snapshot_table_name" {
-  description = "Name of the Published Layout Snapshot table (the tables behind the QR codes)"
   type        = string
   sensitive   = false
 }
