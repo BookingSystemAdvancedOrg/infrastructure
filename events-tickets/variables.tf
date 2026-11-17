@@ -37,14 +37,6 @@ variable "stripe_api_version" {
   type = string
 }
 
-variable "turnstile_required" {
-  type = bool
-}
-
-variable "turnstile_secret_arn" {
-  type = string
-}
-
 variable "request_guard_table_name" {
   type = string
 }
@@ -84,4 +76,16 @@ variable "site_domain" {
 variable "customer_site_url" {
   description = "Dev shared site URL (?restaurang=<slug>), \"\" in prod"
   type        = string
+}
+
+variable "bot_check_enforced" {
+  description = "Require guest form posts to come through a restaurant site's /api/* (x-booqy-waf); see root var.bot_check_enforced"
+  type        = bool
+  sensitive   = false
+}
+
+variable "site_waf_secret" {
+  description = "Shared secret the sites' CloudFront sends as x-booqy-waf (root random_password.site_waf_edge)"
+  type        = string
+  sensitive   = true
 }

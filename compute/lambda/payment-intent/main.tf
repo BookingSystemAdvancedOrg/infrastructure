@@ -52,8 +52,8 @@ resource "aws_lambda_function" "this" {
       CUSTOMER_SITE_URL                    = var.customer_site_url
       SITE_DOMAIN                          = var.site_domain
       RESERVATION_LINK_KEY_SECRET_ARN      = var.reservation_link_key_secret_arn # status token in the answer
-      TURNSTILE_REQUIRED                   = var.turnstile_required ? "true" : "false"
-      TURNSTILE_SECRET_ARN                 = var.turnstile_secret_arn
+      BOT_CHECK_ENFORCED                   = var.bot_check_enforced ? "true" : "false"
+      SITE_WAF_SECRET                      = var.site_waf_secret
       REQUEST_GUARD_TABLE_NAME             = var.request_guard_table_name
       MARKETING_TABLE_NAME                 = var.marketing_table_name # welcome-offer discount codes
       # + consent log (root privacy-consent.tf)

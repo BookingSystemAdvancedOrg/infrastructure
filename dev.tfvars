@@ -48,10 +48,12 @@ tenant_subdomains_enabled = true
 # Public keys handed to restaurant websites by GET /site-config - not
 # secrets (see docs/PLATFORM-SETUP.md).
 stripe_publishable_key = "pk_test_51U4OsHHhsMraauJUMyW7ID1lQq1jsS3Pdtzqu04WDgEnJW8VQIvGktIUNMPo8cZNgIRYPafALaLKQxLfckdiXOKX00LbiD1Obc"
-# Cloudflare's TEST site key (always passes; its secret counterpart is
-# written by security/secrets/catering outside prod). Online bookings in dev
-# therefore run the real bot check with a "testing only" widget.
-turnstile_site_key = "1x00000000000000000000AA"
+
+# Bot check on the restaurant sites' form posts (AWS WAF, network/waf-sites).
+# The WAF runs on every site's /api/* already; this makes the API refuse
+# guest form posts that did not come through it. On once every live site
+# runs a site-kit with the WAF client (sites rebuilt).
+bot_check_enforced = false
 
 # The account's monthly SMS spend limit (USD), alarmed at 80% - check the
 # current value first: aws sns get-sms-attributes --region eu-north-1

@@ -3,9 +3,9 @@
 #
 # On submit it re-prices every line from the menu table and discount tiers
 # (never trusting the browser's total), checks the rules in cateringSettings
-# on the location item, verifies the Cloudflare Turnstile token, builds the
-# customer's magic link with the link-signing key, writes the head item and
-# appends the first audit entry to catering-request-history.
+# on the location item, builds the customer's magic link with the
+# link-signing key, writes the head item and appends the first audit entry
+# to catering-request-history.
 #
 # catering-requests is limited to the item actions the handler actually
 # uses - no Scan, no DeleteItem, no table-level actions - instead of the
@@ -136,13 +136,10 @@ resource "aws_iam_role_policy" "secrets" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "ReadTurnstileAndLinkSigningKey"
-        Effect = "Allow"
-        Action = "secretsmanager:GetSecretValue"
-        Resource = [
-          "${var.turnstile_secret_arn}",
-          "${var.link_signing_key_secret_arn}",
-        ]
+        Sid      = "ReadLinkSigningKey"
+        Effect   = "Allow"
+        Action   = "secretsmanager:GetSecretValue"
+        Resource = var.link_signing_key_secret_arn
       }
     ]
   })

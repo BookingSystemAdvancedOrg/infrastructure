@@ -30,11 +30,11 @@ locals {
       Resource = [local.table_arn, "${local.table_arn}/index/byOccurrence", "${local.table_arn}/index/byLocationDay"]
     },
     {
-      # Code/scan-key/link pepper (own), platform Stripe key and Turnstile secret (read).
+      # Code/scan-key/link pepper (own) and platform Stripe key (read).
       Sid      = "Secrets"
       Effect   = "Allow"
       Action   = ["secretsmanager:GetSecretValue"]
-      Resource = [aws_secretsmanager_secret.pepper.arn, var.stripe_secret_arn, var.turnstile_secret_arn]
+      Resource = [aws_secretsmanager_secret.pepper.arn, var.stripe_secret_arn]
     },
     {
       Sid      = "CountCheckoutAttempts"
@@ -254,8 +254,8 @@ resource "aws_lambda_function" "fn" {
       EVENTS_TICKETS_PEPPER_SECRET_ARN = aws_secretsmanager_secret.pepper.arn
       STRIPE_SECRET_ARN                = var.stripe_secret_arn
       STRIPE_API_VERSION               = var.stripe_api_version
-      TURNSTILE_REQUIRED               = var.turnstile_required ? "true" : "false"
-      TURNSTILE_SECRET_ARN             = var.turnstile_secret_arn
+      BOT_CHECK_ENFORCED               = var.bot_check_enforced ? "true" : "false"
+      SITE_WAF_SECRET                  = var.site_waf_secret
       REQUEST_GUARD_TABLE_NAME         = var.request_guard_table_name
       NOTIFICATION_FUNCTION_NAME       = var.notification_function_arn
       EVENT_BUS_NAME                   = var.event_bus_name

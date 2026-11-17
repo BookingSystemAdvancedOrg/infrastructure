@@ -178,6 +178,35 @@ resource "aws_cloudfront_multitenant_distribution" "tenant_sites" {
     origin_access_control_id = aws_cloudfront_origin_access_control.tenant_sites_menu_image[0].id
   }
 
+  # The API, for the sites' form posts under /api/* (behaviour below): same
+  # domain as the page, so the web ACL's bot check token (a cookie on the
+  # site's domain) goes with every post. x-booqy-edge lets the API trust the
+  # viewer IP; x-booqy-waf tells it the web ACL ran (network/waf-sites).
+  dynamic "origin" {
+    for_each = var.api_origin_domain == "" ? [] : [1]
+    content {
+      id          = "api"
+      domain_name = var.api_origin_domain
+
+      custom_origin_config {
+        http_port              = 80
+        https_port             = 443
+        origin_protocol_policy = "https-only"
+        origin_ssl_protocols   = ["TLSv1.2"]
+      }
+
+      custom_header {
+        header_name  = "x-booqy-edge"
+        header_value = var.edge_secret
+      }
+
+      custom_header {
+        header_name  = "x-booqy-waf"
+        header_value = var.waf_edge_secret
+      }
+    }
+  }
+
   # One site per restaurant (repo site-<slug>, deployed by its own role to
   # sites/<tenantId>/ in the sites bucket). The tenant parameter in the
   # origin path routes each distribution tenant to its own folder, so no
@@ -215,6 +244,30 @@ resource "aws_cloudfront_multitenant_distribution" "tenant_sites" {
     }
   }
 
+  # Form posts from the site (shared/bot_check.py in the API): never cached,
+  # every viewer header but Host (API Gateway needs its own), /api stripped.
+  dynamic "cache_behavior" {
+    for_each = var.api_origin_domain == "" ? [] : [1]
+    content {
+      path_pattern             = "/api/*"
+      target_origin_id         = "api"
+      viewer_protocol_policy   = "https-only"
+      cache_policy_id          = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # AWS managed "CachingDisabled"
+      origin_request_policy_id = "b689b0a8-53d0-40ab-baf2-68738e2966ac" # AWS managed "AllViewerExceptHostHeader"
+      compress                 = false
+
+      allowed_methods {
+        items          = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
+        cached_methods = ["GET", "HEAD"]
+      }
+
+      function_association {
+        event_type   = "viewer-request"
+        function_arn = aws_cloudfront_function.site_api_proxy[0].arn
+      }
+    }
+  }
+
   # Same path the other two distributions serve menu images at, so a site
   # built against the public distribution works unchanged on a tenant domain.
   cache_behavior {
@@ -230,19 +283,11 @@ resource "aws_cloudfront_multitenant_distribution" "tenant_sites" {
     }
   }
 
-  # Tenant sites are SPAs with client-side routing (same reasoning as the
-  # admin distribution): unknown paths load index.html and the app routes.
-  custom_error_response {
-    error_code         = 403
-    response_code      = "200"
-    response_page_path = "/index.html"
-  }
-
-  custom_error_response {
-    error_code         = 404
-    response_code      = "200"
-    response_page_path = "/index.html"
-  }
+  # Tenant sites are SPAs with client-side routing: the site-redirect
+  # function sends paths without a file extension to /index.html. Not with
+  # custom_error_response, which applies to the whole distribution and would
+  # turn the API's own 403/404 answers under /api/* into the site's HTML
+  # (same reasoning as the admin distribution).
 
   restrictions {
     geo_restriction {

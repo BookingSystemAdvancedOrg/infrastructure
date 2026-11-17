@@ -60,8 +60,7 @@ locals {
         MARKETING_CONFIGURATION_SET   = aws_sesv2_configuration_set.marketing.configuration_set_name
         CUSTOMER_SITE_URL             = var.customer_site_url
         SITE_DOMAIN                   = var.site_domain
-        TURNSTILE_REQUIRED            = var.turnstile_required ? "true" : "false"
-        TURNSTILE_SECRET_ARN          = var.turnstile_secret_arn
+        BOT_CHECK_ENFORCED            = var.bot_check_enforced ? "true" : "false"
         REQUEST_GUARD_TABLE_NAME      = var.request_guard_table_name
         MAIL_OUTBOX_BUCKET_NAME       = var.mail_outbox_bucket_name
       })
@@ -94,6 +93,18 @@ locals {
         RESERVATION_TABLE_NAME = var.reservation_table_name
         ORDER_TABLE_NAME       = var.order_table_name
       })
+    }
+  }
+
+  # Secrets in the functions' environment, kept out of local.functions: a
+  # sensitive value there would make the for_each map sensitive.
+  #   CLOUDFRONT_EDGE_SECRET  trust the viewer IP from CloudFront for the
+  #                           per-IP sign-up limits (shared/http.py source_ip)
+  #   SITE_WAF_SECRET         x-booqy-waf from the sites' /api/* (bot check)
+  secret_env = {
+    marketing-public = {
+      CLOUDFRONT_EDGE_SECRET = var.cloudfront_edge_secret
+      SITE_WAF_SECRET        = var.site_waf_secret
     }
   }
 
@@ -133,10 +144,10 @@ locals {
         Resource = local.table_arn
       },
       {
-        Sid      = "LinkKeyAndBotCheck"
+        Sid      = "LinkKey"
         Effect   = "Allow"
         Action   = ["secretsmanager:GetSecretValue"]
-        Resource = [aws_secretsmanager_secret.link_key.arn, var.turnstile_secret_arn]
+        Resource = aws_secretsmanager_secret.link_key.arn
       },
       {
         Sid      = "CountSignupAttempts"
@@ -349,7 +360,7 @@ resource "aws_lambda_function" "fn" {
   }
 
   environment {
-    variables = each.value.env
+    variables = merge(each.value.env, lookup(local.secret_env, each.key, {}))
   }
 
   depends_on = [aws_cloudwatch_log_group.fn, aws_iam_role_policy.logs]

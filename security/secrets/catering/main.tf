@@ -5,16 +5,15 @@
 # on it (see the security/iam/catering-* modules).
 #
 # All of these are PLATFORM-level (one per environment, shared by every
-# tenant): the platform holds one BankID signing-provider contract and one
-# Turnstile widget, and a magic link carries its locationId, which already
-# pins the tenant. The Stripe key moved to security/secrets/platform - with
+# tenant): the platform holds one BankID signing-provider contract, and a
+# magic link carries its locationId, which already pins the tenant. The Stripe key moved to security/secrets/platform - with
 # Stripe Connect it's the platform account's key, not a catering one.
 #
 # Two ways values get in:
 #
 #   1. Generated here     - link-signing-key. Terraform creates a random
 #                           value once; ignore_changes keeps it stable.
-#   2. Set by hand only   - signing-provider, turnstile. Terraform creates
+#   2. Set by hand only   - signing-provider. Terraform creates
 #                           the empty secret; the value comes from the
 #                           provider's dashboard (docs/PLATFORM-SETUP.md).
 #                           Until it's set, the Lambdas that read it fail
@@ -69,33 +68,5 @@ resource "aws_secretsmanager_secret" "signing_provider" {
 
   tags = {
     Environment = var.environment
-  }
-}
-
-# Cloudflare Turnstile secret key, verified server-side by catering-requests
-# on every public submit. Expected JSON: { "secretKey": "..." }
-resource "aws_secretsmanager_secret" "turnstile" {
-  name                    = "${local.prefix}catering/turnstile"
-  description             = "Cloudflare Turnstile secret key (JSON) - set by hand"
-  recovery_window_in_days = local.recovery_window_in_days
-
-  tags = {
-    Environment = var.environment
-  }
-}
-
-# Outside prod: Cloudflare's documented TEST secret key (always passes, and
-# only accepts the dummy token of the test site key 1x00000000000000000000AA
-# set in dev.tfvars), so the bot check on bookings runs end to end without
-# a real widget. Not a secret. Written once; a real key set by hand later is
-# left alone (ignore_changes). Prod's key is always set by hand.
-resource "aws_secretsmanager_secret_version" "turnstile_test_key" {
-  count = var.environment == "prod" ? 0 : 1
-
-  secret_id     = aws_secretsmanager_secret.turnstile.id
-  secret_string = jsonencode({ secretKey = "1x0000000000000000000000000000000AA" })
-
-  lifecycle {
-    ignore_changes = [secret_string]
   }
 }

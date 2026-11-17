@@ -137,9 +137,9 @@ we take over its DNS - the bare domain works too):
 
 For every domain:
 
-- [ ] Add it (and `www.`) to the platform's Turnstile widget hostnames in
-      Cloudflare (table booking and catering request forms). Without it
-      guests on that domain can't book online.
+- Nothing to do for the bot check: the sites' AWS WAF (network/waf-sites)
+  covers every domain on the multi-tenant distribution, own domains
+  included.
 
 **Move a connected domain's registration into Route 53** (optional, once
 it's `live` - one bill, renewals handled by us; .se/.com/.eu/.net only):

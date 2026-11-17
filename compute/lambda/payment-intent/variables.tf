@@ -76,19 +76,6 @@ variable "customer_site_url" {
   sensitive   = false
 }
 
-variable "turnstile_required" {
-  description = "Whether online orders must carry a Cloudflare Turnstile token - true once the platform's widget is configured"
-  type        = bool
-  sensitive   = false
-  default     = false
-}
-
-variable "turnstile_secret_arn" {
-  description = "ARN of the platform's Turnstile secret"
-  type        = string
-  sensitive   = false
-}
-
 variable "request_guard_table_name" {
   description = "Name of the attempt-counter table"
   type        = string
@@ -117,4 +104,16 @@ variable "published_layout_snapshot_table_name" {
   description = "Name of the Published Layout Snapshot table (the tables behind the QR codes)"
   type        = string
   sensitive   = false
+}
+
+variable "bot_check_enforced" {
+  description = "Require guest form posts to come through a restaurant site's /api/* (x-booqy-waf); see root var.bot_check_enforced"
+  type        = bool
+  sensitive   = false
+}
+
+variable "site_waf_secret" {
+  description = "Shared secret the sites' CloudFront sends as x-booqy-waf (root random_password.site_waf_edge)"
+  type        = string
+  sensitive   = true
 }

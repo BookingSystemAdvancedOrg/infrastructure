@@ -71,10 +71,6 @@ variable "stripe_publishable_key" {
   type        = string
 }
 
-variable "turnstile_site_key" {
-  description = "Turnstile site key (public) written to booqy.json"
-  type        = string
-}
 
 variable "alert_topic_arn" {
   description = "Operator alerts"

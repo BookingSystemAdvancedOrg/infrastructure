@@ -46,6 +46,10 @@ module "test_sites" {
   dev_domain                             = var.test_sites_dev_domain
   enabled                                = var.test_sites_enabled
   menu_image_bucket_regional_domain_name = module.menu_image.bucket_regional_domain_name
+  web_acl_arn                            = local.sites_web_acl_arn
+  api_origin_domain                      = local.api_origin_domain
+  edge_secret                            = random_password.cloudfront_edge.result
+  waf_edge_secret                        = random_password.site_waf_edge.result
 }
 
 variable "test_sites_zones" {

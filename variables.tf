@@ -402,11 +402,11 @@ variable "alert_emails" {
   description = "Email addresses that receive alerts about failed background work (dead-letter queues) (SNS) - each gets a confirmation email after the first apply"
   sensitive   = false
 }
-variable "turnstile_site_key" {
-  type        = string
-  description = "Public Cloudflare Turnstile site key of the platform's widget - handed to tenant websites by GET /site-config (the secret key stays in Secrets Manager)"
+variable "bot_check_enforced" {
+  description = "Guest form posts (booking, order, catering request, gift card, waiting list, ticket, newsletter) must come through a restaurant site's /api/* (AWS WAF bot check, network/waf-sites). Turn on per environment once every live site runs a site-kit with the WAF client; until then the WAF still checks the sites that use /api/*."
+  type        = bool
   sensitive   = false
-  default     = ""
+  default     = false
 }
 variable "stripe_publishable_key" {
   type        = string

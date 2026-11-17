@@ -28,3 +28,31 @@ variable "menu_image_bucket_regional_domain_name" {
   description = "Menu image bucket (origin of /menu-images/*); its policy admits this distribution (root config.tf)"
   type        = string
 }
+
+variable "web_acl_arn" {
+  description = "AWS WAF (v2, CLOUDFRONT scope) web ACL for the sandbox (network/waf-sites); empty for none"
+  type        = string
+  sensitive   = false
+  default     = ""
+}
+
+variable "api_origin_domain" {
+  description = "Host name of the HTTP API (execute-api) that /api/* forwards to; empty for no /api/*"
+  type        = string
+  sensitive   = false
+  default     = ""
+}
+
+variable "edge_secret" {
+  description = "Shared secret sent to the API as x-booqy-edge (lets it trust the viewer IP header)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "waf_edge_secret" {
+  description = "Shared secret sent to the API as x-booqy-waf: the request passed the sites' web ACL (bot check)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}

@@ -13,8 +13,7 @@ Bokföring. **VAT treatment (multi-purpose voucher) needs accountant review.**
   state; never output); nightly schedule 02:30 Europe/Stockholm
   and its invoke role; Errors alarm.
 - IAM (new role only, **owner to approve**): own table + both GSIs;
-  GetSecretValue on the pepper, the platform Stripe key and the Turnstile
-  secret; UpdateItem on the request-guard table; `lambda:InvokeFunction` on
+  GetSecretValue on the pepper and the platform Stripe key; UpdateItem on the request-guard table; `lambda:InvokeFunction` on
   `notification:live` (code email); `events:PutEvents` with
   `events:source = booqy.gift-cards`; the tenant-context and staff-check
   read policies (wiring). Scheduler role: invoke `gift-cards:live`.

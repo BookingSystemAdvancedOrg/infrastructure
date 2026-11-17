@@ -92,8 +92,8 @@ resource "aws_iam_role_policy" "menu_read" {
   })
 }
 
-# Public order form: the Turnstile secret (bot check) and the attempt
-# counters - item updates only, on that one table.
+# Public order form: the attempt counters - item updates only, on that one
+# table.
 resource "aws_iam_role_policy" "order_protection" {
   name = "online-order-protection"
   role = aws_iam_role.this.id
@@ -101,12 +101,6 @@ resource "aws_iam_role_policy" "order_protection" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
-      {
-        Sid      = "ReadTurnstileSecret"
-        Effect   = "Allow"
-        Action   = "secretsmanager:GetSecretValue"
-        Resource = var.turnstile_secret_arn
-      },
       {
         Sid      = "CountOrderAttempts"
         Effect   = "Allow"

@@ -10,8 +10,8 @@ module "gift_cards" {
   user_table_name           = module.user.table_name
   stripe_secret_arn         = module.platform_secrets.stripe_secret_arn
   stripe_api_version        = var.stripe_api_version
-  turnstile_required        = var.turnstile_site_key != ""
-  turnstile_secret_arn      = module.catering_secrets.turnstile_secret_arn
+  bot_check_enforced        = var.bot_check_enforced
+  site_waf_secret           = random_password.site_waf_edge.result
   request_guard_table_name  = module.request_guard.table_name
   request_guard_table_arn   = module.request_guard.table_arn
   notification_function_arn = module.notification_fn.alias_arn

@@ -408,7 +408,7 @@ variable "throttle_burst_limit" {
 }
 
 variable "booking_throttle_rate_limit" {
-  description = "Steady-state requests per second for EACH public write route (online booking, table holds, food orders, catering requests) - all restaurants and guests together, so it must cover the platform's peak (Friday dinner rush). Abuse is stopped per IP / phone / e-mail and by Turnstile, not here"
+  description = "Steady-state requests per second for EACH public write route (online booking, table holds, food orders, catering requests) - all restaurants and guests together, so it must cover the platform's peak (Friday dinner rush). Abuse is stopped per IP / phone / e-mail and by the sites' AWS WAF bot check, not here"
   type        = number
   sensitive   = false
   default     = 50

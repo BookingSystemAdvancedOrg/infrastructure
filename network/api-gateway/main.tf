@@ -51,7 +51,7 @@ resource "aws_apigatewayv2_stage" "this" {
   # routes (booking, holds, orders, catering requests) a lower one, since
   # each also sends messages or opens a Stripe session. Per-client limits
   # (IP address, phone, e-mail) are in the application
-  # (shared/request_guard.py) and Turnstile.
+  # (shared/request_guard.py) and the sites' AWS WAF bot check.
   default_route_settings {
     throttling_rate_limit  = var.throttle_rate_limit
     throttling_burst_limit = var.throttle_burst_limit
@@ -1862,7 +1862,7 @@ resource "aws_lambda_permission" "marketing_invoke" {
 #   GET  /m/u/{token}      unsubscribe page (HMAC-signed)
 #   POST /m/u/{token}      unsubscribe, incl. RFC 8058 one-click from mail apps
 #   GET  /m/offer          the welcome offer card's settings
-#   POST /m/signup         welcome offer sign-up (Turnstile + per-IP/address limits)
+#   POST /m/signup         welcome offer sign-up (the sites' AWS WAF bot check + per-IP/address limits)
 #   POST /m/code           check a discount code before checkout
 #   GET|POST /m/s/{token}  confirm a welcome-offer sign-up (double opt-in, signed)
 # Email links reach these through the admin app's /api (restaurang.<domain>).

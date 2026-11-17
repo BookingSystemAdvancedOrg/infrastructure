@@ -48,12 +48,12 @@ resource "aws_lambda_function" "this" {
       CATERING_DISCOUNT_TIERS_TABLE_NAME  = var.catering_discount_tiers_table_name
       MENU_TABLE_NAME                     = var.menu_table_name
       CATERING_REQUEST_HISTORY_TABLE_NAME = var.catering_request_history_table_name
-      TURNSTILE_SECRET_ARN                = var.turnstile_secret_arn
       LINK_SIGNING_KEY_SECRET_ARN         = var.link_signing_key_secret_arn
       CUSTOMER_SITE_URL                   = var.customer_site_url
       USER_TABLE_NAME                     = var.user_table_name
       REQUEST_GUARD_TABLE_NAME            = var.request_guard_table_name
-      TURNSTILE_REQUIRED                  = var.turnstile_required ? "true" : "false"
+      BOT_CHECK_ENFORCED                  = var.bot_check_enforced ? "true" : "false"
+      SITE_WAF_SECRET                     = var.site_waf_secret
       MARKETING_TABLE_NAME                = var.marketing_table_name # statistics + "offers" opt-in
       # + consent log (root privacy-consent.tf)
     }, var.privacy_env)

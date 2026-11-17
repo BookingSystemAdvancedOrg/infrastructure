@@ -201,19 +201,14 @@ apps run on `*.cloudfront.net` and restaurants have no website URL yet.
     approval from your bank (SEB) for the platform setup, then
     `{"provider":"bankid","environment":"prod",...}` with the production
     certificate.
-- [ ] **Cloudflare Turnstile** - one widget for the platform, used by the
-      table booking form and the catering request form:
-  - site key → `turnstile_site_key` in tfvars (websites get it from `/site-config`);
-    once it is set, every online booking needs a valid token
-    (`TURNSTILE_REQUIRED` on create-pending-reservation) - until then
-    bookings are not bot-checked, so set it before launch;
-  - secret → `<env->catering/turnstile` as `{"secretKey":"..."}`. Dev uses
-    Cloudflare's test keys (dev.tfvars site key + the test secret written
-    by security/secrets/catering), so nothing to set there;
-  - hostnames: add the platform domain, and each restaurant's custom
-    domain when it is attached (TENANT-ONBOARDING §5). Mind your
-    Cloudflare plan's hostname-per-widget limit; past it, automate the
-    list via the Cloudflare API or use a plan without hostname limits.
+- [ ] **Bot check on the restaurant sites** (AWS WAF): the web ACL is
+      created by Terraform (network/waf-sites) on the sites' CloudFront,
+      nothing to set by hand, no per-domain list. The sites send their
+      form posts to `/api/*` on their own domain, where the WAF runs, and
+      the API gets them with the `x-booqy-waf` header. Once every live
+      site runs the new site-kit (sites rebuilt), set
+      `bot_check_enforced = true` in that environment's tfvars: the API
+      then refuses guest form posts that did not come through the WAF.
 
 ## 6. Repos and pipelines
 

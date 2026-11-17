@@ -355,7 +355,6 @@ module "payment_intent_role" {
   menu_table_arn                      = module.menu.table_arn
   region                              = var.aws_region
   stripe_secret_arn                   = module.platform_secrets.stripe_secret_arn
-  turnstile_secret_arn                = module.catering_secrets.turnstile_secret_arn
   request_guard_table_arn             = module.request_guard.table_arn
 }
 module "mark_arrived_role" {
@@ -438,7 +437,6 @@ module "create_pending_reservation_role" {
   payment_delinquency_table_arn       = module.payment_delinquency.table_arn
   region                              = var.aws_region
   stripe_secret_arn                   = module.platform_secrets.stripe_secret_arn
-  turnstile_secret_arn                = module.catering_secrets.turnstile_secret_arn
   request_guard_table_arn             = module.request_guard.table_arn
 }
 module "no_show_check_role" {
@@ -538,7 +536,6 @@ module "catering_requests_role" {
   catering_discount_tiers_table_arn  = module.catering_discount_tiers.table_arn
   menu_table_arn                     = module.menu.table_arn
   catering_menu_table_arn            = module.catering_menu.table_arn
-  turnstile_secret_arn               = module.catering_secrets.turnstile_secret_arn
   link_signing_key_secret_arn        = module.catering_secrets.link_signing_key_secret_arn
   request_guard_table_arn            = module.request_guard.table_arn
   region                             = var.aws_region
@@ -1309,9 +1306,9 @@ module "create_pending_reservation_fn" {
   location_id_index_name               = module.location.location_id_index_name
   reservation_link_key_secret_arn      = module.reservation_secrets.link_signing_key_secret_arn
   stripe_api_version                   = var.stripe_api_version
-  # Bot check on online bookings only once the sites show the widget.
-  turnstile_required       = var.turnstile_site_key != ""
-  turnstile_secret_arn     = module.catering_secrets.turnstile_secret_arn
+  # Bot check: guest bookings must come through a site's /api/* (AWS WAF).
+  bot_check_enforced       = var.bot_check_enforced
+  site_waf_secret          = random_password.site_waf_edge.result
   request_guard_table_name = module.request_guard.table_name
   cloudfront_edge_secret   = random_password.cloudfront_edge.result
 }
@@ -1398,9 +1395,9 @@ module "payment_intent_fn" {
   customer_site_url                    = local.customer_site_url
   site_domain                          = local.site_domain
   reservation_link_key_secret_arn      = module.reservation_secrets.link_signing_key_secret_arn
-  # Bot check on the order form only once the sites show the widget.
-  turnstile_required       = var.turnstile_site_key != ""
-  turnstile_secret_arn     = module.catering_secrets.turnstile_secret_arn
+  # Bot check: guest orders must come through a site's /api/* (AWS WAF).
+  bot_check_enforced       = var.bot_check_enforced
+  site_waf_secret          = random_password.site_waf_edge.result
   request_guard_table_name = module.request_guard.table_name
   cloudfront_edge_secret   = random_password.cloudfront_edge.result
   marketing_table_name     = module.marketing.table_name
@@ -1634,15 +1631,15 @@ module "catering_requests_fn" {
   region                             = var.aws_region
 
   catering_request_history_table_name = module.catering_request_history.table_name
-  turnstile_secret_arn                = module.catering_secrets.turnstile_secret_arn
   link_signing_key_secret_arn         = module.catering_secrets.link_signing_key_secret_arn
   customer_site_url                   = local.customer_site_url
   tenant_table_name                   = module.tenant.table_name
   location_id_index_name              = module.location.location_id_index_name
   user_table_name                     = module.user.table_name
   request_guard_table_name            = module.request_guard.table_name
-  # Bot check on the catering form only once the sites show the widget.
-  turnstile_required     = var.turnstile_site_key != ""
+  # Bot check: catering requests must come through a site's /api/* (AWS WAF).
+  bot_check_enforced     = var.bot_check_enforced
+  site_waf_secret        = random_password.site_waf_edge.result
   cloudfront_edge_secret = random_password.cloudfront_edge.result
   marketing_table_name   = module.marketing.table_name
 }
@@ -1949,7 +1946,7 @@ module "tenant_site_config_fn" {
   ecr_repository_url     = module.tenant_site_config_ecr.tenant_site_config_ecr_repository_url
   tenant_table_name      = module.tenant.table_name
   location_table_name    = module.location.table_name
-  turnstile_site_key     = var.turnstile_site_key
+  waf_integration_url    = local.sites_waf_integration_url
   stripe_publishable_key = var.stripe_publishable_key
   region                 = var.aws_region
   location_id_index_name = module.location.location_id_index_name
@@ -2230,8 +2227,9 @@ module "marketing" {
   finance_table_arn       = module.finance.table_arn
   # Welcome offer sign-up: the same bot check and attempt counters as the
   # booking and order forms.
-  turnstile_required       = var.turnstile_site_key != ""
-  turnstile_secret_arn     = module.catering_secrets.turnstile_secret_arn
+  bot_check_enforced       = var.bot_check_enforced
+  site_waf_secret          = random_password.site_waf_edge.result
+  cloudfront_edge_secret   = random_password.cloudfront_edge.result
   request_guard_table_name = module.request_guard.table_name
   request_guard_table_arn  = module.request_guard.table_arn
   # Discount codes at checkout and the catering form's opt-in write to the
@@ -2256,11 +2254,19 @@ module "stripe_webhooks" {
 # Values several modules share - computed once so links, sender addresses
 # and app URLs all agree.
 locals {
+  # Base URL of the sites' web ACL JavaScript integration (network/waf-sites),
+  # handed to the sites by GET /site-config ("" when no site distribution).
+  sites_waf_integration_url = one(module.waf_sites[*].application_integration_url) == null ? "" : one(module.waf_sites[*].application_integration_url)
+  sites_web_acl_arn         = one(module.waf_sites[*].web_acl_arn) == null ? "" : one(module.waf_sites[*].web_acl_arn)
   # Fallback base URL for customer links while a tenant has no domain yet
   # (dev / before platform_domain is set). Handlers prefer the tenant's
   # primaryDomain - see docs/handoff/BACKEND.md.
   customer_site_url            = "https://${module.cloudfront_public.distribution_domain_name}"
   catering_signing_webhook_url = "${module.api_gateway.api_endpoint}/webhooks/signing/catering"
+
+  # Host of the HTTP API ($default stage, no path), the origin of the sites'
+  # /api/* (network/platform-domain, test-sites).
+  api_origin_domain = "${module.api_gateway.api_id}.execute-api.${var.aws_region}.amazonaws.com"
 
   # Everything that needs a domain the platform owns switches on with
   # var.platform_domain (network/platform-domain).
@@ -2409,6 +2415,22 @@ locals {
 }
 
 # --- Platform domain (off until var.platform_domain is set) --------------------
+# Bot check, rate limit and IP reputation for the restaurant websites (AWS WAF
+# instead of Cloudflare Turnstile, owner 2026-11-17): one web ACL on the
+# multi-tenant site distribution and, in dev, the test-sites sandbox. Their
+# /api/* sends guest form posts to the API with x-booqy-waf; the API refuses
+# posts without it once var.bot_check_enforced is on. CLOUDFRONT scope, so
+# us-east-1.
+module "waf_sites" {
+  count  = local.tenant_sites_enabled || local.test_sites_zones ? 1 : 0
+  source = "./network/waf-sites"
+  providers = {
+    aws = aws.us_east_1
+  }
+
+  environment = var.env
+}
+
 module "platform_domain" {
   count  = local.platform_domain_enabled ? 1 : 0
   source = "./network/platform-domain"
@@ -2437,6 +2459,10 @@ module "platform_domain" {
   sites_bucket_regional_domain_name       = module.sites.bucket_regional_domain_name
   per_tenant_sites                        = var.per_tenant_sites
   dmarc_report_address                    = var.dmarc_report_address
+  web_acl_arn                             = local.sites_web_acl_arn
+  api_origin_domain                       = local.api_origin_domain
+  edge_secret                             = random_password.cloudfront_edge.result
+  waf_edge_secret                         = random_password.site_waf_edge.result
 }
 
 # Adopt an existing hosted zone for the platform domain (var.platform_domain_zone_id)
@@ -2508,6 +2534,14 @@ module "cloudfront_public" {
 # host headers only when it matches. Not an IAM credential; rotating it is
 # a terraform apply (taint this resource).
 resource "random_password" "cloudfront_edge" {
+  length  = 48
+  special = false
+}
+# Shared secret the restaurant sites' CloudFront sends as x-booqy-waf on
+# /api/*: the request passed the sites' web ACL (network/waf-sites). The
+# API's bot check (application shared/bot_check.py) requires it on guest form
+# posts when var.bot_check_enforced is on.
+resource "random_password" "site_waf_edge" {
   length  = 48
   special = false
 }

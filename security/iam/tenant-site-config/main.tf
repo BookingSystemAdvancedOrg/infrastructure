@@ -1,7 +1,7 @@
 # Execution role for the TenantSiteConfigFn Lambda - public GET /site-config,
 # which a tenant website calls on load with its own hostname to learn which
-# tenant it is (tenantId, locations, branding, enabled features, Turnstile
-# site key). Read-only: tenant rows come from the shared tenant-context
+# tenant it is (tenantId, locations, branding, enabled features, the WAF
+# bot check's integration URL). Read-only: tenant rows come from the shared tenant-context
 # policy, locations from the location table below.
 
 data "aws_caller_identity" "current" {}

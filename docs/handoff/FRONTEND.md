@@ -251,7 +251,7 @@ if (res.status === 404) return renderUnavailable();   // unknown or suspended
 const cfg = await res.json();
 // cfg.tenant { tenantId, name, slug, branding, features }
 // cfg.locations [{ locationId, name, address, phone, openingHours }]
-// cfg.stripe { publishableKey, accountId }   cfg.turnstile { siteKey }
+// cfg.stripe { publishableKey, accountId }   cfg.botCheck { integrationUrl }
 ```
 
 - `slug=` works outside production only.
@@ -276,17 +276,22 @@ use a different account than `cfg.stripe.accountId`). Without it confirm
 fails with "No such payment_intent/setup_intent". Catering's Stripe-hosted
 pages are unchanged.
 
-### 3.4 Turnstile
+### 3.4 Bot check (AWS WAF)
 
-Site key from `cfg.turnstile.siteKey`. Turnstile only runs on hostnames
-registered on the widget in Cloudflare - the platform domain and every
-custom domain must be on that list (operator step, see
-`docs/TENANT-ONBOARDING.md`). Use Cloudflare's test site keys locally.
+The sites' CloudFront runs an AWS WAF web ACL (network/waf-sites) on
+`/api/*` and proxies that path to the API. Guest form posts (booking,
+order, catering request, gift card, waiting list, ticket, newsletter) go
+to `/api/...` on the site's own domain, never straight to the API.
 
-Table bookings: when `cfg.turnstile.siteKey` is set, render the widget
-with `action: "booking"` and send its token as `turnstileToken` in
-`POST /locations/{id}/reservations`. A token works once (and for 5
-minutes): reset the widget after every attempt that fails.
+When `cfg.botCheck.integrationUrl` is set, load
+`<integrationUrl>challenge.js`. It proves a real browser and keeps a
+short-lived `aws-waf-token` cookie on the site's domain. A post without a
+valid token gets a silent challenge (HTTP 202, `x-amzn-waf-action:
+challenge`): get a token and send the post again. No per-domain setup.
+
+The API refuses guest form posts that did not come through `/api/*`
+(no `x-booqy-waf` header) once `bot_check_enforced` is on for that
+environment.
 
 ### 3.4.1 Table bookings: party size, options, special days
 

@@ -118,16 +118,7 @@ variable "send_rate" {
   default     = 10
 }
 
-variable "turnstile_required" {
-  description = "The sites show the Turnstile widget: sign-ups need a token"
-  type        = bool
-  default     = false
-}
 
-variable "turnstile_secret_arn" {
-  description = "Turnstile secret (bot check on the welcome-offer sign-up)"
-  type        = string
-}
 
 variable "request_guard_table_name" {
   description = "Attempt-counter table (per-IP / per-address sign-up limits)"
@@ -163,4 +154,22 @@ variable "site_domain" {
   description = "Zone of the restaurants' slug addresses (<slug>.<site_domain>), the guest link base without an own domain; \"\" = off"
   type        = string
   default     = ""
+}
+
+variable "bot_check_enforced" {
+  description = "Require guest form posts to come through a restaurant site's /api/* (x-booqy-waf); see root var.bot_check_enforced"
+  type        = bool
+  sensitive   = false
+}
+
+variable "site_waf_secret" {
+  description = "Shared secret the sites' CloudFront sends as x-booqy-waf (root random_password.site_waf_edge)"
+  type        = string
+  sensitive   = true
+}
+
+variable "cloudfront_edge_secret" {
+  description = "Admin CloudFront shared secret (trusted viewer IP for the per-IP sign-up limits)"
+  type        = string
+  sensitive   = true
 }
