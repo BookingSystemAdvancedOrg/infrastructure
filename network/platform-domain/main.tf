@@ -140,8 +140,44 @@ resource "aws_cloudfront_origin_access_control" "tenant_sites_menu_image" {
   signing_protocol                  = "sigv4"
 }
 
+# The distribution used to send 403/404 to /index.html with 200
+# (custom_error_response). The provider can neither remove error responses
+# nor write ones without a page (hashicorp/terraform-provider-aws#48288), so
+# this removes them once with the AWS CLI, before the distribution is updated;
+# after that the provider reads none and leaves it that way. A distribution
+# that does not exist yet (or has none) is left alone.
+resource "terraform_data" "drop_site_error_responses" {
+  count = local.tenant_sites_count
+
+  triggers_replace = ["2026-11-17"]
+
+  provisioner "local-exec" {
+    interpreter = ["bash", "-c"]
+    environment = {
+      COMMENT = "${local.prefix}tenant websites (one distribution tenant per site/domain)"
+    }
+    command = <<-EOT
+      set -euo pipefail
+      id=$(aws cloudfront list-distributions --output text \
+        --query "DistributionList.Items[?Comment=='$COMMENT'].Id | [0]")
+      if [ -z "$id" ] || [ "$id" = "None" ]; then echo "no distribution yet"; exit 0; fi
+      tmp=$(mktemp -d)
+      trap 'rm -rf "$tmp"' EXIT
+      aws cloudfront get-distribution-config --id "$id" --output json > "$tmp/cfg.json"
+      if [ "$(jq '.DistributionConfig.CustomErrorResponses.Quantity' "$tmp/cfg.json")" = "0" ]; then
+        echo "no custom error responses"; exit 0
+      fi
+      jq '.DistributionConfig | .CustomErrorResponses = {"Quantity": 0}' "$tmp/cfg.json" > "$tmp/new.json"
+      aws cloudfront update-distribution --id "$id" --if-match "$(jq -r .ETag "$tmp/cfg.json")" \
+        --distribution-config "file://$tmp/new.json" --query Distribution.Status --output text
+    EOT
+  }
+}
+
 resource "aws_cloudfront_multitenant_distribution" "tenant_sites" {
   count = local.tenant_sites_count
+
+  depends_on = [terraform_data.drop_site_error_responses]
 
   enabled             = true
   comment             = "${local.prefix}tenant websites (one distribution tenant per site/domain)"
@@ -281,20 +317,10 @@ resource "aws_cloudfront_multitenant_distribution" "tenant_sites" {
   }
 
   # Tenant sites are SPAs with client-side routing: the site-redirect
-  # function sends paths without a file extension to /index.html. The error
-  # responses below have no page, so CloudFront passes the origin's own 403
-  # and 404 through (the API's JSON under /api/*), only not cached. They have
-  # to be written out: the provider never removes error responses a
-  # distribution already has (they used to load /index.html with 200).
-  custom_error_response {
-    error_code            = 403
-    error_caching_min_ttl = 0
-  }
-
-  custom_error_response {
-    error_code            = 404
-    error_caching_min_ttl = 0
-  }
+  # function sends paths without a file extension to /index.html. No
+  # custom_error_response: it applies to the whole distribution and would
+  # turn the API's own 403/404 answers under /api/* into the site's HTML.
+  # (The old ones are removed by terraform_data.drop_site_error_responses.)
 
   restrictions {
     geo_restriction {
