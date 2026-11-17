@@ -1571,6 +1571,14 @@ locals {
     "POST /platform/tenants/{tenantId}/locations",
     "PATCH /platform/tenants/{tenantId}/locations/{locationId}",
     "DELETE /platform/tenants/{tenantId}/locations/{locationId}",
+    # Printer status per location (customer list badge, Locations tab) and
+    # the operator's add, rename, test print and remove (Print table)
+    "GET /platform/printers",
+    "GET /platform/tenants/{tenantId}/printers",
+    "POST /platform/tenants/{tenantId}/locations/{locationId}/printers",
+    "PATCH /platform/tenants/{tenantId}/locations/{locationId}/printers/{deviceId}",
+    "DELETE /platform/tenants/{tenantId}/locations/{locationId}/printers/{deviceId}",
+    "POST /platform/tenants/{tenantId}/locations/{locationId}/printers/{deviceId}/test",
     "POST /platform/tenants/{tenantId}/domains",
     "DELETE /platform/tenants/{tenantId}/domains/{domain}",
     # Domains we run DNS for: search + buy (registreringsbevis for .se), or
