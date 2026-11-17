@@ -145,7 +145,7 @@ variable "plans" {
     price_sek     = number
     limits        = optional(map(number), {})
   }))
-  description = "Plan catalog (packages you sell). A tenant's limits are copied from its plan when the plan is assigned and can be overridden per tenant from the platform dashboard - no deploy either way. Feature keys: reservations, ordering, catering, marketing (visit statistics and email campaigns to guests who opted in); metaAds, siteBuilder, guestCrm, googleBusiness, giftCards, waitlist, socialPosting, personalliggare, accountingSync, dishMargin, events, phoneAgent (the Run 0 and Run 0 addendum features, false until each ships). limits: numeric plan limits, siteBuilderAiEditsPerMonth (0-1000) and phoneAgentMinutesPerMonth (0-100000), missing = 0. price_sek: the monthly price excluding VAT (SMS included), invoiced in advance on the 1st for that calendar month through Stripe on the platform account; a changed price applies to customers on the plan's price from the next billing period (a customer's own price is not affected). \"free\" is reserved: Booqy Console's Free plan (no charge, growth's features) is derived from growth, not listed here."
+  description = "Plan catalog (packages you sell). A tenant's limits are copied from its plan when the plan is assigned and can be overridden per tenant from the platform dashboard - no deploy either way. Feature keys: reservations, ordering, catering, marketing (visit statistics and email campaigns to guests who opted in); metaAds, guestCrm, googleBusiness, giftCards, waitlist, socialPosting, personalliggare, accountingSync, dishMargin, events, phoneAgent (the Run 0 and Run 0 addendum features, false until each ships). limits: numeric plan limits, phoneAgentMinutesPerMonth (0-100000), missing = 0. price_sek: the monthly price excluding VAT (SMS included), invoiced in advance on the 1st for that calendar month through Stripe on the platform account; a changed price applies to customers on the plan's price from the next billing period (a customer's own price is not affected). \"free\" is reserved: Booqy Console's Free plan (no charge, growth's features) is derived from growth, not listed here."
   sensitive   = false
   default = {
     starter = {
@@ -175,10 +175,10 @@ variable "plans" {
   validation {
     condition = alltrue(flatten([for p in var.plans : [
       for name, value in p.limits :
-      contains(["siteBuilderAiEditsPerMonth", "phoneAgentMinutesPerMonth"], name) && value >= 0 && floor(value) == value
-      && value <= lookup({ siteBuilderAiEditsPerMonth = 1000, phoneAgentMinutesPerMonth = 100000 }, name, 0)
+      contains(["phoneAgentMinutesPerMonth"], name) && value >= 0 && floor(value) == value
+      && value <= lookup({ phoneAgentMinutesPerMonth = 100000 }, name, 0)
     ]]))
-    error_message = "limits: only siteBuilderAiEditsPerMonth (a whole number from 0 to 1000) and phoneAgentMinutesPerMonth (a whole number from 0 to 100000)."
+    error_message = "limits: only phoneAgentMinutesPerMonth (a whole number from 0 to 100000)."
   }
 }
 

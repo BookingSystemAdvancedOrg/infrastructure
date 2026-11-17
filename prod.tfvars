@@ -102,24 +102,24 @@ plans = {
     max_locations = 1
     features = {
       reservations = true, ordering = true, catering = false, marketing = false,
-      metaAds      = false, siteBuilder = false, guestCrm = false, googleBusiness = false, giftCards = false,
+      metaAds      = false, guestCrm = false, googleBusiness = false, giftCards = false,
       waitlist     = false, socialPosting = false, personalliggare = false, accountingSync = false, dishMargin = false,
       events       = false, phoneAgent = false,
     }
     price_sek = 3950
-    limits    = { siteBuilderAiEditsPerMonth = 0, phoneAgentMinutesPerMonth = 0 }
+    limits    = { phoneAgentMinutesPerMonth = 0 }
   }
   growth = {
     name          = "Growth"
     max_locations = 3
     features = {
       reservations = true, ordering = true, catering = true, marketing = true,
-      metaAds      = false, siteBuilder = false, guestCrm = false, googleBusiness = false, giftCards = false,
+      metaAds      = false, guestCrm = false, googleBusiness = false, giftCards = false,
       waitlist     = false, socialPosting = false, personalliggare = false, accountingSync = false, dishMargin = false,
       events       = false, phoneAgent = false,
     }
     price_sek = 8295
-    limits    = { siteBuilderAiEditsPerMonth = 0, phoneAgentMinutesPerMonth = 0 }
+    limits    = { phoneAgentMinutesPerMonth = 0 }
   }
 }
 

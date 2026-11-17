@@ -1021,14 +1021,16 @@ module "meta_ads_jobs_ecr" {
   function    = "meta-ads-jobs"
 }
 module "site_builder_ecr" {
-  source      = "./storage/ecr/function"
-  environment = var.env
-  function    = "site-builder"
+  source       = "./storage/ecr/function"
+  environment  = var.env
+  function     = "site-builder"
+  force_delete = true # site builder removed (code only); lets a later release delete the repository
 }
 module "site_builder_render_ecr" {
-  source      = "./storage/ecr/function"
-  environment = var.env
-  function    = "site-builder-render"
+  source       = "./storage/ecr/function"
+  environment  = var.env
+  function     = "site-builder-render"
+  force_delete = true # site builder removed (code only); lets a later release delete the repository
 }
 module "guest_crm_ecr" {
   source      = "./storage/ecr/function"
