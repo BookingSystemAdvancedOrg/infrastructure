@@ -689,9 +689,9 @@ when their feature is on; the existing six tabs are shown only when
 | `marketing.oversikt.ads` | OverviewTab, below the tiles | `metaAds` | yes | `{locationId, from, to}` | `src/features/meta-ads/AdsOverviewTiles.tsx` |
 | `marketing.mottagare.segments` | SubscribersTab, top | `guestCrm` | yes | `{}` | `src/features/guest-crm/SegmentsPanel.tsx` |
 | `marketing.kampanjer.audience` | CampaignsTab audience picker | `guestCrm` | yes | `{value: {type: 'segment'; exportId: string} \| null; onChange(v): void}` | `src/features/guest-crm/SegmentAudienceOptions.tsx` |
-| `installningar.verksamhet.google` | InstallningarPage section `verksamhet`, tab `profil`, after Öppettider | `googleBusiness` | yes | `{locationId}` | `src/features/google-business/GoogleProfileCard.tsx` |
-| `installningar.verksamhet.waitlist` | section `verksamhet`, tab `bord` | `waitlist` | yes | `{locationId}` | `src/features/waitlist/WaitlistSettingsCard.tsx` |
-| `installningar.bokforing.sync` | section `ekonomi`, tab `bokforing`, above `BokforingCard` | `accountingSync` | yes | `{}` | `src/features/accounting-sync/DirektbokforingCard.tsx` |
+| `installningar.verksamhet.google` | InstallningarPage tree Restaurangen, branch `google` (#google, Google-profil) | `googleBusiness` | yes | `{locationId}` | `src/features/google-business/GoogleProfileCard.tsx` |
+| `installningar.verksamhet.waitlist` | tree Restaurangen, branch `bord` (#bord, Bokning), after Bord vid onlinebokning | `waitlist` | yes | `{locationId}` | `src/features/waitlist/WaitlistSettingsCard.tsx` |
+| `installningar.bokforing.sync` | tree Ekonomi, branch `bokforing` (#bokforing), above `BokforingCard` | `accountingSync` | yes | `{}` | `src/features/accounting-sync/DirektbokforingCard.tsx` |
 | `bokningar.panel.waitlist` | BokningarPage, next to the day list | `waitlist` | no | `{locationId, date}` | `src/features/waitlist/QueuePanel.tsx` |
 | `bokningar.reservation.badge` | BokningarPage reservation row | `guestCrm` | no | `{locationId, reservationId, email?, phone?}` (component batches C5 itself) | `src/features/guest-crm/GuestBadge.tsx` |
 | `kassa.payment.giftcard` | removed 2026-11-14 with Kassa | | | | |

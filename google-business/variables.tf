@@ -114,7 +114,7 @@ variable "google_business_prod_released" {
 }
 
 variable "admin_app_url" {
-  description = "Admin app base URL (OAuth redirect lands on Inställningar > Profil; /api is the link base)"
+  description = "Admin app base URL (OAuth redirect lands on Inställningar, Restaurangen, Google-profil (#google); /api is the link base)"
   type        = string
 }
 
