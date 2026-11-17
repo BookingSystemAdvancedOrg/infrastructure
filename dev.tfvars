@@ -206,6 +206,11 @@ help_assistant_model_id       = "eu.anthropic.claude-haiku-5-5"
 # simulators until the ElevenLabs and 46elks accounts exist.
 agent_model_client   = "real"
 phone_agent_model_id = "eu.anthropic.claude-haiku-5-5"
+# The voice model whose languages a call may switch to (owner 2026-11-17: any
+# language the caller speaks, Somali included). Inert for speech while
+# voice_client is the simulator; the Prova simulator and the agent follow its
+# language list. Verify the model in the ElevenLabs sandbox before prod.
+phone_agent_tts_model = "eleven_v4_turbo"
 
 # The AWS-only phone test line (owner 2026-11-13): Amazon Connect + Lex sv_SE +
 # Polly Elin in Frankfurt, a real number that reaches the agent.

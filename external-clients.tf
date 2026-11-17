@@ -130,12 +130,12 @@ variable "phone_agent_voice_id" {
 
 variable "phone_agent_tts_model" {
   type        = string
-  description = "ElevenLabs TTS model for the phone agent (PHONE_AGENT_TTS_MODEL): multilingual and low latency, Swedish included."
+  description = "ElevenLabs TTS model for the phone agent (PHONE_AGENT_TTS_MODEL): multilingual and low latency, Swedish included. The call may switch to every language the model speaks (application language.voice_languages): 32 with flash v2.5, Somali, Persian, Amharic and more with eleven_v4_turbo or eleven_v3_conversational."
   sensitive   = false
   default     = "eleven_flash_v2_5"
 
   validation {
-    condition     = contains(["eleven_flash_v2_5", "eleven_turbo_v2_5", "eleven_v4_turbo", "eleven_multilingual_v2"], var.phone_agent_tts_model)
+    condition     = contains(["eleven_flash_v2_5", "eleven_turbo_v2_5", "eleven_v4_turbo", "eleven_v3_conversational", "eleven_multilingual_v2"], var.phone_agent_tts_model)
     error_message = "phone_agent_tts_model must be a multilingual ElevenLabs model that speaks Swedish."
   }
 }
