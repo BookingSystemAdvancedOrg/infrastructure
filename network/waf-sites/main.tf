@@ -44,7 +44,7 @@ locals {
 
 resource "aws_wafv2_web_acl" "sites" {
   name        = local.name
-  description = "Restaurant websites: bot check on /api/* writes, rate limit, IP reputation"
+  description = "Restaurant websites: bot check on api writes, rate limit, IP reputation"
   scope       = "CLOUDFRONT"
 
   default_action {
