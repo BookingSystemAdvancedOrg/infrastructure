@@ -2461,7 +2461,6 @@ module "platform_domain" {
   dmarc_report_address                    = var.dmarc_report_address
   web_acl_arn                             = local.sites_web_acl_arn
   api_origin_domain                       = local.api_origin_domain
-  edge_secret                             = random_password.cloudfront_edge.result
   waf_edge_secret                         = random_password.site_waf_edge.result
 }
 
@@ -2536,6 +2535,13 @@ module "cloudfront_public" {
 resource "random_password" "cloudfront_edge" {
   length  = 48
   special = false
+
+  # 2026-11-17: new value; the dev one was printed in a CI log by a provider
+  # error. A viewer IP is not trusted for the minutes CloudFront and the
+  # Lambdas take to pick it up (the API falls back to API Gateway's IP).
+  keepers = {
+    rotated = "2026-11-17"
+  }
 }
 # Shared secret the restaurant sites' CloudFront sends as x-booqy-waf on
 # /api/*: the request passed the sites' web ACL (network/waf-sites). The
@@ -2544,12 +2550,19 @@ resource "random_password" "cloudfront_edge" {
 resource "random_password" "site_waf_edge" {
   length  = 48
   special = false
+
+  # 2026-11-17: new value; the first one was printed in a CI log by a
+  # provider error.
+  keepers = {
+    rotated = "2026-11-17"
+  }
 }
 
 module "cloudfront_private" {
   source                                 = "./network/cloudfront/private"
   environment                            = var.env
   admin_bucket_regional_domain_name      = module.admin_front_end_asset.bucket_regional_domain_name
+  edge_secret                            = random_password.cloudfront_edge.result
   menu_image_bucket_regional_domain_name = module.menu_image.bucket_regional_domain_name
   backdrop_bucket_name                   = module.user_backdrops.bucket_name
   recordings_bucket_name                 = module.phone_agent.recordings_bucket_name
@@ -2560,7 +2573,6 @@ module "cloudfront_private" {
   # From the API's id, not its stage URL: the stage waits for routes and
   # their Lambdas, some of which take the admin app's URL (a cycle).
   api_origin_domain = "${module.api_gateway.api_id}.execute-api.${var.aws_region}.amazonaws.com"
-  edge_secret       = random_password.cloudfront_edge.result
 }
 # Operator app (platform admin) - where tenants are created and managed
 module "cloudfront_platform_admin" {

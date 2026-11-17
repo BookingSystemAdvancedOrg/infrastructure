@@ -180,8 +180,10 @@ resource "aws_cloudfront_multitenant_distribution" "tenant_sites" {
 
   # The API, for the sites' form posts under /api/* (behaviour below): same
   # domain as the page, so the web ACL's bot check token (a cookie on the
-  # site's domain) goes with every post. x-booqy-edge lets the API trust the
-  # viewer IP; x-booqy-waf tells it the web ACL ran (network/waf-sites).
+  # site's domain) goes with every post. x-booqy-waf tells the API the web
+  # ACL ran (network/waf-sites) and lets it trust the viewer IP header. One
+  # header only: CloudFront hands several back in another order, which the
+  # provider reports as an inconsistent result.
   dynamic "origin" {
     for_each = var.api_origin_domain == "" ? [] : [1]
     content {
@@ -193,11 +195,6 @@ resource "aws_cloudfront_multitenant_distribution" "tenant_sites" {
         https_port             = 443
         origin_protocol_policy = "https-only"
         origin_ssl_protocols   = ["TLSv1.2"]
-      }
-
-      custom_header {
-        header_name  = "x-booqy-edge"
-        header_value = var.edge_secret
       }
 
       custom_header {
@@ -284,10 +281,20 @@ resource "aws_cloudfront_multitenant_distribution" "tenant_sites" {
   }
 
   # Tenant sites are SPAs with client-side routing: the site-redirect
-  # function sends paths without a file extension to /index.html. Not with
-  # custom_error_response, which applies to the whole distribution and would
-  # turn the API's own 403/404 answers under /api/* into the site's HTML
-  # (same reasoning as the admin distribution).
+  # function sends paths without a file extension to /index.html. The error
+  # responses below have no page, so CloudFront passes the origin's own 403
+  # and 404 through (the API's JSON under /api/*), only not cached. They have
+  # to be written out: the provider never removes error responses a
+  # distribution already has (they used to load /index.html with 200).
+  custom_error_response {
+    error_code            = 403
+    error_caching_min_ttl = 0
+  }
+
+  custom_error_response {
+    error_code            = 404
+    error_caching_min_ttl = 0
+  }
 
   restrictions {
     geo_restriction {

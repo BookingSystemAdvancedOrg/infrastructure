@@ -139,15 +139,8 @@ variable "api_origin_domain" {
   default     = ""
 }
 
-variable "edge_secret" {
-  description = "Shared secret sent to the API as x-booqy-edge (lets it trust the viewer IP header)"
-  type        = string
-  sensitive   = true
-  default     = ""
-}
-
 variable "waf_edge_secret" {
-  description = "Shared secret sent to the API as x-booqy-waf: the request passed the sites' web ACL (bot check)"
+  description = "Shared secret sent to the API as x-booqy-waf: the request passed the sites' web ACL (bot check); the API also trusts the viewer IP header with it"
   type        = string
   sensitive   = true
   default     = ""

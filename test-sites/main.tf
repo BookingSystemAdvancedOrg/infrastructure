@@ -429,11 +429,6 @@ resource "aws_cloudfront_distribution" "sites" {
       }
 
       custom_header {
-        name  = "x-booqy-edge"
-        value = var.edge_secret
-      }
-
-      custom_header {
         name  = "x-booqy-waf"
         value = var.waf_edge_secret
       }
