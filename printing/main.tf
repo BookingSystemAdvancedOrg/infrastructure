@@ -220,7 +220,10 @@ resource "aws_lambda_alias" "live" {
 # print-jobs, guest-crm-sync). AWS advises at most two readers per shard; the
 # extra ones add GetRecords throttling risk, watched by the IteratorAge alarm
 # below. Follow-up: one fan-out reader for the non-critical consumers.
-# Filtered here so print-jobs only runs for the two transitions it acts on.
+# Filtered here so print-jobs only runs for the transitions it acts on: paid
+# (pending_payment -> confirmed), a pay-later QR table order written straight
+# to the kitchen as confirmed (INSERT, payLater true, paid at the table later)
+# and cancelled.
 # A batch that keeps failing goes to the print-stream DLQ, which dlq-replay
 # redelivers; the job's conditional put makes redelivery safe.
 resource "aws_lambda_event_source_mapping" "orders" {
@@ -245,6 +248,17 @@ resource "aws_lambda_event_source_mapping" "orders" {
         dynamodb = {
           OldImage = { status = { S = ["pending_payment"] } }
           NewImage = { status = { S = ["confirmed"] } }
+        }
+      })
+    }
+    filter {
+      pattern = jsonencode({
+        eventName = ["INSERT"]
+        dynamodb = {
+          NewImage = {
+            status   = { S = ["confirmed"] }
+            payLater = { BOOL = [true] }
+          }
         }
       })
     }

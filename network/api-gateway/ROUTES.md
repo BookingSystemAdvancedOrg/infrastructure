@@ -32,7 +32,10 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | GET | `/locations/{locationId}/reservations/{reservationId}/guest` | NONE | get-reservation |
 | GET | `/locations/{locationId}/ordering` | NONE | get-order |
 | GET | `/locations/{locationId}/order-status/{orderId}` | NONE | get-order |
+| GET | `/locations/{locationId}/table-bill` | NONE | get-order |
+| GET | `/locations/{locationId}/table-bill/{billId}` | NONE | get-order |
 | POST | `/order` | NONE | payment-intent |
+| POST | `/locations/{locationId}/table-bill/pay` | NONE | payment-intent |
 | POST | `/locations/{locationId}/reservations/{reservationId}/cancel` | NONE | cancel-reservation |
 | POST | `/locations/{locationId}/reservations/{reservationId}/status` | JWT | mark-arrived |
 | PATCH | `/locations/{locationId}/reservations/{reservationId}` | JWT | mark-arrived |
