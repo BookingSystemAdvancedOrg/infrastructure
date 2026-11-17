@@ -78,13 +78,6 @@ resource "aws_apigatewayv2_stage" "this" {
     throttling_burst_limit = var.booking_throttle_burst_limit
   }
 
-  # Paying a table's bill: each call can create a Stripe Checkout Session.
-  route_settings {
-    route_key              = "POST /locations/{locationId}/table-bill/pay"
-    throttling_rate_limit  = var.booking_throttle_rate_limit
-    throttling_burst_limit = var.booking_throttle_burst_limit
-  }
-
   # The public catering request form.
   route_settings {
     route_key              = "POST /locations/{locationId}/catering/requests"
@@ -152,7 +145,7 @@ resource "aws_apigatewayv2_stage" "this" {
   }
 
   # route_settings names a route by key - it has to exist first.
-  depends_on = [aws_apigatewayv2_route.create_pending_reservation, aws_apigatewayv2_route.payment_intent, aws_apigatewayv2_route.payment_intent_table_bill,
+  depends_on = [aws_apigatewayv2_route.create_pending_reservation, aws_apigatewayv2_route.payment_intent,
     aws_apigatewayv2_route.catering_requests_post, aws_apigatewayv2_route.catering_quote_post, aws_apigatewayv2_route.marketing_public, aws_apigatewayv2_route.print_device, aws_apigatewayv2_route.feature,
   aws_apigatewayv2_route.manage_auth]
 
@@ -507,15 +500,11 @@ resource "aws_apigatewayv2_integration" "get_order" {
 # Guest routes, public like the order form itself: whether the location
 # takes orders right now (and which table a QR code is), and the guest's
 # order - that one only with the X-Order-Token the order was created with
-# (checked in the Lambda; a wrong token answers 404). The table bill routes
-# (pay-later QR table orders) take the same header: a staff pay-link token,
-# the guest's order token, or the bill token of one payment attempt.
+# (checked in the Lambda; a wrong token answers 404).
 resource "aws_apigatewayv2_route" "get_order" {
   for_each = toset([
     "GET /locations/{locationId}/ordering",
     "GET /locations/{locationId}/order-status/{orderId}",
-    "GET /locations/{locationId}/table-bill",
-    "GET /locations/{locationId}/table-bill/{billId}",
   ])
 
   api_id             = aws_apigatewayv2_api.this.id
@@ -551,15 +540,6 @@ resource "aws_apigatewayv2_integration" "payment_intent" {
 resource "aws_apigatewayv2_route" "payment_intent" {
   api_id             = aws_apigatewayv2_api.this.id
   route_key          = "POST /order"
-  target             = "integrations/${aws_apigatewayv2_integration.payment_intent.id}"
-  authorization_type = "NONE"
-}
-
-# Paying a table's open bill (pay-later QR table orders): starts one Stripe
-# Checkout Session for every unpaid order of the table. Token in X-Order-Token.
-resource "aws_apigatewayv2_route" "payment_intent_table_bill" {
-  api_id             = aws_apigatewayv2_api.this.id
-  route_key          = "POST /locations/{locationId}/table-bill/pay"
   target             = "integrations/${aws_apigatewayv2_integration.payment_intent.id}"
   authorization_type = "NONE"
 }
