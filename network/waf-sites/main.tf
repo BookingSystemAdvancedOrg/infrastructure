@@ -18,7 +18,7 @@
 #   ip-reputation   AWS managed list of known bad IPs (bots, scanners): block
 #   api-rate-limit  more than var.api_rate_limit requests to /api/* per IP in
 #                   5 minutes: 429
-#   bot-control     AWS Bot Control on /api/*, counting only (needed for the
+#   bot-control     AWS Bot Control (targeted) on /api/*, counting only (needed for the
 #                   JavaScript integration URL, see the rule)
 #   api-challenge   a write (anything but GET, HEAD, OPTIONS) to /api/*
 #                   without a valid token: silent challenge (HTTP 202,
@@ -28,10 +28,11 @@
 # Page loads (everything outside /api/*) are never challenged.
 #
 # Cost (us-east-1 list price): $5 per month for the ACL, $1 per rule per
-# month, $0.60 per million requests, $10 per month for Bot Control (plus $1
-# per million /api/ requests above 10 million), plus a fee per challenge
-# served (only requests without a valid token, in practice bots). About $19
-# per month per environment before traffic.
+# month, $0.60 per million requests, $10 per month for Bot Control plus its
+# per-request fee for the targeted level (only /api/ requests, the form
+# posts), plus a fee per challenge served (only requests without a valid
+# token, in practice bots). About $20 per month per environment at today's
+# volume.
 
 terraform {
   required_providers {
@@ -90,12 +91,13 @@ resource "aws_wafv2_web_acl" "sites" {
     }
   }
 
-  # AWS Bot Control (common level), counting only: it never blocks here (the
-  # challenge rule below is the check), but a web ACL only gets a JavaScript
+  # AWS Bot Control (targeted level), counting only: it never blocks here
+  # (the challenge rule is the check), but a web ACL only gets a JavaScript
   # integration URL (application_integration_url, the sites' challenge.js)
-  # when it has a rule group that works with the SDK. Scoped to /api/* so
-  # page loads are not inspected (Bot Control is billed per request
-  # inspected; the first 10 million a month are included).
+  # with a rule group that uses the SDK's tokens; the common level does not
+  # (checked in dev 2026-11-17). Scoped to /api/* so page loads are not
+  # inspected: Bot Control is billed per request inspected, and only the
+  # sites' form posts go to /api/*.
   rule {
     name     = "bot-control"
     priority = 3
@@ -111,7 +113,7 @@ resource "aws_wafv2_web_acl" "sites" {
 
         managed_rule_group_configs {
           aws_managed_rules_bot_control_rule_set {
-            inspection_level = "COMMON"
+            inspection_level = "TARGETED"
           }
         }
 
