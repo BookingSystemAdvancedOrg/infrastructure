@@ -92,6 +92,10 @@ resource "aws_lambda_function" "this" {
       # Finance: subscriptions (Stripe Billing), the Finance page, dunning
       FINANCE_TABLE_NAME          = var.finance_table_name
       FINANCE_ROLLUP_FUNCTION_ARN = var.finance_rollup_alias_arn
+      # Locations tab: each location's printers (status, add, rename, test
+      # print, remove) and the CloudPRNT server URL a new printer is given
+      PRINT_TABLE_NAME = var.print_table_name
+      PRINT_SERVER_URL = var.print_server_url
       # Website tab: the restaurant's site repo (site-repo function)
       SITE_REPO_FUNCTION_ARN = var.site_repo_function_arn
       SITE_REPOS_ENABLED     = var.site_repos_enabled ? "true" : "false"

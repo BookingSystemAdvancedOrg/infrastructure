@@ -326,3 +326,13 @@ variable "site_redirect_kvs_arn" {
   default     = ""
 }
 
+
+variable "print_table_name" {
+  description = "The print table (each location's printers and settings), passed as an environment variable"
+  type        = string
+}
+
+variable "print_server_url" {
+  description = "CloudPRNT server URL (<api>/print/cloudprnt) a printer added from Booqy Console is given, passed as an environment variable"
+  type        = string
+}

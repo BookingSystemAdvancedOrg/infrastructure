@@ -740,6 +740,7 @@ module "platform_tenants_role" {
   finance_rollup_lambda_arn          = module.finance_rollup_fn.function_arn
   alert_topic_arn                    = module.alerts.topic_arn
   site_repo_function_arn             = module.sites.alias_arn
+  print_table_arn                    = module.print.table_arn
   site_redirect_kvs_arn              = local.tenant_sites_enabled ? module.platform_domain[0].site_redirects_kvs_arn : ""
 }
 module "tenant_account_role" {
@@ -1837,6 +1838,8 @@ module "platform_tenants_fn" {
   user_backdrops_table_name          = module.user_backdrops_table.table_name
   finance_table_name                 = module.finance.table_name
   finance_rollup_alias_arn           = module.finance_rollup_fn.alias_arn
+  print_table_name                   = module.print.table_name
+  print_server_url                   = "${module.api_gateway.api_base_url}/print/cloudprnt"
   site_repo_function_arn             = module.sites.alias_arn
   site_redirect_kvs_arn              = local.tenant_sites_enabled ? module.platform_domain[0].site_redirects_kvs_arn : ""
   site_repos_enabled                 = var.github_app_sites_secret_name != ""

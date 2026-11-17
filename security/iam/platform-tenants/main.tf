@@ -575,3 +575,30 @@ resource "aws_iam_role_policy" "site_repo" {
     }]
   })
 }
+
+# Locations tab: each location's printer setup (Print table, PK
+# LOCATION#<locationId>; the API checks the location belongs to the tenant
+# in the path first). Item-level only, the table itself, no index, no Scan:
+# status (printers, last seen, "Inga skrivare än"), add a printer (its
+# secret is shown once), rename, test print and remove.
+resource "aws_iam_role_policy" "print_table" {
+  name = "print-table"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid    = "LocationPrinters"
+      Effect = "Allow"
+      Action = [
+        "dynamodb:GetItem",
+        "dynamodb:BatchGetItem",
+        "dynamodb:Query",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:DeleteItem",
+      ]
+      Resource = var.print_table_arn
+    }]
+  })
+}

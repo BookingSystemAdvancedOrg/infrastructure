@@ -164,3 +164,8 @@ variable "site_redirect_kvs_arn" {
   default     = ""
 }
 
+
+variable "print_table_arn" {
+  description = "The print table: Booqy Console reads each location's printers and adds, renames, test prints and removes them"
+  type        = string
+}
