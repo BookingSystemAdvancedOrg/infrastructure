@@ -467,7 +467,7 @@ variable "smoke_test_host" {
 # set up with test data so the customer's site repo (dev branch) has an
 # admin to test against.
 variable "dev_twin_owner_email" {
-  description = "Dev only: the twin's owner login, a Booqy team address; {slug} becomes the customer's slug. Never the restaurant's own email. \"\" = dev+{slug}@booqy.se"
+  description = "Dev only: the twin's owner login, a Booqy team address; {slug} becomes the customer's slug. Never the restaurant's own email. \"\" = aws+{slug}@ithjalparna.se"
   type        = string
   default     = ""
 }

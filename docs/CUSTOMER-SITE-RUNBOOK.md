@@ -15,7 +15,7 @@ decisions:
 prod console "New customer" ──> site-repo (prod) ──> repo site-<slug> from site-template (the only place a repo is born)
                                                     role /booqy-sites/site-<slug> (main only)
                                   └─ assume dev booqy-sites-prod-link ──> dev platform-tenants (site task "mirror", repo named by prod)
-                                       ──> the dev twin, same name, slug and plan (owner dev+<slug>@booqy.se, its onboarding:
+                                       ──> the dev twin, same name, slug and plan (owner aws+<slug>@ithjalparna.se, its onboarding:
                                            <slug>.dev.booqy.se), seeded with test data (booqy-console docs/DEV-TWINS.md)
                                        ──> site-repo (dev) linkProvision, AWS only: role /booqy-sites/dev-site-<slug>
                                            (dev branch of that repo id only) ──> answers role ARN, bucket, booqy.json dev values

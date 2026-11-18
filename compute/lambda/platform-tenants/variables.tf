@@ -356,7 +356,7 @@ variable "dev_twin_function_prefix" {
 }
 
 variable "dev_twin_owner_email" {
-  description = "Dev only: the twin's owner login, a Booqy team address; {slug} is replaced by the customer's slug (dev+{slug}@booqy.se). Never the restaurant's own email"
+  description = "Dev only: the twin's owner login, a Booqy team address; {slug} is replaced by the customer's slug (aws+{slug}@ithjalparna.se). Never the restaurant's own email"
   type        = string
   default     = ""
 }
