@@ -80,8 +80,9 @@ an `AUDIT#` entry in catering-request-history - in one
 |---|---|---|
 | → requested | catering-requests | `POST …/catering/requests` (AWS WAF bot check) |
 | requested (+ `reviewedAt`, "Under granskning") | catering-offer | first `PUT …/offer` (draft) |
-| requested → offer_sent, offer_sent → offer_sent (new version) | catering-offer | `POST …/offer/send` (PDF + signing order; the previous order is cancelled) |
-| offer_sent (+ `restaurantSignedAt`, notice to the guest) | catering-offer | `POST …/restaurant-sign` + `…/status` |
+| requested → offer_sent, offer_sent → offer_sent (new version) | catering-offer | step 1: `POST …/offer/version` (PDF + signing order; the previous order is cancelled; the guest is not told yet) |
+| offer_sent (+ `restaurantSignedAt`) | catering-offer | step 2: `POST …/restaurant-sign` + `…/status` (the restaurant's BankID) |
+| offer_sent (+ `sentToCustomerAt`, notice to the guest) | catering-offer | step 3: `POST …/offer/send` `{"version"}`; 409 `restaurant_signature_required` until the restaurant signed this version. Every new version needs a new restaurant signature |
 | requested → declined | catering-offer | `POST …/decline` |
 | requested → expired | catering-lifecycle | timer `request-expiry` |
 | offer_sent → signed | catering-customer / catering-signing-webhook | the guest's signature (`…/customer/sign/status`, `…/customer/accept`) or a provider callback; a company is then invoiced by catering-lifecycle (→ confirmed) |

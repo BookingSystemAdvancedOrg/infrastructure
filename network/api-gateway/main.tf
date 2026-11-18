@@ -1320,7 +1320,20 @@ resource "aws_apigatewayv2_route" "catering_offer_offer_put" {
 }
 
 # --- catering-offer ---
-# Render the PDF, reserve the date's capacity and send version N to the customer.
+# Step 1 of 3: lock offer version N (render the PDF, open the signing order,
+# reserve the date's capacity). The customer does not get it yet.
+
+resource "aws_apigatewayv2_route" "catering_offer_offer_version" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "POST /locations/{locationId}/catering/requests/{requestId}/offer/version"
+  target             = "integrations/${aws_apigatewayv2_integration.catering_offer.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# --- catering-offer ---
+# Step 3 of 3: send version N to the customer, only once the restaurant has
+# signed it with BankID (409 restaurant_signature_required otherwise).
 
 resource "aws_apigatewayv2_route" "catering_offer_offer_send" {
   api_id             = aws_apigatewayv2_api.this.id
