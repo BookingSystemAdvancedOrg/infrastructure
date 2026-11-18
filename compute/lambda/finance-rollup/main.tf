@@ -56,7 +56,7 @@ resource "aws_lambda_function" "this" {
       LAMBDA_LOG_GROUPS       = jsonencode(var.log_group_names)
       COST_DAYS               = "7"
       USAGE_DAYS              = "3"
-      USD_TO_SEK              = tostring(var.usd_to_sek)
+      COST_CLOSE_DAY          = "10"
       COST_ALLOCATION         = jsonencode(var.cost_allocation)
       ALERT_TOPIC_ARN         = var.alert_topic_arn
     }

@@ -58,15 +58,25 @@ Everything is shared (one API, one set of Lambdas, DynamoDB on demand, one
 CloudFront), so cost per customer is a split, not a measurement.
 
 - **Source:** `finance-rollup` calls Cost Explorer (`ce:GetCostAndUsage`,
-  daily, grouped by service, `UnblendedCost`, credits and refunds excluded)
-  for the last `COST_DAYS` (7) days every night, because AWS restates
-  recent days. Stored as `PLATFORM / COST#<day>` with the rate used.
+  daily, grouped by service and record type, `UnblendedCost`, nothing
+  filtered out: usage, tax, credits, refunds) so a month adds up to exactly
+  what AWS Billing and Cost Explorer show for the account. Every night it
+  re-pulls the last `COST_DAYS` (7) days and the whole current month (until
+  `COST_CLOSE_DAY`, the 10th, also the previous month): AWS restates recent
+  days and books the month's tax on its 1st, growing until the bill closes.
+  A day whose cost changed is allocated again. Stored as
+  `PLATFORM / COST#<day>`.
   Cost Explorer must be **enabled once per account** (open it in the
   console; the API answers after about 24 hours); until then the job
   warns and cost is 0. About $0.01 per API call.
-- **Currency:** USD from AWS, shown in SEK with `aws_usd_to_sek` (tfvars).
-  The rate is recorded on every cost row; changing it applies from the
-  next run (Rebuild recomputes a range).
+- **Currency:** every cost is USD, as AWS bills it, never converted
+  (owner, 2026-11-18). Revenue stays SEK. The margin needs one currency:
+  Booqy Console converts the cost at Riksbank's USD/SEK mid rate of each
+  day (series SEKUSDPMI, the banking day before on weekends), which
+  finance-rollup records on the `COST#` and `DAY#` rows (`usdSek`,
+  `usdSekDate`); the page names the rate and its date. History written in
+  SEK at the old fixed 10.5 was recomputed from Cost Explorer once
+  (`PLATFORM / MIGRATION#cost-usd`).
 - **Buckets** (`cost_allocation`, tfvars): `baseline` services (Route 53,
   Secrets Manager, KMS, ECR, Config, CloudTrail, Support, Tax, ...) are
   split equally over the customers active that day; `email` (SES) by
@@ -98,11 +108,11 @@ CloudFront), so cost per customer is a split, not a measurement.
 
 | PK | SK | Written by | Fields |
 |---|---|---|---|
-| `TENANT#<id>` | `DAY#<yyyy-mm-dd>` | finance-rollup (`requests`, `bookings`, `orders`, `costSek`, `costSplitSek`, `mrrSek` from the agreement (0 on Free), `planId`, `active`; an `smsRevenueSek` from before 2026-11-14 is removed when a day is recomputed); senders (`emails`, `sms`, `marketingEmails`, `smsParts`, `smsBooking`, `smsReminder`, `smsOrder`, `smsCatering`, ADD); webhook / Stripe import (`invoicedSek`, `paidSek`, `creditedSek`, ADD) | one row per customer and day |
-| `TENANT#<id>` | `LOC#<locationId>#DAY#<yyyy-mm-dd>` | finance-rollup (`requests`, `bookings`, `orders`, `costSek`: the location's share of the customer's cost, by requests, else bookings and orders, else equally); senders (`emails`, `sms`, `smsParts` and the per-type counters, ADD) | one row per location and day; the Finance page's location filter (revenue stays the customer's) |
+| `TENANT#<id>` | `DAY#<yyyy-mm-dd>` | finance-rollup (`requests`, `bookings`, `orders`, `costUsd`, `costSplitUsd`, `mrrSek` from the agreement (0 on Free), `planId`, `active`; an `smsRevenueSek` from before 2026-11-14 is removed when a day is recomputed); senders (`emails`, `sms`, `marketingEmails`, `smsParts`, `smsBooking`, `smsReminder`, `smsOrder`, `smsCatering`, ADD); webhook / Stripe import (`invoicedSek`, `paidSek`, `creditedSek`, ADD) | one row per customer and day |
+| `TENANT#<id>` | `LOC#<locationId>#DAY#<yyyy-mm-dd>` | finance-rollup (`requests`, `bookings`, `orders`, `costUsd`: the location's share of the customer's cost, by requests, else bookings and orders, else equally); senders (`emails`, `sms`, `smsParts` and the per-type counters, ADD) | one row per location and day; the Finance page's location filter (revenue stays the customer's) |
 | `TENANT#<id>` | `INVOICE#<day>#<in_...>` | webhook, Stripe import | status, amounts ex and incl VAT, dates, links, booking flags, `periodStart` / `periodEnd`, `feeSek` (`smsParts`, `smsSek` on invoices from before 2026-11-14) |
 | `TENANT#<id>` | `CREDIT#<day>#<cn_...>` | webhook | credit notes |
-| `PLATFORM` | `COST#<day>` | finance-rollup | USD by service, rate, SEK |
+| `PLATFORM` | `COST#<day>` | finance-rollup | USD total, by service and by record type; the day's USD/SEK rate (`usdSek`, `usdSekDate`) |
 | `PLATFORM` | `DAY#<day>` | finance-rollup | customers active / new / churned, MRR, cost, usage (incl. `smsParts`) and revenue totals |
 | `PLATFORM` | `JOB#latest`, `JOB#<time>` | finance-rollup | last run, days done, warnings |
 
@@ -183,5 +193,5 @@ AWS, once per account: open **Cost Explorer** in the console to enable it
 (the API answers after about 24 hours).
 
 tfvars, per environment: `plans.<id>.price_sek` (the placeholders in
-dev.tfvars / prod.tfvars), `aws_usd_to_sek`, and if wanted
+dev.tfvars / prod.tfvars), and if wanted
 `billing_days_until_due`, `billing_suspend_after_days`, `cost_allocation`.

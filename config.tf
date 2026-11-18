@@ -1885,7 +1885,6 @@ module "finance_rollup_fn" {
   reservation_table_name    = module.reservation.table_name
   order_table_name          = module.order.table_name
   log_group_names           = local.tenant_aware_log_groups
-  usd_to_sek                = var.aws_usd_to_sek
   cost_allocation           = var.cost_allocation
   alert_topic_arn           = module.alerts.topic_arn
 }

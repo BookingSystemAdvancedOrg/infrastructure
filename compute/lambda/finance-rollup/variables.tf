@@ -60,11 +60,6 @@ variable "log_group_names" {
   type        = list(string)
 }
 
-variable "usd_to_sek" {
-  description = "Exchange rate for showing AWS cost in SEK (root var.aws_usd_to_sek)"
-  type        = number
-}
-
 variable "cost_allocation" {
   description = "Service lists per allocation bucket (root var.cost_allocation)"
   type = object({

@@ -327,12 +327,6 @@ variable "insights_rollup_schedule" {
   sensitive   = false
   default     = "cron(30 2 * * ? *)"
 }
-variable "aws_usd_to_sek" {
-  type        = number
-  description = "Exchange rate used to show AWS cost (billed in USD) in SEK on the Finance page. Recorded on every cost row when it is written, so a change applies from the next run (Rebuild in Booqy Console recomputes a range)."
-  sensitive   = false
-  default     = 10.5
-}
 variable "cost_allocation" {
   type = object({
     baseline = list(string)

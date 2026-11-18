@@ -247,8 +247,6 @@ apps run on `*.cloudfront.net` and restaurants have no website URL yet.
       `billing_interest_margin_pct`, `billing_reminder_interval_days`).
       Set the current Riksbank reference rate and update it each
       1 January and 1 July.
-- [ ] Check `aws_usd_to_sek` (tfvars) now and then; the rate is recorded on
-      every cost row, so a change never rewrites history (Rebuild does).
 - [ ] The pipeline key (`STRIPE_SECRET_KEY_*`) needs Products: Write,
       Prices: Write and Tax Rates: Write for the catalog; the Lambda key
       (`stripe/api-key`) needs Customers, Invoices, Invoice Items,
