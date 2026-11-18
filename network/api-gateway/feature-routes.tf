@@ -29,6 +29,7 @@ locals {
     "help-assistant"  = local.help_assistant_routes
     "user-backdrop"   = local.user_backdrop_routes
     "support-reports" = local.support_reports_routes
+    "tenant-setup"    = local.tenant_setup_routes
   }
 
   # route_key => { feature, auth, throttle }

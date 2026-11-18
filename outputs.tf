@@ -142,6 +142,7 @@ output "ecr_repository_urls" {
     help_assistant             = module.help_assistant_ecr.repository_url
     user_backdrop              = module.user_backdrop_ecr.repository_url
     support_reports            = module.support_reports_ecr.repository_url
+    tenant_setup               = module.tenant_setup_ecr.repository_url
   }
 }
 

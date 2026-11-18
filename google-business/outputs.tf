@@ -16,3 +16,8 @@ output "wiring" {
     }
   }
 }
+
+output "table_name" {
+  description = "google-business table (tenant-setup reads the CONNECTION, LINK and SKIP rows)"
+  value       = aws_dynamodb_table.this.name
+}

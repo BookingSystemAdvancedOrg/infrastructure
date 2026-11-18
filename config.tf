@@ -1123,6 +1123,12 @@ module "support_reports_ecr" {
   environment = var.env
   function    = "support-reports"
 }
+# Kom igång checklist and "setup finished" notice (tenant-setup.tf); same repository settings.
+module "tenant_setup_ecr" {
+  source      = "./storage/ecr/function"
+  environment = var.env
+  function    = "tenant-setup"
+}
 module "catering_requests_ecr" {
   source      = "./storage/ecr/catering-requests"
   environment = var.env
@@ -2406,6 +2412,7 @@ locals {
     module.help_assistant.wiring,
     module.user_backdrop.wiring,
     module.support_reports.wiring,
+    module.tenant_setup.wiring,
   ]
   feature_lambda_releases         = merge([for w in local.feature_wiring : w.lambda_releases]...)
   feature_tenant_aware_role_names = merge([for w in local.feature_wiring : w.tenant_aware_role_names]...)
