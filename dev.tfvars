@@ -51,8 +51,10 @@ stripe_publishable_key = "pk_test_51U4OsHHhsMraauJUMyW7ID1lQq1jsS3Pdtzqu04WDgEnJ
 
 # Bot check on the restaurant sites' form posts (AWS WAF, network/waf-sites).
 # The WAF runs on every site's /api/* already; this makes the API refuse
-# guest form posts that did not come through it. On once every live site
-# runs a site-kit with the WAF client (sites rebuilt).
+# guest form posts that did not come through it. Off in dev: test-pizza
+# still runs site-kit 0.1.0, and the E2E suites post guest forms straight to
+# the dev API from a local site. Turn on once both use /api (the
+# "not_through_waf" warnings in the guest Lambdas' logs then stop).
 bot_check_enforced = false
 
 # The account's monthly SMS spend limit (USD), alarmed at 80% - check the
