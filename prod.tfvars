@@ -134,12 +134,13 @@ plans = {
 tenant_data_retention_days = 90
 tenant_purge_schedule      = "cron(0 2 * * ? *)"
 
-# The prod test restaurant test-release (deployed site repo, checked
-# 2026-11-16): the uptime check and the smoke tests load its site through
+# A live prod restaurant with a deployed site repo: anar (test-release was
+# deleted 2026-11-17, checked 2026-11-18). The uptime check and the smoke
+# tests load its site through
 # the tenant-sites path and expect GET /site-config to answer 200. Never
 # offboard it while this is set; unset, they load the shared customer
 # build and expect a 404 for an unknown host instead.
-smoke_test_host = "test-release.booqy.se"
+smoke_test_host = "anar.booqy.se"
 
 # Guest data retention (privacy-variables.tf). The job only logs counts per
 # data type until this is set to false, after the owner has checked them.
