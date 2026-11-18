@@ -127,6 +127,10 @@ resource "aws_lambda_function" "this" {
       # after BILLING_TRIAL_MONTHS) or subscription (BILLING_NOTICE_MONTHS notice)
       BILLING_NOTICE_MONTHS = tostring(var.billing_notice_months)
       BILLING_TRIAL_MONTHS  = tostring(var.billing_trial_months)
+      # Dev twins (dev only, docs/DEV-TWINS.md); "" = off
+      DEV_TWIN_FUNCTION_PREFIX   = var.environment == "prod" ? "" : var.dev_twin_function_prefix
+      DEV_TWIN_OWNER_EMAIL       = var.environment == "prod" ? "" : var.dev_twin_owner_email
+      DEV_TWIN_STRIPE_ACCOUNT_ID = var.environment == "prod" ? "" : var.dev_twin_stripe_account_id
     }
   }
 

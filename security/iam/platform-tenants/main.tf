@@ -626,3 +626,23 @@ resource "aws_iam_role_policy" "users_tab" {
     }]
   })
 }
+
+# Dev twins (dev only, docs/DEV-TWINS.md): the twin seeder sets up a twin's
+# Kom igång through the admin's own functions, invoked directly as an owner
+# of that twin (application shared/console_invoke.py; those functions accept
+# such a call only outside prod). Never granted in prod.
+resource "aws_iam_role_policy" "dev_twins" {
+  count = var.environment != "prod" && length(var.dev_twin_function_arns) > 0 ? 1 : 0
+  name  = "dev-twins"
+  role  = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "DevTwinSeed"
+      Effect   = "Allow"
+      Action   = "lambda:InvokeFunction"
+      Resource = var.dev_twin_function_arns
+    }]
+  })
+}

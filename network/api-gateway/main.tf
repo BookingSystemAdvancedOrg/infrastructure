@@ -1571,6 +1571,9 @@ locals {
     "POST /platform/tenants/{tenantId}/purge",
     "POST /platform/tenants/{tenantId}/restore",
     "POST /platform/tenants/{tenantId}/onboarding/retry",
+    # Dev twin (dev only; prod answers 404): create or refresh the
+    # customer's twin with test data (docs/DEV-TWINS.md)
+    "POST /platform/tenants/{tenantId}/dev-twin",
     # Website tab: the restaurant's site repo (site-repo function)
     "GET /platform/tenants/{tenantId}/site",
     "POST /platform/tenants/{tenantId}/site/retry",

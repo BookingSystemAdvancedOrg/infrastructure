@@ -346,3 +346,23 @@ variable "tenant_account_function_arn" {
   description = "Live alias of the tenant-account function (Users tab: staff permissions), passed as an environment variable"
   type        = string
 }
+
+# Dev twins (dev only, docs/DEV-TWINS.md): every real customer's twin in dev,
+# set up through the admin's own functions (application shared/console_invoke.py).
+variable "dev_twin_function_prefix" {
+  description = "Dev only: ARN prefix of this environment's tenant functions (arn:...:function:dev-); the twin seeder invokes <prefix><name>:live. \"\" = dev twins off"
+  type        = string
+  default     = ""
+}
+
+variable "dev_twin_owner_email" {
+  description = "Dev only: the twin's owner login, a Booqy team address; {slug} is replaced by the customer's slug (dev+{slug}@booqy.se). Never the restaurant's own email"
+  type        = string
+  default     = ""
+}
+
+variable "dev_twin_stripe_account_id" {
+  description = "Dev only: a fully onboarded Stripe TEST-mode connected account (acct_..., not a secret) every twin takes payments with"
+  type        = string
+  default     = ""
+}

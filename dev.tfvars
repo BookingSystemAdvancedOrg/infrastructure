@@ -248,3 +248,10 @@ billing_seller = {
   seat       = "Finspång"
   f_skatt    = true
 }
+
+# Dev twins (docs/DEV-TWINS.md): the owner login of every customer's dev
+# twin (a Booqy team address, never the restaurant's) and the Stripe
+# TEST-mode connected account the twins take payments with (test-pizza's,
+# fully onboarded in test mode; an id, not a secret).
+dev_twin_owner_email       = "dev+{slug}@booqy.se"
+dev_twin_stripe_account_id = "acct_1UVIUkHhsMKn0jQY"

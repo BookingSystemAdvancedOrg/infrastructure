@@ -179,3 +179,9 @@ variable "tenant_account_function_arn" {
   description = "Live alias of the tenant-account function (Users tab: staff permissions)"
   type        = string
 }
+
+variable "dev_twin_function_arns" {
+  description = "Dev only: live aliases of the tenant functions the dev twin seeder invokes as the twin's owner (docs/DEV-TWINS.md). Empty: no grant (prod)"
+  type        = list(string)
+  default     = []
+}

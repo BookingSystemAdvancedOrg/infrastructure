@@ -462,3 +462,18 @@ variable "smoke_test_host" {
   sensitive   = false
   default     = ""
 }
+
+# Dev twins (dev only, docs/DEV-TWINS.md): every real customer's twin in dev,
+# set up with test data so the customer's site repo (dev branch) has an
+# admin to test against.
+variable "dev_twin_owner_email" {
+  description = "Dev only: the twin's owner login, a Booqy team address; {slug} becomes the customer's slug. Never the restaurant's own email. \"\" = dev+{slug}@booqy.se"
+  type        = string
+  default     = ""
+}
+
+variable "dev_twin_stripe_account_id" {
+  description = "Dev only: a fully onboarded Stripe TEST-mode connected account (acct_..., an id, not a secret) every twin takes card guarantees and orders with. \"\" = the twin keeps its own, unfinished account"
+  type        = string
+  default     = ""
+}

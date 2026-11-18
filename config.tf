@@ -745,6 +745,19 @@ module "platform_tenants_role" {
   tenant_account_function_arn        = module.tenant_account_fn.alias_arn
   print_table_arn                    = module.print.table_arn
   site_redirect_kvs_arn              = local.tenant_sites_enabled ? module.platform_domain[0].site_redirects_kvs_arn : ""
+  # Dev twins (dev only): the admin's Kom igång functions, invoked as the twin's owner
+  dev_twin_function_arns = var.env == "prod" ? [] : [
+    module.tenant_account_fn.alias_arn,
+    module.create_location_fn.alias_arn,
+    module.get_menu_fn.alias_arn,
+    module.manage_menu_fn.alias_arn,
+    module.manage_layout_element_fn.alias_arn,
+    module.publish_layout_fn.alias_arn,
+    module.list_layout_version_fn.alias_arn,
+    module.activate_layout_version_fn.alias_arn,
+    module.google_business.api_alias_arn,
+    module.phone_agent.api_alias_arn,
+  ]
 }
 module "tenant_account_role" {
   source             = "./security/iam/tenant-account"
@@ -1878,6 +1891,10 @@ module "platform_tenants_fn" {
   invoicing_schedule_expression      = var.billing_invoicing_schedule
   dunning_schedule_expression        = var.billing_dunning_schedule
   scheduler_invoke_role_arn          = module.scheduler_invoke_platform_tenants_role.role_arn
+  # Dev twins (dev only, docs/DEV-TWINS.md)
+  dev_twin_function_prefix   = var.env == "prod" ? "" : "arn:aws:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:${var.env}-"
+  dev_twin_owner_email       = var.dev_twin_owner_email
+  dev_twin_stripe_account_id = var.dev_twin_stripe_account_id
 }
 # Nightly figures for the Finance page (Cost Explorer, usage per customer,
 # allocation). Booqy Console's Rebuild invokes it for a date range.
