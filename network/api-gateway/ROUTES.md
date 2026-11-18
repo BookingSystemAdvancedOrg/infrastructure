@@ -119,6 +119,9 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | POST | `/platform/tenants/{tenantId}/site/mount` | JWT (operator) | platform-tenants |
 | GET | `/platform/tenants/{tenantId}/users` | JWT (operator) | platform-tenants |
 | POST | `/platform/tenants/{tenantId}/owners` | JWT (operator) | platform-tenants |
+| PATCH | `/platform/tenants/{tenantId}/owners/{userId}` | JWT (operator) | platform-tenants |
+| DELETE | `/platform/tenants/{tenantId}/owners/{userId}` | JWT (operator) | platform-tenants |
+| POST | `/platform/tenants/{tenantId}/owners/{userId}/resend-invite` | JWT (operator) | platform-tenants |
 | GET | `/platform/tenants/{tenantId}/locations` | JWT (operator) | platform-tenants |
 | POST | `/platform/tenants/{tenantId}/locations` | JWT (operator) | platform-tenants |
 | PATCH | `/platform/tenants/{tenantId}/locations/{locationId}` | JWT (operator) | platform-tenants |
