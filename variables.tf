@@ -351,7 +351,9 @@ variable "cost_allocation" {
       "Amazon Registrar",
     ]
     email = ["Amazon Simple Email Service"]
-    sms   = ["Amazon Simple Notification Service"]
+    # SMS are billed as "AWS End User Messaging" (SNS sends through it); the
+    # old SNS name stays for the few SNS charges that remain.
+    sms = ["AWS End User Messaging", "Amazon Simple Notification Service"]
   }
 }
 variable "default_tax_rates" {
