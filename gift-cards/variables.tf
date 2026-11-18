@@ -37,14 +37,6 @@ variable "stripe_api_version" {
   type = string
 }
 
-variable "turnstile_required" {
-  type = bool
-}
-
-variable "turnstile_secret_arn" {
-  type = string
-}
-
 variable "request_guard_table_name" {
   type = string
 }
@@ -72,6 +64,18 @@ variable "alert_topic_arn" {
 
 variable "cloudfront_edge_secret" {
   description = "Admin CloudFront shared secret (trusted viewer IP for the request guard)"
+  type        = string
+  sensitive   = true
+}
+
+variable "bot_check_enforced" {
+  description = "Require guest form posts to come through a restaurant site's /api/* (x-booqy-waf); see root var.bot_check_enforced"
+  type        = bool
+  sensitive   = false
+}
+
+variable "site_waf_secret" {
+  description = "Shared secret the sites' CloudFront sends as x-booqy-waf (root random_password.site_waf_edge)"
   type        = string
   sensitive   = true
 }

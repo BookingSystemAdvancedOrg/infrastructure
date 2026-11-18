@@ -52,9 +52,9 @@ resource "aws_lambda_function" "this" {
       RESERVATION_LINK_KEY_SECRET_ARN      = var.reservation_link_key_secret_arn # signs the manage token returned to the guest
       STRIPE_SECRET_ARN                    = var.stripe_secret_arn               # platform Stripe key secret (Connect) - to create a SetupIntent (card-on-file, no charge yet) on the tenant's connected account
       STRIPE_API_VERSION                   = var.stripe_api_version
-      TURNSTILE_REQUIRED                   = var.turnstile_required ? "true" : "false" # bot check on online bookings (the sites show the widget)
-      TURNSTILE_SECRET_ARN                 = var.turnstile_secret_arn                  # platform Turnstile secret key {"secretKey": "..."}
-      REQUEST_GUARD_TABLE_NAME             = var.request_guard_table_name              # attempt limits per IP / phone / e-mail
+      BOT_CHECK_ENFORCED                   = var.bot_check_enforced ? "true" : "false"
+      SITE_WAF_SECRET                      = var.site_waf_secret
+      REQUEST_GUARD_TABLE_NAME             = var.request_guard_table_name # attempt limits per IP / phone / e-mail
       # + consent log and booking retention (root privacy-consent.tf)
     }, var.privacy_env)
   }

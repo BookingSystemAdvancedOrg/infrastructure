@@ -30,7 +30,6 @@ module "sites" {
   menu_image_base_url    = "https://${module.cloudfront_public.distribution_domain_name}"
   preview_domain         = local.tenant_subdomains_enabled ? var.platform_domain : ""
   stripe_publishable_key = var.stripe_publishable_key
-  turnstile_site_key     = var.turnstile_site_key
   alert_topic_arn        = module.alerts.topic_arn
   # A repo is born in prod; prod sets up the dev side through one narrow
   # role in dev (sites/main.tf, booqy-sites-prod-link).

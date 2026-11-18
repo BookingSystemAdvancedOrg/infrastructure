@@ -164,7 +164,7 @@ module "reservation_secrets" {
     cancel_reservation         = module.cancel_reservation_role.role_name
     get_reservation            = module.get_reservation_role.role_name
     notification               = module.notification_role.role_name
-    # Food orders: status tokens and table QR codes.
+    # Food orders: status tokens.
     payment_intent = module.payment_intent_role.role_name
     get_order      = module.get_order_role.role_name
     manage_order   = module.manage_order_role.role_name
@@ -315,13 +315,12 @@ module "manage_menu_role" {
   region         = var.aws_region
 }
 module "manage_order_role" {
-  published_layout_snapshot_table_arn = module.published_layout_snapshot.table_arn
-  source                              = "./security/iam/manage-order"
-  environment                         = var.env
-  order_table_arn                     = module.order.table_arn
-  location_table_arn                  = module.location.table_arn
-  stripe_secret_arn                   = module.platform_secrets.stripe_secret_arn
-  region                              = var.aws_region
+  source             = "./security/iam/manage-order"
+  environment        = var.env
+  order_table_arn    = module.order.table_arn
+  location_table_arn = module.location.table_arn
+  stripe_secret_arn  = module.platform_secrets.stripe_secret_arn
+  region             = var.aws_region
 }
 module "manage_user_role" {
   source         = "./security/iam/manage-user"
@@ -340,23 +339,20 @@ module "get_reservation_role" {
   region                = var.aws_region
 }
 module "get_order_role" {
-  published_layout_snapshot_table_arn = module.published_layout_snapshot.table_arn
-  source                              = "./security/iam/get-order"
-  environment                         = var.env
-  order_table_arn                     = module.order.table_arn
-  stripe_secret_arn                   = module.platform_secrets.stripe_secret_arn
-  region                              = var.aws_region
+  source            = "./security/iam/get-order"
+  environment       = var.env
+  order_table_arn   = module.order.table_arn
+  stripe_secret_arn = module.platform_secrets.stripe_secret_arn
+  region            = var.aws_region
 }
 module "payment_intent_role" {
-  published_layout_snapshot_table_arn = module.published_layout_snapshot.table_arn
-  source                              = "./security/iam/payment-intent"
-  environment                         = var.env
-  order_table_arn                     = module.order.table_arn
-  menu_table_arn                      = module.menu.table_arn
-  region                              = var.aws_region
-  stripe_secret_arn                   = module.platform_secrets.stripe_secret_arn
-  turnstile_secret_arn                = module.catering_secrets.turnstile_secret_arn
-  request_guard_table_arn             = module.request_guard.table_arn
+  source                  = "./security/iam/payment-intent"
+  environment             = var.env
+  order_table_arn         = module.order.table_arn
+  menu_table_arn          = module.menu.table_arn
+  region                  = var.aws_region
+  stripe_secret_arn       = module.platform_secrets.stripe_secret_arn
+  request_guard_table_arn = module.request_guard.table_arn
 }
 module "mark_arrived_role" {
   source                              = "./security/iam/mark-arrived"
@@ -438,7 +434,6 @@ module "create_pending_reservation_role" {
   payment_delinquency_table_arn       = module.payment_delinquency.table_arn
   region                              = var.aws_region
   stripe_secret_arn                   = module.platform_secrets.stripe_secret_arn
-  turnstile_secret_arn                = module.catering_secrets.turnstile_secret_arn
   request_guard_table_arn             = module.request_guard.table_arn
 }
 module "no_show_check_role" {
@@ -538,7 +533,6 @@ module "catering_requests_role" {
   catering_discount_tiers_table_arn  = module.catering_discount_tiers.table_arn
   menu_table_arn                     = module.menu.table_arn
   catering_menu_table_arn            = module.catering_menu.table_arn
-  turnstile_secret_arn               = module.catering_secrets.turnstile_secret_arn
   link_signing_key_secret_arn        = module.catering_secrets.link_signing_key_secret_arn
   request_guard_table_arn            = module.request_guard.table_arn
   region                             = var.aws_region
@@ -746,6 +740,7 @@ module "platform_tenants_role" {
   finance_rollup_lambda_arn          = module.finance_rollup_fn.function_arn
   alert_topic_arn                    = module.alerts.topic_arn
   site_repo_function_arn             = module.sites.alias_arn
+  print_table_arn                    = module.print.table_arn
   site_redirect_kvs_arn              = local.tenant_sites_enabled ? module.platform_domain[0].site_redirects_kvs_arn : ""
 }
 module "tenant_account_role" {
@@ -1024,14 +1019,16 @@ module "meta_ads_jobs_ecr" {
   function    = "meta-ads-jobs"
 }
 module "site_builder_ecr" {
-  source      = "./storage/ecr/function"
-  environment = var.env
-  function    = "site-builder"
+  source       = "./storage/ecr/function"
+  environment  = var.env
+  function     = "site-builder"
+  force_delete = true # site builder removed (code only); lets a later release delete the repository
 }
 module "site_builder_render_ecr" {
-  source      = "./storage/ecr/function"
-  environment = var.env
-  function    = "site-builder-render"
+  source       = "./storage/ecr/function"
+  environment  = var.env
+  function     = "site-builder-render"
+  force_delete = true # site builder removed (code only); lets a later release delete the repository
 }
 module "guest_crm_ecr" {
   source      = "./storage/ecr/function"
@@ -1309,9 +1306,9 @@ module "create_pending_reservation_fn" {
   location_id_index_name               = module.location.location_id_index_name
   reservation_link_key_secret_arn      = module.reservation_secrets.link_signing_key_secret_arn
   stripe_api_version                   = var.stripe_api_version
-  # Bot check on online bookings only once the sites show the widget.
-  turnstile_required       = var.turnstile_site_key != ""
-  turnstile_secret_arn     = module.catering_secrets.turnstile_secret_arn
+  # Bot check: guest bookings must come through a site's /api/* (AWS WAF).
+  bot_check_enforced       = var.bot_check_enforced
+  site_waf_secret          = random_password.site_waf_edge.result
   request_guard_table_name = module.request_guard.table_name
   cloudfront_edge_secret   = random_password.cloudfront_edge.result
 }
@@ -1366,41 +1363,39 @@ module "get_reservation_fn" {
   reservation_link_key_secret_arn = module.reservation_secrets.link_signing_key_secret_arn
 }
 module "get_order_fn" {
-  published_layout_snapshot_table_name = module.published_layout_snapshot.table_name
-  source                               = "./compute/lambda/get-order"
-  environment                          = var.env
-  role_arn                             = module.get_order_role.role_arn
-  ecr_repository_url                   = module.get_order_ecr.get_order_ecr_repository_url
-  order_table_name                     = module.order.table_name
-  region                               = var.aws_region
-  tenant_table_name                    = module.tenant.table_name
-  location_table_name                  = module.location.table_name
-  location_id_index_name               = module.location.location_id_index_name
-  reservation_link_key_secret_arn      = module.reservation_secrets.link_signing_key_secret_arn
-  stripe_secret_arn                    = module.platform_secrets.stripe_secret_arn
-  stripe_api_version                   = var.stripe_api_version
+  source                          = "./compute/lambda/get-order"
+  environment                     = var.env
+  role_arn                        = module.get_order_role.role_arn
+  ecr_repository_url              = module.get_order_ecr.get_order_ecr_repository_url
+  order_table_name                = module.order.table_name
+  region                          = var.aws_region
+  tenant_table_name               = module.tenant.table_name
+  location_table_name             = module.location.table_name
+  location_id_index_name          = module.location.location_id_index_name
+  reservation_link_key_secret_arn = module.reservation_secrets.link_signing_key_secret_arn
+  stripe_secret_arn               = module.platform_secrets.stripe_secret_arn
+  stripe_api_version              = var.stripe_api_version
 }
 module "payment_intent_fn" {
-  published_layout_snapshot_table_name = module.published_layout_snapshot.table_name
-  source                               = "./compute/lambda/payment-intent"
-  environment                          = var.env
-  privacy_env                          = local.privacy_env_consent
-  role_arn                             = module.payment_intent_role.role_arn
-  ecr_repository_url                   = module.payment_intent_ecr.payment_intent_ecr_repository_url
-  order_table_name                     = module.order.table_name
-  menu_table_name                      = module.menu.table_name
-  stripe_secret_arn                    = module.platform_secrets.stripe_secret_arn
-  stripe_api_version                   = var.stripe_api_version
-  region                               = var.aws_region
-  tenant_table_name                    = module.tenant.table_name
-  location_table_name                  = module.location.table_name
-  location_id_index_name               = module.location.location_id_index_name
-  customer_site_url                    = local.customer_site_url
-  site_domain                          = local.site_domain
-  reservation_link_key_secret_arn      = module.reservation_secrets.link_signing_key_secret_arn
-  # Bot check on the order form only once the sites show the widget.
-  turnstile_required       = var.turnstile_site_key != ""
-  turnstile_secret_arn     = module.catering_secrets.turnstile_secret_arn
+  source                          = "./compute/lambda/payment-intent"
+  environment                     = var.env
+  privacy_env                     = local.privacy_env_consent
+  role_arn                        = module.payment_intent_role.role_arn
+  ecr_repository_url              = module.payment_intent_ecr.payment_intent_ecr_repository_url
+  order_table_name                = module.order.table_name
+  menu_table_name                 = module.menu.table_name
+  stripe_secret_arn               = module.platform_secrets.stripe_secret_arn
+  stripe_api_version              = var.stripe_api_version
+  region                          = var.aws_region
+  tenant_table_name               = module.tenant.table_name
+  location_table_name             = module.location.table_name
+  location_id_index_name          = module.location.location_id_index_name
+  customer_site_url               = local.customer_site_url
+  site_domain                     = local.site_domain
+  reservation_link_key_secret_arn = module.reservation_secrets.link_signing_key_secret_arn
+  # Bot check: guest orders must come through a site's /api/* (AWS WAF).
+  bot_check_enforced       = var.bot_check_enforced
+  site_waf_secret          = random_password.site_waf_edge.result
   request_guard_table_name = module.request_guard.table_name
   cloudfront_edge_secret   = random_password.cloudfront_edge.result
   marketing_table_name     = module.marketing.table_name
@@ -1461,22 +1456,19 @@ module "manage_menu_fn" {
   location_id_index_name = module.location.location_id_index_name
 }
 module "manage_order_fn" {
-  published_layout_snapshot_table_name = module.published_layout_snapshot.table_name
-  source                               = "./compute/lambda/manage-order"
-  environment                          = var.env
-  role_arn                             = module.manage_order_role.role_arn
-  ecr_repository_url                   = module.manage_order_ecr.manage_order_ecr_repository_url
-  order_table_name                     = module.order.table_name
-  customer_site_url                    = local.customer_site_url
-  site_domain                          = local.site_domain
-  user_table_name                      = module.user.table_name
-  region                               = var.aws_region
-  tenant_table_name                    = module.tenant.table_name
-  location_table_name                  = module.location.table_name
-  location_id_index_name               = module.location.location_id_index_name
-  reservation_link_key_secret_arn      = module.reservation_secrets.link_signing_key_secret_arn
-  stripe_secret_arn                    = module.platform_secrets.stripe_secret_arn
-  stripe_api_version                   = var.stripe_api_version
+  source                          = "./compute/lambda/manage-order"
+  environment                     = var.env
+  role_arn                        = module.manage_order_role.role_arn
+  ecr_repository_url              = module.manage_order_ecr.manage_order_ecr_repository_url
+  order_table_name                = module.order.table_name
+  user_table_name                 = module.user.table_name
+  region                          = var.aws_region
+  tenant_table_name               = module.tenant.table_name
+  location_table_name             = module.location.table_name
+  location_id_index_name          = module.location.location_id_index_name
+  reservation_link_key_secret_arn = module.reservation_secrets.link_signing_key_secret_arn
+  stripe_secret_arn               = module.platform_secrets.stripe_secret_arn
+  stripe_api_version              = var.stripe_api_version
 }
 module "manage_user_fn" {
   source                 = "./compute/lambda/manage-user"
@@ -1634,15 +1626,15 @@ module "catering_requests_fn" {
   region                             = var.aws_region
 
   catering_request_history_table_name = module.catering_request_history.table_name
-  turnstile_secret_arn                = module.catering_secrets.turnstile_secret_arn
   link_signing_key_secret_arn         = module.catering_secrets.link_signing_key_secret_arn
   customer_site_url                   = local.customer_site_url
   tenant_table_name                   = module.tenant.table_name
   location_id_index_name              = module.location.location_id_index_name
   user_table_name                     = module.user.table_name
   request_guard_table_name            = module.request_guard.table_name
-  # Bot check on the catering form only once the sites show the widget.
-  turnstile_required     = var.turnstile_site_key != ""
+  # Bot check: catering requests must come through a site's /api/* (AWS WAF).
+  bot_check_enforced     = var.bot_check_enforced
+  site_waf_secret        = random_password.site_waf_edge.result
   cloudfront_edge_secret = random_password.cloudfront_edge.result
   marketing_table_name   = module.marketing.table_name
 }
@@ -1846,6 +1838,8 @@ module "platform_tenants_fn" {
   user_backdrops_table_name          = module.user_backdrops_table.table_name
   finance_table_name                 = module.finance.table_name
   finance_rollup_alias_arn           = module.finance_rollup_fn.alias_arn
+  print_table_name                   = module.print.table_name
+  print_server_url                   = "${module.api_gateway.api_base_url}/print/cloudprnt"
   site_repo_function_arn             = module.sites.alias_arn
   site_redirect_kvs_arn              = local.tenant_sites_enabled ? module.platform_domain[0].site_redirects_kvs_arn : ""
   site_repos_enabled                 = var.github_app_sites_secret_name != ""
@@ -1949,7 +1943,7 @@ module "tenant_site_config_fn" {
   ecr_repository_url     = module.tenant_site_config_ecr.tenant_site_config_ecr_repository_url
   tenant_table_name      = module.tenant.table_name
   location_table_name    = module.location.table_name
-  turnstile_site_key     = var.turnstile_site_key
+  waf_integration_url    = local.sites_waf_integration_url
   stripe_publishable_key = var.stripe_publishable_key
   region                 = var.aws_region
   location_id_index_name = module.location.location_id_index_name
@@ -2230,8 +2224,9 @@ module "marketing" {
   finance_table_arn       = module.finance.table_arn
   # Welcome offer sign-up: the same bot check and attempt counters as the
   # booking and order forms.
-  turnstile_required       = var.turnstile_site_key != ""
-  turnstile_secret_arn     = module.catering_secrets.turnstile_secret_arn
+  bot_check_enforced       = var.bot_check_enforced
+  site_waf_secret          = random_password.site_waf_edge.result
+  cloudfront_edge_secret   = random_password.cloudfront_edge.result
   request_guard_table_name = module.request_guard.table_name
   request_guard_table_arn  = module.request_guard.table_arn
   # Discount codes at checkout and the catering form's opt-in write to the
@@ -2256,11 +2251,19 @@ module "stripe_webhooks" {
 # Values several modules share - computed once so links, sender addresses
 # and app URLs all agree.
 locals {
+  # Base URL of the sites' web ACL JavaScript integration (network/waf-sites),
+  # handed to the sites by GET /site-config ("" when no site distribution).
+  sites_waf_integration_url = one(module.waf_sites[*].application_integration_url) == null ? "" : one(module.waf_sites[*].application_integration_url)
+  sites_web_acl_arn         = one(module.waf_sites[*].web_acl_arn) == null ? "" : one(module.waf_sites[*].web_acl_arn)
   # Fallback base URL for customer links while a tenant has no domain yet
   # (dev / before platform_domain is set). Handlers prefer the tenant's
   # primaryDomain - see docs/handoff/BACKEND.md.
   customer_site_url            = "https://${module.cloudfront_public.distribution_domain_name}"
   catering_signing_webhook_url = "${module.api_gateway.api_endpoint}/webhooks/signing/catering"
+
+  # Host of the HTTP API ($default stage, no path), the origin of the sites'
+  # /api/* (network/platform-domain, test-sites).
+  api_origin_domain = "${module.api_gateway.api_id}.execute-api.${var.aws_region}.amazonaws.com"
 
   # Everything that needs a domain the platform owns switches on with
   # var.platform_domain (network/platform-domain).
@@ -2409,6 +2412,22 @@ locals {
 }
 
 # --- Platform domain (off until var.platform_domain is set) --------------------
+# Bot check, rate limit and IP reputation for the restaurant websites (AWS WAF
+# instead of Cloudflare Turnstile, owner 2026-11-17): one web ACL on the
+# multi-tenant site distribution and, in dev, the test-sites sandbox. Their
+# /api/* sends guest form posts to the API with x-booqy-waf; the API refuses
+# posts without it once var.bot_check_enforced is on. CLOUDFRONT scope, so
+# us-east-1.
+module "waf_sites" {
+  count  = local.tenant_sites_enabled || local.test_sites_zones ? 1 : 0
+  source = "./network/waf-sites"
+  providers = {
+    aws = aws.us_east_1
+  }
+
+  environment = var.env
+}
+
 module "platform_domain" {
   count  = local.platform_domain_enabled ? 1 : 0
   source = "./network/platform-domain"
@@ -2437,6 +2456,9 @@ module "platform_domain" {
   sites_bucket_regional_domain_name       = module.sites.bucket_regional_domain_name
   per_tenant_sites                        = var.per_tenant_sites
   dmarc_report_address                    = var.dmarc_report_address
+  web_acl_arn                             = local.sites_web_acl_arn
+  api_origin_domain                       = local.api_origin_domain
+  waf_edge_secret                         = random_password.site_waf_edge.result
 }
 
 # Adopt an existing hosted zone for the platform domain (var.platform_domain_zone_id)
@@ -2510,12 +2532,34 @@ module "cloudfront_public" {
 resource "random_password" "cloudfront_edge" {
   length  = 48
   special = false
+
+  # 2026-11-17: new value; the dev one was printed in a CI log by a provider
+  # error. A viewer IP is not trusted for the minutes CloudFront and the
+  # Lambdas take to pick it up (the API falls back to API Gateway's IP).
+  keepers = {
+    rotated = "2026-11-17"
+  }
+}
+# Shared secret the restaurant sites' CloudFront sends as x-booqy-waf on
+# /api/*: the request passed the sites' web ACL (network/waf-sites). The
+# API's bot check (application shared/bot_check.py) requires it on guest form
+# posts when var.bot_check_enforced is on.
+resource "random_password" "site_waf_edge" {
+  length  = 48
+  special = false
+
+  # 2026-11-17: new value; the first one was printed in a CI log by a
+  # provider error.
+  keepers = {
+    rotated = "2026-11-17"
+  }
 }
 
 module "cloudfront_private" {
   source                                 = "./network/cloudfront/private"
   environment                            = var.env
   admin_bucket_regional_domain_name      = module.admin_front_end_asset.bucket_regional_domain_name
+  edge_secret                            = random_password.cloudfront_edge.result
   menu_image_bucket_regional_domain_name = module.menu_image.bucket_regional_domain_name
   backdrop_bucket_name                   = module.user_backdrops.bucket_name
   recordings_bucket_name                 = module.phone_agent.recordings_bucket_name
@@ -2526,7 +2570,6 @@ module "cloudfront_private" {
   # From the API's id, not its stage URL: the stage waits for routes and
   # their Lambdas, some of which take the admin app's URL (a cycle).
   api_origin_domain = "${module.api_gateway.api_id}.execute-api.${var.aws_region}.amazonaws.com"
-  edge_secret       = random_password.cloudfront_edge.result
 }
 # Operator app (platform admin) - where tenants are created and managed
 module "cloudfront_platform_admin" {

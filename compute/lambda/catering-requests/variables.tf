@@ -52,12 +52,6 @@ variable "catering_request_history_table_name" {
   sensitive   = false
 }
 
-variable "turnstile_secret_arn" {
-  description = "ARN of the Cloudflare Turnstile secret key secret - the handler verifies the submit's Turnstile token with it"
-  type        = string
-  sensitive   = false
-}
-
 variable "link_signing_key_secret_arn" {
   description = "ARN of the magic-link HMAC key secret - the handler builds the customer's order link with it"
   type        = string
@@ -94,13 +88,6 @@ variable "request_guard_table_name" {
   sensitive   = false
 }
 
-variable "turnstile_required" {
-  description = "Whether catering requests must carry a Turnstile token"
-  type        = bool
-  sensitive   = false
-  default     = false
-}
-
 variable "cloudfront_edge_secret" {
   description = "Shared secret from the admin app's CloudFront (x-booqy-edge); lets shared/http.py trust the viewer IP header"
   type        = string
@@ -117,4 +104,16 @@ variable "catering_menu_table_name" {
   description = "Name of the catering menu DynamoDB table (catering dishes and packages)"
   type        = string
   sensitive   = false
+}
+
+variable "bot_check_enforced" {
+  description = "Require guest form posts to come through a restaurant site's /api/* (x-booqy-waf); see root var.bot_check_enforced"
+  type        = bool
+  sensitive   = false
+}
+
+variable "site_waf_secret" {
+  description = "Shared secret the sites' CloudFront sends as x-booqy-waf (root random_password.site_waf_edge)"
+  type        = string
+  sensitive   = true
 }

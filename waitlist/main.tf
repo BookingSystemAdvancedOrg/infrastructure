@@ -61,10 +61,10 @@ locals {
       }
     },
     {
-      Sid      = "LinkKeyAndTurnstile"
+      Sid      = "LinkKey"
       Effect   = "Allow"
       Action   = ["secretsmanager:GetSecretValue"]
-      Resource = [var.reservation_link_key_secret_arn, var.turnstile_secret_arn]
+      Resource = var.reservation_link_key_secret_arn
     },
     {
       Sid      = "CountJoinAttempts"
@@ -216,8 +216,8 @@ resource "aws_lambda_function" "fn" {
       PUBLISHED_LAYOUT_SNAPSHOT_TABLE_NAME = var.published_layout_snapshot_table_name
       RESERVATION_LINK_KEY_SECRET_ARN      = var.reservation_link_key_secret_arn
       RESERVATION_RETENTION_DAYS           = tostring(var.reservation_retention_days)
-      TURNSTILE_REQUIRED                   = var.turnstile_required ? "true" : "false"
-      TURNSTILE_SECRET_ARN                 = var.turnstile_secret_arn
+      BOT_CHECK_ENFORCED                   = var.bot_check_enforced ? "true" : "false"
+      SITE_WAF_SECRET                      = var.site_waf_secret
       REQUEST_GUARD_TABLE_NAME             = var.request_guard_table_name
       NOTIFICATION_FUNCTION_NAME           = var.notification_function_arn
       EVENT_BUS_NAME                       = var.event_bus_name

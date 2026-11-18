@@ -78,7 +78,7 @@ an `AUDIT#` entry in catering-request-history - in one
 
 | Transition | Written by | Trigger |
 |---|---|---|
-| → requested | catering-requests | `POST …/catering/requests` (Turnstile-verified) |
+| → requested | catering-requests | `POST …/catering/requests` (AWS WAF bot check) |
 | requested (+ `reviewedAt`, "Under granskning") | catering-offer | first `PUT …/offer` (draft) |
 | requested → offer_sent, offer_sent → offer_sent (new version) | catering-offer | `POST …/offer/send` (PDF + signing order; the previous order is cancelled) |
 | offer_sent (+ `restaurantSignedAt`, notice to the guest) | catering-offer | `POST …/restaurant-sign` + `…/status` |

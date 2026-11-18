@@ -16,6 +16,11 @@
 // plain host name: the request goes on unchanged (fail open, the site keeps
 // answering on that host). /.well-known/ is never redirected (certificate
 // validation).
+//
+// A request that is not redirected and whose path has no file extension is
+// a client-side route of the site: it loads /index.html. Done here instead of
+// with custom_error_response, which would also turn the API's own 403/404
+// answers under /api/* into the site's HTML (that behaviour has no function).
 import cf from 'cloudfront';
 
 const kvs = cf.kvs('${kvs_id}');
@@ -35,25 +40,37 @@ function query(qs) {
   return parts.join('&');
 }
 
+function spa(request) {
+  const uri = request.uri || '/';
+  if (uri.indexOf('/.well-known/') === 0) {
+    return request;
+  }
+  const last = uri.slice(uri.lastIndexOf('/') + 1);
+  if (last.indexOf('.') === -1) {
+    request.uri = '/index.html';
+  }
+  return request;
+}
+
 async function handler(event) {
   const request = event.request;
   const header = request.headers.host;
   const host = (header && header.value ? header.value : '').toLowerCase().split(':')[0];
   if (!HOST.test(host) || request.uri.indexOf('/.well-known/') === 0) {
-    return request;
+    return spa(request);
   }
   let target;
   try {
     target = await kvs.get(host);
   } catch (e) {
-    return request;
+    return spa(request);
   }
   if (typeof target !== 'string') {
-    return request;
+    return spa(request);
   }
   target = target.toLowerCase();
   if (!HOST.test(target) || target === host) {
-    return request;
+    return spa(request);
   }
   const qs = query(request.querystring);
   return {

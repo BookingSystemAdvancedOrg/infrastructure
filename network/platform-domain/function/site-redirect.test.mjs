@@ -90,3 +90,23 @@ test('a key value store error fails open', async () => {
   const req = event('pizzeria-roma.booqy.se', '/').request;
   assert.equal(await broken({ request: req }), req);
 });
+
+test('a client-side route loads index.html, files and certificate paths keep their path', async () => {
+  for (const [uri, want] of [
+    ['/', '/index.html'],
+    ['/boka-bord', '/index.html'],
+    ['/evenemang/01JEVENT', '/index.html'],
+    ['/assets/index-abc123.js', '/assets/index-abc123.js'],
+    ['/favicon.ico', '/favicon.ico'],
+    ['/.well-known/acme-challenge/token', '/.well-known/acme-challenge/token'],
+  ]) {
+    const out = await handler(event('unknown.booqy.se', uri));
+    assert.equal(out.uri, want, uri);
+  }
+});
+
+test('a redirect keeps the original path, not index.html', async () => {
+  const out = await handler(event('pizzeria-roma.booqy.se', '/meny'));
+  assert.equal(out.statusCode, 301);
+  assert.equal(out.headers.location.value, 'https://roma.se/meny');
+});

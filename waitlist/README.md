@@ -17,7 +17,7 @@ and take the table by SMS link.
   Get/Query on the published layout snapshot; **UpdateItem on the existing
   location table limited by `dynamodb:Attributes` to `PK`, `SK`,
   `waitlist`** (publicJoin mirror, CONTRACTS.md 4); GetSecretValue on the
-  reservation link key and the Turnstile secret; UpdateItem on the
+  reservation link key; UpdateItem on the
   request-guard table; `lambda:InvokeFunction` on `notification:live`;
   `scheduler:CreateSchedule/DeleteSchedule` on its group; `iam:PassRole`
   on its scheduler role (PassedToService scheduler); `events:PutEvents`

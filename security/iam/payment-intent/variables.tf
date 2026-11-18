@@ -28,20 +28,8 @@ variable "menu_table_arn" {
   sensitive   = false
 }
 
-variable "turnstile_secret_arn" {
-  description = "ARN of the Turnstile secret (bot check on the order form)"
-  type        = string
-  sensitive   = false
-}
-
 variable "request_guard_table_arn" {
   description = "ARN of the attempt-counter table (request_guard)"
-  type        = string
-  sensitive   = false
-}
-
-variable "published_layout_snapshot_table_arn" {
-  description = "ARN of the Published Layout Snapshot table - the active floor plan names the tables behind the QR codes"
   type        = string
   sensitive   = false
 }

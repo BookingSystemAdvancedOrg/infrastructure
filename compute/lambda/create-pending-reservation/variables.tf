@@ -88,19 +88,6 @@ variable "stripe_api_version" {
   sensitive   = false
 }
 
-variable "turnstile_required" {
-  description = "Whether online bookings must carry a Cloudflare Turnstile token - true once the platform's widget is configured (turnstile_site_key)"
-  type        = bool
-  sensitive   = false
-  default     = false
-}
-
-variable "turnstile_secret_arn" {
-  description = "ARN of the Secrets Manager secret holding the platform's Turnstile secret key (security/secrets/catering, {\"secretKey\": \"...\"})"
-  type        = string
-  sensitive   = false
-}
-
 variable "request_guard_table_name" {
   description = "Name of the request guard DynamoDB table - attempt counters per IP address, phone number and e-mail for online bookings"
   type        = string
@@ -109,6 +96,18 @@ variable "request_guard_table_name" {
 
 variable "cloudfront_edge_secret" {
   description = "Shared secret from the admin app's CloudFront (x-booqy-edge); lets shared/http.py trust the viewer IP header"
+  type        = string
+  sensitive   = true
+}
+
+variable "bot_check_enforced" {
+  description = "Require guest form posts to come through a restaurant site's /api/* (x-booqy-waf); see root var.bot_check_enforced"
+  type        = bool
+  sensitive   = false
+}
+
+variable "site_waf_secret" {
+  description = "Shared secret the sites' CloudFront sends as x-booqy-waf (root random_password.site_waf_edge)"
   type        = string
   sensitive   = true
 }

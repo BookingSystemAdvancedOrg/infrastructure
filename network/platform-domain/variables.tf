@@ -35,7 +35,7 @@ variable "customer_bucket_regional_domain_name" {
 }
 
 variable "web_acl_arn" {
-  description = "Optional AWS WAF (v2, CLOUDFRONT scope) web ACL for the tenant sites; empty for none"
+  description = "AWS WAF (v2, CLOUDFRONT scope) web ACL for the tenant sites (network/waf-sites); empty for none"
   type        = string
   sensitive   = false
   default     = ""
@@ -130,4 +130,18 @@ variable "per_tenant_sites" {
     condition     = !var.per_tenant_sites || var.sites_bucket_regional_domain_name != ""
     error_message = "per_tenant_sites needs sites_bucket_regional_domain_name."
   }
+}
+
+variable "api_origin_domain" {
+  description = "Host name of the HTTP API (execute-api) that the sites' /api/* behaviour forwards to; empty for no /api/*"
+  type        = string
+  sensitive   = false
+  default     = ""
+}
+
+variable "waf_edge_secret" {
+  description = "Shared secret sent to the API as x-booqy-waf: the request passed the sites' web ACL (bot check); the API also trusts the viewer IP header with it"
+  type        = string
+  sensitive   = true
+  default     = ""
 }

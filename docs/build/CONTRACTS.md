@@ -942,7 +942,7 @@ hook. Never logged, returned or put in an event.
 | `agent_model_client` (addendum) | string / `"simulator"` | same | `external-clients.tf` | `AGENT_MODEL_CLIENT` | addendum |
 | `phone_agent_model_id` (addendum) | string / `""` | none (real client refuses empty) | `external-clients.tf` | `PHONE_AGENT_MODEL_ID` | addendum |
 | `phone_agent_voice_id` (2026-11-13) | string / `""` | none (real voice client refuses empty) | `external-clients.tf` | `PHONE_AGENT_VOICE_ID` | L |
-| `phone_agent_tts_model` (2026-11-13) | string / `"eleven_flash_v2_5"` | one of `eleven_flash_v2_5`, `eleven_turbo_v2_5`, `eleven_v4_turbo`, `eleven_multilingual_v2` | `external-clients.tf` | `PHONE_AGENT_TTS_MODEL` | L |
+| `phone_agent_tts_model` (2026-11-13) | string / `"eleven_flash_v2_5"` | one of `eleven_flash_v2_5`, `eleven_turbo_v2_5`, `eleven_v4_turbo`, `eleven_v3_conversational`, `eleven_multilingual_v2` (dev: `eleven_v4_turbo`, 2026-11-17) | `external-clients.tf` | `PHONE_AGENT_TTS_MODEL` | L |
 | `elevenlabs_api_base` (2026-11-13) | string / `"https://api.elevenlabs.io"` | https | `external-clients.tf` | `ELEVENLABS_API_BASE` | L |
 | `phone_agent_location_price_sek` (addendum) | number / `0` | whole, >= 0 | `variables.tf` | `BILLING_PHONE_AGENT_LOCATION_PRICE_SEK` (platform-tenants, Run 2 hotspot) | addendum; value **[NEEDS YOUR OK]** |
 | `phone_agent_minute_price_sek` (addendum) | number / `0` | >= 0, two decimals | `variables.tf` | `BILLING_PHONE_AGENT_MINUTE_PRICE_SEK` | addendum; value **[NEEDS YOUR OK]** |

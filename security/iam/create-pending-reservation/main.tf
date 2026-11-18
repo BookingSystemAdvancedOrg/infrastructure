@@ -130,8 +130,8 @@ resource "aws_iam_role_policy" "stripe_secret" {
   })
 }
 
-# Online bookings: the Turnstile secret (bot check) and the attempt
-# counters - item updates only, on that one table.
+# Online bookings: the attempt counters - item updates only, on that one
+# table.
 resource "aws_iam_role_policy" "booking_protection" {
   name = "online-booking-protection"
   role = aws_iam_role.this.id
@@ -139,12 +139,6 @@ resource "aws_iam_role_policy" "booking_protection" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
-      {
-        Sid      = "ReadTurnstileSecret"
-        Effect   = "Allow"
-        Action   = "secretsmanager:GetSecretValue"
-        Resource = var.turnstile_secret_arn
-      },
       {
         Sid      = "CountBookingAttempts"
         Effect   = "Allow"

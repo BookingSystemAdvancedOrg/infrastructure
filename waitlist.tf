@@ -17,8 +17,8 @@ module "waitlist" {
   published_layout_snapshot_table_arn  = module.published_layout_snapshot.table_arn
   reservation_link_key_secret_arn      = module.reservation_secrets.link_signing_key_secret_arn
   reservation_retention_days           = var.data_retention.booking_days
-  turnstile_required                   = var.turnstile_site_key != ""
-  turnstile_secret_arn                 = module.catering_secrets.turnstile_secret_arn
+  bot_check_enforced                   = var.bot_check_enforced
+  site_waf_secret                      = random_password.site_waf_edge.result
   request_guard_table_name             = module.request_guard.table_name
   request_guard_table_arn              = module.request_guard.table_arn
   notification_function_arn            = module.notification_fn.alias_arn

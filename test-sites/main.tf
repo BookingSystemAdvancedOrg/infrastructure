@@ -371,6 +371,18 @@ resource "aws_cloudfront_function" "host_router" {
   key_value_store_associations = [aws_cloudfront_key_value_store.hosts[0].arn]
 }
 
+# Viewer request on /api/*: strip /api, pass the viewer's IP and host for the
+# API (trusted only with the x-booqy-edge origin header).
+resource "aws_cloudfront_function" "api_proxy" {
+  count = local.count
+
+  name    = "${local.prefix}test-sites-api-proxy"
+  runtime = "cloudfront-js-2.0"
+  comment = "Test sites /api/*: strip prefix, pass viewer IP and host"
+  publish = true
+  code    = file("${path.module}/function/api-proxy.js")
+}
+
 # ONE standard distribution for every test host (owner 2026-11-15: no
 # distribution tenants, which cost money beyond 10 per account, and no
 # certificate per host): both wildcards on the one certificate.
@@ -379,6 +391,7 @@ resource "aws_cloudfront_distribution" "sites" {
 
   enabled             = true
   comment             = "${local.prefix}test sites (sandbox): *.${var.main_domain} main, *.${var.dev_domain} dev"
+  web_acl_id          = var.web_acl_arn != "" ? var.web_acl_arn : null
   aliases             = ["*.${var.main_domain}", "*.${var.dev_domain}"]
   is_ipv6_enabled     = true
   http_version        = "http2and3"
@@ -397,6 +410,29 @@ resource "aws_cloudfront_distribution" "sites" {
     origin_id                = "menu-image"
     domain_name              = var.menu_image_bucket_regional_domain_name
     origin_access_control_id = aws_cloudfront_origin_access_control.sites[0].id
+  }
+
+  # The API, for the sites' form posts under /api/* (as on the multi-tenant
+  # distribution, network/platform-domain): same domain as the page, so the
+  # web ACL's bot check token goes with every post.
+  dynamic "origin" {
+    for_each = var.api_origin_domain == "" ? [] : [1]
+    content {
+      origin_id   = "api"
+      domain_name = var.api_origin_domain
+
+      custom_origin_config {
+        http_port              = 80
+        https_port             = 443
+        origin_protocol_policy = "https-only"
+        origin_ssl_protocols   = ["TLSv1.2"]
+      }
+
+      custom_header {
+        name  = "x-booqy-waf"
+        value = var.waf_edge_secret
+      }
+    }
   }
 
   default_cache_behavior {
@@ -426,21 +462,31 @@ resource "aws_cloudfront_distribution" "sites" {
     compress                   = true
   }
 
-  # A missing file of a site (S3 answers 403 without ListBucket): the
-  # sandbox's 404 page, fetched without the router (its own key).
-  custom_error_response {
-    error_code            = 403
-    response_code         = 404
-    response_page_path    = "/_platform/404.html"
-    error_caching_min_ttl = 10
+  # Form posts from the site (shared/bot_check.py in the API): never cached,
+  # every viewer header but Host, /api stripped.
+  dynamic "ordered_cache_behavior" {
+    for_each = var.api_origin_domain == "" ? [] : [1]
+    content {
+      path_pattern             = "/api/*"
+      target_origin_id         = "api"
+      viewer_protocol_policy   = "https-only"
+      allowed_methods          = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
+      cached_methods           = ["GET", "HEAD"]
+      cache_policy_id          = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # AWS managed "CachingDisabled"
+      origin_request_policy_id = "b689b0a8-53d0-40ab-baf2-68738e2966ac" # AWS managed "AllViewerExceptHostHeader"
+      compress                 = false
+
+      function_association {
+        event_type   = "viewer-request"
+        function_arn = aws_cloudfront_function.api_proxy[0].arn
+      }
+    }
   }
 
-  custom_error_response {
-    error_code            = 404
-    response_code         = 404
-    response_page_path    = "/_platform/404.html"
-    error_caching_min_ttl = 10
-  }
+  # No custom_error_response: it applies to the whole distribution and would
+  # turn the API's own 403/404 answers under /api/* into HTML. The host
+  # router already sends client-side routes to index.html and unknown hosts
+  # to a 404 page; a missing file gets S3's own 403.
 
   restrictions {
     geo_restriction {

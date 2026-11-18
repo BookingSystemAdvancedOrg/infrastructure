@@ -51,7 +51,7 @@ resource "aws_apigatewayv2_stage" "this" {
   # routes (booking, holds, orders, catering requests) a lower one, since
   # each also sends messages or opens a Stripe session. Per-client limits
   # (IP address, phone, e-mail) are in the application
-  # (shared/request_guard.py) and Turnstile.
+  # (shared/request_guard.py) and the sites' AWS WAF bot check.
   default_route_settings {
     throttling_rate_limit  = var.throttle_rate_limit
     throttling_burst_limit = var.throttle_burst_limit
@@ -498,7 +498,7 @@ resource "aws_apigatewayv2_integration" "get_order" {
 }
 
 # Guest routes, public like the order form itself: whether the location
-# takes orders right now (and which table a QR code is), and the guest's
+# takes orders right now, and the guest's
 # order - that one only with the X-Order-Token the order was created with
 # (checked in the Lambda; a wrong token answers 404).
 resource "aws_apigatewayv2_route" "get_order" {
@@ -984,7 +984,8 @@ resource "aws_lambda_permission" "pre_signed_url_invoke" {
 # Staff/owner order management (own tenant): the day's orders (GET on the
 # collection), one order (GET .../{orderId}), kitchen status moves and
 # cancel + refund (PUT .../{orderId}/status), pausing orders (PUT
-# .../pause) and table QR codes (POST .../table-codes). All JWT-protected -
+# .../pause); old table QR code calls (.../table-codes) answer 410 in the
+# Lambda, QR ordering at the table is off. All JWT-protected -
 # guests never call this; their reads go through get-order and their
 # orders are created by payment-intent. Reads live here (not in a public
 # lambda) because a location's order list is operational data.
@@ -1570,6 +1571,14 @@ locals {
     "POST /platform/tenants/{tenantId}/locations",
     "PATCH /platform/tenants/{tenantId}/locations/{locationId}",
     "DELETE /platform/tenants/{tenantId}/locations/{locationId}",
+    # Printer status per location (customer list badge, Locations tab) and
+    # the operator's add, rename, test print and remove (Print table)
+    "GET /platform/printers",
+    "GET /platform/tenants/{tenantId}/printers",
+    "POST /platform/tenants/{tenantId}/locations/{locationId}/printers",
+    "PATCH /platform/tenants/{tenantId}/locations/{locationId}/printers/{deviceId}",
+    "DELETE /platform/tenants/{tenantId}/locations/{locationId}/printers/{deviceId}",
+    "POST /platform/tenants/{tenantId}/locations/{locationId}/printers/{deviceId}/test",
     "POST /platform/tenants/{tenantId}/domains",
     "DELETE /platform/tenants/{tenantId}/domains/{domain}",
     # Domains we run DNS for: search + buy (registreringsbevis for .se), or
@@ -1842,7 +1851,7 @@ resource "aws_lambda_permission" "marketing_invoke" {
 #   GET  /m/u/{token}      unsubscribe page (HMAC-signed)
 #   POST /m/u/{token}      unsubscribe, incl. RFC 8058 one-click from mail apps
 #   GET  /m/offer          the welcome offer card's settings
-#   POST /m/signup         welcome offer sign-up (Turnstile + per-IP/address limits)
+#   POST /m/signup         welcome offer sign-up (the sites' AWS WAF bot check + per-IP/address limits)
 #   POST /m/code           check a discount code before checkout
 #   GET|POST /m/s/{token}  confirm a welcome-offer sign-up (double opt-in, signed)
 # Email links reach these through the admin app's /api (restaurang.<domain>).

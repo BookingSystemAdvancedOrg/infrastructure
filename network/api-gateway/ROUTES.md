@@ -123,6 +123,12 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | POST | `/platform/tenants/{tenantId}/locations` | JWT (operator) | platform-tenants |
 | PATCH | `/platform/tenants/{tenantId}/locations/{locationId}` | JWT (operator) | platform-tenants |
 | DELETE | `/platform/tenants/{tenantId}/locations/{locationId}` | JWT (operator) | platform-tenants |
+| GET | `/platform/printers` | JWT (operator) | platform-tenants |
+| GET | `/platform/tenants/{tenantId}/printers` | JWT (operator) | platform-tenants |
+| POST | `/platform/tenants/{tenantId}/locations/{locationId}/printers` | JWT (operator) | platform-tenants |
+| PATCH | `/platform/tenants/{tenantId}/locations/{locationId}/printers/{deviceId}` | JWT (operator) | platform-tenants |
+| DELETE | `/platform/tenants/{tenantId}/locations/{locationId}/printers/{deviceId}` | JWT (operator) | platform-tenants |
+| POST | `/platform/tenants/{tenantId}/locations/{locationId}/printers/{deviceId}/test` | JWT (operator) | platform-tenants |
 | POST | `/platform/tenants/{tenantId}/domains` | JWT (operator) | platform-tenants |
 | DELETE | `/platform/tenants/{tenantId}/domains/{domain}` | JWT (operator) | platform-tenants |
 | GET | `/platform/domains/search` | JWT (operator) | platform-tenants |

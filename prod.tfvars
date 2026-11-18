@@ -80,8 +80,15 @@ platform_subdomain_delegations = {
 
 # Public keys handed to restaurant websites by GET /site-config - not
 # secrets (see docs/PLATFORM-SETUP.md).
-# stripe_publishable_key = "pk_live_..."
-# turnstile_site_key     = "0x..."
+# Live publishable key of the platform account (IT Hjälparna Nordic AB,
+# acct_1U4OrzHzsSv44yFH), set 2026-11-17.
+stripe_publishable_key = "pk_live_51U4OrzHzsSv44yFH9URokQcvXUL9JpxZvpG0xaoAphtM8iXQY2PH5p91geUzL57bHcqiKKDgVvVuNWItrJEahEl7004z8NIhOZ"
+
+# Bot check on the restaurant sites' form posts (AWS WAF, network/waf-sites).
+# The WAF runs on every site's /api/* already; this makes the API refuse
+# guest form posts that did not come through it. On once every live site
+# runs a site-kit with the WAF client (sites rebuilt).
+bot_check_enforced = false
 
 # Monthly prices (SEK, excluding VAT), invoiced in advance on the 1st for
 # that calendar month (the first month pro rata from the start day)
@@ -95,24 +102,24 @@ plans = {
     max_locations = 1
     features = {
       reservations = true, ordering = true, catering = false, marketing = false,
-      metaAds      = false, siteBuilder = false, guestCrm = false, googleBusiness = false, giftCards = false,
+      metaAds      = false, guestCrm = false, googleBusiness = false, giftCards = false,
       waitlist     = false, socialPosting = false, personalliggare = false, accountingSync = false, dishMargin = false,
       events       = false, phoneAgent = false,
     }
     price_sek = 3950
-    limits    = { siteBuilderAiEditsPerMonth = 0, phoneAgentMinutesPerMonth = 0 }
+    limits    = { phoneAgentMinutesPerMonth = 0 }
   }
   growth = {
     name          = "Growth"
     max_locations = 3
     features = {
       reservations = true, ordering = true, catering = true, marketing = true,
-      metaAds      = false, siteBuilder = false, guestCrm = false, googleBusiness = false, giftCards = false,
+      metaAds      = false, guestCrm = false, googleBusiness = false, giftCards = false,
       waitlist     = false, socialPosting = false, personalliggare = false, accountingSync = false, dishMargin = false,
       events       = false, phoneAgent = false,
     }
     price_sek = 8295
-    limits    = { siteBuilderAiEditsPerMonth = 0, phoneAgentMinutesPerMonth = 0 }
+    limits    = { phoneAgentMinutesPerMonth = 0 }
   }
 }
 

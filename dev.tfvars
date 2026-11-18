@@ -48,10 +48,12 @@ tenant_subdomains_enabled = true
 # Public keys handed to restaurant websites by GET /site-config - not
 # secrets (see docs/PLATFORM-SETUP.md).
 stripe_publishable_key = "pk_test_51U4OsHHhsMraauJUMyW7ID1lQq1jsS3Pdtzqu04WDgEnJW8VQIvGktIUNMPo8cZNgIRYPafALaLKQxLfckdiXOKX00LbiD1Obc"
-# Cloudflare's TEST site key (always passes; its secret counterpart is
-# written by security/secrets/catering outside prod). Online bookings in dev
-# therefore run the real bot check with a "testing only" widget.
-turnstile_site_key = "1x00000000000000000000AA"
+
+# Bot check on the restaurant sites' form posts (AWS WAF, network/waf-sites).
+# The WAF runs on every site's /api/* already; this makes the API refuse
+# guest form posts that did not come through it. On once every live site
+# runs a site-kit with the WAF client (sites rebuilt).
+bot_check_enforced = false
 
 # The account's monthly SMS spend limit (USD), alarmed at 80% - check the
 # current value first: aws sns get-sms-attributes --region eu-north-1
@@ -93,24 +95,24 @@ plans = {
     max_locations = 1
     features = {
       reservations = true, ordering = true, catering = false, marketing = false,
-      metaAds      = false, siteBuilder = false, guestCrm = false, googleBusiness = false, giftCards = false,
+      metaAds      = false, guestCrm = false, googleBusiness = false, giftCards = false,
       waitlist     = false, socialPosting = false, personalliggare = false, accountingSync = false, dishMargin = false,
       events       = false, phoneAgent = false,
     }
     price_sek = 3950
-    limits    = { siteBuilderAiEditsPerMonth = 0, phoneAgentMinutesPerMonth = 0 }
+    limits    = { phoneAgentMinutesPerMonth = 0 }
   }
   growth = {
     name          = "Growth"
     max_locations = 3
     features = {
       reservations = true, ordering = true, catering = true, marketing = true,
-      metaAds      = false, siteBuilder = false, guestCrm = false, googleBusiness = false, giftCards = false,
+      metaAds      = false, guestCrm = false, googleBusiness = false, giftCards = false,
       waitlist     = false, socialPosting = false, personalliggare = false, accountingSync = false, dishMargin = false,
       events       = false, phoneAgent = false,
     }
     price_sek = 8295
-    limits    = { siteBuilderAiEditsPerMonth = 0, phoneAgentMinutesPerMonth = 0 }
+    limits    = { phoneAgentMinutesPerMonth = 0 }
   }
 }
 
@@ -204,6 +206,11 @@ help_assistant_model_id       = "eu.anthropic.claude-haiku-5-5"
 # simulators until the ElevenLabs and 46elks accounts exist.
 agent_model_client   = "real"
 phone_agent_model_id = "eu.anthropic.claude-haiku-5-5"
+# The voice model whose languages a call may switch to (owner 2026-11-17: any
+# language the caller speaks, Somali included). Inert for speech while
+# voice_client is the simulator; the Prova simulator and the agent follow its
+# language list. Verify the model in the ElevenLabs sandbox before prod.
+phone_agent_tts_model = "eleven_v4_turbo"
 
 # The AWS-only phone test line (owner 2026-11-13): Amazon Connect + Lex sv_SE +
 # Polly Elin in Frankfurt, a real number that reaches the agent.

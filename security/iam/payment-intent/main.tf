@@ -92,8 +92,8 @@ resource "aws_iam_role_policy" "menu_read" {
   })
 }
 
-# Public order form: the Turnstile secret (bot check) and the attempt
-# counters - item updates only, on that one table.
+# Public order form: the attempt counters - item updates only, on that one
+# table.
 resource "aws_iam_role_policy" "order_protection" {
   name = "online-order-protection"
   role = aws_iam_role.this.id
@@ -102,36 +102,10 @@ resource "aws_iam_role_policy" "order_protection" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid      = "ReadTurnstileSecret"
-        Effect   = "Allow"
-        Action   = "secretsmanager:GetSecretValue"
-        Resource = var.turnstile_secret_arn
-      },
-      {
         Sid      = "CountOrderAttempts"
         Effect   = "Allow"
         Action   = "dynamodb:UpdateItem"
         Resource = var.request_guard_table_arn
-      }
-    ]
-  })
-}
-
-# Table QR codes: the active published floor plan (activation state and
-# the current snapshot, read by key) decides that a code's table still exists
-# and what it is called. Read only, item level.
-resource "aws_iam_role_policy" "layout_read" {
-  name = "published-layout-read"
-  role = aws_iam_role.this.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Sid      = "ReadActiveLayout"
-        Effect   = "Allow"
-        Action   = "dynamodb:GetItem"
-        Resource = var.published_layout_snapshot_table_arn
       }
     ]
   })

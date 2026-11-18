@@ -40,8 +40,8 @@ gate in this version.
 | | Where |
 |---|---|
 | Non-secret platform values | `.github/config/project.env`: OIDC role ARNs, state bucket names, region, no-reply email, GitHub org + repo names |
-| Per-environment Terraform values | `dev.tfvars` / `prod.tfvars`: operator emails, alert emails, `platform_domain`, plans (with `price_sek`), default VAT rates, Stripe publishable key, Turnstile site key, `aws_usd_to_sek` |
-| Secrets | GitHub repo secrets `STRIPE_SECRET_KEY_DEV` / `STRIPE_SECRET_KEY_PROD` (platform Stripe key). Webhook signing secrets are created by Terraform (`payments/stripe`) into Secrets Manager. Set once per environment by hand in Secrets Manager: the Lambdas' Stripe key (`stripe/api-key`), signing provider and Turnstile secrets (`catering/*`) - see docs/PLATFORM-SETUP.md |
+| Per-environment Terraform values | `dev.tfvars` / `prod.tfvars`: operator emails, alert emails, `platform_domain`, plans (with `price_sek`), default VAT rates, Stripe publishable key, `bot_check_enforced`, `aws_usd_to_sek` |
+| Secrets | GitHub repo secrets `STRIPE_SECRET_KEY_DEV` / `STRIPE_SECRET_KEY_PROD` (platform Stripe key). Webhook signing secrets are created by Terraform (`payments/stripe`) into Secrets Manager. Set once per environment by hand in Secrets Manager: the Lambdas' Stripe key (`stripe/api-key`), signing provider secret (`catering/signing-provider`) - see docs/PLATFORM-SETUP.md |
 | Per-restaurant data | Nowhere in this repo - the tenant table, written by the operator app |
 
 The pipeline authenticates to AWS via OIDC (no long-lived AWS keys
@@ -57,7 +57,7 @@ repo, per account, before the first pipeline run.
 - `compute/lambda/` - one module per Lambda function (`pre-token-generation` and the `get-location` public-info handler carry their code here; the rest are images from the application repo)
 - `orchestration/tenant-workflows/` - Step Functions: tenant onboarding, custom domain attach/detach, offboarding
 - `security/iam/` - one least-privilege role module per Lambda + the GitHub OIDC deploy roles for the app repos
-- `security/secrets/` - Secrets Manager secrets (platform Stripe key; catering: signing provider, Turnstile, magic-link key)
+- `security/secrets/` - Secrets Manager secrets (platform Stripe key; catering: signing provider, magic-link key)
 - `security/iam/tenant-context/` - the shared read policy every tenant-aware Lambda gets
 - `network/` - API Gateway (see `network/api-gateway/ROUTES.md`, generated - run `generate_routes.py` after route changes), CloudFront, SES; `platform-domain/` = Route 53 zone, multi-tenant distribution, SES domain (only when `platform_domain` is set)
 - `monitoring/` - SNS alert topics + CloudWatch alarms: dead-letter queues and their replay, SES/SMS guardrails, API Gateway and CloudFront front-door alarms, the 5-minute `uptime-check` Lambda

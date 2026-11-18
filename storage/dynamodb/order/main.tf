@@ -8,7 +8,8 @@ resource "aws_dynamodb_table" "order" {
   # PK: LOCATION#<locationId> - one partition per restaurant's food orders,
   # same shape as the menu and reservation tables. Ordering is deliberately
   # decoupled from reservations: an order exists whether the customer booked
-  # a table, walked in, or ordered via QR at the table. "Give me this
+  # a table or walked in (QR ordering at the table is off since 2026-11-17;
+  # its TABLEQR# items and past table orders stay here). "Give me this
   # location's orders" is a single Query on the partition with no GSI.
   attribute {
     name = "PK"

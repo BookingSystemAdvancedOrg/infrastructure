@@ -378,7 +378,6 @@ resource "aws_lambda_function" "fn" {
       MENU_IMAGE_BASE_URL    = var.menu_image_base_url
       PREVIEW_DOMAIN         = var.preview_domain
       STRIPE_PUBLISHABLE_KEY = var.stripe_publishable_key
-      TURNSTILE_SITE_KEY     = var.turnstile_site_key
       # prod only: the dev side of a new restaurant's site
       DEV_LINK_ROLE_ARN                 = local.dev_link_role_arn
       DEV_PLATFORM_TENANTS_FUNCTION_ARN = local.dev_platform_tenants_arn

@@ -28,11 +28,6 @@ variable "location_table_name" {
   sensitive   = false
 }
 
-variable "turnstile_site_key" {
-  description = "Public Cloudflare Turnstile site key the tenant sites render (platform-wide widget)"
-  type        = string
-  sensitive   = false
-}
 
 variable "region" {
   description = "AWS region this Lambda's log group, ECR repository, and image push target live in"
@@ -50,4 +45,11 @@ variable "stripe_publishable_key" {
   description = "Publishable key (pk_...) of the platform Stripe account. Sites initialise Stripe.js with it plus { stripeAccount: <tenant's acct_> } for card-on-file and Payment Element flows on the restaurant's connected account"
   type        = string
   sensitive   = false
+}
+
+variable "waf_integration_url" {
+  description = "Base URL of the sites' web ACL JavaScript integration (network/waf-sites); GET /site-config hands it to the sites as botCheck.integrationUrl"
+  type        = string
+  sensitive   = false
+  default     = ""
 }

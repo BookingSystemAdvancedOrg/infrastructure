@@ -29,3 +29,15 @@ resource "aws_cloudfront_function" "site_redirect" {
   })
   key_value_store_associations = [aws_cloudfront_key_value_store.site_redirects[0].arn]
 }
+
+# Viewer request on /api/* (main.tf): strip /api, pass the viewer's IP and
+# host for the API (trusted only with the x-booqy-edge origin header).
+resource "aws_cloudfront_function" "site_api_proxy" {
+  count = local.tenant_sites_count
+
+  name    = "${local.prefix}site-api-proxy"
+  runtime = "cloudfront-js-2.0"
+  comment = "Restaurant sites /api/*: strip prefix, pass viewer IP and host"
+  publish = true
+  code    = file("${path.module}/function/api-proxy.js")
+}

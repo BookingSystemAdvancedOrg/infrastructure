@@ -214,7 +214,7 @@ structured JSON (e.g. Powertools Logger `append_keys`).
 | **get-menu, get-availability, create-pending-reservation, cancel-reservation, payment-intent** (public) | `for_public(locationId, feature)`. Reservation/order ids in later calls must be checked back to that location. |
 | **every JWT route on `/locations/{locationId}/...`** (menu, layout, block-table, orders, catering-offer, catering-settings, catering-discount-tiers, mark-arrived, pre-signed-url...) | `for_jwt(event, location_id, feature)`. Routes keyed by `{reservationId}`/`{orderId}` without a location: load the item, then check its location belongs to the tenant. |
 | **pre-signed-url** | Keys under `menu-images/<tenantId>/<locationId>/...` (§2.4); verify the location first. |
-| **catering-requests** (public POST) | `for_public(locationId, "catering")`. Turnstile: after `siteverify`, check the returned `hostname` is a domain of THIS tenant (`DOMAIN#<hostname>` → `tenantId` matches - the `<slug>.<platform domain>` subdomain has a `DOMAIN#` row too; outside production also accept `localhost` and `*.cloudfront.net`). Stops a token minted on one tenant's site being replayed against another tenant. |
+| **catering-requests** (public POST) | `for_public(locationId, "catering")`. Bot check (shared/bot_check.py): with `BOT_CHECK_ENFORCED`, the post must carry `x-booqy-waf` = `SITE_WAF_SECRET`, i.e. it came through a site's `/api/*`, where the sites' AWS WAF ran (network/waf-sites). |
 | **catering-customer, catering-offer, catering-lifecycle, catering-document, catering-signing-webhook, catering-stripe-webhook** | Tenant from the location of the request. Stripe changes per §5. Tax rates: `tenant.stripe.taxRates[<key>]` (same keys as before, e.g. `food`) instead of `STRIPE_TAX_RATE_IDS`. Signing orders: put `tenantId`, `locationId`, `requestId` in the provider's metadata and verify them in the webhook. Magic links: base URL per §4.3. |
 | **notification** | Sender, links and SMS per §4.3. Tenant from the stream item's `tenantId` (new writes) or its location. |
 | **stripe-webhook, webhook-payment-intent** | Endpoints are now Connect endpoints - §5.3. |
@@ -377,7 +377,7 @@ Query `host=<hostname>` (lowercase, strip port) **or**, outside production,
   "tenant": { "tenantId": "...", "name": "...", "slug": "...", "branding": {}, "features": {"reservations": true, "ordering": true, "catering": false} },
   "locations": [ { "locationId": "...", "name": "...", "address": "...", "phone": "...", "openingHours": {} } ],
   "stripe": { "publishableKey": "<STRIPE_PUBLISHABLE_KEY>", "accountId": "acct_..." },
-  "turnstile": { "siteKey": "<TURNSTILE_SITE_KEY>" }
+  "botCheck": { "integrationUrl": "<WAF_INTEGRATION_URL>" }
 }
 ```
 
