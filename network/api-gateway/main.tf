@@ -1574,6 +1574,7 @@ locals {
     # Dev twin (dev only; prod answers 404): create or refresh the
     # customer's twin with test data (docs/DEV-TWINS.md)
     "POST /platform/tenants/{tenantId}/dev-twin",
+    "POST /platform/tenants/{tenantId}/dev-twin/content",
     # Website tab: the restaurant's site repo (site-repo function)
     "GET /platform/tenants/{tenantId}/site",
     "POST /platform/tenants/{tenantId}/site/retry",

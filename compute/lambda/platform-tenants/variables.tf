@@ -366,3 +366,21 @@ variable "dev_twin_stripe_account_id" {
   type        = string
   default     = ""
 }
+
+variable "dev_twin_prod_api_url" {
+  description = "Dev only: prod's public API base URL (twins copy the restaurant's public content; prod slugs are reserved)"
+  type        = string
+  default     = ""
+}
+
+variable "dev_twin_prod_image_url" {
+  description = "Dev only: prod's public menu image base URL"
+  type        = string
+  default     = ""
+}
+
+variable "dev_twin_prod_domain" {
+  description = "Dev only: prod's platform domain (<slug>.<domain> is a prod restaurant's address)"
+  type        = string
+  default     = ""
+}

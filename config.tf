@@ -751,6 +751,7 @@ module "platform_tenants_role" {
     module.create_location_fn.alias_arn,
     module.get_menu_fn.alias_arn,
     module.manage_menu_fn.alias_arn,
+    module.pre_signed_url_fn.alias_arn,
     module.manage_layout_element_fn.alias_arn,
     module.publish_layout_fn.alias_arn,
     module.list_layout_version_fn.alias_arn,
@@ -1895,6 +1896,9 @@ module "platform_tenants_fn" {
   dev_twin_function_prefix   = var.env == "prod" ? "" : "arn:aws:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:${var.env}-"
   dev_twin_owner_email       = var.dev_twin_owner_email
   dev_twin_stripe_account_id = var.dev_twin_stripe_account_id
+  dev_twin_prod_api_url      = var.dev_twin_prod_api_url
+  dev_twin_prod_image_url    = var.dev_twin_prod_image_url
+  dev_twin_prod_domain       = var.dev_twin_prod_domain
 }
 # Nightly figures for the Finance page (Cost Explorer, usage per customer,
 # allocation). Booqy Console's Rebuild invokes it for a date range.

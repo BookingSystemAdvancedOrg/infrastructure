@@ -131,6 +131,9 @@ resource "aws_lambda_function" "this" {
       DEV_TWIN_FUNCTION_PREFIX   = var.environment == "prod" ? "" : var.dev_twin_function_prefix
       DEV_TWIN_OWNER_EMAIL       = var.environment == "prod" ? "" : var.dev_twin_owner_email
       DEV_TWIN_STRIPE_ACCOUNT_ID = var.environment == "prod" ? "" : var.dev_twin_stripe_account_id
+      DEV_TWIN_PROD_API_URL      = var.environment == "prod" ? "" : var.dev_twin_prod_api_url
+      DEV_TWIN_PROD_IMAGE_URL    = var.environment == "prod" ? "" : var.dev_twin_prod_image_url
+      DEV_TWIN_PROD_DOMAIN       = var.environment == "prod" ? "" : var.dev_twin_prod_domain
     }
   }
 

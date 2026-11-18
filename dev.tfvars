@@ -255,3 +255,8 @@ billing_seller = {
 # fully onboarded in test mode; an id, not a secret).
 dev_twin_owner_email       = "dev+{slug}@booqy.se"
 dev_twin_stripe_account_id = "acct_1UVIUkHhsMKn0jQY"
+# Prod's PUBLIC API and menu images (what any guest's browser reads): twins
+# copy the real restaurant's public content from there, and a dev test
+# customer may not take a slug a prod customer uses. Not secret.
+dev_twin_prod_api_url   = "https://9md43vqnp1.execute-api.eu-north-1.amazonaws.com"
+dev_twin_prod_image_url = "https://d3uasj29icofcs.cloudfront.net"
