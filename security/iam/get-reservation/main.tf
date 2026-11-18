@@ -78,3 +78,23 @@ resource "aws_iam_role_policy" "logs" {
     ]
   })
 }
+
+# The guest manage page of a booking waiting for its card shows the card
+# form: this function reads the SetupIntent's client secret from Stripe (on
+# the restaurant's connected account) for the token holder only. Read only.
+resource "aws_iam_role_policy" "stripe_secret" {
+  name = "platform-stripe-secret"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "ReadPlatformStripeKey"
+        Effect   = "Allow"
+        Action   = "secretsmanager:GetSecretValue"
+        Resource = var.stripe_secret_arn
+      }
+    ]
+  })
+}

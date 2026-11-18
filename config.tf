@@ -337,6 +337,7 @@ module "get_reservation_role" {
   environment           = var.env
   reservation_table_arn = module.reservation.table_arn
   region                = var.aws_region
+  stripe_secret_arn     = module.platform_secrets.stripe_secret_arn
 }
 module "get_order_role" {
   source            = "./security/iam/get-order"
@@ -1364,6 +1365,8 @@ module "get_reservation_fn" {
   location_table_name             = module.location.table_name
   location_id_index_name          = module.location.location_id_index_name
   reservation_link_key_secret_arn = module.reservation_secrets.link_signing_key_secret_arn
+  stripe_secret_arn               = module.platform_secrets.stripe_secret_arn
+  stripe_api_version              = var.stripe_api_version
 }
 module "get_order_fn" {
   source                          = "./compute/lambda/get-order"
