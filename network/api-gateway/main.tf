@@ -1599,6 +1599,9 @@ locals {
     "PATCH /platform/tenants/{tenantId}/locations/{locationId}/printers/{deviceId}",
     "DELETE /platform/tenants/{tenantId}/locations/{locationId}/printers/{deviceId}",
     "POST /platform/tenants/{tenantId}/locations/{locationId}/printers/{deviceId}/test",
+    # Notifications (the bell): a restaurant finished Kom igång (tenant-setup writes the rows)
+    "GET /platform/notices",
+    "POST /platform/notices/seen",
     "POST /platform/tenants/{tenantId}/domains",
     "DELETE /platform/tenants/{tenantId}/domains/{domain}",
     # Domains we run DNS for: search + buy (registreringsbevis for .se), or
