@@ -102,10 +102,10 @@ resource "aws_iam_role_policy" "location_table" {
 }
 
 # Read (list a tenant's users via byTenant for suspend/resume and the tenant
-# detail page) + the profile row of an owner managed from the console's Users
-# tab: PutItem (invite, POST .../owners), UpdateItem (edit name or email,
-# PATCH .../owners/{userId}) and DeleteItem (remove, DELETE .../owners/{userId}).
-# The first owner's profile is written by the onboarding workflow.
+# detail page) + PutItem for the profile row of an additional owner invited
+# from the console (POST .../users with role owner). Every other change to an
+# account goes through manage-user (users_tab below). The first owner's
+# profile is written by the onboarding workflow.
 resource "aws_iam_role_policy" "user_table" {
   name = "user-table"
   role = aws_iam_role.this.id
@@ -127,12 +127,10 @@ resource "aws_iam_role_policy" "user_table" {
         ]
       },
       {
-        Sid    = "ManageOwnerProfiles"
+        Sid    = "CreateOwnerProfile"
         Effect = "Allow"
         Action = [
           "dynamodb:PutItem",
-          "dynamodb:UpdateItem",
-          "dynamodb:DeleteItem",
         ]
         Resource = "${var.user_table_arn}"
       }
@@ -148,20 +146,18 @@ resource "aws_iam_role_policy" "cognito" {
     Version = "2012-10-17"
     Statement = [
       {
-        # Owners on the Users tab: invite and resend (AdminCreateUser), edit
-        # name or email (AdminUpdateUserAttributes), remove (disable, sign
-        # out, AdminDeleteUser); suspend, resume and offboard as before.
+        # Invite an owner and resend any invite (AdminCreateUser), sign a
+        # disabled or removed account out; suspend, resume and offboard.
+        # Editing and removing accounts goes through manage-user (users_tab).
         Sid    = "ManageTenantUsers"
         Effect = "Allow"
         Action = [
           "cognito-idp:AdminCreateUser",
           "cognito-idp:AdminAddUserToGroup",
           "cognito-idp:AdminGetUser",
-          "cognito-idp:AdminUpdateUserAttributes",
           "cognito-idp:AdminDisableUser",
           "cognito-idp:AdminEnableUser",
           "cognito-idp:AdminUserGlobalSignOut",
-          "cognito-idp:AdminDeleteUser",
         ]
         Resource = "${var.tenant_user_pool_arn}"
       },
@@ -607,6 +603,26 @@ resource "aws_iam_role_policy" "print_table" {
         "dynamodb:DeleteItem",
       ]
       Resource = var.print_table_arn
+    }]
+  })
+}
+
+# Users tab: every sign-in account of a customer (owners and staff) is
+# changed with the admin app's own rules: manage-user (invite staff, edit,
+# role, disable, enable, remove) and tenant-account (a staff user's
+# permissions only). Both accept a direct invoke from this role as an owner of
+# the restaurant named in the call (application shared/console_invoke.py).
+resource "aws_iam_role_policy" "users_tab" {
+  name = "users-tab"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "TenantUserFunctions"
+      Effect   = "Allow"
+      Action   = "lambda:InvokeFunction"
+      Resource = [var.manage_user_function_arn, var.tenant_account_function_arn]
     }]
   })
 }

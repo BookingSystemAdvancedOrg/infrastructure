@@ -98,7 +98,11 @@ resource "aws_lambda_function" "this" {
       PRINT_SERVER_URL = var.print_server_url
       # Website tab: the restaurant's site repo (site-repo function)
       SITE_REPO_FUNCTION_ARN = var.site_repo_function_arn
-      SITE_REPOS_ENABLED     = var.site_repos_enabled ? "true" : "false"
+      # Users tab: every sign-in account of a customer, with the admin's own
+      # rules (manage-user, tenant-account staffAccess), shared/console_invoke.py
+      MANAGE_USER_FUNCTION_ARN    = var.manage_user_function_arn
+      TENANT_ACCOUNT_FUNCTION_ARN = var.tenant_account_function_arn
+      SITE_REPOS_ENABLED          = var.site_repos_enabled ? "true" : "false"
       # Dev: test customers (dev console) and their sandbox hosts; "" = off
       TEST_SITES_ENABLED         = var.test_main_domain != "" ? "true" : "false"
       TEST_MAIN_DOMAIN           = var.test_main_domain

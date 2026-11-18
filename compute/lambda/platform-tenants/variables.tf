@@ -336,3 +336,13 @@ variable "print_server_url" {
   description = "CloudPRNT server URL (<api>/print/cloudprnt) a printer added from Booqy Console is given, passed as an environment variable"
   type        = string
 }
+
+variable "manage_user_function_arn" {
+  description = "Live alias of the manage-user function (Users tab: invite, edit, role, disable, remove), passed as an environment variable"
+  type        = string
+}
+
+variable "tenant_account_function_arn" {
+  description = "Live alias of the tenant-account function (Users tab: staff permissions), passed as an environment variable"
+  type        = string
+}
