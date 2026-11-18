@@ -42,21 +42,80 @@ Resources:
                 - Utterance: jag heter Anna
                 - Utterance: tack
                 - Utterance: hello I would like to book a table
+              # No dialog hook: every utterance goes straight to fulfillment,
+              # the only step where Lex can speak while it waits.
               DialogCodeHook:
-                Enabled: true
+                Enabled: false
               FulfillmentCodeHook:
                 Enabled: true
+                IsActive: true
+                # While Booqy thinks (the whole agent turn runs here), Lex says
+                # a short Swedish line after 1 s, and another every 5 s, so the
+                # caller never sits in silence (owner 2026-11-18).
+                FulfillmentUpdatesSpecification:
+                  Active: true
+                  TimeoutInSeconds: 30
+                  StartResponse:
+                    DelayInSeconds: 1
+                    AllowInterrupt: false
+                    MessageGroups:
+                      - Message:
+                          PlainTextMessage:
+                            Value: Ett ögonblick, jag kollar.
+                        Variations:
+                          - PlainTextMessage:
+                              Value: Absolut, jag tittar på det.
+                          - PlainTextMessage:
+                              Value: Jag kollar det direkt.
+                  UpdateResponse:
+                    FrequencyInSeconds: 5
+                    AllowInterrupt: false
+                    MessageGroups:
+                      - Message:
+                          PlainTextMessage:
+                            Value: Jag letar fortfarande, tack för att du väntar.
             - Name: FallbackIntent
               Description: Everything else, to the same code hook
               ParentIntentSignature: AMAZON.FallbackIntent
+              # No dialog hook: every utterance goes straight to fulfillment,
+              # the only step where Lex can speak while it waits.
               DialogCodeHook:
-                Enabled: true
+                Enabled: false
               FulfillmentCodeHook:
                 Enabled: true
-  BotVersion:
+                IsActive: true
+                # While Booqy thinks (the whole agent turn runs here), Lex says
+                # a short Swedish line after 1 s, and another every 5 s, so the
+                # caller never sits in silence (owner 2026-11-18).
+                FulfillmentUpdatesSpecification:
+                  Active: true
+                  TimeoutInSeconds: 30
+                  StartResponse:
+                    DelayInSeconds: 1
+                    AllowInterrupt: false
+                    MessageGroups:
+                      - Message:
+                          PlainTextMessage:
+                            Value: Ett ögonblick, jag kollar.
+                        Variations:
+                          - PlainTextMessage:
+                              Value: Absolut, jag tittar på det.
+                          - PlainTextMessage:
+                              Value: Jag kollar det direkt.
+                  UpdateResponse:
+                    FrequencyInSeconds: 5
+                    AllowInterrupt: false
+                    MessageGroups:
+                      - Message:
+                          PlainTextMessage:
+                            Value: Jag letar fortfarande, tack för att du väntar.
+  # A new logical id makes CloudFormation build a new version from the
+  # changed DRAFT (an unchanged BotVersion would keep the old bot behaviour).
+  BotVersionFiller:
     Type: AWS::Lex::BotVersion
     Properties:
       BotId: !Ref Bot
+      Description: Fulfillment updates (filler while Booqy thinks)
       BotVersionLocaleSpecification:
         - LocaleId: sv_SE
           BotVersionLocaleDetails:
@@ -66,7 +125,7 @@ Resources:
     Properties:
       BotId: !Ref Bot
       BotAliasName: live
-      BotVersion: !GetAtt BotVersion.BotVersion
+      BotVersion: !GetAtt BotVersionFiller.BotVersion
       BotAliasLocaleSettings:
         - LocaleId: sv_SE
           BotAliasLocaleSetting:
