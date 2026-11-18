@@ -336,3 +336,51 @@ variable "print_server_url" {
   description = "CloudPRNT server URL (<api>/print/cloudprnt) a printer added from Booqy Console is given, passed as an environment variable"
   type        = string
 }
+
+variable "manage_user_function_arn" {
+  description = "Live alias of the manage-user function (Users tab: invite, edit, role, disable, remove), passed as an environment variable"
+  type        = string
+}
+
+variable "tenant_account_function_arn" {
+  description = "Live alias of the tenant-account function (Users tab: staff permissions), passed as an environment variable"
+  type        = string
+}
+
+# Dev twins (dev only, docs/DEV-TWINS.md): every real customer's twin in dev,
+# set up through the admin's own functions (application shared/console_invoke.py).
+variable "dev_twin_function_prefix" {
+  description = "Dev only: ARN prefix of this environment's tenant functions (arn:...:function:dev-); the twin seeder invokes <prefix><name>:live. \"\" = dev twins off"
+  type        = string
+  default     = ""
+}
+
+variable "dev_twin_owner_email" {
+  description = "Dev only: the twin's owner login, a Booqy team address; {slug} is replaced by the customer's slug (aws+{slug}@ithjalparna.se). Never the restaurant's own email"
+  type        = string
+  default     = ""
+}
+
+variable "dev_twin_stripe_account_id" {
+  description = "Dev only: a fully onboarded Stripe TEST-mode connected account (acct_..., not a secret) every twin takes payments with"
+  type        = string
+  default     = ""
+}
+
+variable "dev_twin_prod_api_url" {
+  description = "Dev only: prod's public API base URL (twins copy the restaurant's public content; prod slugs are reserved)"
+  type        = string
+  default     = ""
+}
+
+variable "dev_twin_prod_image_url" {
+  description = "Dev only: prod's public menu image base URL"
+  type        = string
+  default     = ""
+}
+
+variable "dev_twin_prod_domain" {
+  description = "Dev only: prod's platform domain (<slug>.<domain> is a prod restaurant's address)"
+  type        = string
+  default     = ""
+}

@@ -86,9 +86,10 @@ stripe_publishable_key = "pk_live_51U4OrzHzsSv44yFH9URokQcvXUL9JpxZvpG0xaoAphtM8
 
 # Bot check on the restaurant sites' form posts (AWS WAF, network/waf-sites).
 # The WAF runs on every site's /api/* already; this makes the API refuse
-# guest form posts that did not come through it. On once every live site
-# runs a site-kit with the WAF client (sites rebuilt).
-bot_check_enforced = false
+# guest form posts that did not come through it. On since 2026-11-18: the
+# only live prod site (Anar) runs site-kit 0.3.0 with the WAF client. A new
+# site must use site-kit 0.3.0 or later (site-template does).
+bot_check_enforced = true
 
 # Monthly prices (SEK, excluding VAT), invoiced in advance on the 1st for
 # that calendar month (the first month pro rata from the start day)

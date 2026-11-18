@@ -1320,7 +1320,20 @@ resource "aws_apigatewayv2_route" "catering_offer_offer_put" {
 }
 
 # --- catering-offer ---
-# Render the PDF, reserve the date's capacity and send version N to the customer.
+# Step 1 of 3: lock offer version N (render the PDF, open the signing order,
+# reserve the date's capacity). The customer does not get it yet.
+
+resource "aws_apigatewayv2_route" "catering_offer_offer_version" {
+  api_id             = aws_apigatewayv2_api.this.id
+  route_key          = "POST /locations/{locationId}/catering/requests/{requestId}/offer/version"
+  target             = "integrations/${aws_apigatewayv2_integration.catering_offer.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# --- catering-offer ---
+# Step 3 of 3: send version N to the customer, only once the restaurant has
+# signed it with BankID (409 restaurant_signature_required otherwise).
 
 resource "aws_apigatewayv2_route" "catering_offer_offer_send" {
   api_id             = aws_apigatewayv2_api.this.id
@@ -1558,6 +1571,10 @@ locals {
     "POST /platform/tenants/{tenantId}/purge",
     "POST /platform/tenants/{tenantId}/restore",
     "POST /platform/tenants/{tenantId}/onboarding/retry",
+    # Dev twin (dev only; prod answers 404): create or refresh the
+    # customer's twin with test data (docs/DEV-TWINS.md)
+    "POST /platform/tenants/{tenantId}/dev-twin",
+    "POST /platform/tenants/{tenantId}/dev-twin/content",
     # Website tab: the restaurant's site repo (site-repo function)
     "GET /platform/tenants/{tenantId}/site",
     "POST /platform/tenants/{tenantId}/site/retry",
@@ -1567,6 +1584,13 @@ locals {
     "POST /platform/tenants/{tenantId}/site/mount",
     "GET /platform/tenants/{tenantId}/users",
     "POST /platform/tenants/{tenantId}/owners",
+    # Users tab: every sign-in account, owners and staff
+    "POST /platform/tenants/{tenantId}/users",
+    "PATCH /platform/tenants/{tenantId}/users/{userId}",
+    "DELETE /platform/tenants/{tenantId}/users/{userId}",
+    "POST /platform/tenants/{tenantId}/users/{userId}/disable",
+    "POST /platform/tenants/{tenantId}/users/{userId}/enable",
+    "POST /platform/tenants/{tenantId}/users/{userId}/resend-invite",
     "GET /platform/tenants/{tenantId}/locations",
     "POST /platform/tenants/{tenantId}/locations",
     "PATCH /platform/tenants/{tenantId}/locations/{locationId}",
@@ -1579,6 +1603,9 @@ locals {
     "PATCH /platform/tenants/{tenantId}/locations/{locationId}/printers/{deviceId}",
     "DELETE /platform/tenants/{tenantId}/locations/{locationId}/printers/{deviceId}",
     "POST /platform/tenants/{tenantId}/locations/{locationId}/printers/{deviceId}/test",
+    # Notifications (the bell): a restaurant finished Kom igång (tenant-setup writes the rows)
+    "GET /platform/notices",
+    "POST /platform/notices/seen",
     "POST /platform/tenants/{tenantId}/domains",
     "DELETE /platform/tenants/{tenantId}/domains/{domain}",
     # Domains we run DNS for: search + buy (registreringsbevis for .se), or

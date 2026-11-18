@@ -139,9 +139,11 @@ output "ecr_repository_urls" {
     phone_agent                = module.phone_agent_ecr.repository_url
     phone_agent_call           = module.phone_agent_call_ecr.repository_url
     phone_agent_jobs           = module.phone_agent_jobs_ecr.repository_url
+    phone_agent_translate      = module.phone_agent_translate_ecr.repository_url
     help_assistant             = module.help_assistant_ecr.repository_url
     user_backdrop              = module.user_backdrop_ecr.repository_url
     support_reports            = module.support_reports_ecr.repository_url
+    tenant_setup               = module.tenant_setup_ecr.repository_url
   }
 }
 

@@ -9,7 +9,7 @@ variable "region" {
 }
 
 variable "ecr_repository_urls" {
-  description = "phone-agent, phone-agent-call, phone-agent-jobs => ECR repository URL"
+  description = "phone-agent, phone-agent-call, phone-agent-jobs, phone-agent-translate => ECR repository URL"
   type        = map(string)
 }
 

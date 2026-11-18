@@ -1,8 +1,9 @@
 # AI phone agent, the AWS-only test line (owner 2026-11-13, dev only): a real
 # phone number that reaches Booqy's agent without the ElevenLabs/46elks
 # accounts. Amazon Connect (Frankfurt: Connect has no Stockholm region) answers
-# with Polly's Swedish neural voice Elin, a Lex V2 bot (sv_SE) turns speech
-# into text, and a relay Lambda next to it hands every utterance to
+# with Polly's Swedish neural voice Elin, a Lex V2 bot (sv_SE, plus one locale
+# per call language in languages.json, owner 2026-11-18) turns speech into
+# text, and a relay Lambda next to it hands every utterance to
 # phone-agent-call:live in Stockholm, whose agent loop (Claude on Bedrock,
 # Booqy's tools) answers. The Lex bot, its version and alias (with the code
 # hook) and the Connect-Lex association are a CloudFormation stack: Terraform
@@ -20,6 +21,28 @@ data "aws_region" "current" {}
 locals {
   prefix = "${var.environment}-"
   name   = "${local.prefix}phone-test-line"
+
+  # Call languages (owner 2026-11-18): our code -> Lex locale, Connect
+  # language code, Polly voice and engine. languages.json is a copy of
+  # application/shared/features/phone_agent/aws_languages.json (same content;
+  # change both together). The agent switches language by closing the Lex
+  # turn with next=switch; the flow then sets the language and voice it names
+  # and starts this bot again in that locale.
+  phone_languages = jsondecode(file("${path.module}/languages.json")).languages
+  # Sample utterances and filler lines per locale, in that language.
+  lex_texts = jsondecode(file("${path.module}/lex-texts.json")).texts
+  # A new BotVersion logical id whenever a locale, a filler or the template changes.
+  lex_version_id = "BotVersion${substr(sha256(join("\n", [
+    file("${path.module}/languages.json"),
+    file("${path.module}/lex-texts.json"),
+    file("${path.module}/lex.yaml.tftpl"),
+  ])), 0, 12)}"
+  # Compact JSON: CloudFormation's template_body takes at most 51,200 bytes.
+  lex_template = jsonencode(yamldecode(templatefile("${path.module}/lex.yaml.tftpl", {
+    languages  = local.phone_languages
+    texts      = local.lex_texts
+    version_id = local.lex_version_id
+  })))
 }
 
 # --- 3. the relay ------------------------------------------------------------------------
@@ -136,8 +159,20 @@ resource "aws_cloudformation_stack" "lex" {
     RelayArn    = aws_lambda_function.relay.arn
     InstanceArn = aws_connect_instance.this.arn
   }
-  template_body = file("${path.module}/lex.yaml")
+  template_body = local.lex_template
   tags          = { Environment = var.environment }
+
+  lifecycle {
+    precondition {
+      condition     = alltrue([for code in keys(local.phone_languages) : contains(keys(local.lex_texts), code)])
+      error_message = "Every language in languages.json needs utterances and filler lines in lex-texts.json."
+    }
+    precondition {
+      # Bytes, not characters (base64 of the UTF-8 text is 4/3 of its size).
+      condition     = length(base64encode(local.lex_template)) * 3 / 4 <= 51200
+      error_message = "The rendered Lex template is over CloudFormation's 51,200 byte template_body limit: drop filler variations or utterances, or move the template to S3 (template_url)."
+    }
+  }
 }
 
 # --- 2. the bot alias may invoke the relay -----------------------------------------------
@@ -159,6 +194,8 @@ resource "aws_connect_contact_flow" "this" {
   content = templatefile("${path.module}/flow.json.tftpl", {
     alias_arn = aws_cloudformation_stack.lex.outputs["AliasArn"]
     greeting  = var.greeting
+    # After a failed language switch: back to Swedish and on with the call.
+    resume_sv = "Förlåt, vi fortsätter på svenska. Vad kan jag hjälpa dig med?"
   })
   tags = { Environment = var.environment }
 }

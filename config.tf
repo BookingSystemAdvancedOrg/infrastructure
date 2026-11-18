@@ -337,6 +337,7 @@ module "get_reservation_role" {
   environment           = var.env
   reservation_table_arn = module.reservation.table_arn
   region                = var.aws_region
+  stripe_secret_arn     = module.platform_secrets.stripe_secret_arn
 }
 module "get_order_role" {
   source            = "./security/iam/get-order"
@@ -740,8 +741,24 @@ module "platform_tenants_role" {
   finance_rollup_lambda_arn          = module.finance_rollup_fn.function_arn
   alert_topic_arn                    = module.alerts.topic_arn
   site_repo_function_arn             = module.sites.alias_arn
+  manage_user_function_arn           = module.manage_user_fn.alias_arn
+  tenant_account_function_arn        = module.tenant_account_fn.alias_arn
   print_table_arn                    = module.print.table_arn
   site_redirect_kvs_arn              = local.tenant_sites_enabled ? module.platform_domain[0].site_redirects_kvs_arn : ""
+  # Dev twins (dev only): the admin's Kom igång functions, invoked as the twin's owner
+  dev_twin_function_arns = var.env == "prod" ? [] : [
+    module.tenant_account_fn.alias_arn,
+    module.create_location_fn.alias_arn,
+    module.get_menu_fn.alias_arn,
+    module.manage_menu_fn.alias_arn,
+    module.pre_signed_url_fn.alias_arn,
+    module.manage_layout_element_fn.alias_arn,
+    module.publish_layout_fn.alias_arn,
+    module.list_layout_version_fn.alias_arn,
+    module.activate_layout_version_fn.alias_arn,
+    module.google_business.api_alias_arn,
+    module.phone_agent.api_alias_arn,
+  ]
 }
 module "tenant_account_role" {
   source             = "./security/iam/tenant-account"
@@ -764,6 +781,7 @@ module "reservation_reminders_role" {
   reservation_table_arn    = module.reservation.table_arn
   slot_occupancy_table_arn = module.slot_occupancy.table_arn
   region                   = var.aws_region
+  stripe_secret_arn        = module.platform_secrets.stripe_secret_arn
 }
 module "scheduler_invoke_reservation_reminders_role" {
   source                           = "./security/iam/scheduler-invoke-reservation-reminders"
@@ -1101,6 +1119,12 @@ module "phone_agent_jobs_ecr" {
   environment = var.env
   function    = "phone-agent-jobs"
 }
+# Call transcripts in Swedish and English (phone-agent/, owner 2026-11-18).
+module "phone_agent_translate_ecr" {
+  source      = "./storage/ecr/function"
+  environment = var.env
+  function    = "phone-agent-translate"
+}
 # In-app help assistant (help-assistant.tf); same repository settings.
 module "help_assistant_ecr" {
   source      = "./storage/ecr/function"
@@ -1118,6 +1142,12 @@ module "support_reports_ecr" {
   source      = "./storage/ecr/function"
   environment = var.env
   function    = "support-reports"
+}
+# Kom igång checklist and "setup finished" notice (tenant-setup.tf); same repository settings.
+module "tenant_setup_ecr" {
+  source      = "./storage/ecr/function"
+  environment = var.env
+  function    = "tenant-setup"
 }
 module "catering_requests_ecr" {
   source      = "./storage/ecr/catering-requests"
@@ -1361,6 +1391,8 @@ module "get_reservation_fn" {
   location_table_name             = module.location.table_name
   location_id_index_name          = module.location.location_id_index_name
   reservation_link_key_secret_arn = module.reservation_secrets.link_signing_key_secret_arn
+  stripe_secret_arn               = module.platform_secrets.stripe_secret_arn
+  stripe_api_version              = var.stripe_api_version
 }
 module "get_order_fn" {
   source                          = "./compute/lambda/get-order"
@@ -1841,6 +1873,8 @@ module "platform_tenants_fn" {
   print_table_name                   = module.print.table_name
   print_server_url                   = "${module.api_gateway.api_base_url}/print/cloudprnt"
   site_repo_function_arn             = module.sites.alias_arn
+  manage_user_function_arn           = module.manage_user_fn.alias_arn
+  tenant_account_function_arn        = module.tenant_account_fn.alias_arn
   site_redirect_kvs_arn              = local.tenant_sites_enabled ? module.platform_domain[0].site_redirects_kvs_arn : ""
   site_repos_enabled                 = var.github_app_sites_secret_name != ""
   test_main_domain                   = local.test_sites_main_domain
@@ -1864,6 +1898,13 @@ module "platform_tenants_fn" {
   invoicing_schedule_expression      = var.billing_invoicing_schedule
   dunning_schedule_expression        = var.billing_dunning_schedule
   scheduler_invoke_role_arn          = module.scheduler_invoke_platform_tenants_role.role_arn
+  # Dev twins (dev only, docs/DEV-TWINS.md)
+  dev_twin_function_prefix   = var.env == "prod" ? "" : "arn:aws:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:${var.env}-"
+  dev_twin_owner_email       = var.dev_twin_owner_email
+  dev_twin_stripe_account_id = var.dev_twin_stripe_account_id
+  dev_twin_prod_api_url      = var.dev_twin_prod_api_url
+  dev_twin_prod_image_url    = var.dev_twin_prod_image_url
+  dev_twin_prod_domain       = var.dev_twin_prod_domain
 }
 # Nightly figures for the Finance page (Cost Explorer, usage per customer,
 # allocation). Booqy Console's Rebuild invokes it for a date range.
@@ -1880,7 +1921,6 @@ module "finance_rollup_fn" {
   reservation_table_name    = module.reservation.table_name
   order_table_name          = module.order.table_name
   log_group_names           = local.tenant_aware_log_groups
-  usd_to_sek                = var.aws_usd_to_sek
   cost_allocation           = var.cost_allocation
   alert_topic_arn           = module.alerts.topic_arn
 }
@@ -1959,6 +1999,8 @@ module "reservation_reminders_fn" {
   location_id_index_name    = module.location.location_id_index_name
   reservation_table_name    = module.reservation.table_name
   slot_occupancy_table_name = module.slot_occupancy.table_name
+  stripe_secret_arn         = module.platform_secrets.stripe_secret_arn
+  stripe_api_version        = var.stripe_api_version
 }
 module "platform_stripe_webhook_fn" {
   source                     = "./compute/lambda/platform-stripe-webhook"
@@ -2397,6 +2439,7 @@ locals {
     module.help_assistant.wiring,
     module.user_backdrop.wiring,
     module.support_reports.wiring,
+    module.tenant_setup.wiring,
   ]
   feature_lambda_releases         = merge([for w in local.feature_wiring : w.lambda_releases]...)
   feature_tenant_aware_role_names = merge([for w in local.feature_wiring : w.tenant_aware_role_names]...)

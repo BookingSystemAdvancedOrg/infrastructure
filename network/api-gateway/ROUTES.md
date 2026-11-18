@@ -81,6 +81,7 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | GET | `/locations/{locationId}/catering/requests/{requestId}` | JWT | catering-offer |
 | GET | `/locations/{locationId}/catering/requests/{requestId}/documents/{docId}` | JWT | catering-offer |
 | PUT | `/locations/{locationId}/catering/requests/{requestId}/offer` | JWT | catering-offer |
+| POST | `/locations/{locationId}/catering/requests/{requestId}/offer/version` | JWT | catering-offer |
 | POST | `/locations/{locationId}/catering/requests/{requestId}/offer/send` | JWT | catering-offer |
 | POST | `/locations/{locationId}/catering/requests/{requestId}/decline` | JWT | catering-offer |
 | POST | `/locations/{locationId}/catering/requests/{requestId}/cancel` | JWT | catering-offer |
@@ -111,6 +112,8 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | POST | `/platform/tenants/{tenantId}/purge` | JWT (operator) | platform-tenants |
 | POST | `/platform/tenants/{tenantId}/restore` | JWT (operator) | platform-tenants |
 | POST | `/platform/tenants/{tenantId}/onboarding/retry` | JWT (operator) | platform-tenants |
+| POST | `/platform/tenants/{tenantId}/dev-twin` | JWT (operator) | platform-tenants |
+| POST | `/platform/tenants/{tenantId}/dev-twin/content` | JWT (operator) | platform-tenants |
 | GET | `/platform/tenants/{tenantId}/site` | JWT (operator) | platform-tenants |
 | POST | `/platform/tenants/{tenantId}/site/retry` | JWT (operator) | platform-tenants |
 | POST | `/platform/tenants/{tenantId}/site/invite` | JWT (operator) | platform-tenants |
@@ -119,10 +122,18 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | POST | `/platform/tenants/{tenantId}/site/mount` | JWT (operator) | platform-tenants |
 | GET | `/platform/tenants/{tenantId}/users` | JWT (operator) | platform-tenants |
 | POST | `/platform/tenants/{tenantId}/owners` | JWT (operator) | platform-tenants |
+| POST | `/platform/tenants/{tenantId}/users` | JWT (operator) | platform-tenants |
+| PATCH | `/platform/tenants/{tenantId}/users/{userId}` | JWT (operator) | platform-tenants |
+| DELETE | `/platform/tenants/{tenantId}/users/{userId}` | JWT (operator) | platform-tenants |
+| POST | `/platform/tenants/{tenantId}/users/{userId}/disable` | JWT (operator) | platform-tenants |
+| POST | `/platform/tenants/{tenantId}/users/{userId}/enable` | JWT (operator) | platform-tenants |
+| POST | `/platform/tenants/{tenantId}/users/{userId}/resend-invite` | JWT (operator) | platform-tenants |
 | GET | `/platform/tenants/{tenantId}/locations` | JWT (operator) | platform-tenants |
 | POST | `/platform/tenants/{tenantId}/locations` | JWT (operator) | platform-tenants |
 | PATCH | `/platform/tenants/{tenantId}/locations/{locationId}` | JWT (operator) | platform-tenants |
 | DELETE | `/platform/tenants/{tenantId}/locations/{locationId}` | JWT (operator) | platform-tenants |
+| GET | `/platform/notices` | JWT (operator) | platform-tenants |
+| POST | `/platform/notices/seen` | JWT (operator) | platform-tenants |
 | GET | `/platform/printers` | JWT (operator) | platform-tenants |
 | GET | `/platform/tenants/{tenantId}/printers` | JWT (operator) | platform-tenants |
 | POST | `/platform/tenants/{tenantId}/locations/{locationId}/printers` | JWT (operator) | platform-tenants |
@@ -260,6 +271,8 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | POST | `/tenant/social-posts` | JWT | social-posting |
 | POST | `/tenant/social-posts/drafts` | JWT | social-posting |
 | POST | `/tenant/support/reports` | JWT | support-reports |
+| GET | `/tenant/setup` | JWT | tenant-setup |
+| PUT | `/tenant/setup/skips` | JWT | tenant-setup |
 | GET | `/me/backdrops` | JWT | user-backdrop |
 | POST | `/me/backdrops/upload` | JWT | user-backdrop |
 | PUT | `/me/backdrops/selected` | JWT | user-backdrop |

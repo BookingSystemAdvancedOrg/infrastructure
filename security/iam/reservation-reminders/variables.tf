@@ -27,3 +27,9 @@ variable "slot_occupancy_table_arn" {
   type        = string
   sensitive   = false
 }
+
+variable "stripe_secret_arn" {
+  description = "ARN of the platform Stripe API key secret: before expiring a phone booking waiting for its card, the sweep asks Stripe whether the card page was completed"
+  type        = string
+  sensitive   = false
+}

@@ -40,7 +40,7 @@ gate in this version.
 | | Where |
 |---|---|
 | Non-secret platform values | `.github/config/project.env`: OIDC role ARNs, state bucket names, region, no-reply email, GitHub org + repo names |
-| Per-environment Terraform values | `dev.tfvars` / `prod.tfvars`: operator emails, alert emails, `platform_domain`, plans (with `price_sek`), default VAT rates, Stripe publishable key, `bot_check_enforced`, `aws_usd_to_sek` |
+| Per-environment Terraform values | `dev.tfvars` / `prod.tfvars`: operator emails, alert emails, `platform_domain`, plans (with `price_sek`), default VAT rates, Stripe publishable key, `bot_check_enforced` |
 | Secrets | GitHub repo secrets `STRIPE_SECRET_KEY_DEV` / `STRIPE_SECRET_KEY_PROD` (platform Stripe key). Webhook signing secrets are created by Terraform (`payments/stripe`) into Secrets Manager. Set once per environment by hand in Secrets Manager: the Lambdas' Stripe key (`stripe/api-key`), signing provider secret (`catering/signing-provider`) - see docs/PLATFORM-SETUP.md |
 | Per-restaurant data | Nowhere in this repo - the tenant table, written by the operator app |
 

@@ -4,9 +4,10 @@ module "phone_agent" {
   environment = var.env
   region      = var.aws_region
   ecr_repository_urls = {
-    "phone-agent"      = module.phone_agent_ecr.repository_url
-    "phone-agent-call" = module.phone_agent_call_ecr.repository_url
-    "phone-agent-jobs" = module.phone_agent_jobs_ecr.repository_url
+    "phone-agent"           = module.phone_agent_ecr.repository_url
+    "phone-agent-call"      = module.phone_agent_call_ecr.repository_url
+    "phone-agent-jobs"      = module.phone_agent_jobs_ecr.repository_url
+    "phone-agent-translate" = module.phone_agent_translate_ecr.repository_url
   }
   tenant_table_name      = module.tenant.table_name
   tenant_table_arn       = module.tenant.table_arn

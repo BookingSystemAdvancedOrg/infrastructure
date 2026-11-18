@@ -169,3 +169,19 @@ variable "print_table_arn" {
   description = "The print table: Booqy Console reads each location's printers and adds, renames, test prints and removes them"
   type        = string
 }
+
+variable "manage_user_function_arn" {
+  description = "Live alias of the manage-user function (Users tab: invite, edit, role, disable, remove)"
+  type        = string
+}
+
+variable "tenant_account_function_arn" {
+  description = "Live alias of the tenant-account function (Users tab: staff permissions)"
+  type        = string
+}
+
+variable "dev_twin_function_arns" {
+  description = "Dev only: live aliases of the tenant functions the dev twin seeder invokes as the twin's owner (docs/DEV-TWINS.md). Empty: no grant (prod)"
+  type        = list(string)
+  default     = []
+}

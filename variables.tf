@@ -327,12 +327,6 @@ variable "insights_rollup_schedule" {
   sensitive   = false
   default     = "cron(30 2 * * ? *)"
 }
-variable "aws_usd_to_sek" {
-  type        = number
-  description = "Exchange rate used to show AWS cost (billed in USD) in SEK on the Finance page. Recorded on every cost row when it is written, so a change applies from the next run (Rebuild in Booqy Console recomputes a range)."
-  sensitive   = false
-  default     = 10.5
-}
 variable "cost_allocation" {
   type = object({
     baseline = list(string)
@@ -357,7 +351,9 @@ variable "cost_allocation" {
       "Amazon Registrar",
     ]
     email = ["Amazon Simple Email Service"]
-    sms   = ["Amazon Simple Notification Service"]
+    # SMS are billed as "AWS End User Messaging" (SNS sends through it); the
+    # old SNS name stays for the few SNS charges that remain.
+    sms = ["AWS End User Messaging", "Amazon Simple Notification Service"]
   }
 }
 variable "default_tax_rates" {
@@ -464,5 +460,20 @@ variable "smoke_test_host" {
   type        = string
   description = "Hostname of a restaurant site that always exists in this environment (e.g. test-restaurang-2.dev.booqy.se). The uptime check and the pipelines' smoke tests call GET /site-config?host=<this> and expect 200. Empty = they expect 404 for an unknown host instead, which still proves the API end to end"
   sensitive   = false
+  default     = ""
+}
+
+# Dev twins (dev only, docs/DEV-TWINS.md): every real customer's twin in dev,
+# set up with test data so the customer's site repo (dev branch) has an
+# admin to test against.
+variable "dev_twin_owner_email" {
+  description = "Dev only: the twin's owner login, a Booqy team address; {slug} becomes the customer's slug. Never the restaurant's own email. \"\" = aws+{slug}@ithjalparna.se"
+  type        = string
+  default     = ""
+}
+
+variable "dev_twin_stripe_account_id" {
+  description = "Dev only: a fully onboarded Stripe TEST-mode connected account (acct_..., an id, not a secret) every twin takes card guarantees and orders with. \"\" = the twin keeps its own, unfinished account"
+  type        = string
   default     = ""
 }

@@ -94,3 +94,23 @@ resource "aws_iam_role_policy" "logs" {
     ]
   })
 }
+
+# Phone bookings wait for the guest's card on a Stripe Checkout page. Before
+# expiring one, the sweep asks Stripe whether the card was added (a late or
+# failed webhook must never release a table the guest secured). Read only.
+resource "aws_iam_role_policy" "stripe_secret" {
+  name = "platform-stripe-secret"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "ReadPlatformStripeKey"
+        Effect   = "Allow"
+        Action   = "secretsmanager:GetSecretValue"
+        Resource = var.stripe_secret_arn
+      }
+    ]
+  })
+}

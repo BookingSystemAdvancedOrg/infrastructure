@@ -15,3 +15,9 @@ variable "region" {
   type        = string
   sensitive   = false
 }
+
+variable "stripe_secret_arn" {
+  description = "ARN of the platform Stripe API key secret: the guest view of a booking waiting for its card reads the card form (SetupIntent client secret) from Stripe"
+  type        = string
+  sensitive   = false
+}

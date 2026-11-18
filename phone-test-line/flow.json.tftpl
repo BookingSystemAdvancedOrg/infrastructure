@@ -1,3 +1,18 @@
+%{ if false ~}
+The test line's call flow (flow language 2019-10-30).
+  1-3  Elin + sv-SE, then the bot with the greeting.
+  6    The bot returned: next=switch (the agent changed language) goes to 7,
+       anything else hangs up (5), as before.
+  7-9  Language from $.Lex.SessionAttributes.connectLanguage, voice and engine
+       from voice/engine, then the same bot again in that locale; it speaks
+       the agent's reply ("say", SSML) in the new voice first. Then back to 6.
+  13-14 next=switchEnd (the agent changed language and ended the call in one
+       turn): after 7-8, the new voice speaks "say" (14) and the flow hangs up.
+  10-12 A failed switch: Elin + sv-SE and the bot again in Swedish; if that
+       fails too, the Swedish apology (4) and hang up.
+Lex session attributes are read in place (never copied into contact
+attributes), so the reply text stays out of the contact record.
+%{ endif ~}
 {
   "Version": "2019-10-30",
   "StartAction": "a1b0c0de-0000-4000-8000-000000000001",
@@ -30,10 +45,10 @@
         }
       },
       "Transitions": {
-        "NextAction": "a1b0c0de-0000-4000-8000-000000000005",
+        "NextAction": "a1b0c0de-0000-4000-8000-000000000006",
         "Conditions": [],
         "Errors": [
-          { "NextAction": "a1b0c0de-0000-4000-8000-000000000005", "ErrorType": "NoMatchingCondition" },
+          { "NextAction": "a1b0c0de-0000-4000-8000-000000000006", "ErrorType": "NoMatchingCondition" },
           { "NextAction": "a1b0c0de-0000-4000-8000-000000000004", "ErrorType": "NoMatchingError" }
         ]
       }
@@ -52,6 +67,134 @@
       "Type": "DisconnectParticipant",
       "Parameters": {},
       "Transitions": {}
+    },
+    {
+      "Identifier": "a1b0c0de-0000-4000-8000-000000000006",
+      "Type": "Compare",
+      "Parameters": { "ComparisonValue": "$.Lex.SessionAttributes.next" },
+      "Transitions": {
+        "NextAction": "a1b0c0de-0000-4000-8000-000000000005",
+        "Conditions": [
+          {
+            "NextAction": "a1b0c0de-0000-4000-8000-000000000007",
+            "Condition": { "Operator": "Equals", "Operands": ["switch"] }
+          },
+          {
+            "NextAction": "a1b0c0de-0000-4000-8000-000000000007",
+            "Condition": { "Operator": "Equals", "Operands": ["switchEnd"] }
+          }
+        ],
+        "Errors": [{ "NextAction": "a1b0c0de-0000-4000-8000-000000000005", "ErrorType": "NoMatchingCondition" }]
+      }
+    },
+    {
+      "Identifier": "a1b0c0de-0000-4000-8000-000000000007",
+      "Type": "UpdateContactData",
+      "Parameters": { "LanguageCode": "$.Lex.SessionAttributes.connectLanguage", "TargetContact": "Current" },
+      "Transitions": {
+        "NextAction": "a1b0c0de-0000-4000-8000-000000000008",
+        "Errors": [{ "NextAction": "a1b0c0de-0000-4000-8000-000000000010", "ErrorType": "NoMatchingError" }]
+      }
+    },
+    {
+      "Identifier": "a1b0c0de-0000-4000-8000-000000000008",
+      "Type": "UpdateContactTextToSpeechVoice",
+      "Parameters": {
+        "TextToSpeechVoice": "$.Lex.SessionAttributes.voice",
+        "TextToSpeechEngine": "$.Lex.SessionAttributes.engine"
+      },
+      "Transitions": {
+        "NextAction": "a1b0c0de-0000-4000-8000-000000000013",
+        "Errors": [{ "NextAction": "a1b0c0de-0000-4000-8000-000000000010", "ErrorType": "NoMatchingError" }]
+      }
+    },
+    {
+      "Identifier": "a1b0c0de-0000-4000-8000-000000000009",
+      "Type": "ConnectParticipantWithLexBot",
+      "Parameters": {
+        "SSML": "$.Lex.SessionAttributes.say",
+        "LexV2Bot": { "AliasArn": ${jsonencode(alias_arn)} },
+        "LexSessionAttributes": {
+          "callerNumber": "$.Lex.SessionAttributes.callerNumber",
+          "dialedNumber": "$.Lex.SessionAttributes.dialedNumber",
+          "tenantId": "$.Lex.SessionAttributes.tenantId",
+          "callId": "$.Lex.SessionAttributes.callId",
+          "lang": "$.Lex.SessionAttributes.lang"
+        }
+      },
+      "Transitions": {
+        "NextAction": "a1b0c0de-0000-4000-8000-000000000006",
+        "Conditions": [],
+        "Errors": [
+          { "NextAction": "a1b0c0de-0000-4000-8000-000000000006", "ErrorType": "NoMatchingCondition" },
+          { "NextAction": "a1b0c0de-0000-4000-8000-000000000010", "ErrorType": "NoMatchingError" }
+        ]
+      }
+    },
+    {
+      "Identifier": "a1b0c0de-0000-4000-8000-000000000010",
+      "Type": "UpdateContactTextToSpeechVoice",
+      "Parameters": { "TextToSpeechVoice": "Elin", "TextToSpeechEngine": "Neural", "TextToSpeechStyle": "None" },
+      "Transitions": {
+        "NextAction": "a1b0c0de-0000-4000-8000-000000000011",
+        "Errors": [{ "NextAction": "a1b0c0de-0000-4000-8000-000000000004", "ErrorType": "NoMatchingError" }]
+      }
+    },
+    {
+      "Identifier": "a1b0c0de-0000-4000-8000-000000000011",
+      "Type": "UpdateContactData",
+      "Parameters": { "LanguageCode": "sv-SE", "TargetContact": "Current" },
+      "Transitions": {
+        "NextAction": "a1b0c0de-0000-4000-8000-000000000012",
+        "Errors": [{ "NextAction": "a1b0c0de-0000-4000-8000-000000000004", "ErrorType": "NoMatchingError" }]
+      }
+    },
+    {
+      "Identifier": "a1b0c0de-0000-4000-8000-000000000012",
+      "Type": "ConnectParticipantWithLexBot",
+      "Parameters": {
+        "Text": ${jsonencode(resume_sv)},
+        "LexV2Bot": { "AliasArn": ${jsonencode(alias_arn)} },
+        "LexSessionAttributes": {
+          "callerNumber": "$.CustomerEndpoint.Address",
+          "dialedNumber": "$.SystemEndpoint.Address",
+          "tenantId": "$.Lex.SessionAttributes.tenantId",
+          "callId": "$.Lex.SessionAttributes.callId",
+          "lang": "sv"
+        }
+      },
+      "Transitions": {
+        "NextAction": "a1b0c0de-0000-4000-8000-000000000006",
+        "Conditions": [],
+        "Errors": [
+          { "NextAction": "a1b0c0de-0000-4000-8000-000000000006", "ErrorType": "NoMatchingCondition" },
+          { "NextAction": "a1b0c0de-0000-4000-8000-000000000004", "ErrorType": "NoMatchingError" }
+        ]
+      }
+    },
+    {
+      "Identifier": "a1b0c0de-0000-4000-8000-000000000013",
+      "Type": "Compare",
+      "Parameters": { "ComparisonValue": "$.Lex.SessionAttributes.next" },
+      "Transitions": {
+        "NextAction": "a1b0c0de-0000-4000-8000-000000000009",
+        "Conditions": [
+          {
+            "NextAction": "a1b0c0de-0000-4000-8000-000000000014",
+            "Condition": { "Operator": "Equals", "Operands": ["switchEnd"] }
+          }
+        ],
+        "Errors": [{ "NextAction": "a1b0c0de-0000-4000-8000-000000000009", "ErrorType": "NoMatchingCondition" }]
+      }
+    },
+    {
+      "Identifier": "a1b0c0de-0000-4000-8000-000000000014",
+      "Type": "MessageParticipant",
+      "Parameters": { "SSML": "$.Lex.SessionAttributes.say" },
+      "Transitions": {
+        "NextAction": "a1b0c0de-0000-4000-8000-000000000005",
+        "Errors": [{ "NextAction": "a1b0c0de-0000-4000-8000-000000000005", "ErrorType": "NoMatchingError" }]
+      }
     }
   ]
 }

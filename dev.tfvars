@@ -51,8 +51,10 @@ stripe_publishable_key = "pk_test_51U4OsHHhsMraauJUMyW7ID1lQq1jsS3Pdtzqu04WDgEnJ
 
 # Bot check on the restaurant sites' form posts (AWS WAF, network/waf-sites).
 # The WAF runs on every site's /api/* already; this makes the API refuse
-# guest form posts that did not come through it. On once every live site
-# runs a site-kit with the WAF client (sites rebuilt).
+# guest form posts that did not come through it. Off in dev: test-pizza
+# still runs site-kit 0.1.0, and the E2E suites post guest forms straight to
+# the dev API from a local site. Turn on once both use /api (the
+# "not_through_waf" warnings in the guest Lambdas' logs then stop).
 bot_check_enforced = false
 
 # The account's monthly SMS spend limit (USD), alarmed at 80% - check the
@@ -246,3 +248,15 @@ billing_seller = {
   seat       = "Finspång"
   f_skatt    = true
 }
+
+# Dev twins (docs/DEV-TWINS.md): the owner login of every customer's dev
+# twin (a Booqy team address, never the restaurant's) and the Stripe
+# TEST-mode connected account the twins take payments with (test-pizza's,
+# fully onboarded in test mode; an id, not a secret).
+dev_twin_owner_email       = "aws+{slug}@ithjalparna.se"
+dev_twin_stripe_account_id = "acct_1UVIUkHhsMKn0jQY"
+# Prod's PUBLIC API and menu images (what any guest's browser reads): twins
+# copy the real restaurant's public content from there, and a dev test
+# customer may not take a slug a prod customer uses. Not secret.
+dev_twin_prod_api_url   = "https://9md43vqnp1.execute-api.eu-north-1.amazonaws.com"
+dev_twin_prod_image_url = "https://d3uasj29icofcs.cloudfront.net"

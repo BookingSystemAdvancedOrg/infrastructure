@@ -6,7 +6,8 @@
 # L15-L18, privacy.*, tenant.purge, billing.usage), functions/phone-agent-call
 # (provider webhooks L13/L14 and the agent turn endpoint on a Function URL),
 # functions/phone-agent-jobs (5-minute sweep, nightly retention),
-# shared/features/phone_agent.
+# functions/phone-agent-translate (Swedish and English transcript text on
+# PhoneCall.Ended, Amazon Translate), shared/features/phone_agent.
 #
 # All access below is on NEW roles. No existing role, permissions boundary,
 # OIDC role, Cognito, CloudFront or KMS key is changed; the hook callers'
@@ -83,6 +84,14 @@ locals {
     phone-agent-jobs = {
       timeout     = 300
       memory      = 512
+      concurrency = -1
+      env         = local.common_env
+    }
+    # Call transcripts in Swedish and English (owner 2026-11-18): on
+    # PhoneCall.Ended, each turn gets textSv/textEn from Amazon Translate.
+    phone-agent-translate = {
+      timeout     = 120
+      memory      = 256
       concurrency = -1
       env         = local.common_env
     }
@@ -219,6 +228,25 @@ locals {
         Sid      = "ScanPhoneAgentTable"
         Effect   = "Allow"
         Action   = ["dynamodb:Scan"]
+        Resource = local.table_arn
+      },
+    ]
+    # New role, approved with the language switch design (owner 2026-11-18).
+    phone-agent-translate = [
+      {
+        # TranslateText has no resource without custom terminology or parallel data.
+        Sid      = "TranslateTurns"
+        Effect   = "Allow"
+        Action   = ["translate:TranslateText"]
+        Resource = "*"
+      },
+      {
+        # Reads the call row (GetItem) and its turn rows (Query on its
+        # partition) and adds textSv/textEn/translation to the turns; the
+        # original text is never written.
+        Sid      = "CallTurns"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem", "dynamodb:Query", "dynamodb:UpdateItem"]
         Resource = local.table_arn
       },
     ]
@@ -595,7 +623,124 @@ resource "aws_scheduler_schedule" "jobs" {
   }
 }
 
+# --- transcript translation: PhoneCall.Ended -> phone-agent-translate:live ------------------
+
+resource "aws_sqs_queue" "translate_dlq" {
+  name                      = "${local.prefix}phone-agent-translate-dlq"
+  message_retention_seconds = 1209600
+  sqs_managed_sse_enabled   = true
+
+  tags = {
+    Environment = var.environment
+  }
+}
+
+resource "aws_cloudwatch_event_rule" "call_ended" {
+  name           = "${local.prefix}phone-agent-call-ended-translate"
+  description    = "A finished call's turns get Swedish and English text (Amazon Translate)"
+  event_bus_name = var.event_bus_name
+  event_pattern = jsonencode({
+    source        = ["booqy.phone-agent"]
+    "detail-type" = ["PhoneCall.Ended"]
+  })
+
+  tags = {
+    Environment = var.environment
+  }
+}
+
+resource "aws_cloudwatch_event_target" "call_ended" {
+  rule           = aws_cloudwatch_event_rule.call_ended.name
+  event_bus_name = var.event_bus_name
+  arn            = aws_lambda_alias.live["phone-agent-translate"].arn
+
+  dead_letter_config {
+    arn = aws_sqs_queue.translate_dlq.arn
+  }
+
+  retry_policy {
+    maximum_retry_attempts       = 4
+    maximum_event_age_in_seconds = 3600
+  }
+}
+
+resource "aws_lambda_permission" "call_ended" {
+  statement_id  = "AllowCallEndedRule"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.fn["phone-agent-translate"].function_name
+  qualifier     = aws_lambda_alias.live["phone-agent-translate"].name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.call_ended.arn
+}
+
+resource "aws_sqs_queue_policy" "translate_dlq" {
+  queue_url = aws_sqs_queue.translate_dlq.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid       = "RuleDeadLetters"
+      Effect    = "Allow"
+      Principal = { Service = "events.amazonaws.com" }
+      Action    = "sqs:SendMessage"
+      Resource  = aws_sqs_queue.translate_dlq.arn
+      Condition = { ArnEquals = { "aws:SourceArn" = aws_cloudwatch_event_rule.call_ended.arn } }
+    }]
+  })
+}
+
+# Function errors (a raised TranslationIncomplete after a throttle, a timeout, a
+# DynamoDB error): Lambda's own async retries, then the event goes to the same
+# DLQ (alarmed), so it can be replayed. The rule's dead_letter_config above
+# covers only delivery failures.
+resource "aws_iam_role_policy" "translate_dlq" {
+  name = "translate-dlq"
+  role = aws_iam_role.fn["phone-agent-translate"].id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "FailedEvents"
+      Effect   = "Allow"
+      Action   = "sqs:SendMessage"
+      Resource = aws_sqs_queue.translate_dlq.arn
+    }]
+  })
+}
+
+resource "aws_lambda_function_event_invoke_config" "translate" {
+  function_name                = aws_lambda_function.fn["phone-agent-translate"].function_name
+  qualifier                    = aws_lambda_alias.live["phone-agent-translate"].name
+  maximum_retry_attempts       = 2
+  maximum_event_age_in_seconds = 3600
+
+  destination_config {
+    on_failure {
+      destination = aws_sqs_queue.translate_dlq.arn
+    }
+  }
+
+  depends_on = [aws_iam_role_policy.translate_dlq]
+}
+
 # --- alarms (ADR-L 9) -----------------------------------------------------------------------
+
+resource "aws_cloudwatch_metric_alarm" "translate_dlq" {
+  alarm_name          = "${local.prefix}phone-agent-translate-dlq"
+  alarm_description   = "Ended calls whose transcript translation could not be delivered or kept failing"
+  namespace           = "AWS/SQS"
+  metric_name         = "ApproximateNumberOfMessagesVisible"
+  dimensions          = { QueueName = aws_sqs_queue.translate_dlq.name }
+  statistic           = "Maximum"
+  period              = 300
+  evaluation_periods  = 1
+  threshold           = 1
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [var.alert_topic_arn]
+
+  tags = {
+    Environment = var.environment
+  }
+}
 
 resource "aws_cloudwatch_metric_alarm" "errors" {
   for_each            = local.functions

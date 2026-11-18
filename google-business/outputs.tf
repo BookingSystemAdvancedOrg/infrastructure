@@ -16,3 +16,13 @@ output "wiring" {
     }
   }
 }
+
+output "table_name" {
+  description = "google-business table (tenant-setup reads the CONNECTION, LINK and SKIP rows)"
+  value       = aws_dynamodb_table.this.name
+}
+
+# Dev twins: Booqy Console's seeder invokes this live alias as the twin's owner (dev only).
+output "api_alias_arn" {
+  value = aws_lambda_alias.live["google-business"].arn
+}

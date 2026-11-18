@@ -1,0 +1,129 @@
+%{ if false ~}
+The Lex bot of the phone test line, rendered by main.tf (templatefile, then
+yamldecode + jsonencode, so CloudFormation gets compact JSON under its 51,200
+byte template_body limit). One locale per entry in languages.json, each with
+the catch-all intent, FallbackIntent, the relay as fulfillment code hook and
+the filler lines from lex-texts.json in that language. Intrinsic functions
+use the long form (Ref:, Fn::GetAtt:) because yamldecode has no !Ref tags.
+Every string is written with jsonencode (a JSON string is a valid YAML
+double-quoted scalar).
+%{ endif ~}
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Booqy phone agent test line - the Lex V2 bot (one locale per call language) that passes every utterance to Booqy (dev only)
+Parameters:
+  BotName:
+    Type: String
+  LexRoleArn:
+    Type: String
+  RelayArn:
+    Type: String
+  InstanceArn:
+    Type: String
+Resources:
+  Bot:
+    Type: AWS::Lex::Bot
+    Properties:
+      Name:
+        Ref: BotName
+      Description: Speech to text for the Booqy phone agent, one locale per call language; every turn goes to the code hook
+      RoleArn:
+        Ref: LexRoleArn
+      DataPrivacy:
+        ChildDirected: false
+      IdleSessionTTLInSeconds: 600
+      AutoBuildBotLocales: true
+      BotLocales:
+%{ for code, lang in languages ~}
+        - LocaleId: ${jsonencode(lang.lexLocale)}
+          NluConfidenceThreshold: 0.40
+          VoiceSettings:
+            VoiceId: ${jsonencode(lang.voice)}
+            Engine: ${jsonencode(lang.engine)}
+          Intents:
+%{ for intent in ["Samtal", "FallbackIntent"] ~}
+            - Name: ${intent}
+%{ if intent == "Samtal" ~}
+              SampleUtterances:
+%{ for u in texts[code].utterances ~}
+                - Utterance: ${jsonencode(u)}
+%{ endfor ~}
+%{ else ~}
+              ParentIntentSignature: AMAZON.FallbackIntent
+%{ endif ~}
+              DialogCodeHook:
+                Enabled: false
+              FulfillmentCodeHook:
+                Enabled: true
+                IsActive: true
+                FulfillmentUpdatesSpecification:
+                  Active: true
+                  TimeoutInSeconds: 30
+                  StartResponse:
+                    DelayInSeconds: 1
+                    AllowInterrupt: false
+                    MessageGroups:
+                      - Message:
+                          PlainTextMessage:
+                            Value: ${jsonencode(texts[code].start[0])}
+%{ if length(texts[code].start) > 1 ~}
+                        Variations:
+%{ for line in slice(texts[code].start, 1, length(texts[code].start)) ~}
+                          - PlainTextMessage:
+                              Value: ${jsonencode(line)}
+%{ endfor ~}
+%{ endif ~}
+                  UpdateResponse:
+                    FrequencyInSeconds: 5
+                    AllowInterrupt: false
+                    MessageGroups:
+                      - Message:
+                          PlainTextMessage:
+                            Value: ${jsonencode(texts[code].update)}
+%{ endfor ~}
+%{ endfor ~}
+  # The logical id carries a hash of languages.json, lex-texts.json and this
+  # template: any change makes CloudFormation build a new version from the
+  # changed DRAFT (an unchanged BotVersion would keep the old bot behaviour).
+  ${version_id}:
+    Type: AWS::Lex::BotVersion
+    Properties:
+      BotId:
+        Ref: Bot
+      Description: One locale per call language, with filler lines while Booqy thinks
+      BotVersionLocaleSpecification:
+%{ for code, lang in languages ~}
+        - LocaleId: ${jsonencode(lang.lexLocale)}
+          BotVersionLocaleDetails:
+            SourceBotVersion: DRAFT
+%{ endfor ~}
+  Alias:
+    Type: AWS::Lex::BotAlias
+    Properties:
+      BotId:
+        Ref: Bot
+      BotAliasName: live
+      BotVersion:
+        Fn::GetAtt: [${version_id}, BotVersion]
+      BotAliasLocaleSettings:
+%{ for code, lang in languages ~}
+        - LocaleId: ${jsonencode(lang.lexLocale)}
+          BotAliasLocaleSetting:
+            Enabled: true
+            CodeHookSpecification:
+              LambdaCodeHook:
+                LambdaArn:
+                  Ref: RelayArn
+                CodeHookInterfaceVersion: "1.0"
+%{ endfor ~}
+  ConnectAssociation:
+    Type: AWS::Connect::IntegrationAssociation
+    Properties:
+      InstanceId:
+        Ref: InstanceArn
+      IntegrationType: LEX_BOT
+      IntegrationArn:
+        Fn::GetAtt: [Alias, Arn]
+Outputs:
+  AliasArn:
+    Value:
+      Fn::GetAtt: [Alias, Arn]

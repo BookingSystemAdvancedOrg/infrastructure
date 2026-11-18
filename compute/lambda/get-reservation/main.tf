@@ -44,6 +44,8 @@ resource "aws_lambda_function" "this" {
       RESERVATION_TABLE_NAME          = var.reservation_table_name
       USER_TABLE_NAME                 = var.user_table_name
       RESERVATION_LINK_KEY_SECRET_ARN = var.reservation_link_key_secret_arn # guest route: verifies the manage token
+      STRIPE_SECRET_ARN               = var.stripe_secret_arn               # guest route: the card form of a booking waiting for its card
+      STRIPE_API_VERSION              = var.stripe_api_version
     }
   }
 

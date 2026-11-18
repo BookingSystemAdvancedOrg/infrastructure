@@ -9,14 +9,15 @@
 #
 #   TENANT#<tenantId>  | DAY#<yyyy-mm-dd>        usage that day (requests, bookings,
 #                                                 orders, emails, sms, marketingEmails),
-#                                                 allocated AWS cost (costSek + the
-#                                                 split per bucket), revenue booked that
+#                                                 allocated AWS cost in USD (costUsd +
+#                                                 the split per bucket), revenue booked that
 #                                                 day (invoicedSek, paidSek, creditedSek,
 #                                                 ex VAT), mrrSek snapshot, planId, active
 #   TENANT#<tenantId>  | INVOICE#<yyyy-mm-dd>#<in_...>  one Stripe invoice: number, status,
 #                                                 amounts, due/paid dates, links
 #   PLATFORM           | COST#<yyyy-mm-dd>        the account's cost that day from Cost
-#                                                 Explorer: USD by service, the rate used
+#                                                 Explorer: USD by service and record
+#                                                 type, the day's USD/SEK rate (Riksbank)
 #   PLATFORM           | DAY#<yyyy-mm-dd>         platform totals that day (customers,
 #                                                 MRR, cost, invoiced, paid, usage)
 #   PLATFORM           | JOB#latest / JOB#<day>   the last finance-rollup run: when, what,

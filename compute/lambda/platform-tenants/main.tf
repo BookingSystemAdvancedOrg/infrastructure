@@ -98,7 +98,11 @@ resource "aws_lambda_function" "this" {
       PRINT_SERVER_URL = var.print_server_url
       # Website tab: the restaurant's site repo (site-repo function)
       SITE_REPO_FUNCTION_ARN = var.site_repo_function_arn
-      SITE_REPOS_ENABLED     = var.site_repos_enabled ? "true" : "false"
+      # Users tab: every sign-in account of a customer, with the admin's own
+      # rules (manage-user, tenant-account staffAccess), shared/console_invoke.py
+      MANAGE_USER_FUNCTION_ARN    = var.manage_user_function_arn
+      TENANT_ACCOUNT_FUNCTION_ARN = var.tenant_account_function_arn
+      SITE_REPOS_ENABLED          = var.site_repos_enabled ? "true" : "false"
       # Dev: test customers (dev console) and their sandbox hosts; "" = off
       TEST_SITES_ENABLED         = var.test_main_domain != "" ? "true" : "false"
       TEST_MAIN_DOMAIN           = var.test_main_domain
@@ -123,6 +127,13 @@ resource "aws_lambda_function" "this" {
       # after BILLING_TRIAL_MONTHS) or subscription (BILLING_NOTICE_MONTHS notice)
       BILLING_NOTICE_MONTHS = tostring(var.billing_notice_months)
       BILLING_TRIAL_MONTHS  = tostring(var.billing_trial_months)
+      # Dev twins (dev only, docs/DEV-TWINS.md); "" = off
+      DEV_TWIN_FUNCTION_PREFIX   = var.environment == "prod" ? "" : var.dev_twin_function_prefix
+      DEV_TWIN_OWNER_EMAIL       = var.environment == "prod" ? "" : var.dev_twin_owner_email
+      DEV_TWIN_STRIPE_ACCOUNT_ID = var.environment == "prod" ? "" : var.dev_twin_stripe_account_id
+      DEV_TWIN_PROD_API_URL      = var.environment == "prod" ? "" : var.dev_twin_prod_api_url
+      DEV_TWIN_PROD_IMAGE_URL    = var.environment == "prod" ? "" : var.dev_twin_prod_image_url
+      DEV_TWIN_PROD_DOMAIN       = var.environment == "prod" ? "" : var.dev_twin_prod_domain
     }
   }
 

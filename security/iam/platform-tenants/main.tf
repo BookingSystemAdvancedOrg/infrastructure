@@ -103,8 +103,9 @@ resource "aws_iam_role_policy" "location_table" {
 
 # Read (list a tenant's users via byTenant for suspend/resume and the tenant
 # detail page) + PutItem for the profile row of an additional owner invited
-# from the dashboard (POST /platform/tenants/{tenantId}/owners). The first
-# owner's profile is written by the onboarding workflow, not by this Lambda.
+# from the console (POST .../users with role owner). Every other change to an
+# account goes through manage-user (users_tab below). The first owner's
+# profile is written by the onboarding workflow.
 resource "aws_iam_role_policy" "user_table" {
   name = "user-table"
   role = aws_iam_role.this.id
@@ -145,6 +146,9 @@ resource "aws_iam_role_policy" "cognito" {
     Version = "2012-10-17"
     Statement = [
       {
+        # Invite an owner and resend any invite (AdminCreateUser), sign a
+        # disabled or removed account out; suspend, resume and offboard.
+        # Editing and removing accounts goes through manage-user (users_tab).
         Sid    = "ManageTenantUsers"
         Effect = "Allow"
         Action = [
@@ -599,6 +603,46 @@ resource "aws_iam_role_policy" "print_table" {
         "dynamodb:DeleteItem",
       ]
       Resource = var.print_table_arn
+    }]
+  })
+}
+
+# Users tab: every sign-in account of a customer (owners and staff) is
+# changed with the admin app's own rules: manage-user (invite staff, edit,
+# role, disable, enable, remove) and tenant-account (a staff user's
+# permissions only). Both accept a direct invoke from this role as an owner of
+# the restaurant named in the call (application shared/console_invoke.py).
+resource "aws_iam_role_policy" "users_tab" {
+  name = "users-tab"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "TenantUserFunctions"
+      Effect   = "Allow"
+      Action   = "lambda:InvokeFunction"
+      Resource = [var.manage_user_function_arn, var.tenant_account_function_arn]
+    }]
+  })
+}
+
+# Dev twins (dev only, docs/DEV-TWINS.md): the twin seeder sets up a twin's
+# Kom igång through the admin's own functions, invoked directly as an owner
+# of that twin (application shared/console_invoke.py; those functions accept
+# such a call only outside prod). Never granted in prod.
+resource "aws_iam_role_policy" "dev_twins" {
+  count = var.environment != "prod" && length(var.dev_twin_function_arns) > 0 ? 1 : 0
+  name  = "dev-twins"
+  role  = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "DevTwinSeed"
+      Effect   = "Allow"
+      Action   = "lambda:InvokeFunction"
+      Resource = var.dev_twin_function_arns
     }]
   })
 }

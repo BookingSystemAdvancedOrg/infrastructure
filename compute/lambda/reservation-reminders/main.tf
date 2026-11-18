@@ -44,6 +44,8 @@ resource "aws_lambda_function" "this" {
       LOCATION_ID_INDEX_NAME    = var.location_id_index_name
       RESERVATION_TABLE_NAME    = var.reservation_table_name
       SLOT_OCCUPANCY_TABLE_NAME = var.slot_occupancy_table_name
+      STRIPE_SECRET_ARN         = var.stripe_secret_arn # platform Stripe key secret (read at run time): checks a phone booking's card page before expiring it
+      STRIPE_API_VERSION        = var.stripe_api_version
     }
   }
 

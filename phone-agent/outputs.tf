@@ -36,3 +36,8 @@ output "recordings_bucket_name" {
   description = "Call recordings bucket (admin CSP media-src)"
   value       = aws_s3_bucket.recordings.bucket
 }
+
+# Dev twins: Booqy Console's seeder invokes this live alias as the twin's owner (dev only).
+output "api_alias_arn" {
+  value = aws_lambda_alias.live["phone-agent"].arn
+}
