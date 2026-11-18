@@ -1119,6 +1119,12 @@ module "phone_agent_jobs_ecr" {
   environment = var.env
   function    = "phone-agent-jobs"
 }
+# Call transcripts in Swedish and English (phone-agent/, owner 2026-11-18).
+module "phone_agent_translate_ecr" {
+  source      = "./storage/ecr/function"
+  environment = var.env
+  function    = "phone-agent-translate"
+}
 # In-app help assistant (help-assistant.tf); same repository settings.
 module "help_assistant_ecr" {
   source      = "./storage/ecr/function"

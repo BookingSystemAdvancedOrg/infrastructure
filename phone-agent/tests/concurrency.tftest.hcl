@@ -13,9 +13,10 @@ variables {
   environment = "dev"
   region      = "eu-north-1"
   ecr_repository_urls = {
-    "phone-agent"      = "123456789012.dkr.ecr.eu-north-1.amazonaws.com/dev-phone-agent"
-    "phone-agent-call" = "123456789012.dkr.ecr.eu-north-1.amazonaws.com/dev-phone-agent-call"
-    "phone-agent-jobs" = "123456789012.dkr.ecr.eu-north-1.amazonaws.com/dev-phone-agent-jobs"
+    "phone-agent"           = "123456789012.dkr.ecr.eu-north-1.amazonaws.com/dev-phone-agent"
+    "phone-agent-call"      = "123456789012.dkr.ecr.eu-north-1.amazonaws.com/dev-phone-agent-call"
+    "phone-agent-jobs"      = "123456789012.dkr.ecr.eu-north-1.amazonaws.com/dev-phone-agent-jobs"
+    "phone-agent-translate" = "123456789012.dkr.ecr.eu-north-1.amazonaws.com/dev-phone-agent-translate"
   }
   tenant_table_name      = "dev-tenant"
   tenant_table_arn       = "arn:aws:dynamodb:eu-north-1:123456789012:table/dev-tenant"
