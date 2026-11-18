@@ -766,6 +766,7 @@ module "reservation_reminders_role" {
   reservation_table_arn    = module.reservation.table_arn
   slot_occupancy_table_arn = module.slot_occupancy.table_arn
   region                   = var.aws_region
+  stripe_secret_arn        = module.platform_secrets.stripe_secret_arn
 }
 module "scheduler_invoke_reservation_reminders_role" {
   source                           = "./security/iam/scheduler-invoke-reservation-reminders"
@@ -1963,6 +1964,8 @@ module "reservation_reminders_fn" {
   location_id_index_name    = module.location.location_id_index_name
   reservation_table_name    = module.reservation.table_name
   slot_occupancy_table_name = module.slot_occupancy.table_name
+  stripe_secret_arn         = module.platform_secrets.stripe_secret_arn
+  stripe_api_version        = var.stripe_api_version
 }
 module "platform_stripe_webhook_fn" {
   source                     = "./compute/lambda/platform-stripe-webhook"
