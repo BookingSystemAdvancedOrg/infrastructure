@@ -20,11 +20,14 @@ resource "aws_apigatewayv2_integration" "table_order" {
 }
 
 locals {
-  table_order_methods = ["GET", "POST", "PATCH"]
+  # The collection only lists (GET) and opens a tab (POST); PATCH exists only
+  # on a tab (/{tabId}), so the collection does not route it.
+  table_order_collection_methods = ["GET", "POST"]
+  table_order_methods            = ["GET", "POST", "PATCH"]
 }
 
 resource "aws_apigatewayv2_route" "table_order_collection" {
-  for_each = toset(local.table_order_methods)
+  for_each = toset(local.table_order_collection_methods)
 
   api_id             = aws_apigatewayv2_api.this.id
   route_key          = "${each.value} /locations/{locationId}/table-orders"

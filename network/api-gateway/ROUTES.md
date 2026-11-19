@@ -235,7 +235,6 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | POST | `/platform/support/reports/{reportId}/handled` | JWT (operator) | support-reports |
 | GET | `/locations/{locationId}/table-orders` | JWT | table-order |
 | POST | `/locations/{locationId}/table-orders` | JWT | table-order |
-| PATCH | `/locations/{locationId}/table-orders` | JWT | table-order |
 | GET | `/locations/{locationId}/table-orders/{proxy+}` | JWT | table-order |
 | POST | `/locations/{locationId}/table-orders/{proxy+}` | JWT | table-order |
 | PATCH | `/locations/{locationId}/table-orders/{proxy+}` | JWT | table-order |
