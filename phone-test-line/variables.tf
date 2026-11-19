@@ -8,7 +8,7 @@ variable "call_alias_arn" {
 }
 
 variable "greeting" {
-  description = "What the caller hears first: the art. 50 disclosure and the question (same text as Booqy's greeting)"
+  description = "The fallback first sentence when Booqy's greeting (with the restaurant's name) cannot be fetched: the disclosure without a name, and the question"
   type        = string
 }
 

@@ -14,6 +14,8 @@
 #   2. aws_lambda_permission.lex: the bot alias may invoke the relay.
 #   3. aws_iam_role.relay: the relay may invoke phone-agent-call:live only, plus its own logs.
 #   4. Connect's service-linked role, created by AWS with the instance.
+#   5. aws_lambda_permission.connect (2026-11-19): the Connect instance may invoke the
+#      relay (the flow fetches the greeting with the restaurant's name from Booqy).
 
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
@@ -60,9 +62,16 @@ data "archive_file" "relay" {
 
 
       def handler(event, context):
-          """A Lex V2 code hook event in, the agent's Lex response out."""
+          """A Lex V2 code hook event in, the agent's Lex response out; the
+          flow's InvokeLambdaFunction (Name ContactFlowEvent) in, the greeting
+          from the restaurant's data out ({"ok", "greeting"})."""
+          if event.get("Name") == "ContactFlowEvent":
+              params = (event.get("Details") or {}).get("Parameters") or {}
+              payload = {"connectGreeting": {"dialedNumber": params.get("dialedNumber")}}
+          else:
+              payload = {"lexV2": event}
           answer = _lambda.invoke(FunctionName=os.environ["TARGET"], InvocationType="RequestResponse",
-                                  Payload=json.dumps({"lexV2": event}).encode("utf-8"))
+                                  Payload=json.dumps(payload).encode("utf-8"))
           return json.loads(answer["Payload"].read() or b"{}")
     PY
   }
@@ -185,6 +194,25 @@ resource "aws_lambda_permission" "lex" {
   source_arn    = aws_cloudformation_stack.lex.outputs["AliasArn"]
 }
 
+# --- 5. the flow may invoke the relay for the greeting ----------------------------------
+# The greeting names the restaurant from its own data (owner 2026-11-19: never set by hand):
+# the flow asks Booqy through the relay before the bot starts; on any error it plays
+# var.greeting, which names no restaurant.
+
+resource "aws_lambda_permission" "connect" {
+  statement_id  = "connect-instance"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.relay.function_name
+  principal     = "connect.amazonaws.com"
+  source_arn    = aws_connect_instance.this.arn
+}
+
+resource "aws_connect_lambda_function_association" "relay" {
+  instance_id  = aws_connect_instance.this.id
+  function_arn = aws_lambda_function.relay.arn
+  depends_on   = [aws_lambda_permission.connect]
+}
+
 # --- the call flow and the number --------------------------------------------------------
 
 resource "aws_connect_contact_flow" "this" {
@@ -193,6 +221,7 @@ resource "aws_connect_contact_flow" "this" {
   type        = "CONTACT_FLOW"
   content = templatefile("${path.module}/flow.json.tftpl", {
     alias_arn = aws_cloudformation_stack.lex.outputs["AliasArn"]
+    relay_arn = aws_connect_lambda_function_association.relay.function_arn
     greeting  = var.greeting
     # After a failed language switch: back to Swedish and on with the call.
     resume_sv = "Förlåt, vi fortsätter på svenska. Vad kan jag hjälpa dig med?"

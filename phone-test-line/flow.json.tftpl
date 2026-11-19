@@ -1,6 +1,10 @@
 %{ if false ~}
 The test line's call flow (flow language 2019-10-30).
-  1-3  Elin + sv-SE, then the bot with the greeting.
+  1-2  Elin + sv-SE.
+  15-17 The greeting from Booqy (the relay, InvokeLambdaFunction): the
+       restaurant's guest-facing name from its own data, as SSML; then the
+       bot with it (17). Any error or ok != "true": the bot with the fixed
+       greeting without a name (3).
   6    The bot returned: next=switch (the agent changed language) goes to 7,
        anything else hangs up (5), as before.
   7-9  Language from $.Lex.SessionAttributes.connectLanguage, voice and engine
@@ -29,8 +33,56 @@ attributes), so the reply text stays out of the contact record.
       "Type": "UpdateContactData",
       "Parameters": { "LanguageCode": "sv-SE" },
       "Transitions": {
-        "NextAction": "a1b0c0de-0000-4000-8000-000000000003",
+        "NextAction": "a1b0c0de-0000-4000-8000-000000000015",
+        "Errors": [{ "NextAction": "a1b0c0de-0000-4000-8000-000000000015", "ErrorType": "NoMatchingError" }]
+      }
+    },
+    {
+      "Identifier": "a1b0c0de-0000-4000-8000-000000000015",
+      "Type": "InvokeLambdaFunction",
+      "Parameters": {
+        "LambdaFunctionARN": ${jsonencode(relay_arn)},
+        "InvocationTimeLimitSeconds": "8",
+        "LambdaInvocationAttributes": { "dialedNumber": "$.SystemEndpoint.Address" }
+      },
+      "Transitions": {
+        "NextAction": "a1b0c0de-0000-4000-8000-000000000016",
         "Errors": [{ "NextAction": "a1b0c0de-0000-4000-8000-000000000003", "ErrorType": "NoMatchingError" }]
+      }
+    },
+    {
+      "Identifier": "a1b0c0de-0000-4000-8000-000000000016",
+      "Type": "Compare",
+      "Parameters": { "ComparisonValue": "$.External.ok" },
+      "Transitions": {
+        "NextAction": "a1b0c0de-0000-4000-8000-000000000003",
+        "Conditions": [
+          {
+            "NextAction": "a1b0c0de-0000-4000-8000-000000000017",
+            "Condition": { "Operator": "Equals", "Operands": ["true"] }
+          }
+        ],
+        "Errors": [{ "NextAction": "a1b0c0de-0000-4000-8000-000000000003", "ErrorType": "NoMatchingCondition" }]
+      }
+    },
+    {
+      "Identifier": "a1b0c0de-0000-4000-8000-000000000017",
+      "Type": "ConnectParticipantWithLexBot",
+      "Parameters": {
+        "SSML": "$.External.greeting",
+        "LexV2Bot": { "AliasArn": ${jsonencode(alias_arn)} },
+        "LexSessionAttributes": {
+          "callerNumber": "$.CustomerEndpoint.Address",
+          "dialedNumber": "$.SystemEndpoint.Address"
+        }
+      },
+      "Transitions": {
+        "NextAction": "a1b0c0de-0000-4000-8000-000000000006",
+        "Conditions": [],
+        "Errors": [
+          { "NextAction": "a1b0c0de-0000-4000-8000-000000000006", "ErrorType": "NoMatchingCondition" },
+          { "NextAction": "a1b0c0de-0000-4000-8000-000000000004", "ErrorType": "NoMatchingError" }
+        ]
       }
     },
     {
