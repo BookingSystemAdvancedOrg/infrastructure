@@ -265,6 +265,16 @@ variable "manage_order_invoke_arn" {
   description = "Invoke ARN of the ManageOrderFn Lambda - integration target of the /locations/{locationId}/orders routes"
   sensitive   = false
 }
+variable "table_order_function_name" {
+  type        = string
+  description = "Name of the TableOrderFn Lambda (staff order taking at the table)"
+  sensitive   = false
+}
+variable "table_order_invoke_arn" {
+  type        = string
+  description = "Invoke ARN (live alias) of the TableOrderFn Lambda - integration target of the /locations/{locationId}/table-orders routes"
+  sensitive   = false
+}
 variable "catering_settings_function_name" {
   description = "Name of the catering-settings Lambda (compute/lambda/catering-settings) - granted permission to be invoked by this API"
   type        = string

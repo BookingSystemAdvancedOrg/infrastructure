@@ -132,14 +132,14 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | POST | `/platform/tenants/{tenantId}/locations` | JWT (operator) | platform-tenants |
 | PATCH | `/platform/tenants/{tenantId}/locations/{locationId}` | JWT (operator) | platform-tenants |
 | DELETE | `/platform/tenants/{tenantId}/locations/{locationId}` | JWT (operator) | platform-tenants |
-| GET | `/platform/notices` | JWT (operator) | platform-tenants |
-| POST | `/platform/notices/seen` | JWT (operator) | platform-tenants |
 | GET | `/platform/printers` | JWT (operator) | platform-tenants |
 | GET | `/platform/tenants/{tenantId}/printers` | JWT (operator) | platform-tenants |
 | POST | `/platform/tenants/{tenantId}/locations/{locationId}/printers` | JWT (operator) | platform-tenants |
 | PATCH | `/platform/tenants/{tenantId}/locations/{locationId}/printers/{deviceId}` | JWT (operator) | platform-tenants |
 | DELETE | `/platform/tenants/{tenantId}/locations/{locationId}/printers/{deviceId}` | JWT (operator) | platform-tenants |
 | POST | `/platform/tenants/{tenantId}/locations/{locationId}/printers/{deviceId}/test` | JWT (operator) | platform-tenants |
+| GET | `/platform/notices` | JWT (operator) | platform-tenants |
+| POST | `/platform/notices/seen` | JWT (operator) | platform-tenants |
 | POST | `/platform/tenants/{tenantId}/domains` | JWT (operator) | platform-tenants |
 | DELETE | `/platform/tenants/{tenantId}/domains/{domain}` | JWT (operator) | platform-tenants |
 | GET | `/platform/domains/search` | JWT (operator) | platform-tenants |
@@ -233,6 +233,12 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | POST | `/print/epson/{deviceId}` | NONE | print-device |
 | GET | `/platform/support/reports` | JWT (operator) | support-reports |
 | POST | `/platform/support/reports/{reportId}/handled` | JWT (operator) | support-reports |
+| GET | `/locations/{locationId}/table-orders` | JWT | table-order |
+| POST | `/locations/{locationId}/table-orders` | JWT | table-order |
+| PATCH | `/locations/{locationId}/table-orders` | JWT | table-order |
+| GET | `/locations/{locationId}/table-orders/{proxy+}` | JWT | table-order |
+| POST | `/locations/{locationId}/table-orders/{proxy+}` | JWT | table-order |
+| PATCH | `/locations/{locationId}/table-orders/{proxy+}` | JWT | table-order |
 | GET | `/tenant/gift-cards/settings` | JWT | gift-cards |
 | PUT | `/tenant/gift-cards/settings` | JWT | gift-cards |
 | GET | `/tenant/gift-cards` | JWT | gift-cards |
