@@ -55,6 +55,10 @@ resource "aws_lambda_function" "this" {
       BOT_CHECK_ENFORCED                   = var.bot_check_enforced ? "true" : "false"
       SITE_WAF_SECRET                      = var.site_waf_secret
       REQUEST_GUARD_TABLE_NAME             = var.request_guard_table_name # attempt limits per IP / phone / e-mail
+      # The phone guest's card link: a short plain link in the SMS (long URLs break on phones);
+      # the card on the restaurant's own site once its site has the card step.
+      SHORT_LINK_BASE = var.short_link_base
+      PHONE_CARD_PAGE = var.phone_card_page
       # + consent log and booking retention (root privacy-consent.tf)
     }, var.privacy_env)
   }

@@ -458,12 +458,15 @@ resource "aws_apigatewayv2_integration" "get_reservation" {
 }
 
 # Staff day list + detail (JWT); the guest's own booking through the manage
-# link (no account - the X-Manage-Token header is checked in the Lambda).
+# link (no account - the X-Manage-Token header is checked in the Lambda);
+# the phone guest's short SMS card link /k/{code} (a random code, redirects
+# only to the page stored with it; reached as restaurang.<domain>/api/k/...).
 locals {
   get_reservation_routes = {
     "GET /locations/{locationId}/reservations"                       = "JWT"
     "GET /locations/{locationId}/reservations/{reservationId}"       = "JWT"
     "GET /locations/{locationId}/reservations/{reservationId}/guest" = "NONE"
+    "GET /k/{code}"                                                  = "NONE"
   }
 }
 

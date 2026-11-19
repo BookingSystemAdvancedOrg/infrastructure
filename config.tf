@@ -1341,6 +1341,10 @@ module "create_pending_reservation_fn" {
   site_waf_secret          = random_password.site_waf_edge.result
   request_guard_table_name = module.request_guard.table_name
   cloudfront_edge_secret   = random_password.cloudfront_edge.result
+  # The SMS card link (GET /k/{code} on get-reservation, through the admin app's /api).
+  short_link_base = "${local.admin_app_url}/api/k"
+  # Gated per tenant by cardStepOnManagePage (site-kit 0.4.0+); others keep the Stripe page.
+  phone_card_page = "site"
 }
 module "get_availability_fn" {
   source                               = "./compute/lambda/get-availability"
