@@ -5,6 +5,9 @@ byte template_body limit). One locale per entry in languages.json, each with
 the catch-all intent, FallbackIntent, the relay as fulfillment code hook and
 the filler lines from lex-texts.json in that language. Intrinsic functions
 use the long form (Ref:, Fn::GetAtt:) because yamldecode has no !Ref tags.
+Locales Lex marks with an asterisk (tr_TR, da_DK, cs_CZ, ru_RU, is_IS, ro_RO,
+cy_GB) only build with GenerativeAISettings...AssistedNluMode Primary
+(languages.json: assistedNlu). Filler lines are interruptible (barge-in).
 Every string is written with jsonencode (a JSON string is a valid YAML
 double-quoted scalar).
 %{ endif ~}
@@ -36,6 +39,14 @@ Resources:
 %{ for code, lang in languages ~}
         - LocaleId: ${jsonencode(lang.lexLocale)}
           NluConfidenceThreshold: 0.40
+          SpeechDetectionSensitivity: ${jsonencode(speech_sensitivity)}
+%{ if try(lang.assistedNlu, "") != "" ~}
+          GenerativeAISettings:
+            RuntimeSettings:
+              NluImprovementSpecification:
+                Enabled: true
+                AssistedNluMode: ${jsonencode(lang.assistedNlu)}
+%{ endif ~}
           VoiceSettings:
             VoiceId: ${jsonencode(lang.voice)}
             Engine: ${jsonencode(lang.engine)}
@@ -50,8 +61,6 @@ Resources:
 %{ else ~}
               ParentIntentSignature: AMAZON.FallbackIntent
 %{ endif ~}
-              DialogCodeHook:
-                Enabled: false
               FulfillmentCodeHook:
                 Enabled: true
                 IsActive: true
@@ -60,7 +69,7 @@ Resources:
                   TimeoutInSeconds: 30
                   StartResponse:
                     DelayInSeconds: 1
-                    AllowInterrupt: false
+                    AllowInterrupt: true
                     MessageGroups:
                       - Message:
                           PlainTextMessage:
@@ -74,7 +83,7 @@ Resources:
 %{ endif ~}
                   UpdateResponse:
                     FrequencyInSeconds: 5
-                    AllowInterrupt: false
+                    AllowInterrupt: true
                     MessageGroups:
                       - Message:
                           PlainTextMessage:

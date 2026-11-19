@@ -21,8 +21,9 @@ data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
 
 locals {
-  prefix = "${var.environment}-"
-  name   = "${local.prefix}phone-test-line"
+  prefix        = "${var.environment}-"
+  name          = "${local.prefix}phone-test-line"
+  connect_alias = "booqy-${var.environment}-phone-test-${data.aws_caller_identity.current.account_id}"
 
   # Call languages (owner 2026-11-18): our code -> Lex locale, Connect
   # language code, Polly voice and engine. languages.json is a copy of
@@ -44,6 +45,9 @@ locals {
     languages  = local.phone_languages
     texts      = local.lex_texts
     version_id = local.lex_version_id
+    # Default | HighNoiseTolerance | MaximumNoiseTolerance. Default: it keeps soft
+    # speakers heard; the end timeout (below), not this, handles hesitation.
+    speech_sensitivity = "Default"
   })))
 }
 
@@ -149,13 +153,22 @@ resource "aws_iam_role_policy" "lex" {
 
 # --- Connect (4. its service-linked role comes with the instance) ------------------------
 
+resource "aws_cloudwatch_log_group" "connect" {
+  name              = "/aws/connect/${local.connect_alias}"
+  retention_in_days = 14
+}
+
 resource "aws_connect_instance" "this" {
   identity_management_type = "CONNECT_MANAGED"
-  instance_alias           = "booqy-${var.environment}-phone-test-${data.aws_caller_identity.current.account_id}"
+  instance_alias           = local.connect_alias
   inbound_calls_enabled    = true
   outbound_calls_enabled   = false
   contact_lens_enabled     = false
-  tags                     = { Environment = var.environment }
+  # Flow logs (which block ran, errors) to CloudWatch; Lex conversation logs stay off.
+  contact_flow_logs_enabled = true
+  tags                      = { Environment = var.environment }
+  # The log group first, so it carries the retention (Connect would create it without).
+  depends_on = [aws_cloudwatch_log_group.connect]
 }
 
 # --- the Lex bot, version, alias with the relay as code hook, and the Connect association -
@@ -221,6 +234,15 @@ resource "aws_connect_contact_flow" "this" {
   type        = "CONTACT_FLOW"
   content = templatefile("${path.module}/flow.json.tftpl", {
     alias_arn = aws_cloudformation_stack.lex.outputs["AliasArn"]
+    # Turn-taking, sent to Lex with every ConnectParticipantWithLexBot block
+    # (x-amz-lex:{input}:{behaviour}:{intent}:{slot}, * = all intents and slots;
+    # docs.aws.amazon.com/lexv2/latest/dg/session-attribs-speech.html):
+    # barge-in on, 1200 ms of silence ends the turn (Lex default 600), 20 s max.
+    turn_attributes = {
+      "x-amz-lex:allow-interrupt:*:*"      = "true"
+      "x-amz-lex:audio:end-timeout-ms:*:*" = "1200"
+      "x-amz-lex:audio:max-length-ms:*:*"  = "20000"
+    }
     relay_arn = aws_connect_lambda_function_association.relay.function_arn
     greeting  = var.greeting
     # After a failed language switch: back to Swedish and on with the call.

@@ -14,6 +14,7 @@ The test line's call flow (flow language 2019-10-30).
        turn): after 7-8, the new voice speaks "say" (14) and the flow hangs up.
   10-12 A failed switch: Elin + sv-SE and the bot again in Swedish; if that
        fails too, the Swedish apology (4) and hang up.
+Every bot block also sends turn_attributes (barge-in on, end-of-speech 1200 ms, max 20 s).
 Lex session attributes are read in place (never copied into contact
 attributes), so the reply text stays out of the contact record.
 %{ endif ~}
@@ -72,6 +73,9 @@ attributes), so the reply text stays out of the contact record.
         "SSML": "$.External.greeting",
         "LexV2Bot": { "AliasArn": ${jsonencode(alias_arn)} },
         "LexSessionAttributes": {
+%{ for k, v in turn_attributes ~}
+          ${jsonencode(k)}: ${jsonencode(v)},
+%{ endfor ~}
           "callerNumber": "$.CustomerEndpoint.Address",
           "dialedNumber": "$.SystemEndpoint.Address"
         }
@@ -92,6 +96,9 @@ attributes), so the reply text stays out of the contact record.
         "Text": ${jsonencode(greeting)},
         "LexV2Bot": { "AliasArn": ${jsonencode(alias_arn)} },
         "LexSessionAttributes": {
+%{ for k, v in turn_attributes ~}
+          ${jsonencode(k)}: ${jsonencode(v)},
+%{ endfor ~}
           "callerNumber": "$.CustomerEndpoint.Address",
           "dialedNumber": "$.SystemEndpoint.Address"
         }
@@ -167,6 +174,9 @@ attributes), so the reply text stays out of the contact record.
         "SSML": "$.Lex.SessionAttributes.say",
         "LexV2Bot": { "AliasArn": ${jsonencode(alias_arn)} },
         "LexSessionAttributes": {
+%{ for k, v in turn_attributes ~}
+          ${jsonencode(k)}: ${jsonencode(v)},
+%{ endfor ~}
           "callerNumber": "$.Lex.SessionAttributes.callerNumber",
           "dialedNumber": "$.Lex.SessionAttributes.dialedNumber",
           "tenantId": "$.Lex.SessionAttributes.tenantId",
@@ -208,6 +218,9 @@ attributes), so the reply text stays out of the contact record.
         "Text": ${jsonencode(resume_sv)},
         "LexV2Bot": { "AliasArn": ${jsonencode(alias_arn)} },
         "LexSessionAttributes": {
+%{ for k, v in turn_attributes ~}
+          ${jsonencode(k)}: ${jsonencode(v)},
+%{ endfor ~}
           "callerNumber": "$.CustomerEndpoint.Address",
           "dialedNumber": "$.SystemEndpoint.Address",
           "tenantId": "$.Lex.SessionAttributes.tenantId",
