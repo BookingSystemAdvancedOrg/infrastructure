@@ -1,5 +1,10 @@
 %{ if false ~}
 The dev A2A test flow (flow language 2019-10-30), separate from the phone test line's flow.
+  9  Set logging behavior: flow logs for every test call (the instance logs to CloudWatch while
+     the test is live, phone-test-line.tf).
+  10 Connect assistant (CreateWisdomSession): a Connect AI agent session on the contact. Without
+     it AMAZON.QInConnectIntent has no session ARN, the bot block takes Error and the call falls
+     back to Stage 1 before Connect ever dials the gateway (2026-11-20 test calls).
   1  Set voice Amy en-GB Generative (the Nova Sonic speech to speech page requires a generative
      voice on the contact; nothing is spoken by it: the gateway greets and speaks Swedish itself).
   2  Language en-GB (the bot's placeholder locale).
@@ -14,9 +19,24 @@ The dev A2A test flow (flow language 2019-10-30), separate from the phone test l
 %{ endif ~}
 {
   "Version": "2019-10-30",
-  "StartAction": "a2a0c0de-0000-4000-8000-000000000001",
+  "StartAction": "a2a0c0de-0000-4000-8000-000000000009",
   "Metadata": {},
   "Actions": [
+    {
+      "Identifier": "a2a0c0de-0000-4000-8000-000000000009",
+      "Type": "UpdateFlowLoggingBehavior",
+      "Parameters": { "FlowLoggingBehavior": "Enabled" },
+      "Transitions": { "NextAction": "a2a0c0de-0000-4000-8000-000000000010" }
+    },
+    {
+      "Identifier": "a2a0c0de-0000-4000-8000-000000000010",
+      "Type": "CreateWisdomSession",
+      "Parameters": { "WisdomAssistantArn": ${jsonencode(assistant_arn)} },
+      "Transitions": {
+        "NextAction": "a2a0c0de-0000-4000-8000-000000000001",
+        "Errors": [{ "NextAction": "a2a0c0de-0000-4000-8000-000000000008", "ErrorType": "NoMatchingError" }]
+      }
+    },
     {
       "Identifier": "a2a0c0de-0000-4000-8000-000000000001",
       "Type": "UpdateContactTextToSpeechVoice",

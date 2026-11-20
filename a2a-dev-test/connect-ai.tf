@@ -7,7 +7,8 @@
 # IAM call-out (all NEW roles and resource policies, dev only; no existing role, no OIDC or deploy role):
 #   1. aws_kms_key.a2a policy: connect.amazonaws.com may kms:Decrypt through Secrets Manager.
 #   2. aws_secretsmanager_secret_policy.a2a: the Connect instance may read the API key secret.
-#   3. aws_iam_role.lex: the A2A bot's service role (Connect AI agent session calls, Nova Sonic).
+#   3. aws_iam_role.lex: the A2A bot's service role (Connect AI agent session calls, Nova Sonic);
+#      trusts lexv2.amazonaws.com and lexv2.aws.internal (this account's bot aliases only).
 #   4. gateway.tf: the task execution role and the task role.
 #
 # Not in Terraform or CloudFormation (run by CI through the AWS CLI, terraform_data.wiring):
@@ -116,14 +117,28 @@ resource "aws_secretsmanager_secret_policy" "a2a" {
 
 resource "aws_iam_role" "lex" {
   name = "${local.name}-lex-role"
+  # lexv2.aws.internal: the trust the AMAZON.QInConnectIntent page asks for on a custom bot role
+  # (Lex assumes it for the Connect AI agent session), limited to this account's bot aliases.
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [{
-      Effect    = "Allow"
-      Principal = { Service = "lexv2.amazonaws.com" }
-      Action    = "sts:AssumeRole"
-      Condition = { StringEquals = { "aws:SourceAccount" = local.account } }
-    }]
+    Statement = [
+      {
+        Effect    = "Allow"
+        Principal = { Service = "lexv2.amazonaws.com" }
+        Action    = "sts:AssumeRole"
+        Condition = { StringEquals = { "aws:SourceAccount" = local.account } }
+      },
+      {
+        Sid       = "LexV2InternalTrustPolicy"
+        Effect    = "Allow"
+        Principal = { Service = "lexv2.aws.internal" }
+        Action    = "sts:AssumeRole"
+        Condition = {
+          StringEquals = { "aws:SourceAccount" = local.account }
+          ArnLike      = { "aws:SourceArn" = "arn:aws:lex:${local.region}:${local.account}:bot-alias/*" }
+        }
+      },
+    ]
   })
   tags = { Environment = var.environment }
 }
@@ -288,6 +303,7 @@ resource "aws_connect_contact_flow" "a2a" {
   type        = "CONTACT_FLOW"
   content = templatefile("${path.module}/flow.json.tftpl", {
     alias_arn         = aws_cloudformation_stack.connect_ai.outputs["AliasArn"]
+    assistant_arn     = aws_cloudformation_stack.connect_ai.outputs["AssistantArn"]
     fallback_flow_arn = var.fallback_flow_arn
     escalate_text     = "Här skulle samtalet kopplas till restaurangen. Det här är en testlinje, så samtalet avslutas nu."
   })
