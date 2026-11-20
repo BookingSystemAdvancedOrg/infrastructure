@@ -24,7 +24,10 @@ data "aws_subnets" "default" {
 
 # --- image and logs ----------------------------------------------------------------------
 
+# The repository lives in eu-north-1 (provider aws.ecr, the root's default region): application CI's
+# deploy role may only push to eu-north-1 repositories. Fargate in eu-central-1 pulls from it.
 resource "aws_ecr_repository" "gateway" {
+  provider             = aws.ecr
   name                 = local.name
   image_tag_mutability = "MUTABLE"
   # Dev test: the repository goes with the flag, images included.
@@ -36,12 +39,13 @@ resource "aws_ecr_repository" "gateway" {
 }
 
 resource "aws_ecr_lifecycle_policy" "gateway" {
+  provider   = aws.ecr
   repository = aws_ecr_repository.gateway.name
   policy = jsonencode({
     rules = [{
       rulePriority = 1
-      description  = "Keep the last 5 images"
-      selection    = { tagStatus = "any", countType = "imageCountMoreThan", countNumber = 5 }
+      description  = "Keep the last 10 images"
+      selection    = { tagStatus = "any", countType = "imageCountMoreThan", countNumber = 10 }
       action       = { type = "expire" }
     }]
   })

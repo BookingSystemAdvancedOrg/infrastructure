@@ -61,7 +61,8 @@ module "a2a_dev_test" {
   count  = var.a2a_dev_test_enabled ? 1 : 0
   source = "./a2a-dev-test"
   providers = {
-    aws = aws.eu_central_1
+    aws     = aws.eu_central_1
+    aws.ecr = aws
   }
   environment               = var.env
   instance_id               = module.phone_test_line[0].instance_id
