@@ -1099,6 +1099,11 @@ module "waitlist_ecr" {
   environment = var.env
   function    = "waitlist"
 }
+module "site_translate_ecr" {
+  source      = "./storage/ecr/function"
+  environment = var.env
+  function    = "site-translate"
+}
 module "social_posting_ecr" {
   source      = "./storage/ecr/function"
   environment = var.env
@@ -2474,6 +2479,7 @@ locals {
     module.google_business.wiring,
     module.gift_cards.wiring,
     module.waitlist.wiring,
+    module.site_translate.wiring,
     module.social_posting.wiring,
     module.personalliggare.wiring,
     module.accounting_sync.wiring,

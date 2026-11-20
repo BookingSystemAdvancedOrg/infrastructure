@@ -285,3 +285,4 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | POST | `/me/avatar/upload` | JWT | user-backdrop |
 | POST | `/me/avatar/complete` | JWT | user-backdrop |
 | DELETE | `/me/avatar` | JWT | user-backdrop |
+| POST | `/translate` | NONE | site-translate |

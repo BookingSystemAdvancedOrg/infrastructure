@@ -266,3 +266,9 @@ dev_twin_stripe_account_id = "acct_1UVIUkHhsMKn0jQY"
 # customer may not take a slug a prod customer uses. Not secret.
 dev_twin_prod_api_url   = "https://9md43vqnp1.execute-api.eu-north-1.amazonaws.com"
 dev_twin_prod_image_url = "https://d3uasj29icofcs.cloudfront.net"
+
+# Site languages (site-translate/): Amazon Translate budgets, new characters only.
+site_translate_ip_requests_per_5min = 120
+site_translate_ip_chars_per_hour    = 30000
+site_translate_tenant_chars_per_30d = 100000
+site_translate_global_chars_per_30d = 500000

@@ -132,6 +132,7 @@ output "ecr_repository_urls" {
     google_business_jobs       = module.google_business_jobs_ecr.repository_url
     gift_cards                 = module.gift_cards_ecr.repository_url
     waitlist                   = module.waitlist_ecr.repository_url
+    site_translate             = module.site_translate_ecr.repository_url
     social_posting             = module.social_posting_ecr.repository_url
     personalliggare            = module.personalliggare_ecr.repository_url
     accounting_sync            = module.accounting_sync_ecr.repository_url
