@@ -14,13 +14,16 @@
 #   2. aws_lambda_permission.lex: the bot alias may invoke the relay.
 #   3. aws_iam_role.relay: the relay may invoke phone-agent-call:live only, plus its own logs.
 #   4. Connect's service-linked role, created by AWS with the instance.
+#   5. aws_lambda_permission.connect (2026-11-19): the Connect instance may invoke the
+#      relay (the flow fetches the greeting with the restaurant's name from Booqy).
 
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
 
 locals {
-  prefix = "${var.environment}-"
-  name   = "${local.prefix}phone-test-line"
+  prefix        = "${var.environment}-"
+  name          = "${local.prefix}phone-test-line"
+  connect_alias = "booqy-${var.environment}-phone-test-${data.aws_caller_identity.current.account_id}"
 
   # Call languages (owner 2026-11-18): our code -> Lex locale, Connect
   # language code, Polly voice and engine. languages.json is a copy of
@@ -42,6 +45,9 @@ locals {
     languages  = local.phone_languages
     texts      = local.lex_texts
     version_id = local.lex_version_id
+    # Default | HighNoiseTolerance | MaximumNoiseTolerance. Default: it keeps soft
+    # speakers heard; the end timeout (below), not this, handles hesitation.
+    speech_sensitivity = "Default"
   })))
 }
 
@@ -60,10 +66,22 @@ data "archive_file" "relay" {
 
 
       def handler(event, context):
-          """A Lex V2 code hook event in, the agent's Lex response out."""
+          """A Lex V2 code hook event in, the agent's Lex response out; the
+          flow's InvokeLambdaFunction (Name ContactFlowEvent) in, the greeting
+          from the restaurant's data out ({"ok", "greeting"})."""
+          if event.get("Name") == "ContactFlowEvent":
+              params = (event.get("Details") or {}).get("Parameters") or {}
+              payload = {"connectGreeting": {"dialedNumber": params.get("dialedNumber")}}
+          else:
+              payload = {"lexV2": event}
           answer = _lambda.invoke(FunctionName=os.environ["TARGET"], InvocationType="RequestResponse",
-                                  Payload=json.dumps({"lexV2": event}).encode("utf-8"))
-          return json.loads(answer["Payload"].read() or b"{}")
+                                  Payload=json.dumps(payload).encode("utf-8"))
+          result = json.loads(answer["Payload"].read() or b"{}")
+          # The greeting is spoken without barge-in; every answer after it may be interrupted.
+          state = result.get("sessionState") if isinstance(result, dict) else None
+          if isinstance(state, dict):
+              state.setdefault("sessionAttributes", {})["x-amz-lex:allow-interrupt:*:*"] = "true"
+          return result
     PY
   }
 }
@@ -140,13 +158,25 @@ resource "aws_iam_role_policy" "lex" {
 
 # --- Connect (4. its service-linked role comes with the instance) ------------------------
 
+# Kept even while flow logs are off, so turning them on for a debug session gets 14 days retention.
+resource "aws_cloudwatch_log_group" "connect" {
+  name              = "/aws/connect/${local.connect_alias}"
+  retention_in_days = 14
+}
+
 resource "aws_connect_instance" "this" {
   identity_management_type = "CONNECT_MANAGED"
-  instance_alias           = "booqy-${var.environment}-phone-test-${data.aws_caller_identity.current.account_id}"
+  instance_alias           = local.connect_alias
   inbound_calls_enabled    = true
   outbound_calls_enabled   = false
   contact_lens_enabled     = false
-  tags                     = { Environment = var.environment }
+  # Flow logs (which block ran, errors) to CloudWatch, off unless var.flow_logs: they record what goes
+  # to and from Lex, which here is the caller's number and the reply text ("say"). Lex conversation
+  # logs stay off.
+  contact_flow_logs_enabled = var.flow_logs
+  tags                      = { Environment = var.environment }
+  # The log group first, so it carries the retention (Connect would create it without).
+  depends_on = [aws_cloudwatch_log_group.connect]
 }
 
 # --- the Lex bot, version, alias with the relay as code hook, and the Connect association -
@@ -185,6 +215,25 @@ resource "aws_lambda_permission" "lex" {
   source_arn    = aws_cloudformation_stack.lex.outputs["AliasArn"]
 }
 
+# --- 5. the flow may invoke the relay for the greeting ----------------------------------
+# The greeting names the restaurant from its own data (owner 2026-11-19: never set by hand):
+# the flow asks Booqy through the relay before the bot starts; on any error it plays
+# var.greeting, which names no restaurant.
+
+resource "aws_lambda_permission" "connect" {
+  statement_id  = "connect-instance"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.relay.function_name
+  principal     = "connect.amazonaws.com"
+  source_arn    = aws_connect_instance.this.arn
+}
+
+resource "aws_connect_lambda_function_association" "relay" {
+  instance_id  = aws_connect_instance.this.id
+  function_arn = aws_lambda_function.relay.arn
+  depends_on   = [aws_lambda_permission.connect]
+}
+
 # --- the call flow and the number --------------------------------------------------------
 
 resource "aws_connect_contact_flow" "this" {
@@ -193,7 +242,26 @@ resource "aws_connect_contact_flow" "this" {
   type        = "CONTACT_FLOW"
   content = templatefile("${path.module}/flow.json.tftpl", {
     alias_arn = aws_cloudformation_stack.lex.outputs["AliasArn"]
+    # Turn-taking, sent to Lex with every ConnectParticipantWithLexBot block
+    # (x-amz-lex:{input}:{behaviour}:{intent}:{slot}, * = all intents and slots;
+    # docs.aws.amazon.com/lexv2/latest/dg/session-attribs-speech.html):
+    # barge-in on, 1200 ms of silence ends the turn (Lex default 600), 20 s max.
+    turn_attributes = {
+      "x-amz-lex:allow-interrupt:*:*"      = "true"
+      "x-amz-lex:audio:end-timeout-ms:*:*" = "1200"
+      "x-amz-lex:audio:max-length-ms:*:*"  = "20000"
+    }
+    # The greeting blocks (3 and 17): the greeting with the recording notice is never cut by a
+    # "hallå?", a cough or line noise. The relay turns barge-in on again in its first answer.
+    greeting_attributes = {
+      "x-amz-lex:allow-interrupt:*:*"      = "false"
+      "x-amz-lex:audio:end-timeout-ms:*:*" = "1200"
+      "x-amz-lex:audio:max-length-ms:*:*"  = "20000"
+    }
+    relay_arn = aws_connect_lambda_function_association.relay.function_arn
     greeting  = var.greeting
+    # Connect writes flow logs only for a flow with a Set logging behavior block (UpdateFlowLoggingBehavior).
+    flow_logs = var.flow_logs
     # After a failed language switch: back to Swedish and on with the call.
     resume_sv = "Förlåt, vi fortsätter på svenska. Vad kan jag hjälpa dig med?"
   })
@@ -210,5 +278,5 @@ resource "aws_connect_phone_number" "this" {
 resource "aws_connect_phone_number_contact_flow_association" "this" {
   phone_number_id = aws_connect_phone_number.this.id
   instance_id     = aws_connect_instance.this.id
-  contact_flow_id = aws_connect_contact_flow.this.contact_flow_id
+  contact_flow_id = coalesce(var.contact_flow_id_override, aws_connect_contact_flow.this.contact_flow_id)
 }

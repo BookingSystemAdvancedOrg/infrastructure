@@ -20,6 +20,7 @@ locals {
     "google-business" = local.google_business_routes
     "gift-cards"      = local.gift_cards_routes
     "waitlist"        = local.waitlist_routes
+    "site-translate"  = local.site_translate_routes
     "social-posting"  = local.social_posting_routes
     "personalliggare" = local.personalliggare_routes
     "accounting-sync" = local.accounting_sync_routes

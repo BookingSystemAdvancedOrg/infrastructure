@@ -208,3 +208,12 @@ billing_seller = {
 # (prod refuses the simulator at runtime, so the feature stays off). "real"
 # here also needs google_business_prod_released = true, or the plan fails.
 google_business_client = "simulator"
+
+# Site languages (site-translate/): Amazon Translate budgets, new characters only
+# (glossary and cache hits never count). 500,000 per restaurant is about 7.50 USD
+# per 30 days. To raise a cap: change the number here and push to dev, then
+# merge to main (CI applies it and releases the function's new configuration).
+site_translate_ip_requests_per_5min = 120
+site_translate_ip_chars_per_hour    = 200000
+site_translate_tenant_chars_per_30d = 500000
+site_translate_global_chars_per_30d = 5000000

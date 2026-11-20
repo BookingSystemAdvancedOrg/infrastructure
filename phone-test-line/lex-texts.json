@@ -1,120 +1,80 @@
 {
-  "_comment": "Per Lex locale (key = our language code in languages.json): sample utterances for the catch-all intent, the filler lines Lex says after 1 s (start, one picked at random) and every 5 s (update) while Booqy thinks. Every code in languages.json needs an entry here; only codes in languages.json become locales (no, zh and yue wait here until their Connect language code is confirmed on a real call). Utterances avoid punctuation (Lex sample utterance rules).",
+  "_comment": "Per Lex locale (key = our language code in languages.json): sample utterances for the catch-all intent. There are no wait lines: the caller hears only Booqy's real answers (owner 2026-11-20). Every code in languages.json needs an entry here; only codes in languages.json become locales (no, zh, yue, ro and cy: Connect language codes still to be confirmed on a real call). Utterances avoid punctuation (Lex sample utterance rules). Trimmed to 7 utterances per locale: the template must stay under CloudFormation's 51,200 byte limit with 25 locales (both intents go to the same code hook, so the samples only need to exist).",
   "texts": {
     "sv": {
-      "utterances": ["hej", "jag vill boka ett bord", "har ni ett bord för fyra imorgon", "vad har ni på menyn", "har ni något vegetariskt", "när har ni öppet", "ja", "nej", "klockan sju", "jag heter Anna", "tack", "hello I would like to book a table"],
-      "start": ["Ett ögonblick, jag kollar.", "Absolut, jag tittar på det.", "Jag kollar det direkt."],
-      "update": "Jag letar fortfarande, tack för att du väntar."
+      "utterances": ["hej", "jag vill boka ett bord", "har ni ett bord för fyra imorgon", "vad har ni på menyn", "ja", "nej", "tack", "hello I would like to book a table"]
     },
     "en": {
-      "utterances": ["hello", "I would like to book a table", "do you have a table for four tomorrow", "what is on the menu", "do you have anything vegetarian", "when are you open", "yes", "no", "at seven", "my name is Anna", "thank you"],
-      "start": ["One moment, let me check.", "Of course, I am looking into it.", "I will check that right away."],
-      "update": "Still looking, thank you for waiting."
+      "utterances": ["hello", "I would like to book a table", "do you have a table for four tomorrow", "what is on the menu", "yes", "no", "thank you"]
     },
     "da": {
-      "utterances": ["hej", "jeg vil gerne bestille et bord", "har I et bord til fire i morgen", "hvad er der på menuen", "har I noget vegetarisk", "hvornår har I åbent", "ja", "nej", "klokken syv", "jeg hedder Anna", "tak"],
-      "start": ["Et øjeblik, jeg tjekker.", "Selvfølgelig, jeg kigger på det.", "Jeg tjekker det med det samme."],
-      "update": "Jeg leder stadig, tak fordi du venter."
+      "utterances": ["hej", "jeg vil gerne bestille et bord", "har I et bord til fire i morgen", "hvad er der på menuen", "ja", "nej", "tak"]
     },
     "fi": {
-      "utterances": ["hei", "haluaisin varata pöydän", "onko teillä pöytää neljälle huomenna", "mitä ruokalistalla on", "onko teillä kasvisruokaa", "milloin olette auki", "kyllä", "ei", "kello seitsemän", "nimeni on Anna", "kiitos"],
-      "start": ["Hetkinen, tarkistan.", "Totta kai, katson sitä.", "Tarkistan sen heti."],
-      "update": "Etsin vielä, kiitos kun odotat."
+      "utterances": ["hei", "haluaisin varata pöydän", "onko teillä pöytää neljälle huomenna", "mitä ruokalistalla on", "kyllä", "ei", "kiitos"]
     },
     "de": {
-      "utterances": ["hallo", "ich möchte einen Tisch reservieren", "haben Sie morgen einen Tisch für vier", "was steht auf der Speisekarte", "haben Sie etwas Vegetarisches", "wann haben Sie geöffnet", "ja", "nein", "um sieben Uhr", "ich heiße Anna", "danke"],
-      "start": ["Einen Moment, ich schaue nach.", "Natürlich, ich sehe es mir an.", "Ich prüfe das sofort."],
-      "update": "Ich suche noch, danke für Ihre Geduld."
+      "utterances": ["hallo", "ich möchte einen Tisch reservieren", "haben Sie morgen einen Tisch für vier", "was steht auf der Speisekarte", "ja", "nein", "danke"]
     },
     "fr": {
-      "utterances": ["bonjour", "je voudrais réserver une table", "vous avez une table pour quatre demain", "quel est le menu", "vous avez des plats végétariens", "quand êtes vous ouverts", "oui", "non", "à sept heures", "mon nom est Anna", "merci"],
-      "start": ["Un instant, je vérifie.", "Bien sûr, je regarde.", "Je vérifie tout de suite."],
-      "update": "Je cherche encore, merci de patienter."
+      "utterances": ["bonjour", "je voudrais réserver une table", "vous avez une table pour quatre demain", "quel est le menu", "oui", "non", "merci"]
     },
     "es": {
-      "utterances": ["hola", "quiero reservar una mesa", "tienen mesa para cuatro mañana", "qué hay en el menú", "tienen algo vegetariano", "cuándo abren", "sí", "no", "a las siete", "me llamo Anna", "gracias"],
-      "start": ["Un momento, lo compruebo.", "Claro, lo estoy mirando.", "Lo compruebo enseguida."],
-      "update": "Sigo buscando, gracias por esperar."
+      "utterances": ["hola", "quiero reservar una mesa", "tienen mesa para cuatro mañana", "qué hay en el menú", "sí", "no", "gracias"]
     },
     "it": {
-      "utterances": ["ciao", "vorrei prenotare un tavolo", "avete un tavolo per quattro domani", "cosa avete nel menu", "avete qualcosa di vegetariano", "quando siete aperti", "sì", "no", "alle sette", "mi chiamo Anna", "grazie"],
-      "start": ["Un attimo, controllo.", "Certo, ci guardo subito.", "Lo verifico subito."],
-      "update": "Sto ancora cercando, grazie per l'attesa."
+      "utterances": ["ciao", "vorrei prenotare un tavolo", "avete un tavolo per quattro domani", "cosa avete nel menu", "sì", "no", "grazie"]
     },
     "nl": {
-      "utterances": ["hallo", "ik wil graag een tafel reserveren", "hebben jullie morgen een tafel voor vier", "wat staat er op het menu", "hebben jullie iets vegetarisch", "wanneer zijn jullie open", "ja", "nee", "om zeven uur", "ik heet Anna", "dank je"],
-      "start": ["Een moment, ik kijk het na.", "Natuurlijk, ik kijk ernaar.", "Ik controleer het meteen."],
-      "update": "Ik zoek nog, bedankt voor het wachten."
+      "utterances": ["hallo", "ik wil graag een tafel reserveren", "hebben jullie morgen een tafel voor vier", "wat staat er op het menu", "ja", "nee", "dank je"]
     },
     "pl": {
-      "utterances": ["dzień dobry", "chciałbym zarezerwować stolik", "czy macie stolik dla czterech osób na jutro", "co jest w menu", "czy macie coś wegetariańskiego", "kiedy jesteście otwarci", "tak", "nie", "o siódmej", "nazywam się Anna", "dziękuję"],
-      "start": ["Chwileczkę, sprawdzam.", "Oczywiście, już patrzę.", "Zaraz to sprawdzę."],
-      "update": "Nadal szukam, dziękuję za cierpliwość."
+      "utterances": ["dzień dobry", "chciałbym zarezerwować stolik", "czy macie stolik dla czterech osób na jutro", "co jest w menu", "tak", "nie", "dziękuję"]
     },
     "pt": {
-      "utterances": ["olá", "queria reservar uma mesa", "têm uma mesa para quatro amanhã", "o que há no menu", "têm alguma coisa vegetariana", "quando estão abertos", "sim", "não", "às sete", "o meu nome é Anna", "obrigado"],
-      "start": ["Um momento, vou verificar.", "Claro, estou a ver.", "Verifico já."],
-      "update": "Ainda estou a procurar, obrigada por esperar."
+      "utterances": ["olá", "queria reservar uma mesa", "têm uma mesa para quatro amanhã", "o que há no menu", "sim", "não", "obrigado"]
     },
     "ar": {
-      "utterances": ["مرحبا", "أريد حجز طاولة", "هل لديكم طاولة لأربعة أشخاص غدا", "ما هي قائمة الطعام", "هل لديكم أطباق نباتية", "متى تفتحون", "نعم", "لا", "الساعة السابعة", "اسمي آنا", "شكرا"],
-      "start": ["لحظة من فضلك، أتحقق من ذلك.", "بالتأكيد، أنظر في الأمر.", "سأتحقق من ذلك فورا."],
-      "update": "ما زلت أبحث، شكرا لانتظارك."
+      "utterances": ["مرحبا", "أريد حجز طاولة", "هل لديكم طاولة لأربعة أشخاص غدا", "ما هي قائمة الطعام", "نعم", "لا", "شكرا"]
     },
     "tr": {
-      "utterances": ["merhaba", "bir masa ayırtmak istiyorum", "yarın dört kişilik masanız var mı", "menüde neler var", "vejetaryen yemeğiniz var mı", "ne zaman açıksınız", "evet", "hayır", "saat yedide", "adım Anna", "teşekkürler"],
-      "start": ["Bir dakika, kontrol ediyorum.", "Tabii, hemen bakıyorum.", "Bunu hemen kontrol ediyorum."],
-      "update": "Hâlâ bakıyorum, beklediğiniz için teşekkürler."
+      "utterances": ["merhaba", "bir masa ayırtmak istiyorum", "yarın dört kişilik masanız var mı", "menüde neler var", "evet", "hayır", "teşekkürler"]
     },
     "cs": {
-      "utterances": ["dobrý den", "chtěl bych rezervovat stůl", "máte zítra stůl pro čtyři", "co máte na menu", "máte něco vegetariánského", "kdy máte otevřeno", "ano", "ne", "v sedm hodin", "jmenuji se Anna", "děkuji"],
-      "start": ["Okamžik, ověřím to.", "Jistě, podívám se na to.", "Hned to zkontroluji."],
-      "update": "Stále hledám, děkuji za trpělivost."
+      "utterances": ["dobrý den", "chtěl bych rezervovat stůl", "máte zítra stůl pro čtyři", "co máte na menu", "ano", "ne", "děkuji"]
     },
     "ca": {
-      "utterances": ["hola", "voldria reservar una taula", "teniu taula per a quatre demà", "què hi ha al menú", "teniu alguna cosa vegetariana", "quan obriu", "sí", "no", "a les set", "em dic Anna", "gràcies"],
-      "start": ["Un moment, ho comprovo.", "És clar, ho miro.", "Ho comprovo de seguida."],
-      "update": "Encara estic buscant, gràcies per esperar."
+      "utterances": ["hola", "voldria reservar una taula", "teniu taula per a quatre demà", "què hi ha al menú", "sí", "no", "gràcies"]
     },
     "ja": {
-      "utterances": ["こんにちは", "テーブルを予約したいです", "明日四人の席はありますか", "メニューには何がありますか", "ベジタリアン料理はありますか", "営業時間は何時ですか", "はい", "いいえ", "七時に", "アンナです", "ありがとうございます"],
-      "start": ["少々お待ちください、確認します。", "かしこまりました、お調べします。", "すぐに確認いたします。"],
-      "update": "まだ確認中です。お待ちいただきありがとうございます。"
+      "utterances": ["こんにちは", "テーブルを予約したいです", "明日四人の席はありますか", "メニューには何がありますか", "はい", "いいえ", "ありがとうございます"]
     },
     "ko": {
-      "utterances": ["안녕하세요", "테이블을 예약하고 싶어요", "내일 네 명 자리 있나요", "메뉴에 뭐가 있나요", "채식 메뉴 있나요", "언제 문을 여나요", "네", "아니요", "일곱 시에", "제 이름은 안나예요", "감사합니다"],
-      "start": ["잠시만요, 확인해 볼게요.", "물론이죠, 살펴볼게요.", "바로 확인해 드릴게요."],
-      "update": "아직 찾고 있어요, 기다려 주셔서 감사합니다."
+      "utterances": ["안녕하세요", "테이블을 예약하고 싶어요", "내일 네 명 자리 있나요", "메뉴에 뭐가 있나요", "네", "아니요", "감사합니다"]
     },
     "hi": {
-      "utterances": ["नमस्ते", "मैं एक टेबल बुक करना चाहता हूँ", "क्या कल चार लोगों के लिए टेबल है", "मेनू में क्या है", "क्या आपके पास कुछ शाकाहारी है", "आप कब खुलते हैं", "हाँ", "नहीं", "सात बजे", "मेरा नाम अन्ना है", "धन्यवाद"],
-      "start": ["एक पल, मैं देखती हूँ।", "ज़रूर, मैं इसे देख रही हूँ।", "मैं अभी जाँच करती हूँ।"],
-      "update": "मैं अभी भी देख रही हूँ, इंतज़ार के लिए धन्यवाद।"
+      "utterances": ["नमस्ते", "मैं एक टेबल बुक करना चाहता हूँ", "क्या कल चार लोगों के लिए टेबल है", "मेनू में क्या है", "हाँ", "नहीं", "धन्यवाद"]
     },
     "ru": {
-      "utterances": ["здравствуйте", "я хочу забронировать столик", "есть ли у вас столик на четверых на завтра", "что у вас в меню", "есть ли у вас вегетарианские блюда", "когда вы открыты", "да", "нет", "в семь часов", "меня зовут Анна", "спасибо"],
-      "start": ["Одну минуту, я проверю.", "Конечно, сейчас посмотрю.", "Сейчас проверю."],
-      "update": "Я всё ещё ищу, спасибо за ожидание."
+      "utterances": ["здравствуйте", "я хочу забронировать столик", "есть ли у вас столик на четверых на завтра", "что у вас в меню", "да", "нет", "спасибо"]
     },
     "is": {
-      "utterances": ["halló", "ég vil panta borð", "eigið þið borð fyrir fjóra á morgun", "hvað er á matseðlinum", "eigið þið grænmetisrétti", "hvenær er opið", "já", "nei", "klukkan sjö", "ég heiti Anna", "takk"],
-      "start": ["Augnablik, ég athuga það.", "Auðvitað, ég skoða það.", "Ég athuga það strax."],
-      "update": "Ég er enn að leita, takk fyrir biðina."
+      "utterances": ["halló", "ég vil panta borð", "eigið þið borð fyrir fjóra á morgun", "hvað er á matseðlinum", "já", "nei", "takk"]
     },
     "no": {
-      "utterances": ["hei", "jeg vil gjerne bestille et bord", "har dere et bord til fire i morgen", "hva står på menyen", "har dere noe vegetarisk", "når har dere åpent", "ja", "nei", "klokken sju", "jeg heter Anna", "takk"],
-      "start": ["Et øyeblikk, jeg sjekker.", "Selvfølgelig, jeg ser på det.", "Jeg sjekker det med en gang."],
-      "update": "Jeg leter fortsatt, takk for at du venter."
+      "utterances": ["hei", "jeg vil gjerne bestille et bord", "har dere et bord til fire i morgen", "hva står på menyen", "ja", "nei", "takk"]
     },
     "zh": {
-      "utterances": ["你好", "我想订一张桌子", "明天有四个人的位子吗", "菜单上有什么", "有素食吗", "你们几点营业", "是的", "不是", "七点", "我叫安娜", "谢谢"],
-      "start": ["请稍等，我查一下。", "好的，我帮您看看。", "我马上查一下。"],
-      "update": "我还在查，谢谢您的耐心等待。"
+      "utterances": ["你好", "我想订一张桌子", "明天有四个人的位子吗", "菜单上有什么", "是的", "不是", "谢谢"]
     },
     "yue": {
-      "utterances": ["你好", "我想訂枱", "聽日有冇四位", "菜單有啲乜嘢", "有冇素食", "你哋幾點開", "係", "唔係", "七點", "我叫安娜", "多謝"],
-      "start": ["請等一等，我查一查。", "好呀，我幫你睇睇。", "我即刻幫你查。"],
-      "update": "我仲搵緊，多謝你耐心等候。"
+      "utterances": ["你好", "我想訂枱", "聽日有冇四位", "菜單有啲乜嘢", "係", "唔係", "多謝"]
+    },
+    "ro": {
+      "utterances": ["bună", "aș dori să rezerv o masă", "aveți o masă pentru patru mâine", "ce aveți în meniu", "da", "nu", "mulțumesc"]
+    },
+    "cy": {
+      "utterances": ["helo", "hoffwn archebu bwrdd", "oes bwrdd i bedwar yfory", "beth sydd ar y fwydlen", "ie", "na", "diolch"]
     }
   }
 }

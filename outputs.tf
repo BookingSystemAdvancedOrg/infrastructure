@@ -83,6 +83,7 @@ output "ecr_repository_urls" {
     manage_layout_element      = module.manage_layout_element_ecr.manage_layout_element_ecr_repository_url
     manage_menu                = module.manage_menu_ecr.manage_menu_ecr_repository_url
     manage_order               = module.manage_order_ecr.manage_order_ecr_repository_url
+    table_order                = module.table_order_ecr.table_order_ecr_repository_url
     manage_user                = module.manage_user_ecr.manage_user_ecr_repository_url
     mark_arrived               = module.mark_arrived_ecr.mark_arrived_ecr_repository_url
     no_show_check              = module.no_show_check_ecr.no_show_check_ecr_repository_url
@@ -131,6 +132,7 @@ output "ecr_repository_urls" {
     google_business_jobs       = module.google_business_jobs_ecr.repository_url
     gift_cards                 = module.gift_cards_ecr.repository_url
     waitlist                   = module.waitlist_ecr.repository_url
+    site_translate             = module.site_translate_ecr.repository_url
     social_posting             = module.social_posting_ecr.repository_url
     personalliggare            = module.personalliggare_ecr.repository_url
     accounting_sync            = module.accounting_sync_ecr.repository_url

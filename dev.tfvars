@@ -221,6 +221,15 @@ phone_test_line_country = "FI" # no Swedish DID stock in Connect eu-central-1 (2
 # Restaurant 1 (tenant RADIN DJ AB, dev test data): tables and availability.
 phone_test_line_location = { tenant_id = "01m4fqaga9r6s2e1pcx7t0wx3z", location_id = "01m4fqaga9ca7cfvybw0ptzezr" }
 
+# Dev A2A test (owner 2026-11-20): Connect hands calls on the test line to the voice gateway on
+# Fargate (a2a-dev-test.tf, about $0.095 per hour while on). The first test calls never reached the
+# gateway: the test flow had no Connect assistant step, so AMAZON.QInConnectIntent had no AI agent
+# session and the bot block fell to Error (the Stage 1 line). Live again with that step, the Lex
+# role's lexv2.aws.internal trust and flow logs (CloudWatch /aws/connect/<alias>, 14 days).
+a2a_dev_test_enabled       = true
+a2a_dev_test_gateway_count = 1
+a2a_dev_test_live          = true
+
 # Billing (owner 2026-11-14): in advance on the 1st, the card charged
 # automatically (emailed with 10 days until a card is added), reminders at
 # 3, 7 and 14 days and a final notice at 30 to the restaurant and the
@@ -260,3 +269,12 @@ dev_twin_stripe_account_id = "acct_1UVIUkHhsMKn0jQY"
 # customer may not take a slug a prod customer uses. Not secret.
 dev_twin_prod_api_url   = "https://9md43vqnp1.execute-api.eu-north-1.amazonaws.com"
 dev_twin_prod_image_url = "https://d3uasj29icofcs.cloudfront.net"
+
+# Site languages (site-translate/): Amazon Translate budgets, new characters only
+# (glossary and cache hits never count). Dev tests switch whole sites through
+# every language again and again: 3,000,000 per restaurant per 30 days (about
+# 45 USD at most), and the platform cap above it so it does not bind first.
+site_translate_ip_requests_per_5min = 120
+site_translate_ip_chars_per_hour    = 200000
+site_translate_tenant_chars_per_30d = 3000000
+site_translate_global_chars_per_30d = 5000000

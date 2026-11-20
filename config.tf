@@ -65,6 +65,11 @@ module "published_layout_snapshot" {
   source      = "./storage/dynamodb/published-layout-snapshot"
   environment = var.env
 }
+# Staff order taking at the table (Bordsbeställning): own table, no stream.
+module "table_order" {
+  source      = "./storage/dynamodb/table-order"
+  environment = var.env
+}
 module "reservation" {
   source                  = "./storage/dynamodb/reservation"
   environment             = var.env
@@ -321,6 +326,16 @@ module "manage_order_role" {
   location_table_arn = module.location.table_arn
   stripe_secret_arn  = module.platform_secrets.stripe_secret_arn
   region             = var.aws_region
+}
+module "table_order_role" {
+  source                              = "./security/iam/table-order"
+  environment                         = var.env
+  region                              = var.aws_region
+  table_order_table_arn               = module.table_order.table_arn
+  menu_table_arn                      = module.menu.table_arn
+  print_table_arn                     = module.print.table_arn
+  published_layout_snapshot_table_arn = module.published_layout_snapshot.table_arn
+  reservation_table_arn               = module.reservation.table_arn
 }
 module "manage_user_role" {
   source         = "./security/iam/manage-user"
@@ -827,6 +842,8 @@ module "tenant_context_policy" {
     mark_arrived               = module.mark_arrived_role.role_name
     # Food orders: staff work only on their own location's orders.
     manage_order = module.manage_order_role.role_name
+    # Table orders: staff take orders only at their own location.
+    table_order = module.table_order_role.role_name
     # Catering: staff see their own location's requests.
     catering_requests = module.catering_requests_role.role_name
     catering_offer    = module.catering_offer_role.role_name
@@ -938,6 +955,10 @@ module "manage_menu_ecr" {
 }
 module "manage_order_ecr" {
   source      = "./storage/ecr/manage-order"
+  environment = var.env
+}
+module "table_order_ecr" {
+  source      = "./storage/ecr/table-order"
   environment = var.env
 }
 module "manage_user_ecr" {
@@ -1077,6 +1098,11 @@ module "waitlist_ecr" {
   source      = "./storage/ecr/function"
   environment = var.env
   function    = "waitlist"
+}
+module "site_translate_ecr" {
+  source      = "./storage/ecr/function"
+  environment = var.env
+  function    = "site-translate"
 }
 module "social_posting_ecr" {
   source      = "./storage/ecr/function"
@@ -1341,6 +1367,10 @@ module "create_pending_reservation_fn" {
   site_waf_secret          = random_password.site_waf_edge.result
   request_guard_table_name = module.request_guard.table_name
   cloudfront_edge_secret   = random_password.cloudfront_edge.result
+  # The SMS card link (GET /k/{code} on get-reservation, through the admin app's /api).
+  short_link_base = "${local.admin_app_url}/api/k"
+  # Gated per tenant by cardStepOnManagePage (site-kit 0.4.0+); others keep the Stripe page.
+  phone_card_page = "site"
 }
 module "get_availability_fn" {
   source                               = "./compute/lambda/get-availability"
@@ -1501,6 +1531,21 @@ module "manage_order_fn" {
   reservation_link_key_secret_arn = module.reservation_secrets.link_signing_key_secret_arn
   stripe_secret_arn               = module.platform_secrets.stripe_secret_arn
   stripe_api_version              = var.stripe_api_version
+}
+module "table_order_fn" {
+  source                               = "./compute/lambda/table-order"
+  environment                          = var.env
+  role_arn                             = module.table_order_role.role_arn
+  ecr_repository_url                   = module.table_order_ecr.table_order_ecr_repository_url
+  table_order_table_name               = module.table_order.table_name
+  menu_table_name                      = module.menu.table_name
+  print_table_name                     = module.print.table_name
+  published_layout_snapshot_table_name = module.published_layout_snapshot.table_name
+  reservation_table_name               = module.reservation.table_name
+  tenant_table_name                    = module.tenant.table_name
+  location_table_name                  = module.location.table_name
+  location_id_index_name               = module.location.location_id_index_name
+  user_table_name                      = module.user.table_name
 }
 module "manage_user_fn" {
   source                 = "./compute/lambda/manage-user"
@@ -2105,6 +2150,7 @@ module "lambda_releases" {
     (module.manage_layout_element_fn.function_name)       = { alias_name = module.manage_layout_element_fn.alias_name }
     (module.manage_menu_fn.function_name)                 = { alias_name = module.manage_menu_fn.alias_name }
     (module.manage_order_fn.function_name)                = { alias_name = module.manage_order_fn.alias_name }
+    (module.table_order_fn.function_name)                 = { alias_name = module.table_order_fn.alias_name }
     (module.manage_user_fn.function_name)                 = { alias_name = module.manage_user_fn.alias_name }
     (module.mark_arrived_fn.function_name)                = { alias_name = module.mark_arrived_fn.alias_name }
     (module.no_show_check_fn.function_name)               = { alias_name = module.no_show_check_fn.alias_name }
@@ -2170,6 +2216,8 @@ module "api_gateway" {
   manage_menu_invoke_arn                   = module.manage_menu_fn.alias_invoke_arn
   manage_order_function_name               = module.manage_order_fn.function_name
   manage_order_invoke_arn                  = module.manage_order_fn.alias_invoke_arn
+  table_order_function_name                = module.table_order_fn.function_name
+  table_order_invoke_arn                   = module.table_order_fn.alias_invoke_arn
   get_availability_function_name           = module.get_availability_fn.function_name
   get_availability_invoke_arn              = module.get_availability_fn.alias_invoke_arn
   create_pending_reservation_function_name = module.create_pending_reservation_fn.function_name
@@ -2396,6 +2444,7 @@ locals {
     manage_menu                = module.manage_menu_role.role_name
     manage_order               = module.manage_order_role.role_name
     manage_user                = module.manage_user_role.role_name
+    table_order                = module.table_order_role.role_name
     mark_arrived               = module.mark_arrived_role.role_name
     no_show_check              = module.no_show_check_role.role_name
     notification               = module.notification_role.role_name
@@ -2430,6 +2479,7 @@ locals {
     module.google_business.wiring,
     module.gift_cards.wiring,
     module.waitlist.wiring,
+    module.site_translate.wiring,
     module.social_posting.wiring,
     module.personalliggare.wiring,
     module.accounting_sync.wiring,

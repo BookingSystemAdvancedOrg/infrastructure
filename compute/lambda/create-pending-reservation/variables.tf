@@ -111,3 +111,20 @@ variable "site_waf_secret" {
   type        = string
   sensitive   = true
 }
+
+variable "short_link_base" {
+  description = "Base of the short SMS card link (https://restaurang.<domain>/api/k), served by get-reservation's GET /k/{code}; \"\" keeps the long URL"
+  type        = string
+  sensitive   = false
+}
+
+variable "phone_card_page" {
+  description = "Where a phone guest adds the card: \"site\" (the booking's manage page, only for tenants with cardStepOnManagePage, else Stripe) or \"stripe\""
+  type        = string
+  sensitive   = false
+
+  validation {
+    condition     = contains(["site", "stripe"], var.phone_card_page)
+    error_message = "phone_card_page must be site or stripe."
+  }
+}

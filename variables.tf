@@ -404,6 +404,30 @@ variable "bot_check_enforced" {
   sensitive   = false
   default     = false
 }
+variable "site_translate_ip_requests_per_5min" {
+  description = "Site languages (POST /translate): requests per viewer IP per 5 minutes; over it the API answers 429"
+  type        = number
+  sensitive   = false
+  default     = 120
+}
+variable "site_translate_ip_chars_per_hour" {
+  description = "Site languages: new (billed, not cached) characters per viewer IP per hour; over it the strings stay Swedish (the restaurant and platform caps bound the cost)"
+  type        = number
+  sensitive   = false
+  default     = 200000
+}
+variable "site_translate_tenant_chars_per_30d" {
+  description = "Site languages: new (billed) characters per restaurant per 30 days (500,000 is about 7.50 USD); over it the strings stay Swedish"
+  type        = number
+  sensitive   = false
+  default     = 500000
+}
+variable "site_translate_global_chars_per_30d" {
+  description = "Site languages: new (billed) characters for the whole platform per 30 days (5,000,000 is about 75 USD); over it the strings stay Swedish"
+  type        = number
+  sensitive   = false
+  default     = 5000000
+}
 variable "stripe_publishable_key" {
   type        = string
   description = "Publishable key (pk_test_... in dev, pk_live_... in prod) of the platform Stripe account - not a secret; returned to tenant websites by GET /site-config"

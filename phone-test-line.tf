@@ -27,9 +27,9 @@ variable "phone_test_line_country" {
 
 variable "phone_test_line_greeting" {
   type        = string
-  description = "The test line's first sentence: the art. 50 disclosure for the test restaurant (Booqy's greeting text)."
+  description = "The test line's fallback first sentence, played only when Booqy's greeting (which names the restaurant from its own data) cannot be fetched: the disclosure without a name."
   sensitive   = false
-  default     = "Hej, du pratar med Booqy-assistenten, en AI-assistent för Restaurant 1. Vad kan jag hjälpa dig med?"
+  default     = "Hej och välkommen. Du pratar med vår digitala assistent. Vad kan jag hjälpa dig med?"
 }
 
 module "phone_test_line" {
@@ -42,6 +42,10 @@ module "phone_test_line" {
   call_alias_arn = module.phone_agent.call_alias_arn
   greeting       = var.phone_test_line_greeting
   country_code   = var.phone_test_line_country
+  # The dev A2A test (a2a-dev-test.tf) takes the number while a2a_dev_test_live.
+  contact_flow_id_override = var.a2a_dev_test_enabled && var.a2a_dev_test_live ? module.a2a_dev_test[0].contact_flow_id : null
+  # Flow logs while the A2A test is live (the test flow's first block turns them on per call).
+  flow_logs = var.a2a_dev_test_enabled && var.a2a_dev_test_live
 }
 
 variable "phone_test_line_location" {

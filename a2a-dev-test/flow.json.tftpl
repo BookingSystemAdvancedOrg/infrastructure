@@ -1,0 +1,131 @@
+%{ if false ~}
+The dev A2A test flow (flow language 2019-10-30), separate from the phone test line's flow.
+  9  Set logging behavior: flow logs for every test call (the instance logs to CloudWatch while
+     the test is live, phone-test-line.tf).
+  10 Connect assistant (CreateWisdomSession): a Connect AI agent session on the contact. Without
+     it AMAZON.QInConnectIntent has no session ARN, the bot block takes Error and the call falls
+     back to Stage 1 before Connect ever dials the gateway (2026-11-20 test calls).
+  1  Set voice Amy en-GB Generative (the Nova Sonic speech to speech page requires a generative
+     voice on the contact; nothing is spoken by it: the gateway greets and speaks Swedish itself).
+  2  Language en-GB (the bot's placeholder locale).
+  3  Get customer input with the A2A bot (AMAZON.QInConnectIntent): Connect hands the contact to
+     the AI agent, which hands it to the gateway with audio streaming. The prompt is a 100 ms
+     silence (a guess: CreateContactFlow returned an empty InvalidContactFlowException without one).
+  4  When the agent returns control: Lex session attribute Tool. Complete -> 7 (hang up);
+     Escalate -> 5, 6 (Elin says this is the test line, then hang up: outbound calls are off on
+     the dev instance, so there is no transfer); anything else -> 7.
+  8  Error of 3 (no connection to the gateway, two drops, READY timeout): the phone test line's
+     Stage 1 flow, so a gateway outage never drops the caller. Its own error -> 7.
+%{ endif ~}
+{
+  "Version": "2019-10-30",
+  "StartAction": "a2a0c0de-0000-4000-8000-000000000009",
+  "Metadata": {},
+  "Actions": [
+    {
+      "Identifier": "a2a0c0de-0000-4000-8000-000000000009",
+      "Type": "UpdateFlowLoggingBehavior",
+      "Parameters": { "FlowLoggingBehavior": "Enabled" },
+      "Transitions": { "NextAction": "a2a0c0de-0000-4000-8000-000000000010" }
+    },
+    {
+      "Identifier": "a2a0c0de-0000-4000-8000-000000000010",
+      "Type": "CreateWisdomSession",
+      "Parameters": { "WisdomAssistantArn": ${jsonencode(assistant_arn)} },
+      "Transitions": {
+        "NextAction": "a2a0c0de-0000-4000-8000-000000000001",
+        "Errors": [{ "NextAction": "a2a0c0de-0000-4000-8000-000000000008", "ErrorType": "NoMatchingError" }]
+      }
+    },
+    {
+      "Identifier": "a2a0c0de-0000-4000-8000-000000000001",
+      "Type": "UpdateContactTextToSpeechVoice",
+      "Parameters": { "TextToSpeechVoice": "Amy", "TextToSpeechEngine": "Generative" },
+      "Transitions": {
+        "NextAction": "a2a0c0de-0000-4000-8000-000000000002",
+        "Errors": [{ "NextAction": "a2a0c0de-0000-4000-8000-000000000008", "ErrorType": "NoMatchingError" }]
+      }
+    },
+    {
+      "Identifier": "a2a0c0de-0000-4000-8000-000000000002",
+      "Type": "UpdateContactData",
+      "Parameters": { "LanguageCode": "en-GB" },
+      "Transitions": {
+        "NextAction": "a2a0c0de-0000-4000-8000-000000000003",
+        "Errors": [{ "NextAction": "a2a0c0de-0000-4000-8000-000000000008", "ErrorType": "NoMatchingError" }]
+      }
+    },
+    {
+      "Identifier": "a2a0c0de-0000-4000-8000-000000000003",
+      "Type": "ConnectParticipantWithLexBot",
+      "Parameters": {
+        "SSML": "<speak><break time=\"100ms\"/></speak>",
+        "LexV2Bot": { "AliasArn": ${jsonencode(alias_arn)} },
+        "LexSessionAttributes": {
+          "callerNumber": "$.CustomerEndpoint.Address",
+          "dialedNumber": "$.SystemEndpoint.Address"
+        }
+      },
+      "Transitions": {
+        "NextAction": "a2a0c0de-0000-4000-8000-000000000004",
+        "Conditions": [],
+        "Errors": [
+          { "NextAction": "a2a0c0de-0000-4000-8000-000000000004", "ErrorType": "NoMatchingCondition" },
+          { "NextAction": "a2a0c0de-0000-4000-8000-000000000008", "ErrorType": "NoMatchingError" }
+        ]
+      }
+    },
+    {
+      "Identifier": "a2a0c0de-0000-4000-8000-000000000004",
+      "Type": "Compare",
+      "Parameters": { "ComparisonValue": "$.Lex.SessionAttributes.Tool" },
+      "Transitions": {
+        "NextAction": "a2a0c0de-0000-4000-8000-000000000007",
+        "Conditions": [
+          {
+            "NextAction": "a2a0c0de-0000-4000-8000-000000000007",
+            "Condition": { "Operator": "Equals", "Operands": ["Complete"] }
+          },
+          {
+            "NextAction": "a2a0c0de-0000-4000-8000-000000000005",
+            "Condition": { "Operator": "Equals", "Operands": ["Escalate"] }
+          }
+        ],
+        "Errors": [{ "NextAction": "a2a0c0de-0000-4000-8000-000000000007", "ErrorType": "NoMatchingCondition" }]
+      }
+    },
+    {
+      "Identifier": "a2a0c0de-0000-4000-8000-000000000005",
+      "Type": "UpdateContactTextToSpeechVoice",
+      "Parameters": { "TextToSpeechVoice": "Elin", "TextToSpeechEngine": "Neural", "TextToSpeechStyle": "None" },
+      "Transitions": {
+        "NextAction": "a2a0c0de-0000-4000-8000-000000000006",
+        "Errors": [{ "NextAction": "a2a0c0de-0000-4000-8000-000000000007", "ErrorType": "NoMatchingError" }]
+      }
+    },
+    {
+      "Identifier": "a2a0c0de-0000-4000-8000-000000000006",
+      "Type": "MessageParticipant",
+      "Parameters": { "Text": ${jsonencode(escalate_text)} },
+      "Transitions": {
+        "NextAction": "a2a0c0de-0000-4000-8000-000000000007",
+        "Errors": [{ "NextAction": "a2a0c0de-0000-4000-8000-000000000007", "ErrorType": "NoMatchingError" }]
+      }
+    },
+    {
+      "Identifier": "a2a0c0de-0000-4000-8000-000000000007",
+      "Type": "DisconnectParticipant",
+      "Parameters": {},
+      "Transitions": {}
+    },
+    {
+      "Identifier": "a2a0c0de-0000-4000-8000-000000000008",
+      "Type": "TransferToFlow",
+      "Parameters": { "ContactFlowId": ${jsonencode(fallback_flow_arn)} },
+      "Transitions": {
+        "NextAction": "a2a0c0de-0000-4000-8000-000000000007",
+        "Errors": [{ "NextAction": "a2a0c0de-0000-4000-8000-000000000007", "ErrorType": "NoMatchingError" }]
+      }
+    }
+  ]
+}
