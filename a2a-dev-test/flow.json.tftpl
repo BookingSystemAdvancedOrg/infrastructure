@@ -4,7 +4,8 @@ The dev A2A test flow (flow language 2019-10-30), separate from the phone test l
      voice on the contact; nothing is spoken by it: the gateway greets and speaks Swedish itself).
   2  Language en-GB (the bot's placeholder locale).
   3  Get customer input with the A2A bot (AMAZON.QInConnectIntent): Connect hands the contact to
-     the AI agent, which hands it to the gateway with audio streaming. No prompt.
+     the AI agent, which hands it to the gateway with audio streaming. The prompt is a 100 ms
+     silence (a guess: CreateContactFlow returned an empty InvalidContactFlowException without one).
   4  When the agent returns control: Lex session attribute Tool. Complete -> 7 (hang up);
      Escalate -> 5, 6 (Elin says this is the test line, then hang up: outbound calls are off on
      the dev instance, so there is no transfer); anything else -> 7.
@@ -19,7 +20,7 @@ The dev A2A test flow (flow language 2019-10-30), separate from the phone test l
     {
       "Identifier": "a2a0c0de-0000-4000-8000-000000000001",
       "Type": "UpdateContactTextToSpeechVoice",
-      "Parameters": { "TextToSpeechVoice": "Amy", "TextToSpeechEngine": "Generative", "TextToSpeechStyle": "None" },
+      "Parameters": { "TextToSpeechVoice": "Amy", "TextToSpeechEngine": "Generative" },
       "Transitions": {
         "NextAction": "a2a0c0de-0000-4000-8000-000000000002",
         "Errors": [{ "NextAction": "a2a0c0de-0000-4000-8000-000000000008", "ErrorType": "NoMatchingError" }]
@@ -38,6 +39,7 @@ The dev A2A test flow (flow language 2019-10-30), separate from the phone test l
       "Identifier": "a2a0c0de-0000-4000-8000-000000000003",
       "Type": "ConnectParticipantWithLexBot",
       "Parameters": {
+        "SSML": "<speak><break time=\"100ms\"/></speak>",
         "LexV2Bot": { "AliasArn": ${jsonencode(alias_arn)} },
         "LexSessionAttributes": {
           "callerNumber": "$.CustomerEndpoint.Address",
