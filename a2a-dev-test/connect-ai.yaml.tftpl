@@ -94,9 +94,25 @@ Resources:
             - ToolName: Complete
               ToolType: RETURN_TO_CONTROL
               Description: The call is done; return control to the flow.
+              InputSchema:
+                type: object
+                properties:
+                  reason:
+                    type: string
+                    description: Why control returns to the flow.
+                required:
+                  - reason
             - ToolName: Escalate
               ToolType: RETURN_TO_CONTROL
               Description: The caller should talk to the restaurant; return control to the flow.
+              InputSchema:
+                type: object
+                properties:
+                  reason:
+                    type: string
+                    description: Why control returns to the flow.
+                required:
+                  - reason
       Tags:
         Environment: !Ref Environment
 
