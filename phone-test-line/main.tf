@@ -153,6 +153,7 @@ resource "aws_iam_role_policy" "lex" {
 
 # --- Connect (4. its service-linked role comes with the instance) ------------------------
 
+# Kept even while flow logs are off, so turning them on for a debug session gets 14 days retention.
 resource "aws_cloudwatch_log_group" "connect" {
   name              = "/aws/connect/${local.connect_alias}"
   retention_in_days = 14
@@ -164,8 +165,10 @@ resource "aws_connect_instance" "this" {
   inbound_calls_enabled    = true
   outbound_calls_enabled   = false
   contact_lens_enabled     = false
-  # Flow logs (which block ran, errors) to CloudWatch; Lex conversation logs stay off.
-  contact_flow_logs_enabled = true
+  # Flow logs (which block ran, errors) to CloudWatch, off unless var.flow_logs: they record what goes
+  # to and from Lex, which here is the caller's number and the reply text ("say"). Lex conversation
+  # logs stay off.
+  contact_flow_logs_enabled = var.flow_logs
   tags                      = { Environment = var.environment }
   # The log group first, so it carries the retention (Connect would create it without).
   depends_on = [aws_cloudwatch_log_group.connect]
@@ -245,6 +248,8 @@ resource "aws_connect_contact_flow" "this" {
     }
     relay_arn = aws_connect_lambda_function_association.relay.function_arn
     greeting  = var.greeting
+    # Connect writes flow logs only for a flow with a Set logging behavior block (UpdateFlowLoggingBehavior).
+    flow_logs = var.flow_logs
     # After a failed language switch: back to Swedish and on with the call.
     resume_sv = "Förlåt, vi fortsätter på svenska. Vad kan jag hjälpa dig med?"
   })

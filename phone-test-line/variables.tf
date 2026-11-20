@@ -17,3 +17,9 @@ variable "country_code" {
   type        = string
   default     = "SE"
 }
+
+variable "flow_logs" {
+  description = "Connect flow logs to CloudWatch (14 days) for a debug session. Off by default: the logs record what the flow sends to and receives from Lex, which includes the caller's number and the spoken reply text"
+  type        = bool
+  default     = false
+}
