@@ -222,10 +222,14 @@ phone_test_line_country = "FI" # no Swedish DID stock in Connect eu-central-1 (2
 phone_test_line_location = { tenant_id = "01m4fqaga9r6s2e1pcx7t0wx3z", location_id = "01m4fqaga9ca7cfvybw0ptzezr" }
 
 # Dev A2A test (owner 2026-11-20): Connect hands calls on the test line to the voice gateway on
-# Fargate (a2a-dev-test.tf, about $0.095 per hour while on). Off until a test session.
+# Fargate (a2a-dev-test.tf, about $0.095 per hour while on). Paused 2026-11-20: the handoff never
+# reached the gateway (Connect logged no connection on any call; every call fell back to the Lex
+# line) because the A2A bot's Nova Sonic locale has no model in eu-central-1 (Bedrock lists Nova
+# Sonic in eu-north-1 and us-east-1 only). The number is back on the Lex line and no task runs
+# until AWS confirms the model Connect uses in Frankfurt.
 a2a_dev_test_enabled       = true
-a2a_dev_test_gateway_count = 1
-a2a_dev_test_live          = true
+a2a_dev_test_gateway_count = 0
+a2a_dev_test_live          = false
 
 # Billing (owner 2026-11-14): in advance on the 1st, the card charged
 # automatically (emailed with 10 days until a card is added), reminders at

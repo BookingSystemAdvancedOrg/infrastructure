@@ -64,30 +64,11 @@ Resources:
               FulfillmentCodeHook:
                 Enabled: true
                 IsActive: true
+                # No wait lines while Booqy thinks (owner 2026-11-20: the caller hears only real
+                # answers); fulfillment updates stay on for the 30 s timeout.
                 FulfillmentUpdatesSpecification:
                   Active: true
                   TimeoutInSeconds: 30
-                  StartResponse:
-                    DelayInSeconds: 1
-                    AllowInterrupt: true
-                    MessageGroups:
-                      - Message:
-                          PlainTextMessage:
-                            Value: ${jsonencode(texts[code].start[0])}
-%{ if length(texts[code].start) > 1 ~}
-                        Variations:
-%{ for line in slice(texts[code].start, 1, length(texts[code].start)) ~}
-                          - PlainTextMessage:
-                              Value: ${jsonencode(line)}
-%{ endfor ~}
-%{ endif ~}
-                  UpdateResponse:
-                    FrequencyInSeconds: 5
-                    AllowInterrupt: true
-                    MessageGroups:
-                      - Message:
-                          PlainTextMessage:
-                            Value: ${jsonencode(texts[code].update)}
 %{ endfor ~}
 %{ endfor ~}
   # The logical id carries a hash of languages.json, lex-texts.json and this

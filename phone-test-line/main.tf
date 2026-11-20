@@ -76,7 +76,12 @@ data "archive_file" "relay" {
               payload = {"lexV2": event}
           answer = _lambda.invoke(FunctionName=os.environ["TARGET"], InvocationType="RequestResponse",
                                   Payload=json.dumps(payload).encode("utf-8"))
-          return json.loads(answer["Payload"].read() or b"{}")
+          result = json.loads(answer["Payload"].read() or b"{}")
+          # The greeting is spoken without barge-in; every answer after it may be interrupted.
+          state = result.get("sessionState") if isinstance(result, dict) else None
+          if isinstance(state, dict):
+              state.setdefault("sessionAttributes", {})["x-amz-lex:allow-interrupt:*:*"] = "true"
+          return result
     PY
   }
 }
@@ -243,6 +248,13 @@ resource "aws_connect_contact_flow" "this" {
     # barge-in on, 1200 ms of silence ends the turn (Lex default 600), 20 s max.
     turn_attributes = {
       "x-amz-lex:allow-interrupt:*:*"      = "true"
+      "x-amz-lex:audio:end-timeout-ms:*:*" = "1200"
+      "x-amz-lex:audio:max-length-ms:*:*"  = "20000"
+    }
+    # The greeting blocks (3 and 17): the greeting with the recording notice is never cut by a
+    # "hallå?", a cough or line noise. The relay turns barge-in on again in its first answer.
+    greeting_attributes = {
+      "x-amz-lex:allow-interrupt:*:*"      = "false"
       "x-amz-lex:audio:end-timeout-ms:*:*" = "1200"
       "x-amz-lex:audio:max-length-ms:*:*"  = "20000"
     }

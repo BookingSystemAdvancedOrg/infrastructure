@@ -14,7 +14,9 @@ The test line's call flow (flow language 2019-10-30).
        turn): after 7-8, the new voice speaks "say" (14) and the flow hangs up.
   10-12 A failed switch: Elin + sv-SE and the bot again in Swedish; if that
        fails too, the Swedish apology (4) and hang up.
-Every bot block also sends turn_attributes (barge-in on, end-of-speech 1200 ms, max 20 s).
+Every bot block also sends turn_attributes (barge-in on, end-of-speech 1200 ms, max 20 s),
+except the greeting blocks 3 and 17: greeting_attributes (barge-in off, so the greeting is never
+cut); the relay sets barge-in on again in its first answer.
   18   Only with flow_logs: Set logging behavior (Enabled), then 1. Without
        it Connect writes no flow logs even when the instance has them on.
 Lex session attributes are read in place (never copied into contact
@@ -83,7 +85,7 @@ attributes), so the reply text stays out of the contact record.
         "SSML": "$.External.greeting",
         "LexV2Bot": { "AliasArn": ${jsonencode(alias_arn)} },
         "LexSessionAttributes": {
-%{ for k, v in turn_attributes ~}
+%{ for k, v in greeting_attributes ~}
           ${jsonencode(k)}: ${jsonencode(v)},
 %{ endfor ~}
           "callerNumber": "$.CustomerEndpoint.Address",
@@ -106,7 +108,7 @@ attributes), so the reply text stays out of the contact record.
         "Text": ${jsonencode(greeting)},
         "LexV2Bot": { "AliasArn": ${jsonencode(alias_arn)} },
         "LexSessionAttributes": {
-%{ for k, v in turn_attributes ~}
+%{ for k, v in greeting_attributes ~}
           ${jsonencode(k)}: ${jsonencode(v)},
 %{ endfor ~}
           "callerNumber": "$.CustomerEndpoint.Address",
