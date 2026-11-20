@@ -411,10 +411,10 @@ variable "site_translate_ip_requests_per_5min" {
   default     = 120
 }
 variable "site_translate_ip_chars_per_hour" {
-  description = "Site languages: new (billed, not cached) characters per viewer IP per hour; over it the strings stay Swedish"
+  description = "Site languages: new (billed, not cached) characters per viewer IP per hour; over it the strings stay Swedish (the restaurant and platform caps bound the cost)"
   type        = number
   sensitive   = false
-  default     = 30000
+  default     = 200000
 }
 variable "site_translate_tenant_chars_per_30d" {
   description = "Site languages: new (billed) characters per restaurant per 30 days (500,000 is about 7.50 USD); over it the strings stay Swedish"

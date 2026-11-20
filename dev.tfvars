@@ -269,6 +269,6 @@ dev_twin_prod_image_url = "https://d3uasj29icofcs.cloudfront.net"
 
 # Site languages (site-translate/): Amazon Translate budgets, new characters only.
 site_translate_ip_requests_per_5min = 120
-site_translate_ip_chars_per_hour    = 30000
+site_translate_ip_chars_per_hour    = 200000
 site_translate_tenant_chars_per_30d = 100000
 site_translate_global_chars_per_30d = 500000
