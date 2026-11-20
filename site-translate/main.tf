@@ -49,7 +49,7 @@ resource "terraform_data" "terminology" {
       set -euo pipefail
       aws translate import-terminology --region "$R" --name "$NAME" --merge-strategy OVERWRITE \
         --description "Booqy restaurant terms for the site languages (sv to en, es, ar, fa)" \
-        --terminology-data "File=fileb://$FILE,Format=CSV,Directionality=UNI" \
+        --data-file "fileb://$FILE" --terminology-data "Format=CSV,Directionality=UNI" \
         --query "TerminologyProperties.[Name,TermCount]" --output text
     EOT
   }
