@@ -41,3 +41,12 @@ output "recordings_bucket_name" {
 output "api_alias_arn" {
   value = aws_lambda_alias.live["phone-agent"].arn
 }
+
+# The voice gateway (dev A2A test, a2a-dev-test/) runs phone-agent-call's agent loop in a container:
+# the same environment and the same access, without the provider and endpoint secrets it never reads.
+output "gateway_access" {
+  value = {
+    environment = local.functions["phone-agent-call"].env
+    statements  = [for s in local.statements["phone-agent-call"] : s if !contains(["ProviderSecrets", "EndpointKey"], s.Sid)]
+  }
+}

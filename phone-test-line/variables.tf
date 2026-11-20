@@ -23,3 +23,9 @@ variable "flow_logs" {
   type        = bool
   default     = false
 }
+
+variable "contact_flow_id_override" {
+  description = "Another flow on this instance for the number (the dev A2A test flow); null = the Stage 1 flow"
+  type        = string
+  default     = null
+}

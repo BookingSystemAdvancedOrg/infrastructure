@@ -266,5 +266,5 @@ resource "aws_connect_phone_number" "this" {
 resource "aws_connect_phone_number_contact_flow_association" "this" {
   phone_number_id = aws_connect_phone_number.this.id
   instance_id     = aws_connect_instance.this.id
-  contact_flow_id = aws_connect_contact_flow.this.contact_flow_id
+  contact_flow_id = coalesce(var.contact_flow_id_override, aws_connect_contact_flow.this.contact_flow_id)
 }

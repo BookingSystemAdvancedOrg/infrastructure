@@ -42,6 +42,8 @@ module "phone_test_line" {
   call_alias_arn = module.phone_agent.call_alias_arn
   greeting       = var.phone_test_line_greeting
   country_code   = var.phone_test_line_country
+  # The dev A2A test (a2a-dev-test.tf) takes the number while a2a_dev_test_live.
+  contact_flow_id_override = var.a2a_dev_test_enabled && var.a2a_dev_test_live ? module.a2a_dev_test[0].contact_flow_id : null
 }
 
 variable "phone_test_line_location" {

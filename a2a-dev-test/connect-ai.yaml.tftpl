@@ -1,0 +1,177 @@
+%{ if false ~}
+Connect AI objects of the dev A2A test (rendered by connect-ai.tf with templatefile: only
+version_id is substituted, everything else comes in as a stack parameter). Terraform 6.x has no
+qconnect/wisdom, AppIntegrations application, Connect integration association or Lex unified
+speech resources, so these are CloudFormation (as the phone test line's Lex bot).
+  Assistant + WISDOM_ASSISTANT association: Connect AI agents on the instance (no knowledge base).
+  Application (A2A_SERVER, wss:// URL, API key from the secret) + APPLICATION association.
+  Agent (ORCHESTRATION): hands every contact to the gateway with audio streaming, only the
+    reserved Return to Control tools Complete and Escalate, no prompt, no guardrail.
+  AgentVersion: the published version the security profile and the assistant default point at.
+  Bot: one placeholder locale (en_GB) on Nova Sonic speech to speech, one AMAZON.QInConnectIntent.
+  BotVersion (new logical id when this template or the speech model changes), alias, LEX_BOT
+    association.
+%{ endif ~}
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Booqy dev A2A test - Connect AI agent that hands calls to the voice gateway (dev only)
+Parameters:
+  Name:
+    Type: String
+  InstanceArn:
+    Type: String
+  AccessUrl:
+    Type: String
+  SecretArn:
+    Type: String
+  LexRoleArn:
+    Type: String
+  SpeechModelArn:
+    Type: String
+  Environment:
+    Type: String
+Resources:
+  Assistant:
+    Type: AWS::Wisdom::Assistant
+    Properties:
+      Name: !Ref Name
+      Type: AGENT
+      Description: Booqy dev A2A test assistant (voice gateway handoff)
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  AssistantAssociation:
+    Type: AWS::Connect::IntegrationAssociation
+    Properties:
+      InstanceId: !Ref InstanceArn
+      IntegrationType: WISDOM_ASSISTANT
+      IntegrationArn: !GetAtt Assistant.AssistantArn
+
+  Application:
+    Type: AWS::AppIntegrations::Application
+    Properties:
+      Name: !Ref Name
+      Namespace: !Ref Name
+      Description: Booqy voice gateway (dev A2A test)
+      ApplicationType: A2A_SERVER
+      ApplicationSourceConfig:
+        ExternalUrlConfig:
+          AccessUrl: !Ref AccessUrl
+      AuthConfig:
+        AuthType: API_KEY
+        CredentialProviderIdentifier: !Ref SecretArn
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  ApplicationAssociation:
+    Type: AWS::Connect::IntegrationAssociation
+    Properties:
+      InstanceId: !Ref InstanceArn
+      IntegrationType: APPLICATION
+      IntegrationArn: !GetAtt Application.ApplicationArn
+
+  Agent:
+    Type: AWS::Wisdom::AIAgent
+    DependsOn: [AssistantAssociation, ApplicationAssociation]
+    Properties:
+      AssistantId: !GetAtt Assistant.AssistantId
+      Name: !Ref Name
+      Type: ORCHESTRATION
+      Description: Hands every call to the Booqy voice gateway (audio streaming)
+      Configuration:
+        OrchestrationAIAgentConfiguration:
+          ConnectInstanceArn: !Ref InstanceArn
+          MultiAgentConfigurations:
+            - HandoffAgentConfiguration:
+                AgentTarget:
+                  ApplicationId: !GetAtt Application.Id
+                Instruction:
+                  Instruction: Hand every call to the Booqy voice gateway. It greets the caller, books, moves or cancels tables and returns COMPLETE when the call is done or ESCALATE when the caller should talk to the restaurant.
+                AudioStreamingEnabled: true
+                ImmediateHandoff: true
+          ToolConfigurations:
+            - ToolName: Complete
+              ToolType: RETURN_TO_CONTROL
+              Description: The call is done; return control to the flow.
+            - ToolName: Escalate
+              ToolType: RETURN_TO_CONTROL
+              Description: The caller should talk to the restaurant; return control to the flow.
+      Tags:
+        Environment: !Ref Environment
+
+  AgentVersion:
+    Type: AWS::Wisdom::AIAgentVersion
+    Properties:
+      AssistantId: !GetAtt Assistant.AssistantId
+      AIAgentId: !GetAtt Agent.AIAgentId
+
+  Bot:
+    Type: AWS::Lex::Bot
+    Properties:
+      Name: !Ref Name
+      Description: Connect AI agent entry for the A2A test (Nova Sonic placeholder locale, one QInConnect intent)
+      RoleArn: !Ref LexRoleArn
+      DataPrivacy:
+        ChildDirected: false
+      IdleSessionTTLInSeconds: 600
+      AutoBuildBotLocales: true
+      BotLocales:
+        - LocaleId: en_GB
+          NluConfidenceThreshold: 0.40
+          UnifiedSpeechSettings:
+            SpeechFoundationModel:
+              ModelArn: !Ref SpeechModelArn
+          Intents:
+            - Name: BooqyVoiceGateway
+              Description: Connect AI agent (the A2A handoff to the voice gateway)
+              ParentIntentSignature: AMAZON.QInConnectIntent
+              QInConnectIntentConfiguration:
+                QInConnectAssistantConfiguration:
+                  AssistantArn: !GetAtt Assistant.AssistantArn
+            - Name: FallbackIntent
+              ParentIntentSignature: AMAZON.FallbackIntent
+
+  ${version_id}:
+    Type: AWS::Lex::BotVersion
+    Properties:
+      BotId: !Ref Bot
+      Description: A2A test bot
+      BotVersionLocaleSpecification:
+        - LocaleId: en_GB
+          BotVersionLocaleDetails:
+            SourceBotVersion: DRAFT
+
+  Alias:
+    Type: AWS::Lex::BotAlias
+    Properties:
+      BotId: !Ref Bot
+      BotAliasName: live
+      BotVersion: !GetAtt ${version_id}.BotVersion
+      BotAliasLocaleSettings:
+        - LocaleId: en_GB
+          BotAliasLocaleSetting:
+            Enabled: true
+
+  BotAssociation:
+    Type: AWS::Connect::IntegrationAssociation
+    Properties:
+      InstanceId: !Ref InstanceArn
+      IntegrationType: LEX_BOT
+      IntegrationArn: !GetAtt Alias.Arn
+
+Outputs:
+  AssistantId:
+    Value: !GetAtt Assistant.AssistantId
+  AssistantArn:
+    Value: !GetAtt Assistant.AssistantArn
+  ApplicationArn:
+    Value: !GetAtt Application.ApplicationArn
+  AgentId:
+    Value: !GetAtt Agent.AIAgentId
+  AgentArn:
+    Value: !GetAtt Agent.AIAgentArn
+  AgentVersion:
+    Value: !GetAtt AgentVersion.VersionNumber
+  AliasArn:
+    Value: !GetAtt Alias.Arn

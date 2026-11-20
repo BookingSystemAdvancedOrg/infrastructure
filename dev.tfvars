@@ -221,6 +221,11 @@ phone_test_line_country = "FI" # no Swedish DID stock in Connect eu-central-1 (2
 # Restaurant 1 (tenant RADIN DJ AB, dev test data): tables and availability.
 phone_test_line_location = { tenant_id = "01m4fqaga9r6s2e1pcx7t0wx3z", location_id = "01m4fqaga9ca7cfvybw0ptzezr" }
 
+# Dev A2A test (owner 2026-11-20): Connect hands calls on the test line to the voice gateway on
+# Fargate (a2a-dev-test.tf, about $0.095 per hour while on). Off until a test session.
+a2a_dev_test_enabled = false
+a2a_dev_test_live    = false
+
 # Billing (owner 2026-11-14): in advance on the 1st, the card charged
 # automatically (emailed with 10 days until a card is added), reminders at
 # 3, 7 and 14 days and a final notice at 30 to the restaurant and the
