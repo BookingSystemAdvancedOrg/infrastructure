@@ -24,6 +24,10 @@ locals {
   region   = data.aws_region.current.region
   hostname = "voice-a2a.${var.platform_domain}"
 
+  # AIAgentVersionId is a string like "<agent id>:<n>"; the trailing number is the version.
+  agent_version_parts = split(":", aws_cloudformation_stack.connect_ai.outputs["AgentVersionId"])
+  agent_version       = element(local.agent_version_parts, length(local.agent_version_parts) - 1)
+
   # A new BotVersion logical id whenever the template or the speech model changes.
   bot_version_id = "BotVersion${substr(sha256(join("\n", [
     file("${path.module}/connect-ai.yaml.tftpl"),
@@ -206,14 +210,14 @@ resource "terraform_data" "wiring" {
     assistant   = aws_cloudformation_stack.connect_ai.outputs["AssistantId"]
     agent_id    = aws_cloudformation_stack.connect_ai.outputs["AgentId"]
     agent_arn   = aws_cloudformation_stack.connect_ai.outputs["AgentArn"]
-    version     = aws_cloudformation_stack.connect_ai.outputs["AgentVersion"]
+    version     = local.agent_version
     use_case    = var.orchestrator_use_case
   }
   triggers_replace = [
     aws_connect_security_profile.a2a.security_profile_id,
     aws_cloudformation_stack.connect_ai.outputs["ApplicationArn"],
     aws_cloudformation_stack.connect_ai.outputs["AgentArn"],
-    aws_cloudformation_stack.connect_ai.outputs["AgentVersion"],
+    local.agent_version,
     var.orchestrator_use_case,
   ]
 
