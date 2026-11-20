@@ -188,6 +188,6 @@ Outputs:
   AgentArn:
     Value: !GetAtt Agent.AIAgentArn
   AgentVersion:
-    Value: !GetAtt AgentVersion.VersionNumber
+    Value: !Sub "$${AgentVersion.VersionNumber}"
   AliasArn:
     Value: !GetAtt Alias.Arn
