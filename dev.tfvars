@@ -224,7 +224,7 @@ phone_test_line_location = { tenant_id = "01m4fqaga9r6s2e1pcx7t0wx3z", location_
 # Dev A2A test (owner 2026-11-20): Connect hands calls on the test line to the voice gateway on
 # Fargate (a2a-dev-test.tf, about $0.095 per hour while on). Off until a test session.
 a2a_dev_test_enabled       = true
-a2a_dev_test_gateway_count = 0
+a2a_dev_test_gateway_count = 1
 a2a_dev_test_live          = false
 
 # Billing (owner 2026-11-14): in advance on the 1st, the card charged
