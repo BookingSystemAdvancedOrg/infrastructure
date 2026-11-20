@@ -26,7 +26,9 @@ data "aws_subnets" "default" {
 
 # The repository lives in eu-north-1 (provider aws.ecr, the root's default region): application CI's
 # deploy role may only push to eu-north-1 repositories. Fargate in eu-central-1 pulls from it.
-resource "aws_ecr_repository" "gateway" {
+# New resource name on purpose: the old eu-central-1 repository (same name) was in state under "gateway", so a
+# plain provider change refreshed against the wrong region.
+resource "aws_ecr_repository" "gateway_eu_north_1" {
   provider             = aws.ecr
   name                 = local.name
   image_tag_mutability = "MUTABLE"
@@ -38,9 +40,9 @@ resource "aws_ecr_repository" "gateway" {
   tags = { Environment = var.environment }
 }
 
-resource "aws_ecr_lifecycle_policy" "gateway" {
+resource "aws_ecr_lifecycle_policy" "gateway_eu_north_1" {
   provider   = aws.ecr
-  repository = aws_ecr_repository.gateway.name
+  repository = aws_ecr_repository.gateway_eu_north_1.name
   policy = jsonencode({
     rules = [{
       rulePriority = 1
@@ -99,7 +101,7 @@ resource "aws_iam_role_policy" "execution" {
         Sid      = "PullImage"
         Effect   = "Allow"
         Action   = ["ecr:BatchGetImage", "ecr:GetDownloadUrlForLayer", "ecr:BatchCheckLayerAvailability"]
-        Resource = aws_ecr_repository.gateway.arn
+        Resource = aws_ecr_repository.gateway_eu_north_1.arn
       },
       {
         Sid      = "Logs"
@@ -188,7 +190,7 @@ resource "aws_ecs_task_definition" "gateway" {
   }
   container_definitions = jsonencode([{
     name      = "gateway"
-    image     = "${aws_ecr_repository.gateway.repository_url}:${var.image_tag}"
+    image     = "${aws_ecr_repository.gateway_eu_north_1.repository_url}:${var.image_tag}"
     essential = true
     command   = ["python", "-m", "voice_gateway.server", "connect", "--port", "8443", "--health-port", "8080"]
     portMappings = [

@@ -10,7 +10,7 @@ output "gateway_url" {
 
 output "ecr_repository_url" {
   description = "Push the voice gateway image here (tag var.image_tag); eu-north-1, Fargate in eu-central-1 pulls cross-region"
-  value       = aws_ecr_repository.gateway.repository_url
+  value       = aws_ecr_repository.gateway_eu_north_1.repository_url
 }
 
 output "api_key_secret_arn" {
