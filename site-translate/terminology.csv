@@ -1,0 +1,38 @@
+sv,en,es,ar,fa
+bord,table,mesa,طاولة,میز
+bordet,table,mesa,الطاولة,میز
+borden,tables,mesas,الطاولات,میزها
+bordsbokning,table booking,reserva de mesa,حجز طاولة,رزرو میز
+bordsbokningar,table bookings,reservas de mesa,حجوزات الطاولات,رزروهای میز
+boka bord,book a table,reservar mesa,احجز طاولة,رزرو میز
+bordsnummer,table number,número de mesa,رقم الطاولة,شماره میز
+platser,seats,plazas,مقاعد,صندلی
+sittplatser,seats,plazas,مقاعد,صندلی
+på plats,at the restaurant,en el local,في المطعم,در رستوران
+sällskap,party,grupo,مجموعة,گروه
+sällskapet,party,grupo,المجموعة,گروه
+gäst,guest,comensal,ضيف,مهمان
+gäster,guests,comensales,ضيوف,مهمانان
+gästerna,guests,comensales,الضيوف,مهمانان
+bokning,booking,reserva,حجز,رزرو
+bokningen,booking,reserva,الحجز,رزرو
+avbokning,cancellation,cancelación,إلغاء الحجز,لغو رزرو
+kortgaranti,card guarantee,garantía con tarjeta,ضمان بالبطاقة,ضمانت کارت
+förrätt,starter,entrante,مقبلات,پیش‌غذا
+förrätter,starters,entrantes,مقبلات,پیش‌غذاها
+varmrätt,main course,plato principal,طبق رئيسي,غذای اصلی
+varmrätter,main courses,platos principales,أطباق رئيسية,غذاهای اصلی
+efterrätt,dessert,postre,حلوى,دسر
+efterrätter,desserts,postres,حلويات,دسرها
+dryck,drink,bebida,مشروب,نوشیدنی
+drycker,drinks,bebidas,مشروبات,نوشیدنی‌ها
+avhämtning,pickup,para recoger,استلام من المطعم,تحویل حضوری
+hemleverans,home delivery,entrega a domicilio,توصيل إلى المنزل,ارسال به منزل
+utkörning,delivery,entrega a domicilio,توصيل,ارسال
+öppettider,opening hours,horario,ساعات العمل,ساعات کاری
+dagens lunch,lunch of the day,menú del día,غداء اليوم,ناهار روز
+uteservering,outdoor seating,terraza,جلسات خارجية,فضای باز
+barnstol,high chair,trona,كرسي أطفال,صندلی کودک
+allergener,allergens,alérgenos,مسببات الحساسية,آلرژن‌ها
+tim,h,h,ساعة,ساعت
+org.nr,reg. no.,n.º de registro,رقم التسجيل,شماره ثبت

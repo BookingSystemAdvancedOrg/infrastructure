@@ -13,6 +13,46 @@ locals {
   function_name = "${local.prefix}site-translate"
   # Daily characters that trigger the early warning: 80% of 1/30 of the global budget.
   daily_chars_warning = floor(var.global_chars_per_30d / 30 * 0.8)
+  terminology_name    = "${local.prefix}site-translate-terms"
+  terminology_file    = "${path.module}/terminology.csv"
+}
+
+# --- custom terminology ----------------------------------------------------------------------
+
+# Booqy's restaurant words for Amazon Translate (terminology.csv: sv source,
+# en, es, ar, fa targets): bord is a restaurant table, platser are seats,
+# sällskap is a party, ... In whole sentences Translate otherwise picked
+# "spreadsheet table" and "web sites". The function passes it as
+# TerminologyNames on every TranslateText call.
+#
+# No Terraform resource exists for a terminology, so CI imports it with the
+# AWS CLI on apply (needs translate:ImportTerminology, which the CI role has).
+# ImportTerminology with OVERWRITE is idempotent; the import runs again only
+# when the CSV (its hash) or the name changes. No destroy step: deleting it on
+# a replace would break translations until the new import, and a leftover
+# terminology costs nothing (delete it by hand if the module is ever removed).
+resource "terraform_data" "terminology" {
+  input = {
+    name = local.terminology_name
+    hash = filesha256(local.terminology_file)
+  }
+  triggers_replace = [local.terminology_name, filesha256(local.terminology_file)]
+
+  provisioner "local-exec" {
+    interpreter = ["bash", "-c"]
+    environment = {
+      R    = var.region
+      NAME = self.input.name
+      FILE = abspath(local.terminology_file)
+    }
+    command = <<-EOT
+      set -euo pipefail
+      aws translate import-terminology --region "$R" --name "$NAME" --merge-strategy OVERWRITE \
+        --description "Booqy restaurant terms for the site languages (sv to en, es, ar, fa)" \
+        --terminology-data "File=fileb://$FILE,Format=CSV,Directionality=UNI" \
+        --query "TerminologyProperties.[Name,TermCount]" --output text
+    EOT
+  }
 }
 
 # --- cache table ---------------------------------------------------------------------------
@@ -75,7 +115,8 @@ resource "aws_iam_role_policy" "fn" {
     Version = "2012-10-17"
     Statement = [
       {
-        # No resource-level permission exists without terminology.
+        # TranslateText with or without the terminology (no extra action is
+        # needed to use one; "*" covers the terminology ARN).
         Sid      = "TranslateText"
         Effect   = "Allow"
         Action   = ["translate:TranslateText"]
@@ -155,6 +196,9 @@ resource "aws_lambda_function" "fn" {
       SITE_TRANSLATE_IP_CHARS_PER_HOUR    = tostring(var.ip_chars_per_hour)
       SITE_TRANSLATE_TENANT_CHARS_PER_30D = tostring(var.tenant_chars_per_30d)
       SITE_TRANSLATE_GLOBAL_CHARS_PER_30D = tostring(var.global_chars_per_30d)
+      # From terraform_data.terminology, so the function changes only after the import.
+      SITE_TRANSLATE_TERMINOLOGY      = terraform_data.terminology.output.name
+      SITE_TRANSLATE_TERMINOLOGY_HASH = substr(terraform_data.terminology.output.hash, 0, 16)
     }
   }
 

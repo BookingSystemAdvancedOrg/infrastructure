@@ -267,8 +267,11 @@ dev_twin_stripe_account_id = "acct_1UVIUkHhsMKn0jQY"
 dev_twin_prod_api_url   = "https://9md43vqnp1.execute-api.eu-north-1.amazonaws.com"
 dev_twin_prod_image_url = "https://d3uasj29icofcs.cloudfront.net"
 
-# Site languages (site-translate/): Amazon Translate budgets, new characters only.
+# Site languages (site-translate/): Amazon Translate budgets, new characters only
+# (glossary and cache hits never count). Dev tests switch whole sites through
+# every language again and again: 3,000,000 per restaurant per 30 days (about
+# 45 USD at most), and the platform cap above it so it does not bind first.
 site_translate_ip_requests_per_5min = 120
 site_translate_ip_chars_per_hour    = 200000
-site_translate_tenant_chars_per_30d = 100000
-site_translate_global_chars_per_30d = 500000
+site_translate_tenant_chars_per_30d = 3000000
+site_translate_global_chars_per_30d = 5000000
