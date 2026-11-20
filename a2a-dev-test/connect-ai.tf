@@ -209,7 +209,7 @@ resource "terraform_data" "wiring" {
     app_arn     = aws_cloudformation_stack.connect_ai.outputs["ApplicationArn"]
     assistant   = aws_cloudformation_stack.connect_ai.outputs["AssistantId"]
     agent_id    = aws_cloudformation_stack.connect_ai.outputs["AgentId"]
-    agent_arn   = aws_cloudformation_stack.connect_ai.outputs["AgentArn"]
+    agent_arn   = replace(aws_cloudformation_stack.connect_ai.outputs["AgentArn"], ":$LATEST", "")
     version     = local.agent_version
     use_case    = var.orchestrator_use_case
   }
