@@ -72,6 +72,52 @@ Reservations take **card only**, via a Checkout Session in `mode: "setup"`.
         not re-trigger the SMS filters)
 ```
 
+## Staff phone booking: card link by SMS
+
+A guest who books by phone with staff saves the card through a short
+link in an SMS, the same flow the AI phone agent uses. 0 kr is charged.
+
+```
+1. Staff book (admin, source "phone", guarantee "sms")
+   create-pending-reservation POST /locations/{l}/reservations/manual (JWT):
+     card needed only when the location policy covers the party, the
+     location's phoneGuarantee is not "skip" (read only when the function
+     has PHONE_AGENT_TABLE_NAME, which this repo does not set today), and
+     the booking starts at
+     least 47 min ahead (the 32 min hold plus a 15 min buffer);
+     otherwise reserved at once (201 guaranteeSkipped "too_soon" for the
+     lead rule)
+     checks before any Stripe call: guest's own Nordic mobile number,
+     NOTIFICATION_FUNCTION_NAME set (else 503 sms_unavailable),
+     request_guard SMS counters per location and staff user (else 429
+       sms_limit)
+     Checkout Session (mode "setup") + short link, PutItem status "pending"
+       with guaranteeLink {url, page, by "booqy", sends 1, textedAt}
+     invoke notification:live RequestResponse,
+       kind reservations.guarantee-link -> {"status": "sent"}
+     failed (error, timeout, dropped): booking expired at once (history
+       link_failed, tables free), Checkout Session expired (best effort),
+       502 sms_failed
+
+2. Card saved: the existing confirm path (webhook, manage-page return or
+   expiry job) makes it "reserved"; the confirmation always goes by SMS
+   (Nordic numbers) for bookings that carry guaranteeLink, even with
+   tenant SMS off
+
+3. Resend: POST /locations/{l}/reservations/{r}/guarantee-link (JWT)
+     same link, same number, at most 3 SMS in total, only while at least
+     3 min of the hold remain; a conditional counter is claimed first
+     (409 changed_retry on a double click)
+
+4. Card never added: the hold ends at +32 min and the reminders sweep
+   expires it silently (tables freed)
+```
+
+"Boka utan kort" (guarantee "waived") books reserved without a card and
+records history `guarantee_waived` by the staff user. The link URL is a
+bearer link: it lives only on the item (and the LINK#<code> row), never in
+staff views, history or logs.
+
 ## Reservation item: attributes this adds
 
 | Attribute | Type |
@@ -80,6 +126,7 @@ Reservations take **card only**, via a Checkout Session in `mode: "setup"`.
 | stripePaymentMethodId | String (`pm_...`, same moment) |
 | setupIntentId | String (`seti_...`, set at session creation) |
 | feeAmount | Number (ore - snapshot the fee at booking time, not at charge time) |
+| guaranteeLink | Map (phone bookings: url, page, by, sends, textedAt) |
 
 PII/retention note: these ids are references into Stripe, not card data -
 PCI stays Stripe's problem. They ride the existing reservation `ttl`.

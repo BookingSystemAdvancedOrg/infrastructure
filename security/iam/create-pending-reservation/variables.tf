@@ -51,3 +51,9 @@ variable "request_guard_table_arn" {
   type        = string
   sensitive   = false
 }
+
+variable "notification_function_arn" {
+  description = "Alias ARN of notification:live (compute/lambda/notification) - the staff phone booking texts its card link"
+  type        = string
+  sensitive   = false
+}

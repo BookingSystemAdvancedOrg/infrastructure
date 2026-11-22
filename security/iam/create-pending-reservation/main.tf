@@ -8,6 +8,14 @@
 # Also full access to payment delinquency - this is the Lambda that checks
 # whether the booking customer's phone number has any unpaid debt before
 # letting the booking proceed.
+#
+# One invoke: a staff phone booking texts its card link through
+# notification:live (RequestResponse, so the staff see a failed SMS while
+# still on the call). Only the JWT manual and guarantee-link routes send;
+# the public NONE routes never invoke it. The text and the recipient are
+# built server-side from the booking, never taken from the request. The
+# blast radius stays under the existing sms_monthly_spend_limit_usd (50),
+# with request_guard counters per location and staff user in the handler.
 
 data "aws_caller_identity" "current" {}
 
@@ -144,6 +152,25 @@ resource "aws_iam_role_policy" "booking_protection" {
         Effect   = "Allow"
         Action   = "dynamodb:UpdateItem"
         Resource = var.request_guard_table_arn
+      }
+    ]
+  })
+}
+
+# The staff phone booking's card link SMS: notification's live alias only,
+# not the function or "*" (same statement as phone-agent and waitlist).
+resource "aws_iam_role_policy" "notification_invoke" {
+  name = "send-guarantee-link-sms"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "InvokeNotification"
+        Effect   = "Allow"
+        Action   = ["lambda:InvokeFunction"]
+        Resource = var.notification_function_arn
       }
     ]
   })

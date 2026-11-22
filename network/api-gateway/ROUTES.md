@@ -24,12 +24,14 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | GET | `/locations/{locationId}/availability` | NONE | get-availability |
 | POST | `/locations/{locationId}/reservations` | NONE | create-pending-reservation |
 | POST | `/locations/{locationId}/reservations/manual` | JWT | create-pending-reservation |
+| POST | `/locations/{locationId}/reservations/{reservationId}/guarantee-link` | JWT | create-pending-reservation |
 | POST | `/locations/{locationId}/reservations/{reservationId}/confirm` | NONE | create-pending-reservation |
 | POST | `/locations/{locationId}/holds` | NONE | create-pending-reservation |
 | DELETE | `/locations/{locationId}/holds/{holdId}` | NONE | create-pending-reservation |
 | GET | `/locations/{locationId}/reservations` | JWT | get-reservation |
 | GET | `/locations/{locationId}/reservations/{reservationId}` | JWT | get-reservation |
 | GET | `/locations/{locationId}/reservations/{reservationId}/guest` | NONE | get-reservation |
+| GET | `/k/{code}` | NONE | get-reservation |
 | GET | `/locations/{locationId}/ordering` | NONE | get-order |
 | GET | `/locations/{locationId}/order-status/{orderId}` | NONE | get-order |
 | POST | `/order` | NONE | payment-intent |
@@ -272,6 +274,7 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | GET | `/tenant/site-builder/versions` | JWT | site-builder |
 | POST | `/tenant/site-builder/rollback` | JWT | site-builder |
 | POST | `/public/site-builder/preview` | NONE | site-builder |
+| POST | `/translate` | NONE | site-translate |
 | GET | `/tenant/social-posts` | JWT | social-posting |
 | POST | `/tenant/social-posts` | JWT | social-posting |
 | POST | `/tenant/social-posts/drafts` | JWT | social-posting |
@@ -285,4 +288,3 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | POST | `/me/avatar/upload` | JWT | user-backdrop |
 | POST | `/me/avatar/complete` | JWT | user-backdrop |
 | DELETE | `/me/avatar` | JWT | user-backdrop |
-| POST | `/translate` | NONE | site-translate |
