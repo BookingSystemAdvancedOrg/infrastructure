@@ -128,3 +128,9 @@ variable "phone_card_page" {
     error_message = "phone_card_page must be site or stripe."
   }
 }
+
+variable "notification_function_arn" {
+  description = "Alias ARN of notification:live, invoked RequestResponse to text a staff phone booking's card link (CONTRACTS.md 9.4)"
+  type        = string
+  sensitive   = false
+}

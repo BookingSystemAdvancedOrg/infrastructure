@@ -451,6 +451,8 @@ module "create_pending_reservation_role" {
   region                              = var.aws_region
   stripe_secret_arn                   = module.platform_secrets.stripe_secret_arn
   request_guard_table_arn             = module.request_guard.table_arn
+  # The staff phone booking texts its card link (lambda:InvokeFunction on the live alias only).
+  notification_function_arn = module.notification_fn.alias_arn
 }
 module "no_show_check_role" {
   source                        = "./security/iam/no-show-check"
@@ -1371,6 +1373,8 @@ module "create_pending_reservation_fn" {
   short_link_base = "${local.admin_app_url}/api/k"
   # Gated per tenant by cardStepOnManagePage (site-kit 0.4.0+); others keep the Stripe page.
   phone_card_page = "site"
+  # Staff phone bookings text the card link (RequestResponse invoke).
+  notification_function_arn = module.notification_fn.alias_arn
 }
 module "get_availability_fn" {
   source                               = "./compute/lambda/get-availability"

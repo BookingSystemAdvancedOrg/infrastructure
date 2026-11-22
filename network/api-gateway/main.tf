@@ -418,6 +418,8 @@ locals {
   create_reservation_routes = {
     "POST /locations/{locationId}/reservations"        = "NONE"
     "POST /locations/{locationId}/reservations/manual" = "JWT"
+    # Staff send the phone guest's card link again (same link, max 3 SMS).
+    "POST /locations/{locationId}/reservations/{reservationId}/guarantee-link" = "JWT"
     # The guest finished the card form (card guarantee) - X-Manage-Token.
     "POST /locations/{locationId}/reservations/{reservationId}/confirm" = "NONE"
     # Table hold: the guest confirmed their table(s) - claimed for 15 min

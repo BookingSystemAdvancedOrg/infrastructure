@@ -59,6 +59,8 @@ resource "aws_lambda_function" "this" {
       # the card on the restaurant's own site once its site has the card step.
       SHORT_LINK_BASE = var.short_link_base
       PHONE_CARD_PAGE = var.phone_card_page
+      # Staff phone bookings text the card link (notification:live, RequestResponse).
+      NOTIFICATION_FUNCTION_NAME = var.notification_function_arn
       # + consent log and booking retention (root privacy-consent.tf)
     }, var.privacy_env)
   }

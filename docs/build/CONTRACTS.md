@@ -882,6 +882,17 @@ is also the seller's "såld" note after a resale), `events-tickets.cancelled`
 existing payment link), `phone-agent.callback-summary` (email to the
 location, optional), `phone-agent.cap-warning` (email to the owner at
 80 %). Ticket tokens and QR payloads travel in the payload only.
+One caller invokes synchronously instead (2026-11-22):
+`create-pending-reservation` texts a staff phone booking's card link with
+`InvocationType=RequestResponse`, kind `reservations.guarantee-link`
+(SMS, `replyTo: null`, the text and `to` built server-side from the
+booking), and reads `{"status": "sent" | "dropped", "reason"?}` from the
+response. Only `status: "sent"` without a `FunctionError` counts as sent;
+anything else releases the new booking (502 `sms_failed`). The same kind
+carries the staff resend (`POST .../reservations/{reservationId}/guarantee-link`,
+at most 3 SMS per booking); a failed resend keeps the booking pending. The card link is in the payload only, never in
+a log. The confirmation after the card still goes through the reservation
+stream as before.
 
 ## 10. Storage registry entries
 
@@ -1103,8 +1114,9 @@ location table limited to `PK`, `SK`, `waitlist`; meta-ads role
 `GetItem/PutItem` on tenant table key `PLATFORM#META_ADS/SETTINGS`;
 callers of `notification:live` (gift-cards, waitlist, meta-ads-jobs for
 `meta-ads.cap-warning`, google-business-jobs for
-`google-business.review-request` SMS; that role needs no `sns:Publish`)
-get invoke on it.
+`google-business.review-request` SMS; that role needs no `sns:Publish`;
+create-pending-reservation for `reservations.guarantee-link`, 2026-11-22,
+execution role only) get invoke on it.
 Notification itself gets no new permission.
 
 ## 15. OpenAPI
