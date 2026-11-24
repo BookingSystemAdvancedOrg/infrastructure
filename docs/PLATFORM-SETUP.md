@@ -34,7 +34,7 @@ workflow. You never handle a restaurant's keys.
 | Key | Where | Needs |
 |---|---|---|
 | Pipeline key (`rk_...` or `sk_...`) | GitHub secrets `STRIPE_SECRET_KEY_DEV` / `STRIPE_SECRET_KEY_PROD` | Webhook Endpoints: Write, Connect → Accounts: Write (v1 + v2), Tax Rates: Write, Products: Write, Prices: Write (the subscription catalog, payments/billing). Used by Terraform (webhook endpoints), the onboarding workflow (creating connected accounts + their VAT rates) and to seed the Lambda secret on first apply. |
-| Lambda key (`rk_...`) | Secrets Manager `<env->stripe/api-key` as `{"apiKey":"rk_..."}` | Checkout Sessions, PaymentIntents, SetupIntents, Customers, Subscriptions, Invoices, Invoice items, Credit notes, Refunds, Charges, Payment Methods, Payment Method Domains, Tax IDs, Tax Rates: Write; Account Links: Write (v2); Accounts: Read. Replace the seeded pipeline key after the first apply - Terraform never overwrites it. |
+| Lambda key (`rk_...`) | Secrets Manager `<env->stripe/api-key` as `{"apiKey":"rk_..."}` | Checkout Sessions, PaymentIntents, SetupIntents, Customers, Subscriptions, Invoices, Invoice items, Credit notes, Refunds, Charges, Payment Methods, Payment Method Domains, Tax IDs, Tax Rates: Write; Account Links: Write (v2); Accounts: Read (never Write: the key sits in guest-facing Lambdas, and account write would let them change or close any restaurant's account). Replace the seeded pipeline key after the first apply - Terraform never overwrites it. |
 | Publishable key (`pk_...`) | `stripe_publishable_key` in `dev.tfvars` / `prod.tfvars` | Not secret. Websites get it from `GET /site-config`. |
 
   ```
@@ -46,18 +46,46 @@ workflow. You never handle a restaurant's keys.
   Dashboard's error names the missing permission - add it, or use the
   account's secret key for the pipeline.
 
-- [ ] Payment methods (ordering, catering, card guarantee): the site's
-      Payment Element offers what each restaurant's account has on. Cards,
-      Apple Pay and Google Pay come with card payments; each restaurant
-      turns Swish and Klarna on in its own Stripe Dashboard (Settings,
-      Payment methods). Apple Pay and Google Pay need the site's hosts
-      registered on the restaurant's account: the Lambdas do it
-      (Payment Method Domains: Write on the Lambda key). PayPal is not
-      available: Stripe offers it to Connect platforms only for
-      destination charges by approved marketplaces, Booqy uses direct
-      charges. Stripe's fees per method (Sweden, 2026-11): cards from
-      1.5 % + 1.80 kr, Swish 1 % + 3 kr (max 7 kr), Klarna 2.99 % + 4 kr;
-      the restaurant pays them (fees_collector stripe).
+- [ ] Payment methods (ordering, catering, gift cards, tickets, card
+      guarantee): the site's Payment Element offers card (Apple Pay and
+      Google Pay ride on it), Swish and Klarna, of those what each
+      restaurant's account has active. Card, Swish and Klarna are meant to
+      be on for every restaurant (owner 2026-11-24). Booqy does not request
+      Swish or Klarna through the API: the onboarding workflow requests
+      `card_payments` only (one refused capability would fail the whole
+      create), and the Lambda key stays read only on accounts. The setting
+      below makes Stripe request them. Stripe may still need the restaurant
+      to activate a method or accept its terms (Swish's terms with their
+      factoring addendum; Klarna's rules; both are for consumers, not B2B),
+      and leaves a method out for an ineligible account. Apple Pay and
+      Google Pay need the site's hosts registered on the restaurant's
+      account: the Lambdas do it (Payment Method Domains: Write on the
+      Lambda key). PayPal is not available: Stripe offers it to Connect
+      platforms only for destination charges by approved marketplaces,
+      Booqy uses direct charges. Stripe's fees per method (Sweden,
+      2026-11): cards from 1.5 % + 1.80 kr, Swish 1 % + 3 kr (max 7 kr),
+      Klarna 2.99 % + 4 kr; the restaurant pays them (fees_collector
+      stripe).
+- [ ] Once per environment, in the Stripe Dashboard (no API for this):
+      Settings → Connect → Payment methods → "For your connected
+      accounts", default configuration: Cards, Apple Pay, Google Pay,
+      Swish and Klarna "On by default" (the checkouts use dynamic payment
+      methods, so a method has to be on there anyway). Stripe then
+      requests the capability for every eligible account that has met its
+      requirements, existing ones included, and for a new account at
+      creation when it adds no new requirements
+      (docs.stripe.com/connect/payment-methods). If Stripe does not offer
+      "On by default" for one of them, it is a method each account has to
+      switch on itself: note which and tell the restaurants (Swish is
+      marked preview on Stripe's docs, docs.stripe.com/payments/swish).
+- [ ] Then check, per environment: expand Swish and Klarna on the same
+      page and read the account counts (Missing info, Ineligible,
+      Eligible, Enabled; "Download account list" for the CSV). An account
+      still missing one: request it on that account in the Dashboard
+      (Connected accounts → the account → capabilities), or have the
+      restaurant turn it on in its own Settings → Payment methods. A dev
+      (sandbox) payment showing Swish does not prove a live account has it
+      active: sandboxes might not enforce capabilities.
 - [ ] Webhooks: nothing to do. Terraform creates the Connect endpoints
       (reservation, order, catering, `platform_connect`) and the platform
       billing endpoint with their signing secrets in Secrets Manager.

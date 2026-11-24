@@ -50,8 +50,13 @@ If you do it together on a call: operator app → tenant → Payments →
 
 Then, in **their own Stripe dashboard** (they have full access):
 
-- [ ] Payment methods: card + Klarna + Swish (Swish needs a Swedish org
-      and SEK). Reservations stay card-only by design.
+- [ ] Payment methods: check Settings → Payment methods shows Card (Apple
+      Pay, Google Pay), Swish and Klarna as on. Stripe requests them from
+      the platform's "On by default" setting (docs/PLATFORM-SETUP.md), but
+      may still ask the restaurant to activate a method or accept its terms
+      (Swish's terms): if one is off, turn it on and accept what Stripe
+      asks. Admin's Betalningar card shows each method's status.
+      Reservations stay card-only by design.
 - [ ] If they use catering, before the first catering order:
   - Settings → Billing → Invoices: account-level sequential numbering, prefix;
   - Settings → Business → public details: legal name, address, org/VAT
