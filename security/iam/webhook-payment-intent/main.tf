@@ -71,6 +71,28 @@ resource "aws_iam_role_policy" "webhook_secret" {
   })
 }
 
+# Reads the platform Stripe API key (security/secrets/platform) - only this
+# one secret - for two GETs on the restaurant's connected account: the
+# PaymentIntent of a paid order (how it was paid: card, Apple Pay, Google
+# Pay, Swish, Klarna) and of a refund that failed after it was made in the
+# Stripe Dashboard (which order it belongs to).
+resource "aws_iam_role_policy" "stripe_api_key" {
+  name = "stripe-api-key-read"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "ReadPlatformStripeApiKey"
+        Effect   = "Allow"
+        Action   = "secretsmanager:GetSecretValue"
+        Resource = var.stripe_secret_arn
+      }
+    ]
+  })
+}
+
 # Scoped to exactly this function's own log group - not logs:* on everything.
 #
 # No logs:CreateLogGroup - the log group is expected to be provisioned

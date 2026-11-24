@@ -43,6 +43,8 @@ resource "aws_lambda_function" "this" {
       ENVIRONMENT                     = var.environment
       ORDER_TABLE_NAME                = var.order_table_name
       ORDER_STRIPE_WEBHOOK_SECRET_ARN = var.order_stripe_webhook_secret_arn # Secrets Manager secret holding the endpoint signing secret (whsec_...), filled in by payments/stripe
+      STRIPE_SECRET_ARN               = var.stripe_secret_arn               # platform key {"apiKey": ...}: how an order was paid (card, Apple Pay, Swish, Klarna), the PaymentIntent behind a failed Dashboard refund
+      STRIPE_API_VERSION              = var.stripe_api_version
     }
   }
 

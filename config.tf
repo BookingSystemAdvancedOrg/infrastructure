@@ -501,6 +501,7 @@ module "webhook_payment_intent_role" {
   environment        = var.env
   order_table_arn    = module.order.table_arn
   webhook_secret_arn = module.stripe_webhooks.order_webhook_secret_arn
+  stripe_secret_arn  = module.platform_secrets.stripe_secret_arn
   region             = var.aws_region
 }
 module "block_table_role" {
@@ -1667,6 +1668,8 @@ module "webhook_payment_intent_fn" {
   order_table_name                = module.order.table_name
   region                          = var.aws_region
   order_stripe_webhook_secret_arn = module.stripe_webhooks.order_webhook_secret_arn
+  stripe_secret_arn               = module.platform_secrets.stripe_secret_arn
+  stripe_api_version              = var.stripe_api_version
   tenant_table_name               = module.tenant.table_name
   location_table_name             = module.location.table_name
   location_id_index_name          = module.location.location_id_index_name
