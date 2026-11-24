@@ -50,6 +50,30 @@ state bucket, the OIDC provider, and that role are the only resources not
 created by this repo - they come from the separate aws-accounts vending
 repo, per account, before the first pipeline run.
 
+## Dev twins
+
+Every real customer has a twin in dev with the same name, slug and plan,
+filled with fake data only (booqy-console `docs/DEV-TWINS.md`, rules in
+BooqyCustomers/site-template `docs/DATA-RULES.md`). Nothing in prod changes:
+
+- `dev-twins.tf`: prod nudges dev when a restaurant finishes Kom igång; dev
+  copies the restaurant's public content from prod's public API.
+- `config.tf` `dev_twin_function_arns`: the live aliases Booqy Console's
+  seeder may invoke as the twin's owner (Kom igång functions plus
+  catering-settings, catering-discount-tiers, gift-cards, waitlist and
+  events-tickets, since every twin gets all guest features in dev). Empty in
+  prod, so the managed policy `dev-platform-tenants-dev-twins` only exists in
+  dev.
+- `dev.tfvars`: `dev_twin_owner_email` (`aws+{slug}@ithjalparna.se`),
+  `dev_twin_stripe_account_id` (the shared Stripe TEST connected account) and
+  `mail_outbox = true`, so every email from notification, marketing,
+  google-business and Booqy Console goes to Booqy Console, Mail outbox,
+  instead of SES (`variables.tf` refuses it in prod). Cognito invitations,
+  password resets and verification codes still go out through Cognito's own
+  sender (`cognito_invites_via_ses = false`), which reaches any real inbox,
+  and so does the booqy.se demo form (demo-request, to Booqy's own address):
+  invite only fake addresses in dev.
+
 ## Layout
 
 - `config.tf` - root: providers, every module wired together

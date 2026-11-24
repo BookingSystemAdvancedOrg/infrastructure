@@ -71,7 +71,7 @@ variable "operator_user_pool_arn" {
 }
 
 variable "mail_outbox_bucket_arn" {
-  description = "ARN of the dev mail outbox bucket (empty = no outbox, always in prod) - list/read outbox/* for GET /platform/outbox"
+  description = "ARN of the dev mail outbox bucket (empty = no outbox, always in prod) - list and read outbox/* for GET /platform/outbox, write it for the mail the console sends"
   type        = string
   sensitive   = false
   default     = ""

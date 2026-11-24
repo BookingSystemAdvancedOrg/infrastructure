@@ -763,7 +763,9 @@ module "platform_tenants_role" {
   tenant_account_function_arn        = module.tenant_account_fn.alias_arn
   print_table_arn                    = module.print.table_arn
   site_redirect_kvs_arn              = local.tenant_sites_enabled ? module.platform_domain[0].site_redirects_kvs_arn : ""
-  # Dev twins (dev only): the admin's Kom igång functions, invoked as the twin's owner
+  # Dev twins (dev only): the admin's Kom igång functions, invoked as the twin's
+  # owner, plus the guest features every twin gets in dev (catering, gift cards,
+  # waitlist, events; owner 2026-11-24). Prod: empty, no grant.
   dev_twin_function_arns = var.env == "prod" ? [] : [
     module.tenant_account_fn.alias_arn,
     module.create_location_fn.alias_arn,
@@ -776,6 +778,11 @@ module "platform_tenants_role" {
     module.activate_layout_version_fn.alias_arn,
     module.google_business.api_alias_arn,
     module.phone_agent.api_alias_arn,
+    module.catering_settings_fn.alias_arn,
+    module.catering_discount_tiers_fn.alias_arn,
+    module.gift_cards.api_alias_arn,
+    module.waitlist.api_alias_arn,
+    module.events_tickets.api_alias_arn,
   ]
 }
 module "tenant_account_role" {

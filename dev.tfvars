@@ -80,11 +80,17 @@ sms_delivery_success_sampling_rate = 100
 # which both apps accept. While this account's SES is in the sandbox,
 # Cognito's emails then only reach verified addresses/domains.
 cognito_invites_via_ses = false
-# Emails go out through SES for real (mail.dev.booqy.se verified). This
-# account's SES is still in the sandbox, so they only reach addresses
-# verified in SES; mail to any other address is rejected. true = save
-# emails to a private S3 outbox instead (Booqy Console, "Mail outbox").
-mail_outbox = false
+# Dev email goes to a private S3 outbox (Booqy Console, "Mail outbox")
+# instead of SES (owner 2026-11-24): dev twins and test guests use fake
+# addresses (aws+<slug>@ithjalparna.se and the like), and this account's
+# SES is in the sandbox, so unverified addresses would not get them anyway.
+# Covers notification, marketing, google-business and Booqy Console only:
+# Cognito invitations and password resets still go out through Cognito's
+# own sender (cognito_invites_via_ses = false above), which reaches any
+# real inbox. Creates dev-mail-outbox-<account> (30-day expiry) and
+# write/read access for the senders and Booqy Console; refused in prod
+# (variables.tf validation).
+mail_outbox = true
 
 # Monthly prices (SEK, excluding VAT), invoiced in advance on the 1st
 # through Stripe on the platform account (sandbox mode in dev). Growth = 3 x Starter
