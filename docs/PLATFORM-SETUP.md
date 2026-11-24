@@ -34,7 +34,7 @@ workflow. You never handle a restaurant's keys.
 | Key | Where | Needs |
 |---|---|---|
 | Pipeline key (`rk_...` or `sk_...`) | GitHub secrets `STRIPE_SECRET_KEY_DEV` / `STRIPE_SECRET_KEY_PROD` | Webhook Endpoints: Write, Connect → Accounts: Write (v1 + v2), Tax Rates: Write, Products: Write, Prices: Write (the subscription catalog, payments/billing). Used by Terraform (webhook endpoints), the onboarding workflow (creating connected accounts + their VAT rates) and to seed the Lambda secret on first apply. |
-| Lambda key (`rk_...`) | Secrets Manager `<env->stripe/api-key` as `{"apiKey":"rk_..."}` | Checkout Sessions, PaymentIntents, SetupIntents, Customers, Subscriptions, Invoices, Invoice items, Credit notes, Refunds, Charges, Payment Methods, Tax IDs, Tax Rates: Write; Account Links: Write (v2); Accounts: Read. Replace the seeded pipeline key after the first apply - Terraform never overwrites it. |
+| Lambda key (`rk_...`) | Secrets Manager `<env->stripe/api-key` as `{"apiKey":"rk_..."}` | Checkout Sessions, PaymentIntents, SetupIntents, Customers, Subscriptions, Invoices, Invoice items, Credit notes, Refunds, Charges, Payment Methods, Payment Method Domains, Tax IDs, Tax Rates: Write; Account Links: Write (v2); Accounts: Read. Replace the seeded pipeline key after the first apply - Terraform never overwrites it. |
 | Publishable key (`pk_...`) | `stripe_publishable_key` in `dev.tfvars` / `prod.tfvars` | Not secret. Websites get it from `GET /site-config`. |
 
   ```
@@ -46,6 +46,18 @@ workflow. You never handle a restaurant's keys.
   Dashboard's error names the missing permission - add it, or use the
   account's secret key for the pipeline.
 
+- [ ] Payment methods (ordering, catering, card guarantee): the site's
+      Payment Element offers what each restaurant's account has on. Cards,
+      Apple Pay and Google Pay come with card payments; each restaurant
+      turns Swish and Klarna on in its own Stripe Dashboard (Settings,
+      Payment methods). Apple Pay and Google Pay need the site's hosts
+      registered on the restaurant's account: the Lambdas do it
+      (Payment Method Domains: Write on the Lambda key). PayPal is not
+      available: Stripe offers it to Connect platforms only for
+      destination charges by approved marketplaces, Booqy uses direct
+      charges. Stripe's fees per method (Sweden, 2026-11): cards from
+      1.5 % + 1.80 kr, Swish 1 % + 3 kr (max 7 kr), Klarna 2.99 % + 4 kr;
+      the restaurant pays them (fees_collector stripe).
 - [ ] Webhooks: nothing to do. Terraform creates the Connect endpoints
       (reservation, order, catering, `platform_connect`) and the platform
       billing endpoint with their signing secrets in Secrets Manager.
@@ -111,14 +123,17 @@ workflow. You never handle a restaurant's keys.
       aws sns create-sms-sandbox-phone-number --region eu-north-1 --phone-number +46701234567 --language-code en-GB
       aws sns verify-sms-sandbox-phone-number --region eu-north-1 --phone-number +46701234567 --one-time-password 123456
       ```
-- [ ] **Dev mail outbox** (until the platform domain is verified): with
+- [ ] **Dev mail outbox** (on in dev since 2026-11-24, so dev twins and
+      test guests with fake addresses never reach SES): with
       `mail_outbox = true` in dev.tfvars the notification Lambda saves
       every email to a private S3 bucket (`dev-mail-outbox-<account>`)
       instead of sending it, and copies every SMS there too (the SMS is
       still sent). Read them in Booqy Console → **Mail outbox** (HTML, text and
       every link in the message). Kept 30 days; can't be turned on in production
-      (variable validation). Set it to `false` once
-      `mail.dev.booqy.se` is verified to send for real.
+      (variable validation). The marketing, google-business and
+      Booqy Console senders save to the same outbox while it is on.
+      Cognito invitations and password resets do not: they still go out
+      through Cognito's own sender and reach real inboxes.
 - [ ] SES and SMS alarms (bounce rate, complaint rate, SMS spend) mail
       `alert_emails` - confirm the subscription email once.
 

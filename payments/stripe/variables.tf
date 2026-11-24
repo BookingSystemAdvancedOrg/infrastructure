@@ -57,6 +57,10 @@ variable "order_events" {
     "checkout.session.async_payment_succeeded",
     "checkout.session.async_payment_failed",
     "charge.refunded",
+    # A refund Stripe gives back to the balance after it was made (Swish
+    # refunds are asynchronous and can fail): listed on the order so staff
+    # pay the guest back another way.
+    "refund.failed",
   ]
 }
 variable "catering_events" {
@@ -86,6 +90,9 @@ variable "catering_events" {
     "invoice.voided",
     "credit_note.created",
     "charge.refunded",
+    # A private guest's refund that failed after it was made (Swish): listed
+    # on the request so the restaurant pays back another way.
+    "refund.failed",
   ]
 }
 variable "platform_webhook_url" {

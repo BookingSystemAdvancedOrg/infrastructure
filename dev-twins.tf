@@ -7,6 +7,16 @@
 # ({action: twinContent}); dev then reads the restaurant's PUBLIC content
 # (menu, hours, layout, photos) from prod's public API itself. Only the slug
 # and tenant id cross, over the existing booqy-sites-prod-link path.
+#
+# Dev: Booqy Console's seeder (platform-tenants, booqy-console
+# api/src/app/devtwin.py) fills every twin with fake data by invoking the
+# admin's own functions as the twin's owner. Which functions it may call is
+# config.tf dev_twin_function_arns (live aliases; empty in prod, so no grant),
+# granted by the managed policy dev-platform-tenants-dev-twins
+# (security/iam/platform-tenants). Since 2026-11-24 every twin gets all guest
+# features whatever prod's plan is, so the list also holds catering-settings,
+# catering-discount-tiers, gift-cards, waitlist and events-tickets. Dev email
+# goes to the Mail outbox (dev.tfvars mail_outbox = true; refused in prod).
 
 locals {
   twin_content_rule = var.env == "prod" && var.site_link_dev_account_id != "" && var.github_app_sites_secret_name != ""

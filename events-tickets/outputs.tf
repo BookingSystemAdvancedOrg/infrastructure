@@ -13,3 +13,8 @@ output "wiring" {
     }
   }
 }
+
+# Dev twins: Booqy Console's seeder invokes this live alias as the twin's owner (dev only).
+output "api_alias_arn" {
+  value = aws_lambda_alias.live.arn
+}

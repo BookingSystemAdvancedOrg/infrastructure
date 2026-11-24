@@ -250,10 +250,12 @@ resource "aws_iam_role_policy" "stripe_secret" {
   })
 }
 
-# Dev mail outbox (Booqy Console "Mail outbox"): read-only, only when the
-# outbox exists (var.mail_outbox, never prod).
+# Dev mail outbox (Booqy Console "Mail outbox"): list and read outbox/* for
+# GET /platform/outbox, and PutObject on outbox/* for the mail the console
+# itself sends there (booqy-console api mail.py, news). Only when the outbox
+# exists (var.mail_outbox, never prod; refused here too).
 resource "aws_iam_role_policy" "mail_outbox" {
-  count = var.mail_outbox_enabled ? 1 : 0
+  count = var.mail_outbox_enabled && var.environment != "prod" ? 1 : 0
   name  = "mail-outbox-read"
   role  = aws_iam_role.this.id
 
@@ -628,13 +630,20 @@ resource "aws_iam_role_policy" "users_tab" {
 }
 
 # Dev twins (dev only, docs/DEV-TWINS.md): the twin seeder sets up a twin's
-# Kom igång through the admin's own functions, invoked directly as an owner
-# of that twin (application shared/console_invoke.py; those functions accept
-# such a call only outside prod). Never granted in prod.
-resource "aws_iam_role_policy" "dev_twins" {
-  count = var.environment != "prod" && length(var.dev_twin_function_arns) > 0 ? 1 : 0
-  name  = "dev-twins"
-  role  = aws_iam_role.this.id
+# Kom igång and guest features (catering, gift cards, waitlist, events)
+# through the admin's own functions, invoked directly as an owner of that
+# twin (application shared/console_invoke.py; those functions accept such a
+# call only outside prod). Never granted in prod.
+#
+# A managed policy, not inline: this role's inline policies together must
+# stay under IAM's 10,240-character limit per role, and with the mail outbox
+# and 16 alias ARNs here dev came within a few dozen characters of it.
+# tests/limits.tftest.hcl checks the inline total and that prod gets none of
+# this; run it before adding an inline policy to this role (command in it).
+resource "aws_iam_policy" "dev_twins" {
+  count       = var.environment != "prod" && length(var.dev_twin_function_arns) > 0 ? 1 : 0
+  name        = "${local.function_name}-dev-twins"
+  description = "Dev only: the dev twin seeder invokes the tenant functions' live aliases as the twin's owner"
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -645,4 +654,14 @@ resource "aws_iam_role_policy" "dev_twins" {
       Resource = var.dev_twin_function_arns
     }]
   })
+
+  tags = {
+    Environment = var.environment
+  }
+}
+
+resource "aws_iam_role_policy_attachment" "dev_twins" {
+  count      = length(aws_iam_policy.dev_twins)
+  role       = aws_iam_role.this.name
+  policy_arn = aws_iam_policy.dev_twins[0].arn
 }

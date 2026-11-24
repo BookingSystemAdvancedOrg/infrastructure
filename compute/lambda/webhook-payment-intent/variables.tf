@@ -51,3 +51,15 @@ variable "location_id_index_name" {
   type        = string
   sensitive   = false
 }
+
+variable "stripe_secret_arn" {
+  description = "ARN of the platform Stripe API key secret (security/secrets/platform) - read to see how an order was paid and to find the order behind a failed Dashboard refund"
+  type        = string
+  sensitive   = false
+}
+
+variable "stripe_api_version" {
+  description = "Pinned Stripe-Version header"
+  type        = string
+  sensitive   = false
+}
