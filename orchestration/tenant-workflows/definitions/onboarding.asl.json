@@ -231,7 +231,7 @@
     },
     "CreateStripeAccount": {
       "Type": "Task",
-      "Comment": "Accounts v2 (POST /v2/core/accounts - Stripe blocks v1 account creation for new Connect platforms). Standard-equivalent: full Stripe Dashboard, Stripe collects its fees from the restaurant (fees_collector) and carries negative balances (losses_collector), so Stripe also collects KYC. Merchant configuration with card_payments covers online card payments. entity_type is left to Stripe's onboarding form - a restaurant can be an AB or a sole trader. The restaurant completes verification through an Account Link; no keys are ever exchanged.",
+      "Comment": "Accounts v2 (POST /v2/core/accounts - Stripe blocks v1 account creation for new Connect platforms). Standard-equivalent: full Stripe Dashboard, Stripe collects its fees from the restaurant (fees_collector) and carries negative balances (losses_collector), so Stripe also collects KYC. Merchant configuration with card_payments covers online card payments (Apple Pay, Google Pay ride on it). Swish and Klarna are deliberately not requested here: a capability Stripe refuses (dashboard type, losses_collector, entity type, preview method) would fail the whole create and send the tenant to MarkFailed; the platform's 'On by default' payment method settings make Stripe request them for eligible accounts (docs/PLATFORM-SETUP.md). entity_type is left to Stripe's onboarding form - a restaurant can be an AB or a sole trader. The restaurant completes verification through an Account Link; no keys are ever exchanged.",
       "Resource": "arn:aws:states:::http:invoke",
       "Arguments": {
         "ApiEndpoint": "https://api.stripe.com/v2/core/accounts",
