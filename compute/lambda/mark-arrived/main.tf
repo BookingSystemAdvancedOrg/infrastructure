@@ -47,6 +47,9 @@ resource "aws_lambda_function" "this" {
       SLOT_OCCUPANCY_TABLE_NAME            = var.slot_occupancy_table_name
       PUBLISHED_LAYOUT_SNAPSHOT_TABLE_NAME = var.published_layout_snapshot_table_name
       USER_TABLE_NAME                      = var.user_table_name
+      # The card link SMS of a booking that grew past the card threshold.
+      NOTIFICATION_FUNCTION_NAME = var.notification_function_arn
+      SHORT_LINK_BASE            = var.short_link_base
     }, var.privacy_env) # booking retention (root privacy-consent.tf)
   }
 

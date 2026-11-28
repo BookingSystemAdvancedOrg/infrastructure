@@ -378,6 +378,9 @@ module "mark_arrived_role" {
   published_layout_snapshot_table_arn = module.published_layout_snapshot.table_arn
   stripe_secret_arn                   = module.platform_secrets.stripe_secret_arn
   region                              = var.aws_region
+  # The card link SMS of a booking that grew past the card threshold
+  # (lambda:InvokeFunction on the live alias only).
+  notification_function_arn = module.notification_fn.alias_arn
 }
 module "create_location_role" {
   source             = "./security/iam/create-location"
@@ -1591,6 +1594,10 @@ module "mark_arrived_fn" {
   location_id_index_name               = module.location.location_id_index_name
   stripe_secret_arn                    = module.platform_secrets.stripe_secret_arn
   stripe_api_version                   = var.stripe_api_version
+  # A booking that grew past the card threshold: the card link SMS (RequestResponse
+  # invoke) with the short /k/ link (get-reservation, through the admin app's /api).
+  notification_function_arn = module.notification_fn.alias_arn
+  short_link_base           = "${local.admin_app_url}/api/k"
 }
 module "no_show_check_fn" {
   source                         = "./compute/lambda/no-show-check"

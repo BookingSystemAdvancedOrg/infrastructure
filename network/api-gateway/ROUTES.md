@@ -28,6 +28,10 @@ from the OPERATOR user pool with the `platform/admin` scope, validated by the
 | POST | `/locations/{locationId}/reservations/{reservationId}/confirm` | NONE | create-pending-reservation |
 | POST | `/locations/{locationId}/holds` | NONE | create-pending-reservation |
 | DELETE | `/locations/{locationId}/holds/{holdId}` | NONE | create-pending-reservation |
+| GET | `/locations/{locationId}/reservations/{reservationId}/change` | NONE | create-pending-reservation |
+| POST | `/locations/{locationId}/reservations/{reservationId}/change` | NONE | create-pending-reservation |
+| POST | `/locations/{locationId}/reservations/{reservationId}/change/{holdId}/confirm` | NONE | create-pending-reservation |
+| DELETE | `/locations/{locationId}/reservations/{reservationId}/change/{holdId}` | NONE | create-pending-reservation |
 | GET | `/locations/{locationId}/reservations` | JWT | get-reservation |
 | GET | `/locations/{locationId}/reservations/{reservationId}` | JWT | get-reservation |
 | GET | `/locations/{locationId}/reservations/{reservationId}/guest` | NONE | get-reservation |

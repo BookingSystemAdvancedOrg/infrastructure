@@ -1,5 +1,12 @@
 # Execution role for the mark-arrived Lambda.
 #
+# One invoke: a reserved booking that staff grow past the card threshold
+# texts the guest its card link through notification:live (RequestResponse,
+# the staff see whether it went out). Only the JWT PATCH route sends; the
+# text and the recipient are built server-side from the booking (its own
+# Nordic mobile), at most 3 per booking (cardLinkSends), under the existing
+# sms_monthly_spend_limit_usd.
+#
 # DynamoDB: only the item-level actions the function's code calls (application repo:
 # functions/<name>/app.py and the shared modules it imports) - no table-
 # level actions (DeleteTable, UpdateTable, backups, TTL...). Add an action
@@ -134,6 +141,26 @@ resource "aws_iam_role_policy" "stripe_secret" {
         Effect   = "Allow"
         Action   = "secretsmanager:GetSecretValue"
         Resource = var.stripe_secret_arn
+      }
+    ]
+  })
+}
+
+# The card link SMS of a booking that grew past the card threshold:
+# notification's live alias only, not the function or "*" (the same
+# statement as create-pending-reservation's).
+resource "aws_iam_role_policy" "notification_invoke" {
+  name = "send-card-link-sms"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "InvokeNotification"
+        Effect   = "Allow"
+        Action   = ["lambda:InvokeFunction"]
+        Resource = var.notification_function_arn
       }
     ]
   })
