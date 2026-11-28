@@ -33,3 +33,9 @@ variable "stripe_secret_arn" {
   type        = string
   sensitive   = false
 }
+
+variable "notification_function_arn" {
+  description = "Alias ARN of notification:live - the only function this role may invoke (the card link SMS)"
+  type        = string
+  sensitive   = false
+}

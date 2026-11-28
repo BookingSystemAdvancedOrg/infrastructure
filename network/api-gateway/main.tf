@@ -70,6 +70,13 @@ resource "aws_apigatewayv2_stage" "this" {
     throttling_burst_limit = var.booking_throttle_burst_limit
   }
 
+  # A guest's change hold blocks tables for 15 minutes like a table hold.
+  route_settings {
+    route_key              = "POST /locations/{locationId}/reservations/{reservationId}/change"
+    throttling_rate_limit  = var.booking_throttle_rate_limit
+    throttling_burst_limit = var.booking_throttle_burst_limit
+  }
+
   # The public order form: same low limit as online booking (each order
   # also creates a Stripe Checkout Session).
   route_settings {
@@ -426,6 +433,13 @@ locals {
     # while they fill in the form; DELETE lets go (X-Manage-Token).
     "POST /locations/{locationId}/holds"            = "NONE"
     "DELETE /locations/{locationId}/holds/{holdId}" = "NONE"
+    # The guest changes party, time or table from the manage link
+    # (X-Manage-Token): options, a 15 minute change hold (bot check as for
+    # holds), the confirm that swaps the booking, letting the hold go.
+    "GET /locations/{locationId}/reservations/{reservationId}/change"                   = "NONE"
+    "POST /locations/{locationId}/reservations/{reservationId}/change"                  = "NONE"
+    "POST /locations/{locationId}/reservations/{reservationId}/change/{holdId}/confirm" = "NONE"
+    "DELETE /locations/{locationId}/reservations/{reservationId}/change/{holdId}"       = "NONE"
   }
 }
 

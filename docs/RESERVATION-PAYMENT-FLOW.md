@@ -118,6 +118,28 @@ records history `guarantee_waived` by the staff user. The link URL is a
 bearer link: it lives only on the item (and the LINK#<code> row), never in
 staff views, history or logs.
 
+## Party grows past the card threshold: card link by SMS
+
+A RESERVED booking that staff grow past minPartySize without a card keeps
+its table and status (never pending: a pending hold would expire and free
+the table). mark-arrived opens a Stripe Checkout page (mode setup, metadata
+purpose card_needed) and texts the short /k/ link through notification:live
+(RequestResponse). IAM: mark-arrived's role gets lambda:InvokeFunction on
+the notification live alias ARN only (security/iam/mark-arrived,
+send-card-link-sms); its env gets NOTIFICATION_FUNCTION_NAME and
+SHORT_LINK_BASE. setup_intent.succeeded (stripe-webhook, reservation table
+only) attaches the card to the reserved booking. Application:
+docs/RESERVATIONS.md "Changing the party".
+
+## Guest self-change
+
+Four public routes on create-pending-reservation (X-Manage-Token):
+GET/POST .../reservations/{r}/change, POST .../change/{holdId}/confirm,
+DELETE .../change/{holdId}. The POST has the booking throttle (like holds)
+and the sites' WAF bot check (every /api/* write). No IAM change: the
+function already has the slot occupancy, reservation and Stripe access.
+Application: docs/RESERVATIONS.md "Guest self-change".
+
 ## Reservation item: attributes this adds
 
 | Attribute | Type |

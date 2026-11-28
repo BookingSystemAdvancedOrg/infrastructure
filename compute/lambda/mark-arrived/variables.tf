@@ -75,3 +75,15 @@ variable "stripe_secret_arn" {
   type        = string
   sensitive   = false
 }
+
+variable "notification_function_arn" {
+  description = "Alias ARN of notification:live, invoked RequestResponse to text the card link of a booking that grew past the card threshold (CONTRACTS.md 9.4)"
+  type        = string
+  sensitive   = false
+}
+
+variable "short_link_base" {
+  description = "Base of the short SMS card link (https://restaurang.<domain>/api/k), served by get-reservation's GET /k/{code}; \"\" sends no card link"
+  type        = string
+  sensitive   = false
+}
